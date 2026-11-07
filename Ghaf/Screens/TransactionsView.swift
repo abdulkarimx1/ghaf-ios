@@ -410,7 +410,7 @@ struct GhafTransactionEditor: View {
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
                     Picker(languageCode == "ar" ? "الفئة" : "Category", selection: $category) {
-                        ForEach(categories, id: \.self) { Text(LocalizedStringKey($0)).tag($0) }
+                        ForEach(categories, id: \.self) { Text(GhafLocalization.category($0, languageCode: languageCode)).tag($0) }
                     }
                     .pickerStyle(.menu)
                     .tint(theme.accent)
