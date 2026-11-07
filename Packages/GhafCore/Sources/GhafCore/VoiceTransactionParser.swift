@@ -4,7 +4,13 @@ public struct GhafVoiceTransactionDraft: Identifiable {
     public let id = UUID()
     public var merchant: String
     public var amountText: String
-    public var amount: Decimal { Decimal(string: amountText) ?? 0 }
+    public var amount: Decimal {
+        let isGroupedThousands = amountText.range(of: #"^[0-9]{1,3}(?:,[0-9]{3})+$"#, options: .regularExpression) != nil
+        let normalized = isGroupedThousands
+            ? amountText.replacingOccurrences(of: ",", with: "")
+            : amountText.replacingOccurrences(of: ",", with: ".")
+        return Decimal(string: normalized) ?? 0
+    }
     public var currency: String
     public var date: Date
     public var category: String
