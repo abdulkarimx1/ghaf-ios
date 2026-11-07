@@ -257,7 +257,7 @@ struct GhafAccountsView: View {
                     Text(GhafFormat.money(
                         GhafAccountBalanceCalculator.balance(for: account, transactions: transactions),
                         currency: account.currency,
-                    languageCode: settings.languageCode
+                        languageCode: settings.languageCode
                     ))
                     .font(GhafTypography.number(12))
                     .foregroundStyle(theme.secondaryText)
