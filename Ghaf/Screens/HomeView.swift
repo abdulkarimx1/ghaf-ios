@@ -514,7 +514,7 @@ struct GhafTransactionRow: View {
                     .lineLimit(1)
 
                 HStack(spacing: 5) {
-                    Text(LocalizedStringKey(transaction.category))
+                    Text(GhafLocalization.category(transaction.category, languageCode: languageCode))
                     Text("·")
                     Text(transaction.date.formatted(
                         .dateTime.hour().minute().locale(Locale(identifier: languageCode))
@@ -534,7 +534,7 @@ struct GhafTransactionRow: View {
                     .lineLimit(1)
 
                 if transaction.needsReview {
-                    Text(settings.languageCode == "ar" ? "مراجعة" : "REVIEW")
+                    Text(languageCode == "ar" ? "مراجعة" : "REVIEW")
                         .font(GhafTypography.body(9, languageCode: languageCode, weight: .bold))
                         .tracking(0.8)
                         .foregroundStyle(theme.close)
@@ -549,7 +549,7 @@ struct GhafTransactionRow: View {
         if let merchant = transaction.merchant, !merchant.isEmpty {
             return merchant
         }
-        return NSLocalizedString(transaction.category, comment: "")
+        return GhafLocalization.category(transaction.category, languageCode: languageCode)
     }
 
     private var amountText: String {
