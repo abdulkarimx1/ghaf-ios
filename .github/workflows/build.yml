@@ -49,13 +49,13 @@ jobs:
             --package-path Packages/GhafCore \
             2>&1 | tee core-tests.log
 
-      - name: Build and launch on iPhone Duo simulator
+      - name: Build and launch on iPhone 17 simulator
         run: |
           set -euo pipefail
-          DEVICE_LINE="$(xcrun simctl list devices available | grep -m1 'iPhone Duo (')"
+          DEVICE_LINE="$(xcrun simctl list devices available | grep -m1 'iPhone 17 (')"
           DEVICE_ID="$(printf '%s\n' "$DEVICE_LINE" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
           if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "$DEVICE_LINE" ]; then
-            echo "The iPhone Duo simulator was not found."
+            echo "The iPhone 17 simulator was not found."
             xcrun simctl list devices available
             exit 1
           fi
@@ -78,7 +78,7 @@ jobs:
           xcrun simctl launch "$DEVICE_ID" com.ghaf.app
           sleep 4
           mkdir -p build/preview
-          xcrun simctl io "$DEVICE_ID" screenshot --display=3 build/preview/ghaf-iphone-duo.png
+          xcrun simctl io "$DEVICE_ID" screenshot build/preview/ghaf-iphone-17.png
 
       - name: Build iOS application
         run: |
@@ -144,10 +144,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload iPhone Duo simulator preview
+      - name: Upload iPhone 17 simulator preview
         uses: actions/upload-artifact@v7
         with:
-          name: Ghaf-iPhone-Duo-preview
+          name: Ghaf-iPhone-17-preview
           path: build/preview/ghaf-iphone-duo.png
           if-no-files-found: error
           retention-days: 7
