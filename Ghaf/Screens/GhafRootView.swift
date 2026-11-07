@@ -1,14 +1,23 @@
 import SwiftUI
 import SwiftData
+import LocalAuthentication
 
 struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var settings: [GhafSettings]
 
     @State private var showAutomationIntro = false
     @State private var showLaunch = true
     @State private var launchScale: CGFloat = 0.62
     @State private var launchHasStarted = false
+    @State private var isUnlocked = true
+    @State private var authenticationMessage: String?
+
+    private var requiresAuthentication: Bool {
+        settings.first?.hasCompletedOnboarding == true &&
+        settings.first?.biometricLockEnabled == true
+    }
 
     private var languageCode: String {
         settings.first?.languageCode ?? "en"
@@ -25,12 +34,34 @@ struct GhafRootView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+
+            if requiresAuthentication && !isUnlocked && !showLaunch {
+                authenticationLockScreen
+                    .transition(.opacity)
+                    .zIndex(20)
+            }
         }
         .environment(\.locale, Locale(identifier: languageCode))
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
         .onAppear(perform: beginLaunch)
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                if requiresAuthentication { isUnlocked = false }
+            } else if requiresAuthentication {
+                authenticateUser()
+            }
+        }
+        .onChange(of: settings.first?.biometricLockEnabled) { _, enabled in
+            if enabled == true {
+                isUnlocked = false
+                authenticateUser()
+            } else {
+                isUnlocked = true
+                authenticationMessage = nil
+            }
+        }
         .onChange(of: settings.first?.hasCompletedOnboarding) { _, completed in
             if completed == true {
                 presentAutomationIntroIfNeeded()
@@ -47,6 +78,72 @@ struct GhafRootView: View {
                                 }
                             }
                         }
+                }
+            }
+        }
+    }
+
+    private var authenticationLockScreen: some View {
+        ZStack {
+            Color(uiColor: .systemBackground).ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image(systemName: "faceid")
+                    .font(.system(size: 54, weight: .light))
+                    .foregroundStyle(.primary)
+                Text(languageCode == "ar" ? "غاف محمي" : "Ghaf is protected")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(languageCode == "ar"
+                    ? "أكد هويتك للوصول إلى بياناتك المالية."
+                    : "Authenticate to access your financial information.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                if let authenticationMessage {
+                    Text(authenticationMessage)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                Button(action: authenticateUser) {
+                    Text(languageCode == "ar" ? "فتح غاف" : "Unlock Ghaf")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 30)
+                        .frame(height: 48)
+                        .background(Color.accentColor, in: Capsule())
+                }
+                .padding(.top, 4)
+            }
+            .padding(32)
+            .frame(maxWidth: 360)
+        }
+        .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
+    }
+
+    private func authenticateUser() {
+        guard requiresAuthentication, !isUnlocked else { return }
+        let context = LAContext()
+        context.localizedCancelTitle = languageCode == "ar" ? "إلغاء" : "Cancel"
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            authenticationMessage = languageCode == "ar"
+                ? "تعذر بدء المصادقة. تحقق من إعدادات رمز دخول الجهاز."
+                : "Authentication is unavailable. Check your device passcode settings."
+            return
+        }
+
+        let reason = languageCode == "ar"
+            ? "افتح غاف للوصول إلى بياناتك المالية."
+            : "Unlock Ghaf to access your financial information."
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, evaluationError in
+            Task { @MainActor in
+                if success {
+                    isUnlocked = true
+                    authenticationMessage = nil
+                } else {
+                    isUnlocked = false
+                    authenticationMessage = evaluationError?.localizedDescription
                 }
             }
         }
@@ -86,6 +183,7 @@ struct GhafRootView: View {
             withAnimation(.easeOut(duration: 0.42)) {
                 showLaunch = false
             }
+            if requiresAuthentication { authenticateUser() }
             presentAutomationIntroIfNeeded()
         }
     }

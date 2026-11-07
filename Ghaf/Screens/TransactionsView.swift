@@ -59,6 +59,7 @@ struct GhafTransactionsView: View {
 
     private var monthTransactions: [GhafTransaction] {
         filteredTransactions.filter {
+            $0.currency == settings.currency &&
             Calendar.current.isDate($0.date, equalTo: Date(), toGranularity: .month)
         }
     }
@@ -130,12 +131,12 @@ struct GhafTransactionsView: View {
     private var monthSummary: some View {
         HStack(spacing: 10) {
             summaryCell(
-                title: settings.languageCode == "ar" ? "المصروفات" : "SPENT THIS MONTH",
+                title: settings.languageCode == "ar" ? "المصروفات (\\(settings.currency))" : "SPENT IN \\(settings.currency)",
                 amount: monthExpenses,
                 color: theme.debit
             )
             summaryCell(
-                title: settings.languageCode == "ar" ? "الدخل" : "INCOME THIS MONTH",
+                title: settings.languageCode == "ar" ? "الدخل (\\(settings.currency))" : "INCOME IN \\(settings.currency)",
                 amount: monthIncome,
                 color: theme.credit
             )
@@ -305,7 +306,8 @@ struct GhafTransactionsView: View {
                 categories: settings.categories,
                 themeName: settings.themeName,
                 appearanceMode: settings.appearanceMode,
-                languageCode: settings.languageCode
+                languageCode: settings.languageCode,
+                accounts: accounts.filter { !$0.isArchived }
             )
         }
     }
@@ -330,7 +332,11 @@ struct GhafTransactionEditor: View {
     @State private var direction: String
     @State private var note: String
     @State private var date: Date
+    @State private var accountID: UUID?
     @State private var errorMessage = ""
+
+    @Query(sort: \\GhafAccount.sortOrder) private var allAccounts: [GhafAccount]
+    private let accounts: [GhafAccount]
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
@@ -345,12 +351,14 @@ struct GhafTransactionEditor: View {
         categories: [String],
         themeName: String,
         appearanceMode: String,
-        languageCode: String
+        languageCode: String,
+        accounts: [GhafAccount]
     ) {
         self.transaction = transaction
         self.themeName = themeName
         self.appearanceMode = appearanceMode
         self.languageCode = languageCode
+        self.accounts = accounts
 
         var availableCategories = categories
         if !availableCategories.contains(transaction.category) {
@@ -363,6 +371,7 @@ struct GhafTransactionEditor: View {
         _direction = State(initialValue: transaction.direction)
         _note = State(initialValue: transaction.note ?? "")
         _date = State(initialValue: transaction.date)
+        _accountID = State(initialValue: transaction.accountID)
     }
 
     var body: some View {
@@ -396,6 +405,40 @@ struct GhafTransactionEditor: View {
                     }
                     .pickerStyle(.menu)
                     .tint(theme.accent)
+
+                    if !accounts.isEmpty {
+                        editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
+                        Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
+                            Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
+                            ForEach(accounts, id: \\.id) { account in
+                                Text("\\(account.name) · \\(account.currency)").tag(Optional(account.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(theme.accent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        editorLabel(languageCode == "ar" ? "تفاصيل المصدر" : "SOURCE DETAILS")
+                        if let bank = transaction.bank, !bank.isEmpty {
+                            Label(bank, systemImage: "building.columns")
+                                .font(GhafTypography.body(13, languageCode: languageCode))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        if let account = accounts.first(where: { $0.id == accountID }) {
+                            Label(account.name, systemImage: account.type.symbol)
+                                .font(GhafTypography.body(13, languageCode: languageCode))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        Text(languageCode == "ar"
+                            ? "لا تتوفر بيانات موقع أو هاتف للتاجر ضمن مصدر هذه العملية."
+                            : "Merchant location and phone details are not supplied by this transaction source.")
+                            .font(GhafTypography.body(10, languageCode: languageCode))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    .padding(13)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
 
                     editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
                     DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
@@ -455,6 +498,7 @@ struct GhafTransactionEditor: View {
         transaction.direction = direction
         transaction.note = note
         transaction.date = date
+        transaction.accountID = accountID
         transaction.needsReview = false
 
         if let merchantName = transaction.merchant, !merchantName.isEmpty {

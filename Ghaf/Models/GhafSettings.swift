@@ -37,6 +37,7 @@ final class GhafSettings {
     var salaryAccountID: UUID?
     var lastSalaryDecisionKey: String?
     var salaryReminderEnabled: Bool?
+    var biometricLockEnabled: Bool?
 
     init(
         userName: String = "",
@@ -56,7 +57,8 @@ final class GhafSettings {
         salaryCurrency: String? = nil,
         salaryAccountID: UUID? = nil,
         lastSalaryDecisionKey: String? = nil,
-        salaryReminderEnabled: Bool? = false
+        salaryReminderEnabled: Bool? = false,
+        biometricLockEnabled: Bool? = false
     ) {
         self.id = UUID()
         self.userName = userName
@@ -80,6 +82,7 @@ final class GhafSettings {
         self.salaryAccountID = salaryAccountID
         self.lastSalaryDecisionKey = lastSalaryDecisionKey
         self.salaryReminderEnabled = salaryReminderEnabled
+        self.biometricLockEnabled = biometricLockEnabled
     }
 
     var categories: [String] {

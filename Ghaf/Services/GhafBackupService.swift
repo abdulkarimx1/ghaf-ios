@@ -33,6 +33,7 @@ private struct GhafSettingsBackup: Codable {
     var salaryAccountID: UUID?
     var lastSalaryDecisionKey: String?
     var salaryReminderEnabled: Bool?
+    var biometricLockEnabled: Bool?
 }
 
 private struct GhafTransactionBackup: Codable {
@@ -115,7 +116,8 @@ enum GhafBackupService {
             salaryCurrency: settings.salaryCurrency,
             salaryAccountID: settings.salaryAccountID,
             lastSalaryDecisionKey: settings.lastSalaryDecisionKey,
-            salaryReminderEnabled: settings.salaryReminderEnabled
+            salaryReminderEnabled: settings.salaryReminderEnabled,
+            biometricLockEnabled: settings.biometricLockEnabled
         )
 
         let transactionBackups = transactions.map { transaction in
@@ -225,7 +227,8 @@ enum GhafBackupService {
             salaryCurrency: source.salaryCurrency,
             salaryAccountID: source.salaryAccountID,
             lastSalaryDecisionKey: source.lastSalaryDecisionKey,
-            salaryReminderEnabled: source.salaryReminderEnabled ?? false
+            salaryReminderEnabled: source.salaryReminderEnabled ?? false,
+            biometricLockEnabled: source.biometricLockEnabled ?? false
         )
         settings.categories = source.categories
         settings.categoryBudgets = source.categoryBudgets

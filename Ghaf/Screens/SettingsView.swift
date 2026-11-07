@@ -59,6 +59,7 @@ struct GhafSettingsView: View {
                     salaryManagementCard
                     automationCard
                     appearanceCard
+                    securityCard
                     budgetCard
                     categoriesCard
                     backupCard
@@ -300,6 +301,47 @@ struct GhafSettingsView: View {
                 RoundedRectangle(cornerRadius: 6).fill(theme.comfortable).frame(width: 24, height: 16)
             }
             .padding(.top, 4)
+        }
+    }
+
+    private var securityCard: some View {
+        settingsCard(
+            languageCode == "ar" ? "الأمان والخصوصية" : "Security & privacy",
+            subtitle: languageCode == "ar"
+                ? "احمِ بياناتك المالية عند فتح التطبيق"
+                : "Protect your financial data when opening Ghaf"
+        ) {
+            Toggle(isOn: Binding(
+                get: { settings.biometricLockEnabled ?? false },
+                set: { enabled in
+                    settings.biometricLockEnabled = enabled
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        prompt = .message(languageCode == "ar"
+                            ? "تعذر حفظ إعداد الأمان."
+                            : "Could not save the security setting.")
+                    }
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(languageCode == "ar" ? "القفل بالبصمة أو رمز الجهاز" : "Require Face ID or device passcode")
+                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                    Text(languageCode == "ar"
+                        ? "يتطلب المصادقة عند فتح غاف أو العودة إليه."
+                        : "Authenticate when opening Ghaf or returning to it.")
+                        .font(GhafTypography.body(11, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+            }
+            .tint(theme.accent)
+
+            Text(languageCode == "ar"
+                ? "يستخدم غاف آلية المصادقة الآمنة في iOS. قد يطلب رمز دخول الجهاز إذا لم تكن البصمة متاحة."
+                : "Ghaf uses iOS device authentication. Your device passcode may be requested when biometrics are unavailable.")
+                .font(GhafTypography.body(11, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
         }
     }
 
