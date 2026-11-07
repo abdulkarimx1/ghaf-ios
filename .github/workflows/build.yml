@@ -45,6 +45,17 @@ jobs:
           set -o pipefail
           xcodegen generate 2>&1 | tee xcodegen.log
 
+      - name: Prepare 1024px App Store icon
+        run: |
+          set -euo pipefail
+          ICON="Ghaf/Assets.xcassets/AppIcon.appiconset/ghaf-app-icon.png"
+          test -f "$ICON"
+          sips -z 1024 1024 "$ICON" --out "$ICON"
+          sips -g pixelWidth -g pixelHeight "$ICON"
+          WIDTH="$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')"
+          HEIGHT="$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')"
+          test "$WIDTH" = "1024" && test "$HEIGHT" = "1024"
+
       - name: Test GhafCore
         run: |
           set -o pipefail
