@@ -47,7 +47,7 @@ enum GhafVoiceTransactionParser {
                 options: .regularExpression
             )
             merchant = merchant.replacingOccurrences(
-                of: #"درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|ثم|وبعدها"#,
+                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|ثم|وبعدها)(?![\p{L}\p{N}])"#,
                 with: " ",
                 options: .regularExpression
             )
