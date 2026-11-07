@@ -4,10 +4,8 @@ import GhafCore
 
 @Model
 final class GhafTransaction {
-
     @Attribute(.unique)
     var fingerprint: String
-
     var id: UUID
     var amount: Decimal
     var currency: String
@@ -22,12 +20,16 @@ final class GhafTransaction {
     var note: String?
     var createdAt: Date
 
+    // A transaction can remain unassigned when its source account is unknown.
+    var accountID: UUID?
+
     init(
         fingerprint: String,
         parsed: ParsedTransaction,
         category: String,
         needsReview: Bool,
-        isReversal: Bool
+        isReversal: Bool,
+        accountID: UUID? = nil
     ) {
         self.fingerprint = fingerprint
         self.id = UUID()
@@ -42,6 +44,7 @@ final class GhafTransaction {
         self.needsReview = needsReview
         self.isReversal = isReversal
         self.note = nil
-        self.createdAt = Date()
+        self.createdAt = .now
+        self.accountID = accountID
     }
 }

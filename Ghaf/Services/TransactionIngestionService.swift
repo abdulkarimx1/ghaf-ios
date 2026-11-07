@@ -4,7 +4,6 @@ import SwiftData
 import GhafCore
 
 struct TransactionIngestionResult {
-
     enum Status {
         case saved
         case needsReview
@@ -13,15 +12,12 @@ struct TransactionIngestionResult {
     }
 
     let status: Status
-
     let confirmation: String
 }
 
 @MainActor
 final class TransactionIngestionService {
-
     private let context: ModelContext
-
     private let parser: BankMessageParser
 
     init(
@@ -36,64 +32,64 @@ final class TransactionIngestionService {
         messageText: String,
         sender: String? = nil
     ) throws -> TransactionIngestionResult {
-
-        let message = messageText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-
+        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else {
-
             return TransactionIngestionResult(
                 status: .ignored,
                 confirmation: "Empty message. Nothing saved."
             )
         }
 
-        // Parse before storing anything.
         guard let parsed = parser.parse(
             message,
             sender: sender,
-            referenceDate: Date()
+            referenceDate: .now
         ) else {
-
             return TransactionIngestionResult(
                 status: .ignored,
                 confirmation: "No transaction detected."
             )
         }
 
-        // Generate a stable fingerprint from the message.
         let fingerprint = makeFingerprint(message)
-
-        // Check for an existing transaction.
         let descriptor = FetchDescriptor<GhafTransaction>(
-            predicate: #Predicate {
-                $0.fingerprint == fingerprint
-            }
+            predicate: #Predicate { $0.fingerprint == fingerprint }
         )
-
         if try !context.fetch(descriptor).isEmpty {
-
             return TransactionIngestionResult(
                 status: .duplicate,
                 confirmation: "Transaction already recorded."
             )
         }
 
-        // Categorize the parsed transaction.
+        let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
+        let activeBankAccounts = accounts.filter {
+            !$0.isArchived && $0.type.isBankAccount
+        }
+        let matchedAccount = GhafAccountBalanceCalculator.matchAccount(
+            bank: parsed.bank,
+            sender: sender,
+            accounts: accounts
+        )
+        let resolvedAccount = matchedAccount
+            ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil)
+
         let category = try MerchantCategorizer.category(
             for: parsed.merchant,
             direction: parsed.direction,
             context: context
         )
 
-        // Determine whether the user should review it.
-        let needsReview = parser.shouldSendToReview(parsed) ||
-            (parsed.merchant != nil && category == "Other")
+        let accountNeedsReview = !activeBankAccounts.isEmpty
+            && (parsed.bank != nil || sender != nil)
+            && resolvedAccount == nil
+        let needsReview = parser.shouldSendToReview(parsed)
+            || (parsed.merchant != nil && category == "Other")
+            || accountNeedsReview
 
         let isReversal = message.range(
-            of: "reversal",
-            options: [.caseInsensitive]
+            of: "reversal|reversed|refund",
+            options: [.regularExpression, .caseInsensitive]
         ) != nil
 
         let transaction = GhafTransaction(
@@ -101,23 +97,18 @@ final class TransactionIngestionService {
             parsed: parsed,
             category: category,
             needsReview: needsReview,
-            isReversal: isReversal
+            isReversal: isReversal,
+            accountID: resolvedAccount?.id
         )
 
         context.insert(transaction)
-
-        // Explicit persistence.
         try context.save()
 
-        let amount = NSDecimalNumber(
-            decimal: parsed.amount
-        ).stringValue
-
+        let amount = NSDecimalNumber(decimal: parsed.amount).stringValue
         if needsReview {
-
             return TransactionIngestionResult(
                 status: .needsReview,
-                confirmation: "Transaction received. Needs review."
+                confirmation: "Transaction received. Review its category or account."
             )
         }
 
@@ -127,21 +118,12 @@ final class TransactionIngestionService {
         )
     }
 
-    private func makeFingerprint(
-        _ message: String
-    ) -> String {
-
+    private func makeFingerprint(_ message: String) -> String {
         let normalized = message
             .lowercased()
             .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
-
-        let data = Data(normalized.utf8)
-
-        let digest = SHA256.hash(data: data)
-
-        return digest.map {
-            String(format: "%02x", $0)
-        }.joined()
+        let digest = SHA256.hash(data: Data(normalized.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
