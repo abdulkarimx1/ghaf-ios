@@ -117,7 +117,7 @@ enum GhafFormat {
         formatter.numberStyle = .currency
         formatter.currencyCode = currency.uppercased()
         formatter.locale = locale(for: currency, languageCode: languageCode)
-        let symbol = formatter.currencySymbol
+        let symbol = formatter.currencySymbol ?? ""
         return symbol.isEmpty || symbol == currency.uppercased()
             ? currency.uppercased()
             : symbol
