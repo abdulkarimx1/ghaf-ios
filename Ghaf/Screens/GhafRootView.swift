@@ -74,7 +74,7 @@ struct GhafRootView: View {
                     GhafAutomationGuideView(settings: currentSettings)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
+                                Button(currentSettings.languageCode == "ar" ? "تم" : "Done") {
                                     showAutomationIntro = false
                                 }
                             }
