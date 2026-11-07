@@ -1,9 +1,6 @@
 name: Build Ghaf iOS
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +13,8 @@ permissions:
 jobs:
   build:
     name: Test and Build Ghaf
-    runs-on: xcode-27
+    # Runs on the developer's own Mac; this avoids GitHub-hosted Actions minutes.
+    runs-on: [self-hosted, macOS, ARM64]
 
     steps:
       - name: Checkout repository
@@ -31,7 +29,11 @@ jobs:
             ls -1 /Applications | grep -i Xcode || true
             exit 1
           fi
-          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          if [ "$(xcode-select -p)" != "$XCODE_PATH/Contents/Developer" ]; then
+            echo "Select Xcode 27.2 on the Mac runner before starting the runner:"
+            echo "sudo xcode-select -s \"$XCODE_PATH/Contents/Developer\""
+            exit 1
+          fi
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
           test "$(xcrun --sdk iphoneos --show-sdk-version)" = "27.2"
