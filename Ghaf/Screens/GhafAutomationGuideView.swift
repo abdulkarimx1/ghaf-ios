@@ -92,11 +92,13 @@ struct GhafAutomationGuideView: View {
                 }
             }
 
-            ShortcutsLink(action: {}) {
-                Label("Open Ghaf in Shortcuts", systemImage: "arrow.up.right")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+            Text("Open Ghaf's ready-made action from this page in Shortcuts.")
+                .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+
+            ShortcutsLink(action: {})
+                .shortcutsLinkStyle(.automatic)
+                .frame(maxWidth: .infinity)
         }
         .padding(18)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))

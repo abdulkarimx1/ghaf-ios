@@ -251,14 +251,15 @@ struct GhafHomeView: View {
                 Spacer(minLength: 2)
             }
 
-            ShortcutsLink(action: {}) {
-                Label(
-                    settings.languageCode == "ar" ? "افتح غاف في الاختصارات" : "Open Ghaf in Shortcuts",
-                    systemImage: "arrow.up.right"
-                )
+            ShortcutsLink(action: {})
+                .shortcutsLinkStyle(.automatic)
                 .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+
+            Text(settings.languageCode == "ar"
+                 ? "الإجراء الجاهز من غاف سيظهر في تطبيق الاختصارات."
+                 : "Ghaf's ready-made action appears on its Shortcuts page.")
+                .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
 
             Button(settings.languageCode == "ar" ? "كيف يعمل الربط؟" : "How bank setup works") {
                 showAutomationGuide = true
