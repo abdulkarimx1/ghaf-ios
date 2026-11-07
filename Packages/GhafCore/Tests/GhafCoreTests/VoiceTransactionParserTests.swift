@@ -66,6 +66,31 @@ final class VoiceTransactionParserTests: XCTestCase {
         XCTAssertEqual(arabic.first?.direction, "credit")
     }
 
+    func testUnderstandsRelativeDatesInEnglishAndGulfArabic() {
+        let yesterday = GhafVoiceTransactionParser.parse(
+            "I bought medicine for 20 AED last night",
+            languageCode: "en",
+            baseCurrency: "AED"
+        )
+        let tomorrow = GhafVoiceTransactionParser.parse(
+            "بشتري أدوية بـ ٢٠ درهم باجر",
+            languageCode: "ar",
+            baseCurrency: "AED"
+        )
+
+        let calendar = Calendar.current
+        XCTAssertEqual(yesterday.count, 1)
+        XCTAssertEqual(
+            calendar.startOfDay(for: yesterday[0].date),
+            calendar.startOfDay(for: calendar.date(byAdding: .day, value: -1, to: Date())!)
+        )
+        XCTAssertEqual(tomorrow.count, 1)
+        XCTAssertEqual(
+            calendar.startOfDay(for: tomorrow[0].date),
+            calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date())!)
+        )
+    }
+
     func testRecognizesArabicAfternoonTime() {
         let drafts = GhafVoiceTransactionParser.parse(
             "اشتريت أدوية بمبلغ ١٢٠ درهم الساعة ٣ مساءً",
