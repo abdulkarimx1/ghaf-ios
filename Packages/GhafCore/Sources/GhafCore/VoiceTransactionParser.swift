@@ -51,6 +51,11 @@ public enum GhafVoiceTransactionParser {
                 with: " ",
                 options: .regularExpression
             )
+            merchant = merchant.replacingOccurrences(
+                of: #"(?i)\b(?:at\s*)?[0-1]?[0-9](?::[0-5][0-9])?\s*(?:am|pm)\b|(?:الساعة\s*)?[0-1]?[0-9](?::[0-5][0-9])?\s*(?:صباحاً|صباحا|مساءً|مساء|عصراً|عصرا)"#,
+                with: " ",
+                options: .regularExpression
+            )
             merchant = merchant.replacingOccurrences(of: #"[,:؛،]"#, with: " ", options: .regularExpression)
             merchant = merchant.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
             if merchant.isEmpty {
