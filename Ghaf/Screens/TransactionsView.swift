@@ -3,6 +3,7 @@ import SwiftData
 
 struct GhafTransactionsView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
@@ -51,8 +52,16 @@ struct GhafTransactionsView: View {
     private var orderedTransactions: [GhafTransaction] {
         switch sortOrder {
         case "Oldest": filteredTransactions.sorted { $0.date < $1.date }
-        case "Highest": filteredTransactions.sorted { $0.amount > $1.amount }
-        case "Lowest": filteredTransactions.sorted { $0.amount < $1.amount }
+        case "Highest": filteredTransactions.sorted { lhs, rhs in
+            lhs.currency == rhs.currency
+                ? lhs.amount > rhs.amount
+                : lhs.currency < rhs.currency
+        }
+        case "Lowest": filteredTransactions.sorted { lhs, rhs in
+            lhs.currency == rhs.currency
+                ? lhs.amount < rhs.amount
+                : lhs.currency < rhs.currency
+        }
         default: filteredTransactions.sorted { $0.date > $1.date }
         }
     }
@@ -335,7 +344,6 @@ struct GhafTransactionEditor: View {
     @State private var accountID: UUID?
     @State private var errorMessage = ""
 
-    @Query(sort: \\GhafAccount.sortOrder) private var allAccounts: [GhafAccount]
     private let accounts: [GhafAccount]
 
     private var theme: GhafTheme {
