@@ -66,11 +66,11 @@ struct GhafSettingsView: View {
                     aboutCard
                     dangerCard
 
-                    Button("Save settings", action: saveSettings)
+                    Button(languageCode == "ar" ? "حفظ الإعدادات" : "Save settings", action: saveSettings)
                         .ghafProminentButton(theme: theme, languageCode: languageCode)
                         .padding(.top, 2)
 
-                    Text("Your data stays on this iPhone. Ghaf does not connect to a financial server.")
+                    Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
                         .font(GhafTypography.body(12, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -111,23 +111,23 @@ struct GhafSettingsView: View {
                 switch selectedPrompt {
                 case .deleteData:
                     return Alert(
-                        title: Text("Delete all data?"),
-                        message: Text("All transactions, settings and learned merchant rules will be permanently deleted."),
-                        primaryButton: .destructive(Text("Delete everything"), action: deleteAllData),
+                        title: Text(languageCode == "ar" ? "حذف جميع البيانات؟" : "Delete all data?"),
+                        message: Text(languageCode == "ar" ? "سيتم حذف جميع العمليات والإعدادات وقواعد تصنيف التجار المحفوظة نهائياً." : "All transactions, settings and learned merchant rules will be permanently deleted."),
+                        primaryButton: .destructive(Text(languageCode == "ar" ? "حذف كل شيء" : "Delete everything"), action: deleteAllData),
                         secondaryButton: .cancel()
                     )
                 case .importBackup:
                     return Alert(
-                        title: Text("Replace current data?"),
-                        message: Text("Importing this backup replaces all existing Ghaf records on this device."),
-                        primaryButton: .destructive(Text("Replace data"), action: restoreBackup),
+                        title: Text(languageCode == "ar" ? "استبدال البيانات الحالية؟" : "Replace current data?"),
+                        message: Text(languageCode == "ar" ? "سيؤدي استيراد هذه النسخة الاحتياطية إلى استبدال جميع بيانات غاف الموجودة على هذا الجهاز." : "Importing this backup replaces all existing Ghaf records on this device."),
+                        primaryButton: .destructive(Text(languageCode == "ar" ? "استبدال البيانات" : "Replace data"), action: restoreBackup),
                         secondaryButton: .cancel()
                     )
                 case .message(let message):
                     return Alert(
                         title: Text("Ghaf"),
                         message: Text(message),
-                        dismissButton: .default(Text("OK"))
+                        dismissButton: .default(Text(languageCode == "ar" ? "حسناً" : "OK"))
                     )
                 }
             }
@@ -136,7 +136,7 @@ struct GhafSettingsView: View {
 
     private var pageHeading: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("PREFERENCES")
+            Text(languageCode == "ar" ? "التفضيلات" : "PREFERENCES")
                 .font(GhafTypography.body(10, languageCode: languageCode, weight: .bold))
                 .tracking(1.8)
                 .foregroundStyle(theme.secondaryText)
@@ -151,11 +151,11 @@ struct GhafSettingsView: View {
     }
 
     private var profileCard: some View {
-        settingsCard("Profile", subtitle: "Your account display and primary currency") {
-            settingsLabel("Your name")
-            settingsField("Name", text: $name)
+        settingsCard(languageCode == "ar" ? "الملف الشخصي" : "Profile", subtitle: languageCode == "ar" ? "اسم العرض والعملة الرئيسية" : "Your account display and primary currency") {
+            settingsLabel(languageCode == "ar" ? "اسمك" : "Your name")
+            settingsField(languageCode == "ar" ? "الاسم" : "Name", text: $name)
 
-            settingsLabel("Main currency")
+            settingsLabel(languageCode == "ar" ? "العملة الرئيسية" : "Main currency")
             Picker("Main currency", selection: $currency) {
                 ForEach(currencies, id: \.self) { Text($0).tag($0) }
             }
@@ -165,7 +165,7 @@ struct GhafSettingsView: View {
     }
 
     private var languageCard: some View {
-        settingsCard("Language", subtitle: "The language used throughout Ghaf") {
+        settingsCard(languageCode == "ar" ? "اللغة" : "Language", subtitle: languageCode == "ar" ? "لغة الواجهة في جميع أجزاء غاف" : "The language used throughout Ghaf") {
             Picker("App language", selection: $languageCode) {
                 Text("English").tag("en")
                 Text("العربية").tag("ar")
@@ -254,10 +254,10 @@ struct GhafSettingsView: View {
                     .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Bank automation")
+                    Text(languageCode == "ar" ? "أتمتة العمليات البنكية" : "Bank automation")
                         .font(GhafTypography.heading(18, languageCode: languageCode))
                         .foregroundStyle(theme.primaryText)
-                    Text("Set up automatic transaction capture")
+                    Text(languageCode == "ar" ? "إعداد تسجيل العمليات تلقائياً" : "Set up automatic transaction capture")
                         .font(GhafTypography.body(13, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -275,7 +275,7 @@ struct GhafSettingsView: View {
 
     private var appearanceCard: some View {
         settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "ألوان مستوحاة من مدن الإمارات" : "Quiet palettes inspired by the seven UAE cities") {
-            settingsLabel("Theme")
+            settingsLabel(languageCode == "ar" ? "طابع المدينة" : "Theme")
             Picker(languageCode == "ar" ? "طابع المدينة" : "City theme", selection: $themeName) {
                 Text(languageCode == "ar" ? "أبوظبي" : "Abu Dhabi").tag("Abu Dhabi")
                 Text(languageCode == "ar" ? "دبي" : "Dubai").tag("Dubai")
@@ -292,11 +292,11 @@ struct GhafSettingsView: View {
             }
             .pickerStyle(.menu)
 
-            settingsLabel("Appearance mode")
+            settingsLabel(languageCode == "ar" ? "وضع المظهر" : "Appearance mode")
             Picker("Appearance mode", selection: $appearanceMode) {
-                Text("System").tag("System")
-                Text("Light").tag("Light")
-                Text("Dark").tag("Dark")
+                Text(languageCode == "ar" ? "حسب الجهاز" : "System").tag("System")
+                Text(languageCode == "ar" ? "فاتح" : "Light").tag("Light")
+                Text(languageCode == "ar" ? "داكن" : "Dark").tag("Dark")
             }
             .pickerStyle(.segmented)
 
@@ -355,25 +355,25 @@ struct GhafSettingsView: View {
     }
 
     private var budgetCard: some View {
-        settingsCard("Budget", subtitle: "Choose how your available money is measured") {
+        settingsCard(languageCode == "ar" ? "الميزانية" : "Budget", subtitle: languageCode == "ar" ? "حدد طريقة حساب المبلغ المتاح" : "Choose how your available money is measured") {
             Picker("Budget method", selection: $budgetMode) {
-                Text("Daily limit").tag("Daily")
-                Text("Category budgets").tag("Category")
+                Text(languageCode == "ar" ? "حد يومي" : "Daily limit").tag("Daily")
+                Text(languageCode == "ar" ? "ميزانيات الفئات" : "Category budgets").tag("Category")
             }
             .pickerStyle(.segmented)
 
             if budgetMode == "Daily" {
-                settingsLabel("Monthly income")
+                settingsLabel(languageCode == "ar" ? "الدخل الشهري" : "Monthly income")
                 settingsField("e.g. 5000", text: $income, numeric: true)
 
-                settingsLabel("Fixed monthly commitments")
+                settingsLabel(languageCode == "ar" ? "الالتزامات الشهرية الثابتة" : "Fixed monthly commitments")
                 settingsField("e.g. 1500", text: $commitments, numeric: true)
 
-                Text("Daily budget = (income − commitments) ÷ days in month.")
+                Text(languageCode == "ar" ? "الميزانية اليومية = (الدخل − الالتزامات) ÷ عدد أيام الشهر." : "Daily budget = (income − commitments) ÷ days in month.")
                     .font(GhafTypography.body(12, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             } else {
-                Text("Set a monthly spending limit for each category.")
+                Text(languageCode == "ar" ? "حدد سقفاً شهرياً للإنفاق في كل فئة." : "Set a monthly spending limit for each category.")
                     .font(GhafTypography.body(13, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
 
@@ -397,7 +397,7 @@ struct GhafSettingsView: View {
     }
 
     private var categoriesCard: some View {
-        settingsCard("Categories", subtitle: "Teach Ghaf how you group your spending") {
+        settingsCard(languageCode == "ar" ? "الفئات" : "Categories", subtitle: languageCode == "ar" ? "خصص طريقة تصنيف مصروفاتك" : "Teach Ghaf how you group your spending") {
             ForEach(settings.categories, id: \.self) { category in
                 HStack {
                     Text(category)
@@ -415,7 +415,7 @@ struct GhafSettingsView: View {
             }
 
             HStack(spacing: 8) {
-                TextField("New category", text: $newCategory)
+                TextField(languageCode == "ar" ? "فئة جديدة" : "New category", text: $newCategory)
                     .font(GhafTypography.body(14, languageCode: languageCode))
                     .padding(12)
                     .background(theme.background, in: RoundedRectangle(cornerRadius: 12))
@@ -434,21 +434,21 @@ struct GhafSettingsView: View {
     }
 
     private var backupCard: some View {
-        settingsCard("Data and backup", subtitle: "Move or keep a copy of your local records") {
+        settingsCard(languageCode == "ar" ? "البيانات والنسخ الاحتياطي" : "Data and backup", subtitle: languageCode == "ar" ? "تصدير نسخة من بياناتك أو استعادتها" : "Move or keep a copy of your local records") {
             Button(action: createBackup) {
-                settingsActionRow("Create JSON backup", detail: "Export transactions, settings and learned merchants", icon: "square.and.arrow.up")
+                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير العمليات والإعدادات وقواعد التجار" : "Export transactions, settings and learned merchants", icon: "square.and.arrow.up")
             }
             .buttonStyle(.plain)
 
             if let backupURL {
                 ShareLink(item: backupURL) {
-                    settingsActionRow("Share or save backup", detail: "Choose Files, AirDrop or another destination", icon: "square.and.arrow.up.on.square")
+                    settingsActionRow(languageCode == "ar" ? "مشاركة النسخة أو حفظها" : "Share or save backup", detail: languageCode == "ar" ? "اختر الملفات أو AirDrop أو وجهة أخرى" : "Choose Files, AirDrop or another destination", icon: "square.and.arrow.up.on.square")
                 }
                 .buttonStyle(.plain)
             }
 
             Button { showImporter = true } label: {
-                settingsActionRow("Import JSON backup", detail: "Replace the current local data with a backup", icon: "square.and.arrow.down")
+                settingsActionRow(languageCode == "ar" ? "استيراد نسخة احتياطية" : "Import JSON backup", detail: languageCode == "ar" ? "استبدال البيانات المحلية بنسخة احتياطية" : "Replace the current local data with a backup", icon: "square.and.arrow.down")
             }
             .buttonStyle(.plain)
         }
@@ -488,17 +488,17 @@ struct GhafSettingsView: View {
 
     private var dangerCard: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("Danger zone")
+            Text(languageCode == "ar" ? "منطقة حساسة" : "Danger zone")
                 .font(GhafTypography.heading(17, languageCode: languageCode))
                 .foregroundStyle(theme.over)
-            Text("Permanently remove transactions, settings and learned merchant rules from this iPhone.")
+            Text(languageCode == "ar" ? "حذف العمليات والإعدادات وقواعد تصنيف التجار نهائياً من هذا الـ iPhone." : "Permanently remove transactions, settings and learned merchant rules from this iPhone.")
                 .font(GhafTypography.body(13, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
             Button(role: .destructive) {
                 prompt = .deleteData
             } label: {
-                Label("Delete all Ghaf data", systemImage: "trash")
+                Label(languageCode == "ar" ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
                     .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
