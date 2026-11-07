@@ -481,6 +481,13 @@ struct GhafSettingsView: View {
                 settingsActionRow(languageCode == "ar" ? "استيراد نسخة احتياطية" : "Import JSON backup", detail: languageCode == "ar" ? "استبدال البيانات المحلية بنسخة احتياطية" : "Replace the current local data with a backup", icon: "square.and.arrow.down")
             }
             .buttonStyle(.plain)
+
+            Text(languageCode == "ar"
+                 ? "تنبيه: نسخة JSON الحالية غير مشفّرة، وتحتوي على بياناتك المالية. احفظها في مكان خاص."
+                 : "Note: the current JSON backup is not encrypted and contains financial records. Store it somewhere private.")
+                .font(GhafTypography.body(10, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
