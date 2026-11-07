@@ -24,26 +24,26 @@ struct GhafAutomationGuideView: View {
 
                 instructionCard(
                     number: "01",
-                    title: "Choose the trigger",
-                    detail: "In Shortcuts, open Automation and create a personal automation for a message from your bank. Select the bank sender. Use a notification trigger instead only when your iOS version exposes the bank app and its notification content."
+                    title: localized("Choose the trigger", "اختر مُحفّز التشغيل"),
+                    detail: localized("In Shortcuts, open Automation and create a personal automation for a message from your bank. Select the bank sender. Use a notification trigger instead only when your iOS version exposes the bank app and its notification content.", "افتح تطبيق الاختصارات، ثم الأتمتة، وأنشئ أتمتة شخصية لرسالة من بنكك. اختر مُرسل البنك. استخدم مُحفّز الإشعارات بدلاً من ذلك فقط إذا كان إصدار iOS لديك يتيح اختيار تطبيق البنك ومحتوى إشعاراته.")
                 )
 
                 instructionCard(
                     number: "02",
-                    title: "Add Ghaf's ready-made action",
-                    detail: "Tap Add Action and search for Ghaf. Choose Log Bank Message. You do not need to build a separate shortcut or write any logic; Ghaf supplies this action automatically."
+                    title: localized("Add Ghaf's ready-made action", "أضف إجراء غاف الجاهز"),
+                    detail: localized("Tap Add Action and search for Ghaf. Choose Log Bank Message. You do not need to build a separate shortcut or write any logic; Ghaf supplies this action automatically.", "اضغط على إضافة إجراء وابحث عن غاف، ثم اختر تسجيل رسالة بنكية. لا تحتاج إلى إنشاء اختصار منفصل أو كتابة أي منطق؛ يوفر غاف هذا الإجراء تلقائياً.")
                 )
 
                 instructionCard(
                     number: "03",
-                    title: "Connect the message",
-                    detail: "Set Message Text to the incoming Message variable. Set Sender / App Name to the sender or source-app variable when Shortcuts provides it. Leave that field empty if the source is not available."
+                    title: localized("Connect the message", "اربط نص الرسالة"),
+                    detail: localized("Set Message Text to the incoming Message variable. Set Sender / App Name to the sender or source-app variable when Shortcuts provides it. Leave that field empty if the source is not available.", "اجعل حقل نص الرسالة مرتبطاً بمتغير الرسالة الواردة. واربط حقل اسم المُرسل أو التطبيق بمتغير المُرسل أو التطبيق المصدر إذا كان متاحاً. اتركه فارغاً إذا لم يوفره تطبيق الاختصارات.")
                 )
 
                 instructionCard(
                     number: "04",
-                    title: "Save and test",
-                    detail: "Choose Run Immediately where iOS offers it, save the automation, then test with a real bank transaction. Confirm the amount and merchant in Ghaf. Unknown merchants are placed in Needs Review."
+                    title: localized("Save and test", "احفظ الأتمتة واختبرها"),
+                    detail: localized("Choose Run Immediately where iOS offers it, save the automation, then test with a real bank transaction. Confirm the amount and merchant in Ghaf. Unknown merchants are placed in Needs Review.", "اختر التشغيل فوراً إذا أتاح iOS هذا الخيار، ثم احفظ الأتمتة واختبرها بعملية بنكية حقيقية. تحقق من المبلغ واسم المتجر في غاف. تُضاف المتاجر غير المعروفة إلى قائمة تحتاج إلى مراجعة.")
                 )
 
                 privacyCard
@@ -56,10 +56,14 @@ struct GhafAutomationGuideView: View {
         }
         .background(theme.background.ignoresSafeArea())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle("Bank automation")
+        .navigationTitle(localized("Bank automation", "أتمتة البنك"))
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, Locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, settings.languageCode == "ar" ? .rightToLeft : .leftToRight)
+    }
+
+    private func localized(_ english: String, _ arabic: String) -> String {
+        settings.languageCode == "ar" ? arabic : english
     }
 
     private var heading: some View {
@@ -82,16 +86,16 @@ struct GhafAutomationGuideView: View {
                     .font(.system(size: 27, weight: .medium))
                     .foregroundStyle(theme.credit)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Ghaf action ready")
+                    Text(localized("Ghaf action ready", "إجراء غاف جاهز"))
                         .font(GhafTypography.heading(18, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
-                    Text("Available in Apple Shortcuts after Ghaf is installed")
+                    Text(localized("Available in Apple Shortcuts after Ghaf is installed", "متاح في تطبيق اختصارات Apple بعد تثبيت غاف"))
                         .font(GhafTypography.body(12, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
             }
 
-            Text("Open Ghaf's ready-made action from this page in Shortcuts.")
+            Text(localized("Open Ghaf's ready-made action from this page in Shortcuts.", "افتح إجراء غاف الجاهز من هذه الصفحة في تطبيق الاختصارات."))
                 .font(GhafTypography.body(12, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
 
@@ -106,7 +110,7 @@ struct GhafAutomationGuideView: View {
 
     private var supportedBanksCard: some View {
         VStack(alignment: .leading, spacing: 11) {
-            Text("Parser examples")
+            Text(localized("Parser examples", "أمثلة على البنوك المدعومة"))
                 .font(GhafTypography.heading(17, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
 
@@ -121,7 +125,7 @@ struct GhafAutomationGuideView: View {
                 }
             }
 
-            Text("These banks have parser rules in Ghaf. Only set up automations for apps or message senders that actually deliver alerts to your iPhone.")
+            Text(localized("These banks have parser rules in Ghaf. Only set up automations for apps or message senders that actually deliver alerts to your iPhone.", "تتضمن غاف قواعد لتحليل رسائل هذه البنوك. أنشئ الأتمتة فقط للتطبيقات أو مُرسلي الرسائل الذين يرسلون إشعارات فعلية إلى iPhone."))
                 .font(GhafTypography.body(12, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -154,11 +158,11 @@ struct GhafAutomationGuideView: View {
 
     private var privacyCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("What iOS allows", systemImage: "lock.shield")
+            Label(localized("What iOS allows", "ما يسمح به iOS"), systemImage: "lock.shield")
                 .font(GhafTypography.heading(16, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text("iOS does not allow an app to silently create a personal automation on your behalf. Ghaf does provide its own ready-to-use App Shortcut, so you do not build the action yourself; the only manual part is choosing and approving the trigger in Shortcuts. Some triggers may require confirmation, and a bank may hide transaction details in its notifications.")
+            Text(localized("iOS does not allow an app to silently create a personal automation on your behalf. Ghaf does provide its own ready-to-use App Shortcut, so you do not build the action yourself; the only manual part is choosing and approving the trigger in Shortcuts. Some triggers may require confirmation, and a bank may hide transaction details in its notifications.", "لا يسمح iOS للتطبيق بإنشاء أتمتة شخصية نيابةً عنك دون موافقتك. يوفر غاف اختصاراً جاهزاً، لذلك لن تحتاج إلى بناء الإجراء بنفسك؛ تقتصر الخطوة اليدوية على اختيار المُحفّز والموافقة عليه داخل تطبيق الاختصارات. قد تتطلب بعض المُحفّزات تأكيداً، كما قد يخفي البنك تفاصيل العمليات من إشعاراته."))
                 .font(GhafTypography.body(12, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
