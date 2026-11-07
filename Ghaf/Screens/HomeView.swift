@@ -593,6 +593,24 @@ struct GhafQuickAddView: View {
                         .font(GhafTypography.display(30, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
 
+                    NavigationLink {
+                        GhafVoiceEntryView(settings: settings)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(settings.languageCode == "ar" ? "أضف بالصوت" : "Add with voice")
+                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                            Spacer()
+                            Image(systemName: settings.languageCode == "ar" ? "arrow.up.left" : "arrow.up.right")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(theme.accent)
+                        .padding(14)
+                        .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+
                     VStack(alignment: .leading, spacing: 7) {
                         Text(settings.languageCode == "ar" ? "المبلغ" : "AMOUNT")
                             .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
