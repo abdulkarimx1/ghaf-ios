@@ -30,6 +30,7 @@ final class GhafSettings {
 
     var userName: String
     var languageCode: String = "en"
+    var hasSeenAutomationIntro: Bool = false
     var currency: String
 
     var monthlyIncome: Decimal
@@ -48,6 +49,7 @@ final class GhafSettings {
     init(
         userName: String = "",
         languageCode: String = "en",
+        hasSeenAutomationIntro: Bool = false,
         currency: String = "AED",
         monthlyIncome: Decimal = 0,
         fixedCommitments: Decimal = 0,
@@ -60,6 +62,7 @@ final class GhafSettings {
 
         self.userName = userName
         self.languageCode = languageCode
+        self.hasSeenAutomationIntro = hasSeenAutomationIntro
         self.currency = currency
 
         self.monthlyIncome = monthlyIncome

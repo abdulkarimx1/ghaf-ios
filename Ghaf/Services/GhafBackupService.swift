@@ -18,6 +18,7 @@ private struct GhafSettingsBackup: Codable {
 
     var userName: String
     var languageCode: String?
+    var hasSeenAutomationIntro: Bool?
     var currency: String
 
     var monthlyIncome: Decimal
@@ -100,6 +101,7 @@ enum GhafBackupService {
         let settingsBackup = GhafSettingsBackup(
             userName: settings.userName,
             languageCode: settings.languageCode,
+            hasSeenAutomationIntro: settings.hasSeenAutomationIntro,
             currency: settings.currency,
             monthlyIncome: settings.monthlyIncome,
             fixedCommitments: settings.fixedCommitments,
@@ -234,6 +236,7 @@ enum GhafBackupService {
         let settings = GhafSettings(
             userName: source.userName,
             languageCode: source.languageCode ?? "en",
+            hasSeenAutomationIntro: source.hasSeenAutomationIntro ?? false,
             currency: source.currency,
             monthlyIncome: source.monthlyIncome,
             fixedCommitments: source.fixedCommitments,

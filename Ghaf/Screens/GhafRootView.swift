@@ -6,6 +6,7 @@ struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
 
     @Query private var settings: [GhafSettings]
+    @State private var showAutomationIntro = false
 
     var body: some View {
 
@@ -40,6 +41,46 @@ struct GhafRootView: View {
         .environment(\.layoutDirection, (settings.first?.languageCode ?? "en") == "ar" ? .rightToLeft : .leftToRight)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
+        .onAppear {
+            presentAutomationIntroIfNeeded()
+        }
+        .onChange(of: settings.first?.hasCompletedOnboarding) { _, completed in
+            if completed == true {
+                presentAutomationIntroIfNeeded()
+            }
+        }
+        .sheet(isPresented: $showAutomationIntro, onDismiss: markAutomationIntroSeen) {
+            if let currentSettings = settings.first {
+                NavigationStack {
+                    GhafAutomationGuideView(settings: currentSettings)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") {
+                                    showAutomationIntro = false
+                                }
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    private func presentAutomationIntroIfNeeded() {
+        guard let currentSettings = settings.first,
+              currentSettings.hasCompletedOnboarding,
+              !currentSettings.hasSeenAutomationIntro else {
+            return
+        }
+        showAutomationIntro = true
+    }
+
+    private func markAutomationIntroSeen() {
+        guard let currentSettings = settings.first,
+              !currentSettings.hasSeenAutomationIntro else {
+            return
+        }
+        currentSettings.hasSeenAutomationIntro = true
+        try? modelContext.save()
     }
 }
 
