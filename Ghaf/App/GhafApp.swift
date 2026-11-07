@@ -24,9 +24,7 @@ struct GhafApp: App {
 
         WindowGroup {
 
-            Text("Ghaf")
-                .font(.system(size: 34, weight: .bold))
-                .padding()
+            GhafRootView()
         }
         .modelContainer(modelContainer)
     }
