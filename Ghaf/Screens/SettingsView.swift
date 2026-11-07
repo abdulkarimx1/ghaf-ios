@@ -19,6 +19,8 @@ private enum GhafSettingsPrompt: Identifiable {
 struct GhafSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
+    @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
 
     let settings: GhafSettings
 
@@ -151,7 +153,33 @@ struct GhafSettingsView: View {
     }
 
     private var profileCard: some View {
-        settingsCard(languageCode == "ar" ? "الملف الشخصي" : "Profile", subtitle: languageCode == "ar" ? "اسم العرض والعملة الرئيسية" : "Your account display and primary currency") {
+        settingsCard(languageCode == "ar" ? "الملف الشخصي" : "Profile", subtitle: languageCode == "ar" ? "بياناتك ونشاطك المالي" : "Your details and financial activity") {
+            HStack(spacing: 13) {
+                ZStack {
+                    Circle()
+                        .fill(theme.accent.opacity(0.12))
+                        .frame(width: 54, height: 54)
+                    Text(name.isEmpty ? "غ" : String(name.prefix(1)).uppercased())
+                        .font(GhafTypography.heading(22, languageCode: languageCode))
+                        .foregroundStyle(theme.accent)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(name.isEmpty
+                         ? (languageCode == "ar" ? "مستخدم غاف" : "Ghaf user")
+                         : name)
+                        .font(GhafTypography.heading(16, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                    let activeAccountCount = accounts.filter { !$0.isArchived }.count
+                    Text(languageCode == "ar"
+                         ? "\(activeAccountCount) حسابات · \(transactions.count) عملية"
+                         : "\(activeAccountCount) accounts · \(transactions.count) transactions")
+                        .font(GhafTypography.body(11, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.bottom, 4)
+
             settingsLabel(languageCode == "ar" ? "اسمك" : "Your name")
             settingsField(languageCode == "ar" ? "الاسم" : "Name", text: $name)
 
