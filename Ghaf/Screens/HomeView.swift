@@ -277,7 +277,7 @@ struct GhafHomeView: View {
             }
 
             Text(snapshot.hasBudget
-                 ? GhafFormat.money(snapshot.remaining, currency: settings.currency)
+                 ? GhafFormat.money(snapshot.remaining, currency: settings.currency, languageCode: settings.languageCode)
                  : (settings.languageCode == "ar" ? "أكمل ميزانيتك" : "Set your budget"))
                 .font(GhafTypography.number(snapshot.hasBudget ? 42 : 29, weight: .bold))
                 .monospacedDigit()
