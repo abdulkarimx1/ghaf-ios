@@ -20,11 +20,7 @@ enum MerchantCategorizer {
         ("جمعية الاتحاد", "Groceries"),
         ("التعاونية", "Groceries"),
         ("جمعية الشارقة التعاونية", "Groceries"),
-        ("lulu", "Groceries"),
-        ("union coop", "Groceries"),
-        ("nesto", "Groceries"),
-        ("spinneys", "Groceries"),
-
+        
         // Dining
         ("talabat", "Dining"),
         ("طلبات", "Dining"),
@@ -58,7 +54,6 @@ enum MerchantCategorizer {
         ("سيوا", "Bills & Utilities"),
         ("etisalat", "Bills & Utilities"),
         ("اتصالات", "Bills & Utilities"),
-        ("e&", "Bills & Utilities"),
         ("eand", "Bills & Utilities"),
         ("du", "Bills & Utilities"),
         ("دو", "Bills & Utilities"),
@@ -96,7 +91,13 @@ enum MerchantCategorizer {
         ("الاتحاد للطيران", "Travel"),
         ("air arabia", "Travel"),
         ("العربية للطيران", "Travel"),
-        ("booking.com", "Travel")
+        ("booking.com", "Travel"),
+        ("mcdonalds", "Dining"),
+        ("ماكدونالدز", "Dining"),
+        ("starbucks", "Dining"),
+        ("ستاربكس", "Dining"),
+        ("shake shack", "Dining"),
+        ("شيك شاك", "Dining")
     ]
 
     static func normalize(_ merchant: String) -> String {
@@ -140,9 +141,13 @@ enum MerchantCategorizer {
         }
 
         // Use built-in UAE merchant rules.
+        // Match complete normalized words/phrases. Unbounded substring
+        // matching caused short rules such as "du" to match unrelated names.
+        let paddedKey = " \(key) "
         for (merchantName, category) in seededRules {
-
-            if key.contains(normalize(merchantName)) {
+            let rule = normalize(merchantName)
+            guard !rule.isEmpty else { continue }
+            if paddedKey.contains(" \(rule) ") {
                 return category
             }
         }
