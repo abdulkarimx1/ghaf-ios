@@ -155,6 +155,104 @@ enum GhafBankSupportDirectory {
             internationalPhone: "+968 2479 5555",
             website: URL(string: "https://www.bankmuscat.com/en/Pages/default.aspx")!,
             aliases: ["bank muscat", "bankmuscat", "بنك مسقط"]
+        ),
+        GhafBankSupportContact(
+            id: "emiratesnbd", name: "Emirates NBD", nameArabic: "الإمارات دبي الوطني",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 54 0000", internationalPhone: "+971 600 54 0000",
+            website: URL(string: "https://www.emiratesnbd.com/en/help-and-support/contact-us")!,
+            aliases: ["emirates nbd", "enbd", "emirates bank", "الإمارات دبي الوطني"]
+        ),
+        GhafBankSupportContact(
+            id: "rakbank", name: "RAKBANK", nameArabic: "بنك رأس الخيمة الوطني",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 54 4049", internationalPhone: "+971 600 54 4049",
+            website: URL(string: "https://www.rakbank.ae/en/contact-us")!,
+            aliases: ["rakbank", "rak bank", "national bank of ras al khaimah", "بنك رأس الخيمة الوطني"]
+        ),
+        GhafBankSupportContact(
+            id: "fab", name: "First Abu Dhabi Bank", nameArabic: "بنك أبوظبي الأول",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 52 5500", internationalPhone: "+971 2 681 1511",
+            website: URL(string: "https://www.bankfab.com/en-ae/contact-us")!,
+            aliases: ["fab", "first abu dhabi bank", "بنك أبوظبي الأول"]
+        ),
+        GhafBankSupportContact(
+            id: "adcb", name: "ADCB", nameArabic: "بنك أبوظبي التجاري",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 50 2030", internationalPhone: "+971 600 50 2030",
+            website: URL(string: "https://www.adcb.com/en/get-in-touch/call-us/")!,
+            aliases: ["adcb", "abu dhabi commercial bank", "بنك أبوظبي التجاري"]
+        ),
+        GhafBankSupportContact(
+            id: "adib", name: "Abu Dhabi Islamic Bank", nameArabic: "مصرف أبوظبي الإسلامي",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 54 3220", internationalPhone: "+971 2 657 8777",
+            website: URL(string: "https://www.adib.ae/en/pages/contact-us")!,
+            aliases: ["adib", "abu dhabi islamic bank", "مصرف أبوظبي الإسلامي"]
+        ),
+        GhafBankSupportContact(
+            id: "alinma", name: "Alinma Bank", nameArabic: "مصرف الإنماء",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "920 028 000", internationalPhone: "+966 920 028 000",
+            website: URL(string: "https://www.alinma.com/en/contact-us")!,
+            aliases: ["alinma", "alinma bank", "مصرف الإنماء"]
+        ),
+        GhafBankSupportContact(
+            id: "albilad", name: "Bank Albilad", nameArabic: "بنك البلاد",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 123 0000", internationalPhone: "+966 920 001 002",
+            website: URL(string: "https://www.bankalbilad.com.sa/en/Pages/babc.aspx")!,
+            aliases: ["bank albilad", "albilad", "بنك البلاد"]
+        ),
+        GhafBankSupportContact(
+            id: "kfh", name: "Kuwait Finance House", nameArabic: "بيت التمويل الكويتي",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "1803333", internationalPhone: "+965 1803333",
+            website: URL(string: "https://www.kfh.com/home/Personal/faq/question-form.html")!,
+            aliases: ["kfh", "kuwait finance house", "بيت التمويل الكويتي"]
+        ),
+        GhafBankSupportContact(
+            id: "boubyan", name: "Boubyan Bank", nameArabic: "بنك بوبيان",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "1820082", internationalPhone: "+965 22282000",
+            website: URL(string: "https://www.bankboubyan.com/en/contact-us")!,
+            aliases: ["boubyan", "boubyan bank", "بنك بوبيان"]
+        ),
+        GhafBankSupportContact(
+            id: "bbk", name: "BBK", nameArabic: "بنك البحرين والكويت",
+            countryName: "Bahrain", countryNameArabic: "البحرين",
+            localPhone: "1720 7777", internationalPhone: "+973 1720 7777",
+            website: URL(string: "https://www.bbkonline.com/customer-care/")!,
+            aliases: ["bbk", "bank of bahrain and kuwait", "بنك البحرين والكويت"]
+        ),
+        GhafBankSupportContact(
+            id: "sohar", name: "Sohar International", nameArabic: "صحار الدولي",
+            countryName: "Oman", countryNameArabic: "سلطنة عُمان",
+            localPhone: "800 74666", internationalPhone: "+968 2473 0000",
+            website: URL(string: "https://www.sib.om/en/contact-us")!,
+            aliases: ["sohar international", "sohar", "صحار الدولي"]
+        ),
+        GhafBankSupportContact(
+            id: "nbo", name: "National Bank of Oman", nameArabic: "البنك الوطني العماني",
+            countryName: "Oman", countryNameArabic: "سلطنة عُمان",
+            localPhone: "2477 0000", internationalPhone: "+968 2477 0000",
+            website: URL(string: "https://www.nbo.om/en/Pages/SME-Banking/Support/Call-Centre-and-IVR.aspx")!,
+            aliases: ["national bank of oman", "nbo", "البنك الوطني العماني"]
+        ),
+        GhafBankSupportContact(
+            id: "bankdhofar", name: "BankDhofar", nameArabic: "بنك ظفار",
+            countryName: "Oman", countryNameArabic: "سلطنة عُمان",
+            localPhone: "2479 1111", internationalPhone: "+968 2479 1111",
+            website: URL(string: "https://www.bankdhofar.com/electronic-channels/mobile-banking-new/")!,
+            aliases: ["bankdhofar", "bank dhofar", "بنك ظفار"]
+        ),
+        GhafBankSupportContact(
+            id: "qib", name: "Qatar Islamic Bank", nameArabic: "مصرف قطر الإسلامي",
+            countryName: "Qatar", countryNameArabic: "قطر",
+            localPhone: "4444 8444", internationalPhone: "+974 4444 8444",
+            website: URL(string: "https://www.qib.com.qa/en/personal/learn-how-to-money/articles-listing/articles/2026/identity-protection-tips")!,
+            aliases: ["qib", "qatar islamic bank", "مصرف قطر الإسلامي"]
         )
     ]
 
