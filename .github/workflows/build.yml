@@ -2,6 +2,8 @@ name: Build Ghaf iOS
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 concurrency:
   group: ghaf-ios-main-build
@@ -14,7 +16,7 @@ jobs:
   build:
     name: Test and Build Ghaf
     # Runs on the developer's own Mac; this avoids GitHub-hosted Actions minutes.
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: [self-hosted, xcode-27]
 
     steps:
       - name: Checkout repository
