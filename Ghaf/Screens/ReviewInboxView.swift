@@ -91,14 +91,15 @@ struct GhafReviewInboxView: View {
                                 }
                             }
                             .padding(.vertical, 8)
-                            .listRowBackground(theme.surface)
+                            .listRowBackground(.ultraThinMaterial)
                         }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                 }
             }
-            .background(theme.background)
+            .background(theme.background.ignoresSafeArea())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle("Needs Review")
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showEditor) {
