@@ -3,7 +3,8 @@ import Foundation
 public struct GhafVoiceTransactionDraft: Identifiable {
     public let id = UUID()
     public var merchant: String
-    public var amount: Decimal
+    public var amountText: String
+    public var amount: Decimal { Decimal(string: amountText) ?? 0 }
     public var currency: String
     public var date: Date
     public var category: String
@@ -64,7 +65,7 @@ public enum GhafVoiceTransactionParser {
 
             return GhafVoiceTransactionDraft(
                 merchant: merchant,
-                amount: amount,
+                amountText: amountText,
                 currency: currency,
                 date: inferredDate(from: segment),
                 category: "Other",
