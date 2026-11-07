@@ -43,7 +43,7 @@ enum GhafVoiceTransactionParser {
                 options: .regularExpression
             )
             merchant = merchant.replacingOccurrences(
-                of: #"درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|من|في|على|اليوم|أمس|ثم|وبعدها"#,
+                of: #"درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|ثم|وبعدها"#,
                 with: " ",
                 options: .regularExpression
             )
@@ -106,19 +106,25 @@ enum GhafVoiceTransactionParser {
             date = calendar.date(byAdding: .day, value: -1, to: date) ?? date
         }
 
-        let timePattern = #"(?i)\b([0-1]?[0-9])(?::([0-5][0-9]))?\s*(am|pm)\b"#
+        let timePattern = #"(?i)\b([0-1]?[0-9])(?::([0-5][0-9]))?\s*(am|pm)\b|(?:الساعة\s*)?([0-1]?[0-9])(?::([0-5][0-9]))?\s*(صباحاً|صباحا|مساءً|مساء|عصراً|عصرا)"#
         if let regex = try? NSRegularExpression(pattern: timePattern),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let hourRange = Range(match.range(at: 1), in: text),
-           let periodRange = Range(match.range(at: 3), in: text) {
-            var hour = Int(text[hourRange]) ?? 0
-            let period = text[periodRange].lowercased()
-            if period == "pm" && hour < 12 { hour += 12 }
-            if period == "am" && hour == 12 { hour = 0 }
-            let minute = match.range(at: 2).location == NSNotFound
-                ? 0
-                : Int(Range(match.range(at: 2), in: text).map { String(text[$0]) } ?? "0") ?? 0
-            date = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) {
+            let englishHour = Range(match.range(at: 1), in: text)
+            let arabicHour = Range(match.range(at: 4), in: text)
+            if let hourRange = englishHour ?? arabicHour {
+                var hour = Int(text[hourRange]) ?? 0
+                let minuteRange = englishHour != nil
+                    ? Range(match.range(at: 2), in: text)
+                    : Range(match.range(at: 5), in: text)
+                let minute = minuteRange.map { Int(text[$0]) ?? 0 } ?? 0
+                let periodRange = englishHour != nil
+                    ? Range(match.range(at: 3), in: text)
+                    : Range(match.range(at: 6), in: text)
+                let period = periodRange.map { String(text[$0]).lowercased() } ?? ""
+                if ["pm", "مساءً", "مساء", "عصراً", "عصرا"].contains(period), hour < 12 { hour += 12 }
+                if ["am", "صباحاً", "صباحا"].contains(period), hour == 12 { hour = 0 }
+                date = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date
+            }
         }
         return date
     }
