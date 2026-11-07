@@ -62,6 +62,7 @@ struct GhafSettingsView: View {
                     budgetCard
                     categoriesCard
                     backupCard
+                    aboutCard
                     dangerCard
 
                     Button("Save settings", action: saveSettings)
@@ -402,6 +403,38 @@ struct GhafSettingsView: View {
         }
     }
 
+    private var aboutCard: some View {
+        NavigationLink {
+            GhafAboutView(settings: settings)
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "leaf")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 44, height: 44)
+                    .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 13))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(languageCode == "ar" ? "عن غــــاف" : "About Ghaf")
+                        .font(GhafTypography.heading(16, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                    Text(languageCode == "ar" ? "القصة والمطور وحقوق التطبيق" : "The story, developer and app credits")
+                        .font(GhafTypography.body(12, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            .padding(16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .ghafLiquidGlass(theme: theme, radius: 19)
+    }
+
     private var dangerCard: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text("Danger zone")
@@ -602,5 +635,86 @@ struct GhafSettingsView: View {
         } catch {
             prompt = .message("Could not delete all data.")
         }
+    }
+}
+
+
+// MARK: - About Ghaf
+
+struct GhafAboutView: View {
+    @Environment(\.colorScheme) private var systemColorScheme
+    let settings: GhafSettings
+
+    private var theme: GhafTheme {
+        GhafTheme.resolve(
+            name: settings.themeName,
+            appearanceMode: settings.appearanceMode,
+            systemIsDark: systemColorScheme == .dark
+        )
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(theme.accent.opacity(0.10))
+                        .frame(width: 104, height: 104)
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 43, weight: .medium))
+                        .foregroundStyle(theme.accent)
+                }
+                .padding(.top, 24)
+
+                Text(settings.languageCode == "ar" ? "غــــاف" : "Ghaf")
+                    .font(GhafTypography.display(34, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.primaryText)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(settings.languageCode == "ar" ? "من مشكلة صغيرة إلى فكرة للجميع" : "A small problem, an idea for everyone")
+                        .font(GhafTypography.heading(19, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.primaryText)
+
+                    Text(settings.languageCode == "ar"
+                         ? "بدأ غاف من حاجة شخصية إلى طريقة أبسط لمتابعة المصروفات وتنظيم المال والادخار. صُمم وطُوّر بالاستعانة بالذكاء الاصطناعي بهدف مساعدة الناس على فهم أموالهم وتخطيطها بوضوح، مع تقليل الوقت الذي يقضونه في إدخال العمليات يدوياً."
+                         : "Ghaf started with a small personal problem: keeping track of spending, organizing money and planning savings took too much manual effort. Built with the help of AI to support people who want a clearer, simpler way to categorize transactions and plan their savings, while spending less time entering everything by hand.")
+                        .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(19)
+                .ghafCard(theme: theme, radius: 20)
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(settings.languageCode == "ar" ? "المطور" : "Developer")
+                        .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                        .foregroundStyle(theme.secondaryText)
+                    Text("Abdulkarim Bayassi")
+                        .font(GhafTypography.heading(17, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.primaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(19)
+                .ghafCard(theme: theme, radius: 20)
+
+                Text(settings.languageCode == "ar"
+                     ? "جميع الحقوق وحقوق النشر محفوظة لعبدالكريم بياسي."
+                     : "All rights and copyrights reserved to Abdulkarim Bayassi.")
+                    .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
+            }
+            .padding(.horizontal, 20)
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity)
+        }
+        .background(theme.background.ignoresSafeArea())
+        .navigationTitle(settings.languageCode == "ar" ? "عن غــــاف" : "About Ghaf")
+        .navigationBarTitleDisplayMode(.inline)
+        .environment(\.locale, Locale(identifier: settings.languageCode))
+        .environment(\.layoutDirection, settings.languageCode == "ar" ? .rightToLeft : .leftToRight)
     }
 }
