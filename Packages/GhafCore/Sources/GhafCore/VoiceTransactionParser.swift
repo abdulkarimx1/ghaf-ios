@@ -101,12 +101,12 @@ public enum GhafVoiceTransactionParser {
     private static func detectCurrency(in text: String) -> String? {
         let value = text.lowercased()
         let mappings: [(String, [String])] = [
-            ("AED", ["aed", "dhs", "dh", "dirham", "درهم", "د.إ"]),
-            ("SAR", ["sar", "riyal", "ريال", "ر.س"]),
-            ("KWD", ["kwd", "د.ك", "دينار"]),
-            ("BHD", ["bhd", "د.ب"]),
-            ("OMR", ["omr", "ر.ع"]),
-            ("QAR", ["qar", "ر.ق"]),
+            ("AED", ["aed", "dhs", "dh", "dirham", "درهم", "درهم إماراتي", "د.إ"]),
+            ("SAR", ["sar", "saudi riyal", "ريال سعودي", "ر.س"]),
+            ("KWD", ["kwd", "kuwaiti dinar", "دينار كويتي", "د.ك"]),
+            ("BHD", ["bhd", "bahraini dinar", "دينار بحريني", "د.ب"]),
+            ("OMR", ["omr", "omani rial", "ريال عماني", "ر.ع"]),
+            ("QAR", ["qar", "qatari riyal", "ريال قطري", "ر.ق"]),
             ("USD", ["usd", "dollar"]),
             ("EUR", ["eur", "euro"]),
             ("GBP", ["gbp", "pound"])
