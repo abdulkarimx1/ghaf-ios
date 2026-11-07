@@ -102,6 +102,7 @@ struct GhafLaunchSplash: View {
                         .foregroundStyle(Color(red: 0.78, green: 0.86, blue: 0.72))
                 }
                 .scaleEffect(scale)
+                .blur(radius: max(0, (1 - scale) * 11))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)

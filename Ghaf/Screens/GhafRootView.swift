@@ -7,7 +7,7 @@ struct GhafRootView: View {
 
     @State private var showAutomationIntro = false
     @State private var showLaunch = true
-    @State private var launchScale: CGFloat = 1.38
+    @State private var launchScale: CGFloat = 0.62
     @State private var launchHasStarted = false
 
     private var languageCode: String {
