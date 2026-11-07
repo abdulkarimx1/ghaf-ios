@@ -27,7 +27,7 @@ struct GhafSettingsView: View {
     @State private var currency = "AED"
     @State private var income = ""
     @State private var commitments = ""
-    @State private var themeName = "Oasis"
+    @State private var themeName = "Abu Dhabi"
     @State private var appearanceMode = "System"
     @State private var budgetMode = "Daily"
     @State private var newCategory = ""
@@ -274,14 +274,23 @@ struct GhafSettingsView: View {
     }
 
     private var appearanceCard: some View {
-        settingsCard("Appearance", subtitle: "A quiet palette with clear contrast") {
+        settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "ألوان مستوحاة من مدن الإمارات" : "Quiet palettes inspired by the seven UAE cities") {
             settingsLabel("Theme")
-            Picker("Theme", selection: $themeName) {
-                Text("Dawn").tag("Dawn")
-                Text("Dusk").tag("Dusk")
-                Text("Oasis").tag("Oasis")
+            Picker(languageCode == "ar" ? "طابع المدينة" : "City theme", selection: $themeName) {
+                Text(languageCode == "ar" ? "أبوظبي" : "Abu Dhabi").tag("Abu Dhabi")
+                Text(languageCode == "ar" ? "دبي" : "Dubai").tag("Dubai")
+                Text(languageCode == "ar" ? "الشارقة" : "Sharjah").tag("Sharjah")
+                Text(languageCode == "ar" ? "عجمان" : "Ajman").tag("Ajman")
+                Text(languageCode == "ar" ? "أم القيوين" : "Umm Al Quwain").tag("Umm Al Quwain")
+                Text(languageCode == "ar" ? "رأس الخيمة" : "Ras Al Khaimah").tag("Ras Al Khaimah")
+                Text(languageCode == "ar" ? "الفجيرة" : "Fujairah").tag("Fujairah")
+                Section(languageCode == "ar" ? "الأنماط الكلاسيكية" : "Classic themes") {
+                    Text(languageCode == "ar" ? "الفجر" : "Dawn").tag("Dawn")
+                    Text(languageCode == "ar" ? "الغسق" : "Dusk").tag("Dusk")
+                    Text(languageCode == "ar" ? "الواحة" : "Oasis").tag("Oasis")
+                }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
 
             settingsLabel("Appearance mode")
             Picker("Appearance mode", selection: $appearanceMode) {
@@ -293,7 +302,7 @@ struct GhafSettingsView: View {
 
             HStack(spacing: 9) {
                 Circle().fill(theme.accent).frame(width: 16, height: 16)
-                Text("\(themeName) preview")
+                Text("\(themeName) · " + (languageCode == "ar" ? "معاينة" : "Preview"))
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
                     .foregroundStyle(theme.primaryText)
                 Spacer()

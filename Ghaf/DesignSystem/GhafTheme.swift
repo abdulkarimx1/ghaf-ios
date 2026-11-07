@@ -34,6 +34,63 @@ struct GhafTheme {
         default: isDark = systemIsDark
         }
 
+        let cityPalettes: [String: (background: Color, surface: Color, text: Color, secondary: Color, accent: Color, darkAccent: Color)] = [
+            "Abu Dhabi": (
+                Color(red: 0.95, green: 0.92, blue: 0.85), Color(red: 0.99, green: 0.97, blue: 0.92),
+                Color(red: 0.22, green: 0.19, blue: 0.15), Color(red: 0.49, green: 0.44, blue: 0.36),
+                Color(red: 0.53, green: 0.36, blue: 0.20), Color(red: 0.83, green: 0.65, blue: 0.39)
+            ),
+            "Dubai": (
+                Color(red: 0.91, green: 0.94, blue: 0.97), Color(red: 0.98, green: 0.99, blue: 1.0),
+                Color(red: 0.12, green: 0.17, blue: 0.24), Color(red: 0.40, green: 0.47, blue: 0.56),
+                Color(red: 0.16, green: 0.34, blue: 0.55), Color(red: 0.48, green: 0.68, blue: 0.91)
+            ),
+            "Sharjah": (
+                Color(red: 0.94, green: 0.92, blue: 0.90), Color(red: 0.99, green: 0.98, blue: 0.96),
+                Color(red: 0.20, green: 0.18, blue: 0.22), Color(red: 0.48, green: 0.44, blue: 0.50),
+                Color(red: 0.39, green: 0.29, blue: 0.47), Color(red: 0.70, green: 0.57, blue: 0.82)
+            ),
+            "Ajman": (
+                Color(red: 0.89, green: 0.94, blue: 0.91), Color(red: 0.97, green: 0.99, blue: 0.97),
+                Color(red: 0.12, green: 0.23, blue: 0.19), Color(red: 0.37, green: 0.49, blue: 0.42),
+                Color(red: 0.13, green: 0.43, blue: 0.33), Color(red: 0.37, green: 0.73, blue: 0.57)
+            ),
+            "Umm Al Quwain": (
+                Color(red: 0.89, green: 0.95, blue: 0.96), Color(red: 0.97, green: 0.99, blue: 0.99),
+                Color(red: 0.10, green: 0.23, blue: 0.26), Color(red: 0.36, green: 0.50, blue: 0.54),
+                Color(red: 0.13, green: 0.43, blue: 0.49), Color(red: 0.38, green: 0.73, blue: 0.79)
+            ),
+            "Ras Al Khaimah": (
+                Color(red: 0.93, green: 0.92, blue: 0.89), Color(red: 0.99, green: 0.98, blue: 0.95),
+                Color(red: 0.22, green: 0.21, blue: 0.19), Color(red: 0.48, green: 0.46, blue: 0.42),
+                Color(red: 0.53, green: 0.31, blue: 0.20), Color(red: 0.82, green: 0.53, blue: 0.35)
+            ),
+            "Fujairah": (
+                Color(red: 0.90, green: 0.94, blue: 0.97), Color(red: 0.98, green: 0.99, blue: 1.0),
+                Color(red: 0.12, green: 0.20, blue: 0.28), Color(red: 0.38, green: 0.47, blue: 0.56),
+                Color(red: 0.17, green: 0.39, blue: 0.58), Color(red: 0.42, green: 0.68, blue: 0.88)
+            )
+        ]
+
+        if let palette = cityPalettes[name] {
+            return GhafTheme(
+                name: name,
+                background: isDark ? Color(red: 0.075, green: 0.09, blue: 0.095) : palette.background,
+                surface: isDark ? Color(red: 0.12, green: 0.145, blue: 0.15) : palette.surface,
+                elevatedSurface: isDark ? Color(red: 0.17, green: 0.195, blue: 0.20) : .white,
+                primaryText: isDark ? Color(red: 0.94, green: 0.95, blue: 0.93) : palette.text,
+                secondaryText: isDark ? Color(red: 0.67, green: 0.72, blue: 0.71) : palette.secondary,
+                accent: isDark ? palette.darkAccent : palette.accent,
+                accentContrast: isDark ? Color(red: 0.08, green: 0.10, blue: 0.10) : .white,
+                debit: isDark ? Color(red: 0.96, green: 0.55, blue: 0.46) : Color(red: 0.72, green: 0.32, blue: 0.27),
+                credit: isDark ? Color(red: 0.48, green: 0.82, blue: 0.63) : Color(red: 0.22, green: 0.52, blue: 0.37),
+                comfortable: isDark ? Color(red: 0.48, green: 0.82, blue: 0.63) : Color(red: 0.22, green: 0.52, blue: 0.37),
+                close: Color(red: 0.88, green: 0.65, blue: 0.31),
+                over: isDark ? Color(red: 0.96, green: 0.48, blue: 0.42) : Color(red: 0.72, green: 0.30, blue: 0.26),
+                outline: isDark ? Color(red: 0.27, green: 0.33, blue: 0.33) : palette.accent.opacity(0.16)
+            )
+        }
+
         switch name {
         case "Dawn":
             return isDark

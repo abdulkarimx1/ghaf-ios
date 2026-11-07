@@ -284,8 +284,15 @@ struct GhafSalarySettingsView: View {
                         selection: $accountID
                     ) {
                         ForEach(activeAccounts, id: \.id) { account in
-                            Text(account.name).tag(Optional(account.id))
+                            Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                         }
+                    }
+
+                    if let selectedAccount = activeAccounts.first(where: { $0.id == accountID }) {
+                        LabeledContent(
+                            settings.languageCode == "ar" ? "عملة الراتب" : "Salary currency",
+                            value: selectedAccount.currency
+                        )
                     }
 
                     Toggle(
@@ -355,7 +362,7 @@ struct GhafSalarySettingsView: View {
         settings.salaryDay = enabled ? salaryDay : nil
         settings.salaryAmount = enabled ? Decimal(string: amountText) : nil
         settings.salaryAccountID = enabled ? (accountID ?? activeAccounts.first?.id) : nil
-        settings.salaryCurrency = settings.currency
+        settings.salaryCurrency = activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency
         settings.salaryReminderEnabled = enabled && reminderEnabled
 
         do {

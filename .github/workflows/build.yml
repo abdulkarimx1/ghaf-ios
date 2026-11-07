@@ -38,7 +38,9 @@ jobs:
 
       - name: Install XcodeGen
         run: |
-          brew install xcodegen
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
           xcodegen --version
 
       - name: Generate Xcode project
@@ -85,21 +87,6 @@ jobs:
           sleep 8
           mkdir -p build/preview
           xcrun simctl io "$DEVICE_ID" screenshot build/preview/ghaf-iphone-17.png
-
-      - name: Build iOS application
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Ghaf.xcodeproj \
-            -scheme Ghaf \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee build.log
 
       - name: Archive unsigned application
         run: |
