@@ -100,6 +100,12 @@ struct GhafVoiceEntryView: View {
                          : "Review the transcript and suggested transactions before saving. Nothing is saved automatically.")
                         .font(GhafTypography.body(11, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
+                    Text(isArabic
+                         ? "يستخدم غاف التعرّف على الكلام من iOS، ويفضّل المعالجة على الجهاز عندما تكون متاحة. قد تتطلب بعض اللغات اتصالاً بالإنترنت."
+                         : "Ghaf uses iOS Speech Recognition and prefers on-device processing when available. Some languages may require an internet connection.")
+                        .font(GhafTypography.body(10, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if !drafts.isEmpty {
