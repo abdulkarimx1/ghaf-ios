@@ -52,7 +52,7 @@ struct GhafReviewInboxView: View {
 
     private var pageHeader: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("MERCHANT LEARNING")
+            Text(settings.languageCode == "ar" ? "تعلّم تصنيف التجار" : "MERCHANT LEARNING")
                 .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                 .tracking(1.8)
                 .foregroundStyle(theme.secondaryText)
@@ -138,7 +138,7 @@ struct GhafReviewInboxView: View {
                         .background(theme.credit.opacity(0.10), in: RoundedRectangle(cornerRadius: 15))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Accept category")
+                .accessibilityLabel(settings.languageCode == "ar" ? "اعتماد الفئة" : "Accept category")
             }
         }
         .padding(15)

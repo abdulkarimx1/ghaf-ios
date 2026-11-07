@@ -63,7 +63,7 @@ struct GhafHomeView: View {
                     GhafAutomationGuideView(settings: settings)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") { showAutomationGuide = false }
+                                Button(settings.languageCode == "ar" ? "تم" : "Done") { showAutomationGuide = false }
                             }
                         }
                 }
@@ -288,7 +288,7 @@ struct GhafHomeView: View {
 
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
-                    Text("\(Int(snapshot.progress * 100))% used")
+                    Text(settings.languageCode == "ar" ? "\(Int(snapshot.progress * 100))٪ مستخدم" : "\(Int(snapshot.progress * 100))% used")
                         .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
                         .foregroundStyle(theme.accentContrast.opacity(0.86))
 
@@ -534,7 +534,7 @@ struct GhafTransactionRow: View {
                     .lineLimit(1)
 
                 if transaction.needsReview {
-                    Text("REVIEW")
+                    Text(settings.languageCode == "ar" ? "مراجعة" : "REVIEW")
                         .font(GhafTypography.body(9, languageCode: languageCode, weight: .bold))
                         .tracking(0.8)
                         .foregroundStyle(theme.close)
@@ -589,12 +589,12 @@ struct GhafQuickAddView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("New transaction")
+                    Text(settings.languageCode == "ar" ? "عملية جديدة" : "New transaction")
                         .font(GhafTypography.display(30, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
 
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("AMOUNT")
+                        Text(settings.languageCode == "ar" ? "المبلغ" : "AMOUNT")
                             .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                             .tracking(1.5)
                             .foregroundStyle(theme.secondaryText)
@@ -611,25 +611,25 @@ struct GhafQuickAddView: View {
                         .background(theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
 
-                    fieldLabel("Merchant")
-                    styledField("Merchant or store", text: $merchant)
+                    fieldLabel(settings.languageCode == "ar" ? "المتجر" : "Merchant")
+                    styledField(settings.languageCode == "ar" ? "اسم المتجر أو الجهة" : "Merchant or store", text: $merchant)
 
-                    fieldLabel("Type")
-                    Picker("Type", selection: $direction) {
-                        Text("Expense").tag("debit")
-                        Text("Income").tag("credit")
+                    fieldLabel(settings.languageCode == "ar" ? "النوع" : "Type")
+                    Picker(settings.languageCode == "ar" ? "النوع" : "Type", selection: $direction) {
+                        Text(settings.languageCode == "ar" ? "مصروف" : "Expense").tag("debit")
+                        Text(settings.languageCode == "ar" ? "دخل" : "Income").tag("credit")
                     }
                     .pickerStyle(.segmented)
 
-                    fieldLabel("Category")
-                    Picker("Category", selection: $category) {
+                    fieldLabel(settings.languageCode == "ar" ? "الفئة" : "Category")
+                    Picker(settings.languageCode == "ar" ? "الفئة" : "Category", selection: $category) {
                         ForEach(settings.categories, id: \.self) { Text($0).tag($0) }
                     }
                     .pickerStyle(.menu)
                     .tint(theme.accent)
 
                     fieldLabel(settings.languageCode == "ar" ? "الحساب" : "Account")
-                    Picker("Account", selection: $selectedAccountID) {
+                    Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
                         ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in
                             Text(account.name).tag(Optional(account.id))
                         }
@@ -637,13 +637,13 @@ struct GhafQuickAddView: View {
                     .pickerStyle(.menu)
                     .tint(theme.accent)
 
-                    fieldLabel("Date")
-                    DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    fieldLabel(settings.languageCode == "ar" ? "التاريخ" : "Date")
+                    DatePicker(settings.languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .datePickerStyle(.compact)
                         .tint(theme.accent)
 
-                    fieldLabel("Note")
-                    styledField("Optional note", text: $note)
+                    fieldLabel(settings.languageCode == "ar" ? "ملاحظة" : "Note")
+                    styledField(settings.languageCode == "ar" ? "ملاحظة اختيارية" : "Optional note", text: $note)
 
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
@@ -651,7 +651,7 @@ struct GhafQuickAddView: View {
                             .foregroundStyle(theme.over)
                     }
 
-                    Button("Save transaction", action: save)
+                    Button(settings.languageCode == "ar" ? "حفظ العملية" : "Save transaction", action: save)
                         .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
                 .padding(22)
@@ -659,11 +659,11 @@ struct GhafQuickAddView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(theme.background.ignoresSafeArea())
-            .navigationTitle("Add")
+            .navigationTitle(settings.languageCode == "ar" ? "إضافة" : "Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(settings.languageCode == "ar" ? "إلغاء" : "Cancel") { dismiss() }
                 }
             }
         }
@@ -691,17 +691,25 @@ struct GhafQuickAddView: View {
 
     private func save() {
         guard let value = Decimal(string: amount), value > 0 else {
-            errorMessage = "Enter a valid amount."
+            errorMessage = settings.languageCode == "ar" ? "أدخل مبلغاً صحيحاً." : "Enter a valid amount."
             return
         }
 
         let selectedAccount = accounts.first(where: { $0.id == selectedAccountID })
+        let transactionDirection = TransactionDirection(rawValue: direction) ?? .debit
+        let suggestedCategory = (try? MerchantCategorizer.category(
+            for: merchant.isEmpty ? nil : merchant,
+            direction: transactionDirection,
+            context: modelContext
+        )) ?? "Other"
+        let finalCategory = category == "Other" ? suggestedCategory : category
+
         let parsed = ParsedTransaction(
             amount: value,
             currency: selectedAccount?.currency ?? settings.currency,
             merchant: merchant.isEmpty ? nil : merchant,
             date: date,
-            direction: TransactionDirection(rawValue: direction) ?? .debit,
+            direction: transactionDirection,
             confidence: 1.0,
             bank: nil
         )
@@ -709,7 +717,7 @@ struct GhafQuickAddView: View {
         let transaction = GhafTransaction(
             fingerprint: "manual-\(UUID().uuidString)",
             parsed: parsed,
-            category: category,
+            category: finalCategory,
             needsReview: false,
             isReversal: false,
             accountID: selectedAccountID
@@ -721,7 +729,7 @@ struct GhafQuickAddView: View {
             try modelContext.save()
             dismiss()
         } catch {
-            errorMessage = "Could not save transaction."
+            errorMessage = settings.languageCode == "ar" ? "تعذر حفظ العملية." : "Could not save transaction."
         }
     }
 }

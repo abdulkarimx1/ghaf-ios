@@ -402,14 +402,14 @@ struct GhafTransactionEditor: View {
                     editorField("Merchant", text: $merchant)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
-                    Picker("Direction", selection: $direction) {
-                        Text("Expense").tag("debit")
-                        Text("Income").tag("credit")
+                    Picker(languageCode == "ar" ? "النوع" : "Direction", selection: $direction) {
+                        Text(languageCode == "ar" ? "مصروف" : "Expense").tag("debit")
+                        Text(languageCode == "ar" ? "دخل" : "Income").tag("credit")
                     }
                     .pickerStyle(.segmented)
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
-                    Picker("Category", selection: $category) {
+                    Picker(languageCode == "ar" ? "الفئة" : "Category", selection: $category) {
                         ForEach(categories, id: \.self) { Text(LocalizedStringKey($0)).tag($0) }
                     }
                     .pickerStyle(.menu)
@@ -450,7 +450,7 @@ struct GhafTransactionEditor: View {
                     .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
 
                     editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
-                    DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .tint(theme.accent)
 
                     editorLabel(languageCode == "ar" ? "ملاحظة" : "NOTE")

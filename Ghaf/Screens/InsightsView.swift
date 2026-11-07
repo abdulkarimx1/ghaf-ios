@@ -84,7 +84,7 @@ struct GhafInsightsView: View {
 
     private var pageHeader: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("MONTHLY OVERVIEW")
+            Text(settings.languageCode == "ar" ? "ملخص الشهر" : "MONTHLY OVERVIEW")
                 .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                 .tracking(1.8)
                 .foregroundStyle(theme.secondaryText)
