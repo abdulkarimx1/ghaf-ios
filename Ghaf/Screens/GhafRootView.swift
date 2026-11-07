@@ -240,7 +240,9 @@ struct GhafOnboardingView: View {
             try? modelContext.save()
         }
         .sheet(isPresented: $showAutomationGuide) {
-            GhafAutomationGuideView(settings: settings)
+            NavigationStack {
+                GhafAutomationGuideView(settings: settings)
+            }
         }
     }
 
