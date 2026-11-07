@@ -74,6 +74,7 @@ final class VoiceTransactionParserTests: XCTestCase {
         )
 
         XCTAssertEqual(drafts.count, 1)
+        XCTAssertEqual(drafts[0].merchant, "أدوية")
         XCTAssertEqual(Calendar.current.component(.hour, from: drafts[0].date), 15)
     }
 }
