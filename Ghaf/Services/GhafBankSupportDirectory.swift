@@ -21,7 +21,7 @@ struct GhafBankSupportContact: Identifiable {
 }
 
 enum GhafBankSupportDirectory {
-    // UAE contacts verified against each institution's official support page.
+    // GCC contacts verified against each institution's official support page.
     // Add new institutions only after verifying the current official number.
     static let contacts: [GhafBankSupportContact] = [
         GhafBankSupportContact(
@@ -168,7 +168,7 @@ enum GhafBankSupportDirectory {
             let aliases = contact.aliases.map(normalize)
             if values.contains(where: { value in
                 aliases.contains(where: { alias in
-                    value == alias || value.contains(alias) || alias.contains(value)
+                    value == alias || value.contains(alias)
                 })
             }) {
                 return contact
