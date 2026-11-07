@@ -84,6 +84,7 @@ final class GhafSpeechRecorder: ObservableObject {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
+        request.requiresOnDeviceRecognition = speechRecognizer?.supportsOnDeviceRecognition ?? false
         recognitionRequest = request
 
         let input = audioEngine.inputNode
