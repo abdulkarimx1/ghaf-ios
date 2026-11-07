@@ -17,13 +17,15 @@ Ghaf is a personal finance and budgeting app for iPhone, designed around multipl
 - Seven UAE city-inspired themes
 - Face ID / device-passcode lock
 
-Some requested capabilities are still in development. In particular, AI voice transaction splitting, Apple Sign In, cloud backup/sync, full merchant enrichment and final App Store signing are not yet complete.
+Some requested capabilities are still in development. Voice capture currently uses Apple's speech recognition framework and a rule-based transaction splitter; it is not a generative AI financial assistant. Apple Sign In, cloud backup/sync, full merchant enrichment and final App Store signing are not yet complete.
 
 ## Technology
 
 - SwiftUI
 - SwiftData
 - Swift Charts
+- Speech
+- AVFoundation
 - App Intents
 - Swift Package Manager
 - XcodeGen
@@ -115,7 +117,7 @@ The app cannot independently read every other app's notifications or bypass iOS 
 
 ## Privacy
 
-Financial records are stored locally using SwiftData. The current app does not require a Ghaf online account or external financial server. Bank messages passed to the App Intent are parsed on-device.
+Financial records are stored locally using SwiftData. The current app does not require a Ghaf online account or external financial server. Bank messages passed to the App Intent are parsed on-device. Voice capture requests microphone and speech-recognition access only when the user starts recording; the transcript and proposed transactions remain editable before saving.
 
 Cloud backup and sign-in are planned features and are not currently implemented.
 
