@@ -140,12 +140,12 @@ struct GhafTransactionsView: View {
     private var monthSummary: some View {
         HStack(spacing: 10) {
             summaryCell(
-                title: settings.languageCode == "ar" ? "المصروفات (\\(settings.currency))" : "SPENT IN \\(settings.currency)",
+                title: settings.languageCode == "ar" ? "المصروفات (\(settings.currency))" : "SPENT IN \(settings.currency)",
                 amount: monthExpenses,
                 color: theme.debit
             )
             summaryCell(
-                title: settings.languageCode == "ar" ? "الدخل (\\(settings.currency))" : "INCOME IN \\(settings.currency)",
+                title: settings.languageCode == "ar" ? "الدخل (\(settings.currency))" : "INCOME IN \(settings.currency)",
                 amount: monthIncome,
                 color: theme.credit
             )
@@ -419,7 +419,7 @@ struct GhafTransactionEditor: View {
                         Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
                             Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
                             ForEach(accounts, id: \\.id) { account in
-                                Text("\\(account.name) · \\(account.currency)").tag(Optional(account.id))
+                                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                             }
                         }
                         .pickerStyle(.menu)

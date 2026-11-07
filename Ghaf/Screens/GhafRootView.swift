@@ -13,6 +13,7 @@ struct GhafRootView: View {
     @State private var launchHasStarted = false
     @State private var isUnlocked = true
     @State private var authenticationMessage: String?
+    @State private var authenticationInProgress = false
 
     private var requiresAuthentication: Bool {
         settings.first?.hasCompletedOnboarding == true &&
@@ -122,11 +123,13 @@ struct GhafRootView: View {
     }
 
     private func authenticateUser() {
-        guard requiresAuthentication, !isUnlocked else { return }
+        guard requiresAuthentication, !isUnlocked, !authenticationInProgress else { return }
+        authenticationInProgress = true
         let context = LAContext()
         context.localizedCancelTitle = languageCode == "ar" ? "إلغاء" : "Cancel"
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            authenticationInProgress = false
             authenticationMessage = languageCode == "ar"
                 ? "تعذر بدء المصادقة. تحقق من إعدادات رمز دخول الجهاز."
                 : "Authentication is unavailable. Check your device passcode settings."
@@ -138,6 +141,7 @@ struct GhafRootView: View {
             : "Unlock Ghaf to access your financial information."
         context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, evaluationError in
             Task { @MainActor in
+                authenticationInProgress = false
                 if success {
                     isUnlocked = true
                     authenticationMessage = nil
