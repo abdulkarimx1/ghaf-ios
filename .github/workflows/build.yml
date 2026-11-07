@@ -50,7 +50,9 @@ jobs:
           set -euo pipefail
           ICON="Ghaf/Assets.xcassets/AppIcon.appiconset/ghaf-app-icon.png"
           test -f "$ICON"
-          sips -z 1024 1024 "$ICON" --out "$ICON"
+          ICON_TMP="${ICON%.png}-1024.png"
+          sips -z 1024 1024 "$ICON" --out "$ICON_TMP"
+          mv "$ICON_TMP" "$ICON"
           sips -g pixelWidth -g pixelHeight "$ICON"
           WIDTH="$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')"
           HEIGHT="$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')"
