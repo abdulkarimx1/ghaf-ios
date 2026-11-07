@@ -11,7 +11,7 @@ struct GhafVoiceTransactionDraft: Identifiable {
 }
 
 enum GhafVoiceTransactionParser {
-    private static let amountPattern = #"(?i)(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\s*)?([0-9]+(?:[,.][0-9]{1,2})?)\s*(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\b|درهم|دراهم|ريال|ريالات|دينار|دنانير|ر\.س|د\.إ)?"#
+    private static let amountPattern = #"(?i)(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\s*)?([0-9]+,[0-9]{1,2}|[0-9]+(?:,[0-9]{3})*(?:\\.[0-9]{1,2})?)\s*(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\b|درهم|دراهم|ريال|ريالات|دينار|دنانير|ر\.س|د\.إ)?"#
 
     static func parse(_ transcript: String, languageCode: String, baseCurrency: String) -> [GhafVoiceTransactionDraft] {
         let separated = transcript
@@ -31,7 +31,11 @@ enum GhafVoiceTransactionParser {
                   let match = regex.firstMatch(in: segment, range: NSRange(segment.startIndex..., in: segment)),
                   let amountRange = Range(match.range(at: 1), in: segment) else { return nil }
 
-            let amountText = String(segment[amountRange]).replacingOccurrences(of: ",", with: ".")
+            let rawAmount = String(segment[amountRange])
+            let isGroupedThousands = rawAmount.range(of: #"^[0-9]{1,3}(?:,[0-9]{3})+$"#, options: .regularExpression) != nil
+            let amountText = isGroupedThousands
+                ? rawAmount.replacingOccurrences(of: ",", with: "")
+                : rawAmount.replacingOccurrences(of: ",", with: ".")
             guard let amount = Decimal(string: amountText), amount > 0 else { return nil }
 
             let currency = detectCurrency(in: segment) ?? baseCurrency
