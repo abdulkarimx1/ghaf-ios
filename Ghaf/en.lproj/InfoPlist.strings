@@ -1,1 +1,3 @@
 "CFBundleDisplayName" = "Ghaf";
+"NSMicrophoneUsageDescription" = "Ghaf uses the microphone when you choose to record transaction details by voice."; 
+"NSSpeechRecognitionUsageDescription" = "Ghaf converts your spoken transaction details into editable text on your device.";
