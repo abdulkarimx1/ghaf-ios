@@ -148,7 +148,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: Ghaf-iPhone-17-preview
-          path: build/preview/ghaf-iphone-duo.png
+          path: build/preview/ghaf-iphone-17.png
           if-no-files-found: error
           retention-days: 7
 
