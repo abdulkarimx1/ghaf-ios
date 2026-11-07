@@ -40,7 +40,8 @@ struct GhafTransactionsView: View {
                 transaction.merchant ?? "",
                 transaction.category,
                 transaction.bank ?? "",
-                transaction.note ?? ""
+                transaction.note ?? "",
+                accounts.first(where: { $0.id == transaction.accountID })?.name ?? ""
             ]
             let matchesSearch = query.isEmpty || searchValues.contains {
                 $0.localizedCaseInsensitiveContains(query)

@@ -3,6 +3,7 @@ import SwiftData
 
 struct GhafAccountsView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     @Query private var transactions: [GhafTransaction]
 
@@ -135,8 +136,42 @@ struct GhafAccountsView: View {
                     accountRow(account)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        moveAccount(account, by: -1)
+                    } label: {
+                        Label(
+                            settings.languageCode == "ar" ? "نقل إلى الأعلى" : "Move up",
+                            systemImage: "arrow.up"
+                        )
+                    }
+                    .disabled(activeAccounts.first?.id == account.id)
+
+                    Button {
+                        moveAccount(account, by: 1)
+                    } label: {
+                        Label(
+                            settings.languageCode == "ar" ? "نقل إلى الأسفل" : "Move down",
+                            systemImage: "arrow.down"
+                        )
+                    }
+                    .disabled(activeAccounts.last?.id == account.id)
+                }
             }
         }
+    }
+
+    private func moveAccount(_ account: GhafAccount, by offset: Int) {
+        guard let currentIndex = activeAccounts.firstIndex(where: { $0.id == account.id }) else {
+            return
+        }
+        let destinationIndex = currentIndex + offset
+        guard activeAccounts.indices.contains(destinationIndex) else { return }
+        let destination = activeAccounts[destinationIndex]
+        let previousOrder = account.sortOrder
+        account.sortOrder = destination.sortOrder
+        destination.sortOrder = previousOrder
+        try? modelContext.save()
     }
 
     private func accountRow(_ account: GhafAccount) -> some View {
