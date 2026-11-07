@@ -16,7 +16,7 @@ jobs:
   build:
     name: Test and Build Ghaf
     # Runs on the developer's own Mac; this avoids GitHub-hosted Actions minutes.
-    runs-on: [self-hosted, xcode-27]
+    runs-on: [self-hosted, macOS, X64]
 
     steps:
       - name: Checkout repository
