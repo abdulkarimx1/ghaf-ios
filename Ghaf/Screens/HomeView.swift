@@ -118,7 +118,7 @@ struct GhafHomeView: View {
             )
 
             if totals.isEmpty {
-                Text(hideBalances ? "••••••" : GhafFormat.money(0, currency: settings.currency))
+                Text(hideBalances ? "••••••" : GhafFormat.money(0, currency: settings.currency, languageCode: settings.languageCode))
                     .font(GhafTypography.number(32, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .monospacedDigit()
@@ -129,7 +129,7 @@ struct GhafHomeView: View {
             } else {
                 VStack(spacing: 4) {
                     ForEach(totals) { item in
-                        Text(hideBalances ? "••••••" : GhafFormat.money(item.amount, currency: item.currency))
+                        Text(hideBalances ? "••••••" : GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
                             .font(GhafTypography.number(totals.count == 1 ? 32 : 22, weight: .bold))
                             .foregroundStyle(theme.primaryText)
                             .monospacedDigit()
@@ -350,7 +350,7 @@ struct GhafHomeView: View {
                 .tracking(1.25)
                 .foregroundStyle(theme.accentContrast.opacity(0.64))
 
-            Text(GhafFormat.money(amount, currency: settings.currency))
+            Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
                 .font(GhafTypography.number(14, weight: .semibold))
                 .foregroundStyle(theme.accentContrast)
                 .lineLimit(1)
@@ -554,7 +554,7 @@ struct GhafTransactionRow: View {
 
     private var amountText: String {
         let prefix = transaction.direction == "credit" ? "+" : "−"
-        return prefix + GhafFormat.money(transaction.amount, currency: transaction.currency)
+        return prefix + GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
     }
 }
 
