@@ -13,11 +13,13 @@ final class GhafSpeechRecorder: ObservableObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var speechRecognizer: SFSpeechRecognizer?
+    private var activeLanguageCode = "en"
 
     func start(languageCode: String) async {
         guard !isRecording else { return }
         errorMessage = nil
         transcript = ""
+        activeLanguageCode = languageCode
 
         let speechStatus = await requestSpeechAuthorization()
         guard speechStatus == .authorized else {
@@ -104,7 +106,9 @@ final class GhafSpeechRecorder: ObservableObject {
                     self?.transcript = result.bestTranscription.formattedString
                 }
                 if let error {
-                    self?.errorMessage = error.localizedDescription
+                    self?.errorMessage = self?.activeLanguageCode == "ar"
+                        ? "توقف التعرّف على الكلام. حاول مرة أخرى."
+                        : "Speech recognition stopped. Try again."
                     self?.stop()
                 }
             }
