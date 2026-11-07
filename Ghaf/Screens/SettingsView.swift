@@ -55,6 +55,8 @@ struct GhafSettingsView: View {
 
                     profileCard
                     languageCard
+                    accountManagementCard
+                    salaryManagementCard
                     automationCard
                     appearanceCard
                     budgetCard
@@ -168,6 +170,74 @@ struct GhafSettingsView: View {
             }
             .pickerStyle(.segmented)
         }
+    }
+
+    private var accountManagementCard: some View {
+        NavigationLink {
+            GhafAccountsView(settings: settings)
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "wallet.pass")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 44, height: 44)
+                    .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 13))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(languageCode == "ar" ? "الحسابات والمحافظ" : "Accounts & wallets")
+                        .font(GhafTypography.heading(16, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                    Text(languageCode == "ar"
+                         ? "إدارة البطاقات والأرصدة والعملات"
+                         : "Manage cards, balances and currencies")
+                        .font(GhafTypography.body(12, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            .padding(16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .ghafLiquidGlass(theme: theme, radius: 19)
+    }
+
+    private var salaryManagementCard: some View {
+        NavigationLink {
+            GhafSalarySettingsView(settings: settings)
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 44, height: 44)
+                    .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 13))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(languageCode == "ar" ? "دورة الراتب" : "Salary cycle")
+                        .font(GhafTypography.heading(16, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                    Text(languageCode == "ar"
+                         ? "حدد يوم الاستحقاق وتأكيد الإيداع"
+                         : "Set payday and confirm each deposit")
+                        .font(GhafTypography.body(12, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            .padding(16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .ghafLiquidGlass(theme: theme, radius: 19)
     }
 
     private var automationCard: some View {

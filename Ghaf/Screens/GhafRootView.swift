@@ -173,6 +173,16 @@ struct GhafOnboardingView: View {
     @State private var currency = "AED"
     @State private var income = ""
     @State private var commitments = ""
+    @State private var balanceSetupMode = "zero"
+    @State private var accountDrafts: [GhafAccountDraft] = [
+        GhafAccountDraft(name: "Cash wallet", type: .cash, currency: "AED", startingBalance: "0")
+    ]
+    @State private var salaryEnabled = false
+    @State private var salaryDay = 28
+    @State private var salaryAmountText = ""
+    @State private var salaryReminderEnabled = true
+    @State private var salaryAccountDraftID: UUID?
+    @State private var accountSetupError = false
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
@@ -194,6 +204,15 @@ struct GhafOnboardingView: View {
         _currency = State(initialValue: settings.currency)
         _income = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
         _commitments = State(initialValue: GhafFormat.decimal(settings.fixedCommitments))
+        _accountDrafts = State(initialValue: [
+            GhafAccountDraft(
+                name: settings.languageCode == "ar" ? "محفظة نقدية" : "Cash wallet",
+                type: .cash,
+                currency: settings.currency,
+                startingBalance: "0"
+            )
+        ])
+        _salaryAmountText = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
     }
 
     var body: some View {
@@ -213,7 +232,7 @@ struct GhafOnboardingView: View {
                 .pickerStyle(.menu)
                 .tint(theme.accent)
 
-                Text("\(step + 1) / 5")
+                Text("\(step + 1) / 6")
                     .font(GhafTypography.number(12, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
             }
@@ -231,6 +250,8 @@ struct GhafOnboardingView: View {
                             automationIntroPage
                         } else if step == 3 {
                             setupPage
+                        } else if step == 4 {
+                            accountsAndSalaryPage
                         } else {
                             connectionPage
                         }
@@ -380,6 +401,221 @@ struct GhafOnboardingView: View {
         }
     }
 
+    private var accountsAndSalaryPage: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text(languageCode == "ar" ? "أين تحتفظ بأموالك؟" : "Where do you keep your money?")
+                .font(GhafTypography.display(31, languageCode: languageCode))
+                .foregroundStyle(theme.primaryText)
+
+            Text(languageCode == "ar"
+                 ? "أضف محفظتك النقدية وبطاقاتك وحساباتك. كل رصيد سيبقى منفصلاً بعملته."
+                 : "Add your cash wallet, cards and bank accounts. Each balance stays separate in its own currency.")
+                .font(GhafTypography.body(14, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+
+            VStack(alignment: .leading, spacing: 8) {
+                onboardingLabel(languageCode == "ar" ? "كيف تريد بدء الأرصدة؟" : "HOW SHOULD BALANCES START?")
+                Picker(
+                    languageCode == "ar" ? "طريقة بدء الأرصدة" : "Starting balances",
+                    selection: $balanceSetupMode
+                ) {
+                    Text(languageCode == "ar" ? "ابدأ من الصفر" : "Start at zero").tag("zero")
+                    Text(languageCode == "ar" ? "أدخل الأرصدة الحالية" : "Enter current balances").tag("manual")
+                }
+                .pickerStyle(.segmented)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    onboardingLabel(languageCode == "ar" ? "حساباتك" : "YOUR ACCOUNTS")
+                    Spacer()
+                    Text("\(accountDrafts.count)")
+                        .font(GhafTypography.number(12, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                }
+
+                ForEach($accountDrafts) { $draft in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Image(systemName: $draft.type.wrappedValue.symbol)
+                                .foregroundStyle(theme.accent)
+                            TextField(
+                                languageCode == "ar" ? "اسم الحساب" : "Account name",
+                                text: $draft.name
+                            )
+                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                        }
+
+                        TextField(
+                            languageCode == "ar" ? "اسم البنك (اختياري)" : "Bank or issuer (optional)",
+                            text: $draft.institution
+                        )
+                        .font(GhafTypography.body(13, languageCode: languageCode))
+
+                        Picker(
+                            languageCode == "ar" ? "نوع الحساب" : "Account type",
+                            selection: $draft.type
+                        ) {
+                            ForEach(GhafAccountType.allCases) { type in
+                                Text(accountTypeTitle(type)).tag(type)
+                            }
+                        }
+                        .font(GhafTypography.body(12, languageCode: languageCode))
+                        .tint(theme.accent)
+
+                        HStack {
+                            Picker(
+                                languageCode == "ar" ? "العملة" : "Currency",
+                                selection: $draft.currency
+                            ) {
+                                ForEach(currencies, id: \.self) { code in
+                                    Text(code).tag(code)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .tint(theme.accent)
+
+                            Spacer()
+
+                            if balanceSetupMode == "manual" {
+                                TextField("0.00", text: $draft.startingBalance)
+                                    .font(GhafTypography.number(15, weight: .semibold))
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 110)
+                            } else {
+                                Text(currencyZeroLabel(for: draft.currency))
+                                    .font(GhafTypography.number(13, weight: .semibold))
+                                    .foregroundStyle(theme.secondaryText)
+                            }
+                        }
+                    }
+                    .padding(14)
+                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.outline, lineWidth: 1))
+                }
+
+                Button {
+                    accountDrafts.append(
+                        GhafAccountDraft(
+                            name: languageCode == "ar" ? "حساب جديد" : "New account",
+                            type: .debit,
+                            currency: currency,
+                            startingBalance: "0"
+                        )
+                    )
+                } label: {
+                    Label(
+                        languageCode == "ar" ? "إضافة بطاقة أو حساب" : "Add another account",
+                        systemImage: "plus"
+                    )
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
+                .tint(theme.accent)
+            }
+
+            VStack(alignment: .leading, spacing: 11) {
+                Toggle(isOn: $salaryEnabled) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(languageCode == "ar" ? "إعداد يوم الراتب" : "Set my salary day")
+                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                        Text(languageCode == "ar"
+                             ? "سيطلب منك غاف تأكيد استلام الراتب في هذا اليوم."
+                             : "Ghaf will ask you to confirm whether it arrived on that date.")
+                            .font(GhafTypography.body(12, languageCode: languageCode))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                }
+                .tint(theme.accent)
+
+                if salaryEnabled {
+                    HStack {
+                        Text(languageCode == "ar" ? "يوم استلام الراتب" : "Salary day of month")
+                            .font(GhafTypography.body(13, languageCode: languageCode))
+                            .foregroundStyle(theme.primaryText)
+                        Spacer()
+                        Picker("Salary day", selection: $salaryDay) {
+                            ForEach(1...31, id: \.self) { day in
+                                Text("\(day)").tag(day)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(theme.accent)
+                    }
+
+                    TextField(
+                        languageCode == "ar" ? "قيمة الراتب (اختياري)" : "Expected salary amount (optional)",
+                        text: $salaryAmountText
+                    )
+                    .font(GhafTypography.body(14, languageCode: languageCode))
+                    .keyboardType(.decimalPad)
+                    .padding(12)
+                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 12))
+
+                    Picker(
+                        languageCode == "ar" ? "إيداع الراتب في" : "Salary is deposited into",
+                        selection: $salaryAccountDraftID
+                    ) {
+                        ForEach(accountDrafts) { draft in
+                            Text(draft.name.isEmpty ? accountTypeTitle(draft.type) : draft.name)
+                                .tag(Optional(draft.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(theme.accent)
+
+                    Toggle(isOn: $salaryReminderEnabled) {
+                        Text(languageCode == "ar" ? "تذكيري في يوم الراتب" : "Remind me on salary day")
+                            .font(GhafTypography.body(13, languageCode: languageCode))
+                            .foregroundStyle(theme.primaryText)
+                    }
+                    .tint(theme.accent)
+                }
+            }
+            .padding(16)
+            .ghafCard(theme: theme, radius: 18)
+
+            if accountSetupError {
+                Text(languageCode == "ar"
+                     ? "تحقق من أسماء الحسابات والأرصدة المدخلة."
+                     : "Check the account names and starting balances.")
+                    .font(GhafTypography.body(12, languageCode: languageCode))
+                    .foregroundStyle(theme.over)
+            }
+        }
+    }
+
+    private func onboardingLabel(_ title: String) -> some View {
+        Text(title)
+            .font(GhafTypography.body(10, languageCode: languageCode, weight: .bold))
+            .tracking(1.1)
+            .foregroundStyle(theme.secondaryText)
+    }
+
+    private func accountTypeTitle(_ type: GhafAccountType) -> String {
+        if languageCode == "ar" {
+            switch type {
+            case .cash: "محفظة نقدية"
+            case .debit: "بطاقة خصم"
+            case .current: "حساب جاري"
+            case .savings: "حساب توفير"
+            case .credit: "بطاقة ائتمان"
+            case .prepaid: "بطاقة مسبقة الدفع"
+            }
+        } else {
+            return type.titleKey
+        }
+    }
+
+    private func currencyZeroLabel(for code: String) -> String {
+        if languageCode == "ar" { return "٠٫٠٠ \(code)" }
+        return "0.00 \(code)"
+    }
+
     private var connectionPage: some View {
         VStack(alignment: .leading, spacing: 22) {
             Image(systemName: "bolt.horizontal.circle")
@@ -457,6 +693,76 @@ struct GhafOnboardingView: View {
             settings.monthlyIncome = Decimal(string: income) ?? 0
             settings.fixedCommitments = Decimal(string: commitments) ?? 0
             step = 4
+            return
+        }
+
+        if step == 4 {
+            guard !accountDrafts.isEmpty else {
+                accountSetupError = true
+                return
+            }
+
+            var createdIDs: [UUID] = []
+            for (index, draft) in accountDrafts.enumerated() {
+                let cleanName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !cleanName.isEmpty else {
+                    accountSetupError = true
+                    return
+                }
+
+                let balance: Decimal
+                if balanceSetupMode == "manual" {
+                    guard let entered = Decimal(string: draft.startingBalance), entered >= 0 else {
+                        accountSetupError = true
+                        return
+                    }
+                    balance = entered
+                } else {
+                    balance = 0
+                }
+
+                let account = GhafAccount(
+                    id: draft.id,
+                    name: cleanName,
+                    institution: draft.institution.isEmpty ? nil : draft.institution,
+                    accountType: draft.type,
+                    currency: draft.currency,
+                    openingBalance: balance,
+                    openingDate: .now,
+                    isPrimary: index == 0,
+                    sortOrder: index
+                )
+                modelContext.insert(account)
+                createdIDs.append(account.id)
+            }
+
+            settings.balanceSetupMode = balanceSetupMode
+            settings.salaryEnabled = salaryEnabled
+            settings.salaryDay = salaryEnabled ? salaryDay : nil
+            settings.salaryAmount = salaryEnabled
+                ? (Decimal(string: salaryAmountText) ?? settings.monthlyIncome)
+                : nil
+            settings.salaryCurrency = currency
+            settings.salaryAccountID = salaryEnabled
+                ? (salaryAccountDraftID ?? createdIDs.first)
+                : nil
+            settings.salaryReminderEnabled = salaryEnabled && salaryReminderEnabled
+            do {
+                try modelContext.save()
+                step = 5
+                accountSetupError = false
+                if salaryEnabled && salaryReminderEnabled {
+                    Task {
+                        _ = await GhafSalaryReminderService.requestPermission()
+                        try? await GhafSalaryReminderService.scheduleNext(
+                            salaryDay: salaryDay,
+                            languageCode: languageCode
+                        )
+                    }
+                }
+            } catch {
+                accountSetupError = true
+            }
             return
         }
 

@@ -8,9 +8,13 @@ struct GhafHomeView: View {
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
+    @Query(sort: \GhafAccount.sortOrder)
+    private var accounts: [GhafAccount]
 
     @State private var showQuickAdd = false
     @State private var showAutomationGuide = false
+    @State private var showSalaryCheckIn = false
+    @State private var hideBalances = false
 
     let settings: GhafSettings
 
@@ -35,7 +39,9 @@ struct GhafHomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header
+                    balancesCard
                     budgetCard
+                    salaryCard
                     automationCard
                     manualEntryButton
                     todaySection
@@ -62,6 +68,163 @@ struct GhafHomeView: View {
                         }
                 }
             }
+            .sheet(isPresented: $showSalaryCheckIn) {
+                GhafSalaryCheckInView(settings: settings, accounts: accounts)
+            }
+            .onAppear(perform: checkSalaryDue)
+            .task {
+                if settings.salaryEnabled == true, settings.salaryReminderEnabled == true,
+                   let day = settings.salaryDay {
+                    try? await GhafSalaryReminderService.scheduleNext(
+                        salaryDay: day,
+                        languageCode: settings.languageCode
+                    )
+                }
+            }
+            .sheet(isPresented: $showSalaryCheckIn) {
+                GhafSalaryCheckInView(settings: settings, accounts: accounts)
+            }
+            .onAppear(perform: checkSalaryDue)
+            .task {
+                if settings.salaryEnabled == true, settings.salaryReminderEnabled == true,
+                   let day = settings.salaryDay {
+                    try? await GhafSalaryReminderService.scheduleNext(
+                        salaryDay: day,
+                        languageCode: settings.languageCode
+                    )
+                }
+            }
+        }
+    }
+
+    private var balancesCard: some View {
+        VStack(spacing: 13) {
+            HStack {
+                Text(settings.languageCode == "ar" ? "الأرصدة المتاحة" : "AVAILABLE BALANCES")
+                    .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                    .tracking(1.5)
+                    .foregroundStyle(theme.secondaryText)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.snappy(duration: 0.22)) {
+                        hideBalances.toggle()
+                    }
+                } label: {
+                    Image(systemName: hideBalances ? "eye.slash" : "eye")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(settings.languageCode == "ar"
+                                    ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
+                                    : (hideBalances ? "Show balances" : "Hide balances"))
+            }
+
+            let totals = GhafAccountBalanceCalculator.balancesByCurrency(
+                accounts: accounts,
+                transactions: transactions
+            )
+
+            if totals.isEmpty {
+                Text(hideBalances ? "••••••" : GhafFormat.money(0, currency: settings.currency))
+                    .font(GhafTypography.number(32, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+                    .monospacedDigit()
+
+                Text(settings.languageCode == "ar" ? "أضف محفظتك أو حسابك الأول" : "Add your first wallet or account")
+                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+            } else {
+                VStack(spacing: 4) {
+                    ForEach(totals) { item in
+                        Text(hideBalances ? "••••••" : GhafFormat.money(item.amount, currency: item.currency))
+                            .font(GhafTypography.number(totals.count == 1 ? 32 : 22, weight: .bold))
+                            .foregroundStyle(theme.primaryText)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                            .contentTransition(.numericText())
+                        if totals.count > 1 {
+                            Text(item.currency)
+                                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .medium))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                    }
+                }
+            }
+
+            NavigationLink {
+                GhafAccountsView(settings: settings)
+            } label: {
+                HStack(spacing: 6) {
+                    Text(settings.languageCode == "ar" ? "إدارة الحسابات" : "Manage accounts")
+                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
+                    Image(systemName: settings.languageCode == "ar" ? "arrow.up.left" : "arrow.up.right")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(theme.accent)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .ghafCard(theme: theme, radius: 22)
+    }
+
+    private var salaryCard: some View {
+        Group {
+            if settings.salaryEnabled == true, let day = settings.salaryDay {
+                Button {
+                    showSalaryCheckIn = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(theme.accent)
+                            .frame(width: 42, height: 42)
+                            .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 13))
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(settings.languageCode == "ar" ? "يوم الراتب: \(day)" : "Salary day: \(day)")
+                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                                .foregroundStyle(theme.primaryText)
+                            Text(settings.languageCode == "ar"
+                                 ? "اضغط لتأكيد وصول الراتب أو تأجيل التأكيد."
+                                 : "Tap to confirm whether your salary has arrived.")
+                                .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        Spacer(minLength: 2)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .ghafLiquidGlass(theme: theme, radius: 18)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func checkSalaryDue() {
+        guard settings.salaryEnabled == true,
+              let salaryDay = settings.salaryDay,
+              let range = Calendar.current.range(of: .day, in: .month, for: .now) else {
+            return
+        }
+
+        let effectiveDay = min(max(salaryDay, 1), range.count)
+        let currentDay = Calendar.current.component(.day, from: .now)
+        let key = GhafSalaryCycle.periodKey(for: .now, salaryDay: salaryDay)
+
+        if currentDay >= effectiveDay && settings.lastSalaryDecisionKey != key {
+            showSalaryCheckIn = true
         }
     }
 
@@ -413,9 +576,11 @@ struct GhafQuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
 
     let settings: GhafSettings
 
+    @State private var selectedAccountID: UUID?
     @State private var amount = ""
     @State private var merchant = ""
     @State private var category = "Other"
@@ -475,6 +640,15 @@ struct GhafQuickAddView: View {
                     .pickerStyle(.menu)
                     .tint(theme.accent)
 
+                    fieldLabel(settings.languageCode == "ar" ? "الحساب" : "Account")
+                    Picker("Account", selection: $selectedAccountID) {
+                        ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in
+                            Text(account.name).tag(Optional(account.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(theme.accent)
+
                     fieldLabel("Date")
                     DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .datePickerStyle(.compact)
@@ -506,6 +680,10 @@ struct GhafQuickAddView: View {
             }
         }
         .tint(theme.accent)
+        .onAppear {
+            selectedAccountID = accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
+                ?? accounts.first(where: { !$0.isArchived })?.id
+        }
     }
 
     private func fieldLabel(_ title: String) -> some View {
@@ -529,9 +707,10 @@ struct GhafQuickAddView: View {
             return
         }
 
+        let selectedAccount = accounts.first(where: { $0.id == selectedAccountID })
         let parsed = ParsedTransaction(
             amount: value,
-            currency: settings.currency,
+            currency: selectedAccount?.currency ?? settings.currency,
             merchant: merchant.isEmpty ? nil : merchant,
             date: date,
             direction: TransactionDirection(rawValue: direction) ?? .debit,
@@ -544,7 +723,8 @@ struct GhafQuickAddView: View {
             parsed: parsed,
             category: category,
             needsReview: false,
-            isReversal: false
+            isReversal: false,
+            accountID: selectedAccountID
         )
         transaction.note = note
         modelContext.insert(transaction)

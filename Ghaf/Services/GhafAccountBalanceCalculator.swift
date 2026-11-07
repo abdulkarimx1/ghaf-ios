@@ -100,8 +100,10 @@ enum GhafSalaryCycle {
         salaryDay: Int,
         calendar: Calendar = .current
     ) -> Date {
-        let day = calendar.component(.day, from: date)
-        let offset = day < salaryDay ? -1 : 0
+        let currentDay = calendar.component(.day, from: date)
+        let daysInMonth = calendar.range(of: .day, in: .month, for: date)?.count ?? 30
+        let effectiveSalaryDay = min(max(salaryDay, 1), daysInMonth)
+        let offset = currentDay < effectiveSalaryDay ? -1 : 0
         let base = calendar.date(byAdding: .month, value: offset, to: date) ?? date
         return dateInMonth(containing: base, day: salaryDay, calendar: calendar)
     }
