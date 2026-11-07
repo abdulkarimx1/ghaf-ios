@@ -522,6 +522,9 @@ struct GhafHomeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(settings.languageCode == "ar" ? "تغيير فترة عرض العمليات" : "Change activity period")
+            .accessibilityHint(settings.languageCode == "ar"
+                               ? "اضغط للتبديل بين اليوم والأسبوع والشهر."
+                               : "Tap to cycle between day, week and month.")
 
             if activityTransactions.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
