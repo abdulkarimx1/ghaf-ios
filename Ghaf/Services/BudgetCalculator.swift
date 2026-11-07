@@ -1,4 +1,6 @@
+
 import Foundation
+import GhafCore
 
 struct BudgetSnapshot {
 
@@ -27,25 +29,13 @@ enum BudgetCalculator {
             $0.direction == TransactionDirection.debit.rawValue
         }
 
-        let limit: Decimal
-        let spent: Decimal
-        let periodTitle: String
-
         if settings.budgetMode == "Category" {
 
             let budgets = settings.categoryBudgets
 
-            limit = budgets.values.reduce(Decimal.zero, +)
+            let limit = budgets.values.reduce(Decimal.zero, +)
 
-            spent = currencyTransactions
-                .filter { budgets[$0.category] != nil }
-                .reduce(Decimal.zero) {
-                    $0 + $1.amount
-                }
-
-            periodTitle = "Remaining this month"
-
-            let currentMonthTransactions = currencyTransactions.filter {
+            let monthlyTransactions = currencyTransactions.filter {
                 Calendar.current.isDate(
                     $0.date,
                     equalTo: date,
@@ -53,7 +43,7 @@ enum BudgetCalculator {
                 )
             }
 
-            let monthlySpent = currentMonthTransactions
+            let spent = monthlyTransactions
                 .filter { budgets[$0.category] != nil }
                 .reduce(Decimal.zero) {
                     $0 + $1.amount
@@ -61,13 +51,13 @@ enum BudgetCalculator {
 
             return makeSnapshot(
                 limit: limit,
-                spent: monthlySpent,
-                periodTitle: periodTitle
+                spent: spent,
+                periodTitle: "Remaining this month"
             )
         }
 
-        let availableIncome = settings.monthlyIncome -
-            settings.fixedCommitments
+        let availableIncome =
+            settings.monthlyIncome - settings.fixedCommitments
 
         let monthlyAvailable = availableIncome > 0
             ? availableIncome
@@ -79,9 +69,9 @@ enum BudgetCalculator {
             for: date
         )?.count ?? 30
 
-        limit = monthlyAvailable / Decimal(daysInMonth)
+        let dailyLimit = monthlyAvailable / Decimal(daysInMonth)
 
-        spent = currencyTransactions
+        let spent = currencyTransactions
             .filter {
                 Calendar.current.isDate(
                     $0.date,
@@ -93,7 +83,7 @@ enum BudgetCalculator {
             }
 
         return makeSnapshot(
-            limit: limit,
+            limit: dailyLimit,
             spent: spent,
             periodTitle: "Remaining today"
         )
