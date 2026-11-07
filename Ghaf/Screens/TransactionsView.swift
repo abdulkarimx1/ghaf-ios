@@ -441,14 +441,58 @@ struct GhafTransactionEditor: View {
                                 .foregroundStyle(theme.secondaryText)
                         }
                         Text(languageCode == "ar"
-                            ? "لا تتوفر بيانات موقع أو هاتف للتاجر ضمن مصدر هذه العملية."
-                            : "Merchant location and phone details are not supplied by this transaction source.")
+                            ? "بيانات موقع المتجر ورقمه غير متاحة في رسالة البنك."
+                            : "The bank message does not include the merchant's location or phone number.")
                             .font(GhafTypography.body(10, languageCode: languageCode))
                             .foregroundStyle(theme.secondaryText)
                     }
                     .padding(13)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+
+                    if let contact = GhafBankSupportDirectory.contact(
+                        for: [transaction.bank, accounts.first(where: { $0.id == accountID })?.institution]
+                    ) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            editorLabel(languageCode == "ar" ? "دعم البنك" : "BANK SUPPORT")
+                            Text(languageCode == "ar" ? contact.nameArabic : contact.name)
+                                .font(GhafTypography.heading(16, languageCode: languageCode))
+                                .foregroundStyle(theme.primaryText)
+
+                            HStack(spacing: 10) {
+                                Link(destination: URL(string: "tel:\(contact.localDialString)")!) {
+                                    Label(
+                                        languageCode == "ar" ? "اتصال محلي · \(contact.localPhone)" : "Call · \(contact.localPhone)",
+                                        systemImage: "phone.fill"
+                                    )
+                                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(theme.accent)
+
+                                Link(destination: URL(string: "tel:\(contact.internationalDialString)")!) {
+                                    Label(
+                                        languageCode == "ar" ? "من الخارج" : "Outside UAE",
+                                        systemImage: "globe"
+                                    )
+                                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(theme.accent)
+                            }
+
+                            Link(
+                                languageCode == "ar" ? "الموقع الرسمي وطرق التواصل" : "Official contact details",
+                                destination: contact.website
+                            )
+                            .font(GhafTypography.body(12, languageCode: languageCode))
+                            .tint(theme.accent)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+                        .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))
+                    }
 
                     editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
                     DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
