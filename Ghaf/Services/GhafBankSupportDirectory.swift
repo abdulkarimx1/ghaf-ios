@@ -33,7 +33,7 @@ enum GhafBankSupportDirectory {
             localPhone: "04 424 4444",
             internationalPhone: "+971 4 424 4444",
             website: URL(string: "https://www.mashreq.com/uae/customer-care/contact-us/")!,
-            aliases: ["mashreq", "mashreq neo", "mashreq bank"]
+            aliases: ["mashreq", "mashreq neo", "mashreq bank", "المشرق"]
         ),
         GhafBankSupportContact(
             id: "mbank",
@@ -44,7 +44,7 @@ enum GhafBankSupportDirectory {
             localPhone: "600 57 1111",
             internationalPhone: "+971 2 412 2222",
             website: URL(string: "https://www.mbank.ae/contact-us/")!,
-            aliases: ["mbank", "m bank", "al maryah community bank", "amcb"]
+            aliases: ["mbank", "m bank", "al maryah community bank", "amcb", "مصرف الإمارات للتنمية المجتمعية"]
         ),
         GhafBankSupportContact(
             id: "ruya",
@@ -55,7 +55,7 @@ enum GhafBankSupportDirectory {
             localPhone: "600 507 892",
             internationalPhone: "+971 6 707 0570",
             website: URL(string: "https://ruyabank.ae/en/contact-us")!,
-            aliases: ["ruya", "ruya bank", "ruya community islamic bank"]
+            aliases: ["ruya", "ruya bank", "ruya community islamic bank", "رويا"]
         ),
         GhafBankSupportContact(
             id: "ivestor",
@@ -66,7 +66,7 @@ enum GhafBankSupportDirectory {
             localPhone: "04 305 5555",
             internationalPhone: "+971 4 305 5555",
             website: URL(string: "https://ivestor.ae/support/")!,
-            aliases: ["ivestor", "dfm", "dubai financial market"]
+            aliases: ["ivestor", "dfm", "dubai financial market", "آي فيستور"]
         ),
         GhafBankSupportContact(
             id: "alrajhi",
