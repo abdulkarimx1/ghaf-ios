@@ -24,7 +24,7 @@ public enum GhafVoiceTransactionParser {
         let separated = transcript
             .replacingOccurrences(of: "،", with: ",")
             .replacingOccurrences(
-                of: #"(?i)\b(?:then|and then|after that|also)\b|ثم|وبعدها|بعد ذلك"#,
+                of: #"(?i)\b(?:then|and then|after that|also)\b|ثم|وبعدها|بعد ذلك|بعدين|عقبها|وعقبها"#,
                 with: "|",
                 options: .regularExpression
             )
@@ -54,7 +54,7 @@ public enum GhafVoiceTransactionParser {
                 options: .regularExpression
             )
             merchant = merchant.replacingOccurrences(
-                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|ثم|وبعدها)(?![\p{L}\p{N}])"#,
+                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
                 with: " ",
                 options: .regularExpression
             )
