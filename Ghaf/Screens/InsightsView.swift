@@ -178,7 +178,7 @@ struct GhafInsightsView: View {
                 Chart(categoryTotals.prefix(6)) { item in
                     BarMark(
                         x: .value("Amount", item.amount),
-                        y: .value("Category", NSLocalizedString(item.category, comment: ""))
+                        y: .value("Category", GhafLocalization.category(item.category, languageCode: settings.languageCode))
                     )
                     .foregroundStyle(theme.accent.gradient)
                     .cornerRadius(5)
@@ -214,7 +214,7 @@ struct GhafInsightsView: View {
                     HStack(spacing: 11) {
                         GhafCategoryIcon(category: item.category, tint: theme.accent)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(LocalizedStringKey(item.category))
+                            Text(GhafLocalization.category(item.category, languageCode: settings.languageCode))
                                 .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
                                 .foregroundStyle(theme.primaryText)
                             GeometryReader { geometry in
