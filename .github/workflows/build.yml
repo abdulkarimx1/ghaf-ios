@@ -76,7 +76,8 @@ jobs:
           test -d "$SIM_APP"
           xcrun simctl install "$DEVICE_ID" "$SIM_APP"
           xcrun simctl launch "$DEVICE_ID" com.ghaf.app
-          sleep 4
+          # Allow the launch animation and SwiftData initialization to finish.
+          sleep 8
           mkdir -p build/preview
           xcrun simctl io "$DEVICE_ID" screenshot build/preview/ghaf-iphone-17.png
 
