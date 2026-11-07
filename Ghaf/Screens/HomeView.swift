@@ -599,7 +599,7 @@ struct GhafQuickAddView: View {
                             .tracking(1.5)
                             .foregroundStyle(theme.secondaryText)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(settings.currency)
+                            Text(GhafFormat.symbol(for: settings.currency, languageCode: settings.languageCode))
                                 .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                                 .foregroundStyle(theme.secondaryText)
                             TextField("0.00", text: $amount)
