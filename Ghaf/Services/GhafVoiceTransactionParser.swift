@@ -7,16 +7,22 @@ struct GhafVoiceTransactionDraft: Identifiable {
     var currency: String
     var date: Date
     var category: String
+    var direction: String
 }
 
 enum GhafVoiceTransactionParser {
     private static let amountPattern = #"(?i)(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\s*)?([0-9]+(?:[,.][0-9]{1,2})?)\s*(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\b|درهم|دراهم|ريال|ريالات|دينار|دنانير|ر\.س|د\.إ)?"#
 
     static func parse(_ transcript: String, languageCode: String, baseCurrency: String) -> [GhafVoiceTransactionDraft] {
-        let segments = transcript
+        let separated = transcript
             .replacingOccurrences(of: "،", with: ",")
-            .components(separatedBy: try! NSRegularExpression(pattern: #"(?i)\b(?:then|and then|after that|also)\b|ثم|وبعدها|بعد ذلك"#))
-        let parts = segments.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .replacingOccurrences(
+                of: #"(?i)\b(?:then|and then|after that|also)\b|ثم|وبعدها|بعد ذلك"#,
+                with: "|",
+                options: .regularExpression
+            )
+        let parts = separated.components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
         return parts.compactMap { segment in
@@ -51,9 +57,18 @@ enum GhafVoiceTransactionParser {
                 amount: amount,
                 currency: currency,
                 date: inferredDate(from: segment),
-                category: "Other"
+                category: "Other",
+                direction: isIncome(segment) ? "credit" : "debit"
             )
         }
+    }
+
+    private static func isIncome(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        return lower.range(
+            of: #"(?i)\b(?:received|salary|income|deposit|refund|cashback)\b|استلمت|راتب|إيداع|استرداد"#,
+            options: .regularExpression
+        ) != nil
     }
 
     private static func detectCurrency(in text: String) -> String? {
