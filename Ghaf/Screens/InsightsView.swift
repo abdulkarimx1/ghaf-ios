@@ -1,3 +1,4 @@
+
 import SwiftUI
 import SwiftData
 import Charts
@@ -226,7 +227,7 @@ struct GhafInsightsView: View {
                     .cornerRadius(6)
                 }
                 .frame(height: 230)
-                .chartYAxisLabel(Text(settings.currency))
+                .chartYAxisLabel(settings.currency)
                 .chartXAxis {
                     AxisMarks()
                 }
