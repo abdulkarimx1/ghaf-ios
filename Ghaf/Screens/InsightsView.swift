@@ -104,7 +104,7 @@ struct GhafInsightsView: View {
                 .tracking(1.4)
                 .foregroundStyle(theme.accentContrast.opacity(0.72))
 
-            Text(GhafFormat.money(net, currency: settings.currency))
+            Text(GhafFormat.money(net, currency: settings.currency, languageCode: settings.languageCode))
                 .font(GhafTypography.number(34, weight: .bold))
                 .monospacedDigit()
                 .foregroundStyle(theme.accentContrast)
@@ -149,7 +149,7 @@ struct GhafInsightsView: View {
             }
             .foregroundStyle(theme.secondaryText)
 
-            Text(GhafFormat.money(amount, currency: settings.currency))
+            Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
                 .font(GhafTypography.number(18, weight: .bold))
                 .foregroundStyle(color)
                 .lineLimit(1)
@@ -228,7 +228,7 @@ struct GhafInsightsView: View {
                             .frame(height: 4)
                         }
                         Spacer(minLength: 4)
-                        Text(GhafFormat.money(Decimal(item.amount), currency: settings.currency))
+                        Text(GhafFormat.money(Decimal(item.amount), currency: settings.currency, languageCode: settings.languageCode))
                             .font(GhafTypography.number(12, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .lineLimit(1)
