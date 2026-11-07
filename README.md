@@ -1,20 +1,23 @@
 # Ghaf
 
-Ghaf is a personal budgeting application for iOS.
+Ghaf is a personal finance and budgeting app for iPhone, designed around multiple accounts, cash wallets, transaction capture and spending clarity.
 
-It automatically records bank transactions through Apple Shortcuts
-and categorizes spending locally on the device.
+## Current capabilities
 
-## Features
-
-- Automatic bank message parsing
-- Transaction categorization
-- Daily spending limits
-- Category budgets
-- Needs Review inbox
+- Multiple cash and bank accounts, each with its own currency and opening balance
+- Account balances calculated from assigned transactions
+- Daily and category budgets
+- Salary-day reminders and deposit confirmation
+- Bank-message parsing through an App Intent exposed to Apple Shortcuts
+- Local merchant categorization with learned user corrections
+- Transaction review, editing and deletion
 - Monthly insights
-- Local JSON backup
-- No accounts, analytics, or external servers
+- Local JSON backup and restore
+- English and Arabic interface foundations
+- Seven UAE city-inspired themes
+- Face ID / device-passcode lock
+
+Some requested capabilities are still in development. In particular, AI voice transaction splitting, Apple Sign In, cloud backup/sync, full merchant enrichment and final App Store signing are not yet complete.
 
 ## Technology
 
@@ -24,107 +27,96 @@ and categorizes spending locally on the device.
 - App Intents
 - Swift Package Manager
 - XcodeGen
-- GitHub Actions
+- GitHub Actions with a self-hosted macOS runner
 
 Minimum iOS version: 17.0
 
-Bundle identifier: com.ghaf.app
+Bundle identifier: `com.ghaf.app`
 
-## Repository Structure
+## Repository structure
 
-- Ghaf: iOS application
-- Packages/GhafCore: transaction parser and unit tests
-- .github/workflows: CI build automation
-- project.yml: XcodeGen configuration
+- `Ghaf`: iOS application
+- `Packages/GhafCore`: bank-message parser and unit tests
+- `.github/workflows`: manual build workflow
+- `project.yml`: XcodeGen configuration
 
-## Building
+## Build runner
 
-Ghaf is built using GitHub Actions.
+The build workflow is manual-only and targets an Apple Silicon Mac registered as a self-hosted GitHub Actions runner. This avoids consuming GitHub-hosted Actions minutes.
 
-No local Mac or Xcode installation is required.
+### One-time Mac setup
 
-The workflow:
+1. Open the repository Settings → Actions → Runners.
+2. Select **New self-hosted runner**.
+3. Choose **macOS** and **ARM64**.
+4. Follow GitHub's generated download and configuration commands in Terminal.
+5. Start the runner from its installation directory with:
 
-1. Checks out the repository.
-2. Selects Xcode 16.4.
-3. Installs XcodeGen.
-4. Generates Ghaf.xcodeproj.
-5. Runs GhafCore unit tests.
-6. Builds the iOS application without signing.
-7. Creates an unsigned archive.
-8. Packages Ghaf.ipa.
-9. Uploads the IPA as a GitHub artifact.
+   ```bash
+   ./run.sh
+   ```
 
-## Running the Workflow
+6. Keep the runner process running while a build is queued or executing. GitHub should show the runner as **Idle** when it is ready.
 
-1. Open the repository on GitHub.
-2. Select Actions.
-3. Select Build Ghaf iOS.
-4. Click Run workflow.
-5. Select the main branch.
-6. Confirm Run workflow.
+Select a valid Xcode installation on the Mac before starting a build:
 
-Commits pushed to main also trigger the workflow automatically.
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+xcodebuild -version
+xcrun --sdk iphoneos --show-sdk-version
+```
 
-## Downloading the IPA
+Install XcodeGen if it is not already available:
 
-When a workflow completes:
+```bash
+brew install xcodegen
+```
 
-1. Open Actions.
-2. Select the completed Build Ghaf iOS run.
-3. Scroll down to Artifacts.
-4. Download Ghaf-unsigned-ipa.
-5. Extract the downloaded ZIP.
-6. Locate Ghaf.ipa.
+The workflow uses the Xcode selected by `xcode-select`; it does not require a specific Xcode application folder name.
 
-Build artifacts are retained for 14 days.
+### Run a build
 
-## Signing
+1. Open the repository's **Actions** tab.
+2. Select **Build Ghaf iOS**.
+3. Click **Run workflow** and choose `main`.
+4. Confirm **Run workflow**.
 
-The generated IPA is unsigned.
+Pushing commits does not start a build. Group development changes and run the workflow at deliberate checkpoints.
 
-Use FlareStore or another compatible signing service to sign it.
+### Workflow outputs
 
-Required signing materials:
+A successful run currently produces:
 
-- P12 certificate
-- P12 password, if protected
-- Mobile provisioning profile
+- `Ghaf-unsigned-ipa`: unsigned archive packaged as an IPA
+- `Ghaf-iPhone-17-preview`: simulator screenshot (uses another available iPhone simulator if iPhone 17 is not installed)
 
-The provisioning profile must be compatible with the app bundle identifier
-and the target device.
+On failure, diagnostic logs are uploaded as an artifact. Build artifacts are retained for 14 days.
 
-Never commit signing materials to this repository.
+## Signing and App Store release
+
+The current IPA is **unsigned**. It is a packaging/checkpoint artifact, not a final installable or App Store-submittable IPA.
+
+A signed release requires:
+
+- An Apple Developer Program team
+- The correct App ID / bundle identifier
+- An Apple Distribution certificate and private key
+- An App Store provisioning profile
+- Xcode archive export settings configured for App Store distribution
+- App Store Connect app record, privacy details, screenshots and review metadata
+
+Signing credentials and provisioning profiles must never be committed to this repository. They should be installed securely on the self-hosted Mac or supplied through protected GitHub secrets.
 
 ## Apple Shortcuts
 
-After the App Intent implementation is added, Ghaf will expose
-the Log Bank Message action in Apple Shortcuts.
+Ghaf exposes the **Log Bank Message** App Intent. A Personal Automation can pass the incoming bank message text and sender to this action. iOS controls which automation triggers can run automatically and which message contents are available.
 
-SMS automation:
-
-1. Open Shortcuts.
-2. Create a Personal Automation.
-3. Select Message.
-4. Configure the bank sender.
-5. Add Log Bank Message.
-6. Pass the incoming Message variable.
-7. Pass the sender name when available.
-8. Configure automatic execution where supported.
-
-For bank application notifications, use a Notification automation
-where the installed iOS version supports it and the notification
-content is available as an automation input.
-
-The completed App Intent implementation and onboarding will provide
-the final configuration instructions.
+The app cannot independently read every other app's notifications or bypass iOS privacy restrictions.
 
 ## Privacy
 
-All financial records are stored locally using SwiftData.
+Financial records are stored locally using SwiftData. The current app does not require a Ghaf online account or external financial server. Bank messages passed to the App Intent are parsed on-device.
 
-Ghaf does not require an online account or external financial server.
-Bank messages are processed on the device.
+Cloud backup and sign-in are planned features and are not currently implemented.
 
-No certificates, passwords, provisioning profiles, or real bank
-messages should be committed to the repository.
+Never commit certificates, passwords, provisioning profiles, API keys or real bank messages to this repository.
