@@ -321,7 +321,7 @@ struct GhafHomeView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
-                .ghafGlass(theme: theme, radius: 20)
+                .ghafCard(theme: theme, radius: 20)
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(todayTransactions.prefix(6)), id: \.id) { transaction in
@@ -338,7 +338,7 @@ struct GhafHomeView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .ghafGlass(theme: theme, radius: 20)
+                .ghafCard(theme: theme, radius: 20)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
