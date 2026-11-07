@@ -1,65 +1,62 @@
 import SwiftUI
 
-struct GhafGlassSurface: ViewModifier {
+private struct GhafCardSurface: ViewModifier {
     let theme: GhafTheme
-    var radius: CGFloat = 22
+    let radius: CGFloat
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background {
-                shape.fill(.ultraThinMaterial)
-                    .overlay(shape.fill(theme.surface.opacity(0.74)))
-            }
+            .background(theme.surface, in: shape)
             .overlay {
-                shape.stroke(
-                    LinearGradient(
-                        colors: [
-                            .white.opacity(0.38),
-                            theme.outline.opacity(0.60),
-                            .white.opacity(0.10)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+                shape.stroke(theme.outline.opacity(0.72), lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.055), radius: 15, x: 0, y: 7)
+            .shadow(color: .black.opacity(0.035), radius: 12, x: 0, y: 5)
+    }
+}
+
+private struct GhafLiquidGlassSurface: ViewModifier {
+    let theme: GhafTheme
+    let radius: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(
+                .regular.tint(theme.accent.opacity(0.12)).interactive(),
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+            )
+        } else {
+            content.modifier(GhafCardSurface(theme: theme, radius: radius))
+        }
     }
 }
 
 extension View {
-    func ghafGlass(theme: GhafTheme, radius: CGFloat = 22) -> some View {
-        modifier(GhafGlassSurface(theme: theme, radius: radius))
+    func ghafCard(theme: GhafTheme, radius: CGFloat = 22) -> some View {
+        modifier(GhafCardSurface(theme: theme, radius: radius))
     }
-}
 
-struct GhafGlassButtonStyle: ButtonStyle {
-    let theme: GhafTheme
+    func ghafLiquidGlass(theme: GhafTheme, radius: CGFloat = 22) -> some View {
+        modifier(GhafLiquidGlassSurface(theme: theme, radius: radius))
+    }
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.custom("IBMPlexSans-Regular", size: 16).weight(.semibold))
-            .foregroundStyle(theme.accentContrast)
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 54)
-            .padding(.horizontal, 18)
-            .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(theme.accent.opacity(configuration.isPressed ? 0.92 : 0.82))
-                    }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(.white.opacity(0.30), lineWidth: 1)
-            }
-            .shadow(color: theme.accent.opacity(0.15), radius: 12, y: 5)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    @ViewBuilder
+    func ghafProminentButton(theme: GhafTheme) -> some View {
+        if #available(iOS 26.0, *) {
+            self.buttonStyle(.glassProminent)
+        } else {
+            self.buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+        }
+    }
+
+    @ViewBuilder
+    func ghafGlassButton(theme: GhafTheme) -> some View {
+        if #available(iOS 26.0, *) {
+            self.buttonStyle(.glass)
+        } else {
+            self.buttonStyle(.borderedProminent).tint(theme.accent)
+        }
     }
 }
 
@@ -70,16 +67,13 @@ struct GhafTreeMark: View {
         GeometryReader { geometry in
             let side = min(geometry.size.width, geometry.size.height)
             ZStack {
-                Ellipse()
-                    .fill(color)
+                Ellipse().fill(color)
                     .frame(width: side * 0.66, height: side * 0.27)
                     .offset(y: -side * 0.17)
-                Circle()
-                    .fill(color)
+                Circle().fill(color)
                     .frame(width: side * 0.39, height: side * 0.39)
                     .offset(x: -side * 0.20, y: -side * 0.19)
-                Circle()
-                    .fill(color)
+                Circle().fill(color)
                     .frame(width: side * 0.39, height: side * 0.39)
                     .offset(x: side * 0.20, y: -side * 0.19)
                 RoundedRectangle(cornerRadius: side * 0.035, style: .continuous)

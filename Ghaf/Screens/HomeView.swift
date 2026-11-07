@@ -270,11 +270,7 @@ struct GhafHomeView: View {
             .padding(.top, 1)
         }
         .padding(17)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(theme.outline, lineWidth: 1)
-        }
+        .ghafLiquidGlass(theme: theme, radius: 22)
     }
 
     private var manualEntryButton: some View {
@@ -494,7 +490,7 @@ struct GhafQuickAddView: View {
                     }
 
                     Button("Save transaction", action: save)
-                        .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+                        .ghafProminentButton(theme: theme)
                 }
                 .padding(22)
                 .frame(maxWidth: 580)

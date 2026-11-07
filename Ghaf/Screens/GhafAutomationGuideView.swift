@@ -60,7 +60,6 @@ struct GhafAutomationGuideView: View {
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, Locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, settings.languageCode == "ar" ? .rightToLeft : .leftToRight)
-        .toolbarBackground(theme.background, for: .navigationBar)
     }
 
     private var heading: some View {
@@ -127,7 +126,7 @@ struct GhafAutomationGuideView: View {
                 .foregroundStyle(theme.secondaryText)
         }
         .padding(18)
-        .ghafGlass(theme: theme, radius: 20)
+        .ghafCard(theme: theme, radius: 20)
     }
 
     private func instructionCard(number: String, title: String, detail: String) -> some View {
@@ -150,7 +149,7 @@ struct GhafAutomationGuideView: View {
         }
         .padding(17)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafGlass(theme: theme, radius: 19)
+        .ghafCard(theme: theme, radius: 19)
     }
 
     private var privacyCard: some View {

@@ -151,8 +151,6 @@ struct GhafTabView: View {
         .tint(theme.accent)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
-        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
         .preferredColorScheme(
             settings.appearanceMode == "Dark" ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
@@ -246,7 +244,7 @@ struct GhafOnboardingView: View {
                 Button(step == 4 ? "Start using Ghaf" : "Continue") {
                     advance()
                 }
-                .buttonStyle(GhafGlassButtonStyle(theme: theme))
+                .ghafProminentButton(theme: theme)
 
                 if step > 0 {
                     Button("Back") { step -= 1 }
@@ -405,7 +403,7 @@ struct GhafOnboardingView: View {
                 Label("Set up automatic tracking", systemImage: "arrow.up.right")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(GhafGlassButtonStyle(theme: theme))
+            .ghafProminentButton(theme: theme)
 
             Text("iOS controls whether some automations can run without confirmation. Some banking apps also hide transaction details in notification previews.")
                 .font(GhafTypography.body(13, languageCode: languageCode))

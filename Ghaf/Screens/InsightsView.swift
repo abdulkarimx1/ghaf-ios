@@ -195,7 +195,7 @@ struct GhafInsightsView: View {
             }
         }
         .padding(18)
-        .ghafGlass(theme: theme, radius: 20)
+        .ghafCard(theme: theme, radius: 20)
     }
 
     private var categoryList: some View {
@@ -240,7 +240,7 @@ struct GhafInsightsView: View {
             }
         }
         .padding(18)
-        .ghafGlass(theme: theme, radius: 20)
+        .ghafCard(theme: theme, radius: 20)
     }
 
     private func sectionHeading(_ title: String, subtitle: String) -> some View {

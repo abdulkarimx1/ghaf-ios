@@ -5,7 +5,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
-  xcodeVersion: "16.4"
+  xcodeVersion: "27.2"
   projectFormat: xcode16_0
 
 packages:
@@ -16,10 +16,8 @@ targets:
   Ghaf:
     type: application
     platform: iOS
-
     sources:
       - path: Ghaf
-
     dependencies:
       - package: GhafCore
         product: GhafCore
@@ -36,9 +34,13 @@ targets:
           - IBMPlexSansArabic-Bold.ttf
           - ThmanyahSerifDisplay-Regular.otf
           - ThmanyahSerifDisplay-Black.otf
+        UILaunchScreen:
+          UIColorName: GhafLaunchBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        UIRequiresFullScreen: true
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortraitUpsideDown
         UIApplicationSupportsIndirectInputEvents: true
 
     settings:

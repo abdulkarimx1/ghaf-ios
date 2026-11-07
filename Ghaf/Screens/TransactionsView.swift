@@ -206,7 +206,7 @@ struct GhafTransactionsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
-            .ghafGlass(theme: theme, radius: 19)
+            .ghafCard(theme: theme, radius: 19)
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -237,7 +237,7 @@ struct GhafTransactionsView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .ghafGlass(theme: theme, radius: 19)
+                .ghafCard(theme: theme, radius: 19)
             }
         }
     }
@@ -356,7 +356,7 @@ struct GhafTransactionEditor: View {
                     }
 
                     Button(languageCode == "ar" ? "حفظ التغييرات" : "Save changes", action: save)
-                        .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+                        .ghafProminentButton(theme: theme)
                 }
                 .padding(22)
                 .frame(maxWidth: 560)

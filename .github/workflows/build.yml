@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 permissions:
@@ -13,27 +12,25 @@ permissions:
 jobs:
   build:
     name: Test and Build Ghaf
-
-    runs-on: macos-15
+    runs-on: xcode-27
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Select pinned Xcode
+      - name: Select iOS 27 toolchain
         run: |
-          XCODE_PATH="/Applications/Xcode_16.4.app"
-
+          set -euo pipefail
+          XCODE_PATH="/Applications/Xcode_27.2.app"
           if [ ! -d "$XCODE_PATH" ]; then
-            echo "Xcode 16.4 was not found on this runner."
+            echo "Xcode 27.2 was not found on this runner."
+            ls -1 /Applications | grep -i Xcode || true
             exit 1
           fi
-
-          sudo xcode-select -s \
-            "$XCODE_PATH/Contents/Developer"
-
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
           xcodebuild -version
-          swift --version
+          xcrun --sdk iphoneos --show-sdk-version
+          test "$(xcrun --sdk iphoneos --show-sdk-version)" = "27.2"
 
       - name: Install XcodeGen
         run: |
@@ -48,15 +45,44 @@ jobs:
       - name: Test GhafCore
         run: |
           set -o pipefail
-
           swift test \
             --package-path Packages/GhafCore \
             2>&1 | tee core-tests.log
 
+      - name: Build and launch on iPhone Duo simulator
+        run: |
+          set -euo pipefail
+          DEVICE_LINE="$(xcrun simctl list devices available | grep -m1 'iPhone Duo (')"
+          DEVICE_ID="$(printf '%s\n' "$DEVICE_LINE" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "$DEVICE_LINE" ]; then
+            echo "The iPhone Duo simulator was not found."
+            xcrun simctl list devices available
+            exit 1
+          fi
+          xcrun simctl boot "$DEVICE_ID" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+          set -o pipefail
+          xcodebuild \
+            -project Ghaf.xcodeproj \
+            -scheme Ghaf \
+            -configuration Debug \
+            -destination "id=$DEVICE_ID" \
+            -derivedDataPath build/SimulatorDerived \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee simulator-build.log
+
+          SIM_APP="build/SimulatorDerived/Build/Products/Debug-iphonesimulator/Ghaf.app"
+          test -d "$SIM_APP"
+          xcrun simctl install "$DEVICE_ID" "$SIM_APP"
+          xcrun simctl launch "$DEVICE_ID" com.ghaf.app
+          sleep 4
+          mkdir -p build/preview
+          xcrun simctl io "$DEVICE_ID" screenshot build/preview/ghaf-iphone-duo.png
+
       - name: Build iOS application
         run: |
           set -o pipefail
-
           xcodebuild \
             -project Ghaf.xcodeproj \
             -scheme Ghaf \
@@ -72,7 +98,6 @@ jobs:
       - name: Archive unsigned application
         run: |
           set -o pipefail
-
           xcodebuild \
             -project Ghaf.xcodeproj \
             -scheme Ghaf \
@@ -85,29 +110,30 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             archive 2>&1 | tee archive.log
 
-      - name: Package unsigned IPA
+      - name: Verify device compatibility metadata
         run: |
-          set -e
-
+          set -euo pipefail
           APP_PATH="build/Ghaf.xcarchive/Products/Applications/Ghaf.app"
-
-          if [ ! -d "$APP_PATH" ]; then
-            echo "Archived Ghaf.app was not found."
+          PLIST="$APP_PATH/Info.plist"
+          SDK_NAME=$(/usr/libexec/PlistBuddy -c 'Print :DTSDKName' "$PLIST")
+          echo "Archived SDK: $SDK_NAME"
+          test "$SDK_NAME" = "iphoneos27.2"
+          /usr/libexec/PlistBuddy -c 'Print :UILaunchScreen' "$PLIST"
+          if /usr/libexec/PlistBuddy -c 'Print :UIRequiresFullScreen' "$PLIST" >/dev/null 2>&1; then
+            echo "UIRequiresFullScreen must not be present."
             exit 1
           fi
+          /usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations' "$PLIST"
 
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP_PATH="build/Ghaf.xcarchive/Products/Applications/Ghaf.app"
+          test -d "$APP_PATH"
           rm -rf Payload
           mkdir -p Payload
-
           ditto "$APP_PATH" Payload/Ghaf.app
-
-          /usr/bin/ditto \
-            -c -k \
-            --sequesterRsrc \
-            --keepParent \
-            Payload \
-            Ghaf.ipa
-
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload Ghaf.ipa
           unzip -t Ghaf.ipa
 
       - name: Upload unsigned IPA
@@ -118,6 +144,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload iPhone Duo simulator preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ghaf-iPhone-Duo-preview
+          path: build/preview/ghaf-iphone-duo.png
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload diagnostic logs on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -126,6 +160,7 @@ jobs:
           path: |
             xcodegen.log
             core-tests.log
+            simulator-build.log
             build.log
             archive.log
           if-no-files-found: ignore

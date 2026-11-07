@@ -87,7 +87,7 @@ struct GhafReviewInboxView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(22)
-        .ghafGlass(theme: theme, radius: 20)
+        .ghafCard(theme: theme, radius: 20)
         .padding(.top, 6)
     }
 
@@ -125,7 +125,7 @@ struct GhafReviewInboxView: View {
                     selectedTransaction = transaction
                     showEditor = true
                 }
-                .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+                .ghafProminentButton(theme: theme)
 
                 Button {
                     transaction.needsReview = false
@@ -142,7 +142,7 @@ struct GhafReviewInboxView: View {
             }
         }
         .padding(15)
-        .ghafGlass(theme: theme, radius: 19)
+        .ghafCard(theme: theme, radius: 19)
     }
 
     @ViewBuilder

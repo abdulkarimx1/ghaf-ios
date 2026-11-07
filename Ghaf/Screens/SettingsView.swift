@@ -63,7 +63,7 @@ struct GhafSettingsView: View {
                     dangerCard
 
                     Button("Save settings", action: saveSettings)
-                        .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+                        .ghafProminentButton(theme: theme)
                         .padding(.top, 2)
 
                     Text("Your data stays on this iPhone. Ghaf does not connect to a financial server.")
@@ -198,7 +198,7 @@ struct GhafSettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .ghafGlass(theme: theme, radius: 20)
+        .ghafLiquidGlass(theme: theme, radius: 20)
     }
 
     private var appearanceCard: some View {
@@ -375,7 +375,7 @@ struct GhafSettingsView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafGlass(theme: theme, radius: 20)
+        .ghafCard(theme: theme, radius: 20)
     }
 
     private func settingsLabel(_ title: String) -> some View {
