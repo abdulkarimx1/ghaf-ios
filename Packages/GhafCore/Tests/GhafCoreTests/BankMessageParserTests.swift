@@ -114,6 +114,23 @@ final class BankMessageParserTests: XCTestCase {
         XCTAssertFalse(parser.shouldSendToReview(transaction))
     }
 
+    func testParsesAllSupportedGCCCurrencyCodes() {
+        let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
+
+        for currency in currencies {
+            let sample = "Card purchase \(currency) 12.50 at SAMPLE MERCHANT."
+            let result = parser.parse(
+                sample,
+                sender: "Unknown Bank",
+                referenceDate: referenceDate
+            )
+
+            XCTAssertNotNil(result, "Expected parser to recognize \(currency)")
+            XCTAssertEqual(result?.currency, currency)
+            XCTAssertEqual(result?.amount, Decimal(string: "12.50"))
+        }
+    }
+
     func testMissingCurrencyUsesConfiguredDefaultAndNeedsReview() {
         let customParser = BankMessageParser(defaultCurrency: "AED")
         let sample = "mbank: Debit transaction amount 55.00 at Carrefour."
