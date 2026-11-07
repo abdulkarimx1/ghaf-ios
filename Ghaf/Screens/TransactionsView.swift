@@ -458,11 +458,14 @@ struct GhafTransactionEditor: View {
                             Text(languageCode == "ar" ? contact.nameArabic : contact.name)
                                 .font(GhafTypography.heading(16, languageCode: languageCode))
                                 .foregroundStyle(theme.primaryText)
+                            Text(languageCode == "ar" ? contact.countryNameArabic : contact.countryName)
+                                .font(GhafTypography.body(11, languageCode: languageCode))
+                                .foregroundStyle(theme.secondaryText)
 
                             HStack(spacing: 10) {
                                 Link(destination: URL(string: "tel:\(contact.localDialString)")!) {
                                     Label(
-                                        languageCode == "ar" ? "اتصال محلي · \(contact.localPhone)" : "Call · \(contact.localPhone)",
+                                        languageCode == "ar" ? "محلي · \(contact.localPhone)" : "Local · \(contact.localPhone)",
                                         systemImage: "phone.fill"
                                     )
                                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
@@ -472,7 +475,7 @@ struct GhafTransactionEditor: View {
 
                                 Link(destination: URL(string: "tel:\(contact.internationalDialString)")!) {
                                     Label(
-                                        languageCode == "ar" ? "من الخارج" : "Outside UAE",
+                                        languageCode == "ar" ? "دولي" : "International",
                                         systemImage: "globe"
                                     )
                                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
