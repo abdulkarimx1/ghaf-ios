@@ -24,6 +24,23 @@ targets:
       - package: GhafCore
         product: GhafCore
 
+    info:
+      path: BuildConfig/Generated-Info.plist
+      properties:
+        CFBundleDisplayName: Ghaf
+        UIAppFonts:
+          - IBMPlexSans-Variable.ttf
+          - IBMPlexSansArabic-Regular.ttf
+          - IBMPlexSansArabic-Medium.ttf
+          - IBMPlexSansArabic-SemiBold.ttf
+          - IBMPlexSansArabic-Bold.ttf
+          - ThmanyahSerifDisplay-Regular.otf
+          - ThmanyahSerifDisplay-Black.otf
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiresFullScreen: true
+        UIApplicationSupportsIndirectInputEvents: true
+
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app
@@ -31,7 +48,5 @@ targets:
         SWIFT_VERSION: "5.0"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Ghaf
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES

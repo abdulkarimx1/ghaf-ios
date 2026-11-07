@@ -2,7 +2,6 @@ import SwiftUI
 import SwiftData
 
 struct GhafTransactionsView: View {
-
     @Environment(\.colorScheme) private var systemColorScheme
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
@@ -25,104 +24,222 @@ struct GhafTransactionsView: View {
 
     private var filteredTransactions: [GhafTransaction] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-
         return transactions.filter { transaction in
             let matchesFilter: Bool
-
             switch filter {
-            case "Expenses":
-                matchesFilter = transaction.direction == "debit"
-            case "Income":
-                matchesFilter = transaction.direction == "credit"
-            case "Review":
-                matchesFilter = transaction.needsReview
-            default:
-                matchesFilter = true
+            case "Expenses": matchesFilter = transaction.direction == "debit"
+            case "Income": matchesFilter = transaction.direction == "credit"
+            case "Review": matchesFilter = transaction.needsReview
+            default: matchesFilter = true
             }
-
             let searchValues = [
                 transaction.merchant ?? "",
                 transaction.category,
                 transaction.bank ?? "",
                 transaction.note ?? ""
             ]
-
             let matchesSearch = query.isEmpty || searchValues.contains {
                 $0.localizedCaseInsensitiveContains(query)
             }
-
             return matchesFilter && matchesSearch
         }
     }
 
+    private var monthTransactions: [GhafTransaction] {
+        filteredTransactions.filter {
+            Calendar.current.isDate($0.date, equalTo: Date(), toGranularity: .month)
+        }
+    }
+
+    private var monthExpenses: Decimal {
+        monthTransactions.filter { $0.direction == "debit" }
+            .reduce(Decimal.zero) { $0 + $1.amount }
+    }
+
+    private var monthIncome: Decimal {
+        monthTransactions.filter { $0.direction == "credit" }
+            .reduce(Decimal.zero) { $0 + $1.amount }
+    }
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                filterControl
-                transactionContent
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    pageHeader
+                    monthSummary
+                    searchField
+                    filterBar
+                    transactionsContent
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 30)
+                .frame(maxWidth: 620)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(theme.background.ignoresSafeArea())
-            .navigationTitle("Transactions")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(
-                text: $searchText,
-                prompt: "Merchant, category or bank"
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showEditor) {
                 transactionEditorSheet
             }
         }
     }
 
-    private var filterControl: some View {
-        Picker("Filter", selection: $filter) {
-            Text("All").tag("All")
-            Text("Expenses").tag("Expenses")
-            Text("Income").tag("Income")
-            Text("Review").tag("Review")
+    private var pageHeader: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(settings.languageCode == "ar" ? "إدارة أموالك" : "YOUR MONEY")
+                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                .tracking(1.8)
+                .foregroundStyle(theme.secondaryText)
+            Text(settings.languageCode == "ar" ? "العمليات" : "Transactions")
+                .font(GhafTypography.display(32, languageCode: settings.languageCode))
+                .foregroundStyle(theme.primaryText)
+            Text(settings.languageCode == "ar" ? "كل حركة مالية في مكان واحد." : "Every recorded movement, all in one place.")
+                .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
         }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
+    }
+
+    private var monthSummary: some View {
+        HStack(spacing: 10) {
+            summaryCell(
+                title: settings.languageCode == "ar" ? "المصروفات" : "SPENT THIS MONTH",
+                amount: monthExpenses,
+                color: theme.debit
+            )
+            summaryCell(
+                title: settings.languageCode == "ar" ? "الدخل" : "INCOME THIS MONTH",
+                amount: monthIncome,
+                color: theme.credit
+            )
+        }
+    }
+
+    private func summaryCell(title: String, amount: Decimal, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text(title)
+                .font(GhafTypography.body(9, languageCode: settings.languageCode, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+            Text(GhafFormat.money(amount, currency: settings.currency))
+                .font(GhafTypography.number(19, weight: .bold))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .padding(15)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 17).stroke(theme.outline.opacity(0.65), lineWidth: 1))
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+            TextField(
+                settings.languageCode == "ar" ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank",
+                text: $searchText
+            )
+            .font(GhafTypography.body(14, languageCode: settings.languageCode))
+            .foregroundStyle(theme.primaryText)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(theme.secondaryText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 15)
+        .frame(height: 48)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.outline, lineWidth: 1))
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 7) {
+            filterButton("All", label: settings.languageCode == "ar" ? "الكل" : "All")
+            filterButton("Expenses", label: settings.languageCode == "ar" ? "مصروفات" : "Expenses")
+            filterButton("Income", label: settings.languageCode == "ar" ? "دخل" : "Income")
+            filterButton("Review", label: settings.languageCode == "ar" ? "مراجعة" : "Review")
+        }
+    }
+
+    private func filterButton(_ value: String, label: String) -> some View {
+        let isSelected = filter == value
+        return Button {
+            filter = value
+        } label: {
+            Text(label)
+                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity)
+                .frame(height: 37)
+                .foregroundStyle(isSelected ? theme.accentContrast : theme.secondaryText)
+                .background(isSelected ? theme.accent : theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(isSelected ? theme.accent : theme.outline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
-    private var transactionContent: some View {
+    private var transactionsContent: some View {
         if filteredTransactions.isEmpty {
-            ContentUnavailableView(
-                "No transactions found",
-                systemImage: "magnifyingglass",
-                description: Text("Try changing your filters or search.")
-            )
+            VStack(alignment: .leading, spacing: 7) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 25, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+                Text(settings.languageCode == "ar" ? "لا توجد عمليات" : "No transactions found")
+                    .font(GhafTypography.heading(18, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.primaryText)
+                Text(settings.languageCode == "ar" ? "جرّب تغيير البحث أو الفلتر." : "Try changing your search or filter.")
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .ghafGlass(theme: theme, radius: 19)
         } else {
-            transactionList
-        }
-    }
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(settings.languageCode == "ar" ? "سجل العمليات" : "Activity")
+                        .font(GhafTypography.heading(19, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.primaryText)
+                    Spacer()
+                    Text("\(filteredTransactions.count)")
+                        .font(GhafTypography.number(12, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                }
 
-    private var transactionList: some View {
-        List {
-            ForEach(filteredTransactions, id: \.id) { transaction in
-                transactionCell(transaction)
+                VStack(spacing: 0) {
+                    ForEach(filteredTransactions, id: \.id) { transaction in
+                        Button {
+                            selectedTransaction = transaction
+                            showEditor = true
+                        } label: {
+                            GhafTransactionRow(
+                                transaction: transaction,
+                                theme: theme,
+                                languageCode: settings.languageCode
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        Divider().overlay(theme.outline).padding(.leading, 58)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .ghafGlass(theme: theme, radius: 19)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-    }
-
-    private func transactionCell(_ transaction: GhafTransaction) -> some View {
-        Button {
-            selectedTransaction = transaction
-            showEditor = true
-        } label: {
-            GhafTransactionRow(
-                transaction: transaction,
-                theme: theme,
-                languageCode: settings.languageCode
-            )
-        }
-        .buttonStyle(.plain)
-        .listRowBackground(Color.clear)
-        .listRowSeparatorTint(theme.outline)
     }
 
     @ViewBuilder
@@ -130,7 +247,10 @@ struct GhafTransactionsView: View {
         if let transaction = selectedTransaction {
             GhafTransactionEditor(
                 transaction: transaction,
-                categories: settings.categories
+                categories: settings.categories,
+                themeName: settings.themeName,
+                appearanceMode: settings.appearanceMode,
+                languageCode: settings.languageCode
             )
         }
     }
@@ -139,12 +259,15 @@ struct GhafTransactionsView: View {
 // MARK: - Transaction Editor
 
 struct GhafTransactionEditor: View {
-
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var systemColorScheme
 
     let transaction: GhafTransaction
     let categories: [String]
+    let themeName: String
+    let appearanceMode: String
+    let languageCode: String
 
     @State private var amount: String
     @State private var merchant: String
@@ -154,18 +277,31 @@ struct GhafTransactionEditor: View {
     @State private var date: Date
     @State private var errorMessage = ""
 
+    private var theme: GhafTheme {
+        GhafTheme.resolve(
+            name: themeName,
+            appearanceMode: appearanceMode,
+            systemIsDark: systemColorScheme == .dark
+        )
+    }
+
     init(
         transaction: GhafTransaction,
-        categories: [String]
+        categories: [String],
+        themeName: String,
+        appearanceMode: String,
+        languageCode: String
     ) {
         self.transaction = transaction
+        self.themeName = themeName
+        self.appearanceMode = appearanceMode
+        self.languageCode = languageCode
 
         var availableCategories = categories
         if !availableCategories.contains(transaction.category) {
             availableCategories.append(transaction.category)
         }
         self.categories = availableCategories
-
         _amount = State(initialValue: GhafFormat.decimal(transaction.amount))
         _merchant = State(initialValue: transaction.merchant ?? "")
         _category = State(initialValue: transaction.category)
@@ -176,66 +312,85 @@ struct GhafTransactionEditor: View {
 
     var body: some View {
         NavigationStack {
-            transactionForm
-                .navigationTitle("Edit transaction")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 15) {
+                    Text(languageCode == "ar" ? "تعديل العملية" : "Edit transaction")
+                        .font(GhafTypography.display(29, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+
+                    editorLabel(languageCode == "ar" ? "المبلغ" : "AMOUNT")
+                    TextField("0.00", text: $amount)
+                        .font(GhafTypography.number(30, weight: .bold))
+                        .keyboardType(.decimalPad)
+                        .padding(15)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 15))
+
+                    editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
+                    editorField("Merchant", text: $merchant)
+
+                    editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
+                    Picker("Direction", selection: $direction) {
+                        Text("Expense").tag("debit")
+                        Text("Income").tag("credit")
+                    }
+                    .pickerStyle(.segmented)
+
+                    editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
+                    Picker("Category", selection: $category) {
+                        ForEach(categories, id: \.self) { Text(LocalizedStringKey($0)).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(theme.accent)
+
+                    editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
+                    DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                        .tint(theme.accent)
+
+                    editorLabel(languageCode == "ar" ? "ملاحظة" : "NOTE")
+                    editorField("Optional note", text: $note)
+
+                    if !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .font(GhafTypography.body(13, languageCode: languageCode))
+                            .foregroundStyle(theme.over)
                     }
 
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            save()
-                        }
-                        .fontWeight(.bold)
-                    }
+                    Button(languageCode == "ar" ? "حفظ التغييرات" : "Save changes", action: save)
+                        .buttonStyle(GhafPrimaryButtonStyle(theme: theme))
                 }
+                .padding(22)
+                .frame(maxWidth: 560)
+                .frame(maxWidth: .infinity)
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(languageCode == "ar" ? "إلغاء" : "Cancel") { dismiss() }
+                }
+            }
         }
     }
 
-    private var transactionForm: some View {
-        Form {
-            Section("Details") {
-                TextField("Amount", text: $amount)
-                    .keyboardType(.decimalPad)
+    private func editorLabel(_ value: String) -> some View {
+        Text(value)
+            .font(GhafTypography.body(10, languageCode: languageCode, weight: .bold))
+            .tracking(1.3)
+            .foregroundStyle(theme.secondaryText)
+    }
 
-                TextField("Merchant", text: $merchant)
-
-                Picker("Direction", selection: $direction) {
-                    Text("Expense").tag("debit")
-                    Text("Income").tag("credit")
-                }
-
-                Picker("Category", selection: $category) {
-                    ForEach(categories, id: \.self) { item in
-                        Text(item).tag(item)
-                    }
-                }
-
-                DatePicker(
-                    "Date",
-                    selection: $date,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-            }
-
-            Section("Additional information") {
-                TextField("Note", text: $note)
-            }
-
-            if !errorMessage.isEmpty {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-            }
-        }
+    private func editorField(_ placeholder: String, text: Binding<String>) -> some View {
+        TextField(placeholder, text: text)
+            .font(GhafTypography.body(15, languageCode: languageCode))
+            .padding(13)
+            .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))
     }
 
     private func save() {
         guard let value = Decimal(string: amount), value > 0 else {
-            errorMessage = "Enter a valid amount."
+            errorMessage = languageCode == "ar" ? "أدخل مبلغاً صحيحاً." : "Enter a valid amount."
             return
         }
 
@@ -249,13 +404,9 @@ struct GhafTransactionEditor: View {
 
         if let merchantName = transaction.merchant, !merchantName.isEmpty {
             do {
-                try MerchantCategorizer.learn(
-                    merchant: merchantName,
-                    category: category,
-                    context: modelContext
-                )
+                try MerchantCategorizer.learn(merchant: merchantName, category: category, context: modelContext)
             } catch {
-                errorMessage = "Could not save merchant rule."
+                errorMessage = languageCode == "ar" ? "تعذر حفظ قاعدة المتجر." : "Could not save merchant rule."
                 return
             }
         }
@@ -264,7 +415,7 @@ struct GhafTransactionEditor: View {
             try modelContext.save()
             dismiss()
         } catch {
-            errorMessage = "Could not save changes."
+            errorMessage = languageCode == "ar" ? "تعذر حفظ التعديلات." : "Could not save changes."
         }
     }
 }
