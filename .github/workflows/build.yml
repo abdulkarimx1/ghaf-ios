@@ -78,7 +78,7 @@ jobs:
           xcrun simctl launch "$DEVICE_ID" com.ghaf.app
           sleep 4
           mkdir -p build/preview
-          xcrun simctl io "$DEVICE_ID" screenshot build/preview/ghaf-iphone-duo.png
+          xcrun simctl io "$DEVICE_ID" screenshot --display=3 build/preview/ghaf-iphone-duo.png
 
       - name: Build iOS application
         run: |
