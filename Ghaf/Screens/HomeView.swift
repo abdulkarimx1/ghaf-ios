@@ -12,6 +12,7 @@ struct GhafHomeView: View {
     private var accounts: [GhafAccount]
 
     @State private var showQuickAdd = false
+    @State private var showVoiceEntry = false
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
     @State private var hideBalances = false
@@ -57,6 +58,11 @@ struct GhafHomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showQuickAdd) {
                 GhafQuickAddView(settings: settings)
+            }
+            .sheet(isPresented: $showVoiceEntry) {
+                NavigationStack {
+                    GhafVoiceEntryView(settings: settings)
+                }
             }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
@@ -425,17 +431,33 @@ struct GhafHomeView: View {
     }
 
     private var manualEntryButton: some View {
-        Button {
-            showQuickAdd = true
+        Menu {
+            Button {
+                showVoiceEntry = true
+            } label: {
+                Label(
+                    settings.languageCode == "ar" ? "أضف بالصوت" : "Add with voice",
+                    systemImage: "waveform"
+                )
+            }
+
+            Button {
+                showQuickAdd = true
+            } label: {
+                Label(
+                    settings.languageCode == "ar" ? "إضافة يدوية" : "Add manually",
+                    systemImage: "square.and.pencil"
+                )
+            }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.system(size: 15, weight: .bold))
-                Text(settings.languageCode == "ar" ? "أضف عملية يدوياً" : "Add transaction manually")
+                Text(settings.languageCode == "ar" ? "إضافة عملية" : "Add transaction")
                     .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                 Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 12, weight: .semibold))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(theme.accent)
             .padding(.horizontal, 16)
