@@ -13,7 +13,8 @@ Ghaf is a personal finance and budgeting app for iPhone, designed around multipl
 - GCC bank support contacts for 26 institutions across six countries
 - Transaction review, editing and deletion
 - Monthly insights
-- Local JSON backup and restore
+- Local JSON backup and restore (currently unencrypted)
+- Manual export through Files, including iCloud Drive or Google Drive when installed
 - English and Arabic interface foundations
 - Ghaf app icon and reusable brand mark assets
 - Seven UAE city-inspired themes
