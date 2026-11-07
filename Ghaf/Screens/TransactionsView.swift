@@ -160,7 +160,7 @@ struct GhafTransactionsView: View {
                 .tracking(1.0)
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            Text(GhafFormat.money(amount, currency: settings.currency))
+            Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
                 .font(GhafTypography.number(19, weight: .bold))
                 .foregroundStyle(color)
                 .lineLimit(1)
