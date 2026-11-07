@@ -25,7 +25,8 @@ enum GhafVoiceTransactionParser {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        return parts.compactMap { segment in
+        return parts.compactMap { originalSegment in
+            let segment = normalizeNumerals(originalSegment)
             guard let regex = try? NSRegularExpression(pattern: amountPattern),
                   let match = regex.firstMatch(in: segment, range: NSRange(segment.startIndex..., in: segment)),
                   let amountRange = Range(match.range(at: 1), in: segment) else { return nil }
@@ -37,7 +38,7 @@ enum GhafVoiceTransactionParser {
             var merchant = segment
             merchant.removeSubrange(amountRange)
             merchant = merchant.replacingOccurrences(
-                of: #"(?i)\b(?:i|we|just|went|to|the|store|supermarket|bought|buy|got|paid|for|spent|on|at|a|an|dhs?|dirhams?|aed|sar|kwd|bhd|omr|qar|usd|eur|gbp|today|yesterday|this morning|last night)\b"#,
+                of: #"(?i)\b(?:i|we|just|went|to|the|store|supermarket|bought|buy|got|paid|for|spent|on|at|a|an|and|then|dhs?|dirhams?|aed|sar|kwd|bhd|omr|qar|usd|eur|gbp|today|yesterday|this morning|last night)\b"#,
                 with: " ",
                 options: .regularExpression
             )
@@ -61,6 +62,16 @@ enum GhafVoiceTransactionParser {
                 direction: isIncome(segment) ? "credit" : "debit"
             )
         }
+    }
+
+    private static func normalizeNumerals(_ value: String) -> String {
+        let replacements: [Character: Character] = [
+            "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+            "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+            "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4",
+            "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9"
+        ]
+        return String(value.map { replacements[$0] ?? $0 })
     }
 
     private static func isIncome(_ text: String) -> Bool {
