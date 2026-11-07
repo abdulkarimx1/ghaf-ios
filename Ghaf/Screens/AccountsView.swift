@@ -105,7 +105,7 @@ struct GhafAccountsView: View {
                         .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
                         .foregroundStyle(theme.secondaryText)
                     Spacer()
-                    Text(GhafFormat.money(item.amount, currency: item.currency))
+                    Text(GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
                         .font(GhafTypography.number(20, weight: .bold))
                         .foregroundStyle(theme.primaryText)
                 }
@@ -204,7 +204,7 @@ struct GhafAccountsView: View {
             Spacer(minLength: 6)
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(GhafFormat.money(balance, currency: account.currency))
+                Text(GhafFormat.money(balance, currency: account.currency, languageCode: settings.languageCode))
                     .font(GhafTypography.number(15, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
@@ -256,7 +256,8 @@ struct GhafAccountsView: View {
                     Spacer()
                     Text(GhafFormat.money(
                         GhafAccountBalanceCalculator.balance(for: account, transactions: transactions),
-                        currency: account.currency
+                        currency: account.currency,
+                    languageCode: settings.languageCode
                     ))
                     .font(GhafTypography.number(12))
                     .foregroundStyle(theme.secondaryText)
