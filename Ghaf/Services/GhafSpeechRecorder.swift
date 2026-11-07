@@ -60,6 +60,7 @@ final class GhafSpeechRecorder: ObservableObject {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         isRecording = false
     }
 
