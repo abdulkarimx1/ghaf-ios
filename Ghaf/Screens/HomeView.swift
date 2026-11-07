@@ -349,7 +349,8 @@ struct GhafHomeView: View {
 
                         GhafTransactionRow(
                             transaction: transaction,
-                            theme: theme
+                            theme: theme,
+                            languageCode: settings.languageCode
                         )
 
                         if transaction.id != todayTransactions.prefix(8).last?.id {
@@ -411,6 +412,7 @@ struct GhafTransactionRow: View {
 
     let transaction: GhafTransaction
     let theme: GhafTheme
+    let languageCode: String
 
     var body: some View {
 
@@ -435,7 +437,7 @@ struct GhafTransactionRow: View {
                     Text(LocalizedStringKey(transaction.category))
                     Text("·")
                     Text(transaction.date.formatted(
-                        .dateTime.hour().minute().locale(Locale(identifier: settings.languageCode))
+                        .dateTime.hour().minute().locale(Locale(identifier: languageCode))
                     ))
                 }
                 .font(.system(size: 11))
