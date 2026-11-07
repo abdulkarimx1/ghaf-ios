@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# Signing materials - NEVER COMMIT
+*.p12
+*.pfx
+*.mobileprovision
+*.cer
+*.pem
+*.key
+*.provisionprofile
+
+# Build outputs
+*.ipa
+*.app/
+*.xcarchive/
+*.dSYM
+*.zip
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Secrets and local configuration
+.env
+.env.*
+secrets/
+Signing/
