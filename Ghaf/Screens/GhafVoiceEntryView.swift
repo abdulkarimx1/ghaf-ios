@@ -122,9 +122,17 @@ struct GhafVoiceEntryView: View {
                                         .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                                         .foregroundStyle(theme.primaryText)
                                     Spacer(minLength: 8)
-                                    Text(GhafFormat.money(draft.amount, currency: draft.currency, languageCode: settings.languageCode))
-                                        .font(GhafTypography.number(15, weight: .semibold))
-                                        .foregroundStyle(theme.primaryText)
+                                    HStack(spacing: 5) {
+                                        Text(GhafFormat.symbol(for: draft.currency, languageCode: settings.languageCode))
+                                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
+                                            .foregroundStyle(theme.secondaryText)
+                                        TextField("0.00", text: $draft.amountText)
+                                            .font(GhafTypography.number(15, weight: .semibold))
+                                            .keyboardType(.decimalPad)
+                                            .multilineTextAlignment(.trailing)
+                                            .frame(width: 92)
+                                            .foregroundStyle(theme.primaryText)
+                                    }
                                 }
                                 HStack {
                                     Picker(isArabic ? "الفئة" : "Category", selection: $draft.category) {
@@ -213,6 +221,10 @@ struct GhafVoiceEntryView: View {
 
     private func saveDrafts() {
         guard !drafts.isEmpty else { return }
+        guard drafts.allSatisfy({ $0.amount > 0 }) else {
+            errorMessage = isArabic ? "راجع المبالغ وأدخل قيمة صحيحة لكل عملية." : "Check the amounts and enter a valid value for every transaction."
+            return
+        }
         isSaving = true
         errorMessage = ""
         do {
