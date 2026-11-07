@@ -597,17 +597,23 @@ struct GhafOnboardingView: View {
     }
 
     private func accountTypeTitle(_ type: GhafAccountType) -> String {
-        if languageCode == "ar" {
-            switch type {
-            case .cash: "محفظة نقدية"
-            case .debit: "بطاقة خصم"
-            case .current: "حساب جاري"
-            case .savings: "حساب توفير"
-            case .credit: "بطاقة ائتمان"
-            case .prepaid: "بطاقة مسبقة الدفع"
-            }
-        } else {
+        guard languageCode == "ar" else {
             return type.titleKey
+        }
+
+        switch type {
+        case .cash:
+            return "محفظة نقدية"
+        case .debit:
+            return "بطاقة خصم"
+        case .current:
+            return "حساب جاري"
+        case .savings:
+            return "حساب توفير"
+        case .credit:
+            return "بطاقة ائتمان"
+        case .prepaid:
+            return "بطاقة مسبقة الدفع"
         }
     }
 
