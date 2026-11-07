@@ -204,7 +204,8 @@ enum MerchantCategorizer {
     static func learn(
         merchant: String,
         category: String,
-        context: ModelContext
+        context: ModelContext,
+        saveImmediately: Bool = true
     ) throws {
 
         let key = normalize(merchant)
@@ -234,6 +235,8 @@ enum MerchantCategorizer {
             context.insert(rule)
         }
 
-        try context.save()
+        if saveImmediately {
+            try context.save()
+        }
     }
 }
