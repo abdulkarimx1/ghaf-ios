@@ -11,7 +11,7 @@ struct GhafVoiceTransactionDraft: Identifiable {
 }
 
 enum GhafVoiceTransactionParser {
-    private static let amountPattern = #"(?i)(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\s*)?([0-9]+,[0-9]{1,2}|[0-9]+(?:,[0-9]{3})*(?:\\.[0-9]{1,2})?)\s*(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\b|درهم|دراهم|ريال|ريالات|دينار|دنانير|ر\.س|د\.إ)?"#
+    private static let amountPattern = #"(?i)(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\s*)?([0-9]+,[0-9]{1,2}|[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)\s*(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\b|درهم|دراهم|ريال|ريالات|دينار|دنانير|ر\.س|د\.إ)?"#
 
     static func parse(_ transcript: String, languageCode: String, baseCurrency: String) -> [GhafVoiceTransactionDraft] {
         let separated = transcript
