@@ -16,6 +16,7 @@ struct GhafHomeView: View {
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
     @State private var hideBalances = false
+    @State private var activityPeriodIndex = 0
 
     let settings: GhafSettings
 
@@ -31,8 +32,32 @@ struct GhafHomeView: View {
         BudgetCalculator.snapshot(settings: settings, transactions: transactions)
     }
 
-    private var todayTransactions: [GhafTransaction] {
-        transactions.filter { Calendar.current.isDate($0.date, inSameDayAs: Date()) }
+    private var activityTransactions: [GhafTransaction] {
+        let calendar = Calendar.current
+        let now = Date()
+        switch activityPeriodIndex {
+        case 1:
+            guard let interval = calendar.dateInterval(of: .weekOfYear, for: now) else { return [] }
+            return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
+        case 2:
+            guard let interval = calendar.dateInterval(of: .month, for: now) else { return [] }
+            return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
+        default:
+            return transactions.filter { calendar.isDate($0.date, inSameDayAs: now) }
+        }
+    }
+
+    private var activityPeriodTitle: String {
+        if settings.languageCode == "ar" {
+            return ["حركة اليوم", "حركة الأسبوع", "حركة الشهر"][activityPeriodIndex]
+        }
+        return ["Today", "This week", "This month"][activityPeriodIndex]
+    }
+
+    private var activityTotal: Decimal {
+        activityTransactions
+            .filter { $0.currency == settings.currency && $0.direction == "debit" }
+            .reduce(Decimal.zero) { $0 + $1.amount }
     }
 
     var body: some View {
@@ -469,26 +494,43 @@ struct GhafHomeView: View {
 
     private var todaySection: some View {
         VStack(alignment: .leading, spacing: 13) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(settings.languageCode == "ar" ? "حركة اليوم" : "Today")
-                    .font(GhafTypography.display(25, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.primaryText)
+            Button {
+                withAnimation(.snappy(duration: 0.24)) {
+                    activityPeriodIndex = (activityPeriodIndex + 1) % 3
+                }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(activityPeriodTitle)
+                        .font(GhafTypography.display(25, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.primaryText)
 
-                Spacer()
+                    Spacer()
 
-                Text("\(todayTransactions.count) \(settings.languageCode == "ar" ? "عمليات" : "transactions")")
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("\(activityTransactions.count) \(settings.languageCode == "ar" ? "عمليات" : "transactions")")
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
+                            .foregroundStyle(theme.secondaryText)
+                        Text(GhafFormat.money(activityTotal, currency: settings.currency, languageCode: settings.languageCode))
+                            .font(GhafTypography.number(11, weight: .semibold))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    Image(systemName: "arrow.2.circlepath")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(settings.languageCode == "ar" ? "تغيير فترة عرض العمليات" : "Change activity period")
 
-            if todayTransactions.isEmpty {
+            if activityTransactions.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(settings.languageCode == "ar" ? "لا توجد عمليات بعد" : "Nothing recorded today")
+                    Text(settings.languageCode == "ar" ? "لا توجد عمليات في هذه الفترة" : "No transactions in this period")
                         .font(GhafTypography.heading(17, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
                     Text(settings.languageCode == "ar"
-                         ? "ستظهر مصروفاتك هنا فور تسجيلها."
-                         : "New spending will appear here as it is recorded.")
+                         ? "ستظهر عملياتك هنا فور تسجيلها."
+                         : "Your transactions will appear here as they are recorded.")
                         .font(GhafTypography.body(13, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -497,13 +539,13 @@ struct GhafHomeView: View {
                 .ghafCard(theme: theme, radius: 20)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(todayTransactions.prefix(6)), id: \.id) { transaction in
+                    ForEach(Array(activityTransactions.prefix(6)), id: \.id) { transaction in
                         GhafTransactionRow(
                             transaction: transaction,
                             theme: theme,
                             languageCode: settings.languageCode
                         )
-                        if transaction.id != todayTransactions.prefix(6).last?.id {
+                        if transaction.id != activityTransactions.prefix(6).last?.id {
                             Divider()
                                 .overlay(theme.outline)
                                 .padding(.leading, 58)
