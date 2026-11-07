@@ -239,7 +239,16 @@ struct GhafVoiceEntryView: View {
                     ? ((try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: modelContext)) ?? "Other")
                     : draft.category
                 let matchingAccount = accounts.first { !$0.isArchived && $0.currency == draft.currency }
-                let transaction = GhafTransaction(fingerprint: "voice-\(UUID().uuidString)", parsed: parsed, category: category, needsReview: draft.merchant.isEmpty || category == "Other", isReversal: false, accountID: matchingAccount?.id ?? selectedAccountID)
+                let selectedAccount = accounts.first { $0.id == selectedAccountID && !$0.isArchived && $0.currency == draft.currency }
+                let assignedAccount = matchingAccount ?? selectedAccount
+                let transaction = GhafTransaction(
+                    fingerprint: "voice-\(UUID().uuidString)",
+                    parsed: parsed,
+                    category: category,
+                    needsReview: draft.merchant.isEmpty || category == "Other" || assignedAccount == nil,
+                    isReversal: false,
+                    accountID: assignedAccount?.id
+                )
                 transaction.note = isArabic ? "تمت الإضافة بالصوت" : "Added by voice"
                 modelContext.insert(transaction)
                 if let merchant = transaction.merchant, !merchant.isEmpty, category != "Other" {
