@@ -187,7 +187,10 @@ struct GhafRootView: View {
             withAnimation(.easeOut(duration: 0.42)) {
                 showLaunch = false
             }
-            if requiresAuthentication { authenticateUser() }
+            if requiresAuthentication {
+                isUnlocked = false
+                authenticateUser()
+            }
             presentAutomationIntroIfNeeded()
         }
     }

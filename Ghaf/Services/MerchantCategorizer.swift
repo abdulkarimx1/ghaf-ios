@@ -7,8 +7,19 @@ enum MerchantCategorizer {
 
     private static let seededRules: [(String, String)] = [
 
-        // Groceries
+        // Groceries — English and Arabic merchant names
         ("carrefour", "Groceries"),
+        ("كارفور", "Groceries"),
+        ("lulu", "Groceries"),
+        ("لولو", "Groceries"),
+        ("nesto", "Groceries"),
+        ("نستو", "Groceries"),
+        ("spinneys", "Groceries"),
+        ("سبينيس", "Groceries"),
+        ("union coop", "Groceries"),
+        ("جمعية الاتحاد", "Groceries"),
+        ("التعاونية", "Groceries"),
+        ("جمعية الشارقة التعاونية", "Groceries"),
         ("lulu", "Groceries"),
         ("union coop", "Groceries"),
         ("nesto", "Groceries"),
@@ -16,49 +27,75 @@ enum MerchantCategorizer {
 
         // Dining
         ("talabat", "Dining"),
+        ("طلبات", "Dining"),
         ("deliveroo", "Dining"),
+        ("ديليفرو", "Dining"),
         ("noon food", "Dining"),
         ("zomato", "Dining"),
 
         // Transport
         ("careem", "Transport"),
+        ("كريم", "Transport"),
         ("uber", "Transport"),
+        ("أوبر", "Transport"),
+        ("اوبر", "Transport"),
         ("salik", "Transport"),
+        ("سالك", "Transport"),
         ("rta", "Transport"),
 
         // Fuel
         ("adnoc", "Fuel"),
+        ("أدنوك", "Fuel"),
+        ("ادنوك", "Fuel"),
         ("enoc", "Fuel"),
+        ("اينوك", "Fuel"),
         ("eppco", "Fuel"),
 
         // Utilities
         ("dewa", "Bills & Utilities"),
+        ("ديوا", "Bills & Utilities"),
         ("sewa", "Bills & Utilities"),
+        ("سيوا", "Bills & Utilities"),
         ("etisalat", "Bills & Utilities"),
+        ("اتصالات", "Bills & Utilities"),
+        ("e&", "Bills & Utilities"),
         ("eand", "Bills & Utilities"),
         ("du", "Bills & Utilities"),
+        ("دو", "Bills & Utilities"),
 
         // Shopping
         ("noon", "Shopping"),
+        ("نون", "Shopping"),
         ("amazon", "Shopping"),
+        ("أمازون", "Shopping"),
+        ("امازون", "Shopping"),
         ("namshi", "Shopping"),
         ("shein", "Shopping"),
         ("ikea", "Shopping"),
 
         // Health
         ("life pharmacy", "Health"),
+        ("صيدلية لايف", "Health"),
         ("aster pharmacy", "Health"),
+        ("استر", "Health"),
+        ("أستر", "Health"),
         ("boots", "Health"),
 
         // Entertainment
         ("netflix", "Entertainment"),
+        ("نتفلكس", "Entertainment"),
         ("spotify", "Entertainment"),
+        ("سبوتيفاي", "Entertainment"),
         ("apple services", "Entertainment"),
 
         // Travel
         ("emirates airlines", "Travel"),
+        ("طيران الإمارات", "Travel"),
+        ("طيران الامارات", "Travel"),
         ("etihad airways", "Travel"),
+        ("الاتحاد للطيران", "Travel"),
         ("air arabia", "Travel"),
+        ("العربية للطيران", "Travel"),
         ("booking.com", "Travel")
     ]
 
