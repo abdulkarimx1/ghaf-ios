@@ -111,7 +111,7 @@ struct GhafSalaryCheckInView: View {
                         .tracking(1.1)
                         .foregroundStyle(theme.secondaryText)
 
-                    Picker("Account", selection: $selectedAccountID) {
+                    Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
                         ForEach(activeAccounts, id: \.id) { account in
                             Text(account.name).tag(Optional(account.id))
                         }
