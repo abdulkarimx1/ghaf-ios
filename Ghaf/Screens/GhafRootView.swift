@@ -330,7 +330,7 @@ struct GhafOnboardingView: View {
 
                 Spacer()
 
-                Picker("Language", selection: $languageCode) {
+                Picker(localized("Language", "اللغة"), selection: $languageCode) {
                     Text("English").tag("en")
                     Text("العربية").tag("ar")
                 }
@@ -367,13 +367,13 @@ struct GhafOnboardingView: View {
             }
 
             VStack(spacing: 10) {
-                Button(step == 4 ? "Start using Ghaf" : "Continue") {
+                Button(step == 5 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
                     advance()
                 }
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
 
                 if step > 0 {
-                    Button("Back") { step -= 1 }
+                    Button(localized("Back", "رجوع")) { step -= 1 }
                         .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -397,7 +397,7 @@ struct GhafOnboardingView: View {
                 GhafAutomationGuideView(settings: settings)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { showAutomationGuide = false }
+                            Button(localized("Done", "تم")) { showAutomationGuide = false }
                         }
                     }
             }
@@ -420,15 +420,15 @@ struct GhafOnboardingView: View {
             }
             .frame(height: 218)
 
-            Text("Make every dirham count.")
+            Text(localized("Make every dirham count.", "اجعل كل درهم محسوباً."))
                 .font(GhafTypography.display(34, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text("A clearer picture of your money, your spending and your daily budget.")
+            Text(localized("A clearer picture of your money, your spending and your daily budget.", "رؤية أوضح لأموالك ومصروفاتك وميزانيتك اليومية."))
                 .font(GhafTypography.body(16, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            Text("A simple financial companion that helps you stay in control.")
+            Text(localized("A simple financial companion that helps you stay in control.", "رفيق مالي بسيط يساعدك على إدارة أموالك بثقة."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -440,17 +440,17 @@ struct GhafOnboardingView: View {
                 .font(.system(size: 48, weight: .medium))
                 .foregroundStyle(theme.accent)
 
-            Text("Your money data stays yours.")
+            Text(localized("Your money data stays yours.", "بياناتك المالية تبقى ملكاً لك."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text("Ghaf is designed to work locally on your iPhone.")
+            Text(localized("Ghaf is designed to work locally on your iPhone.", "صُمم غاف للعمل محلياً على جهاز iPhone الخاص بك."))
                 .font(GhafTypography.body(16, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            onboardingPoint(icon: "iphone", title: "Stored on your device", description: "Transactions and settings are saved locally.")
-            onboardingPoint(icon: "server.rack", title: "No financial servers", description: "No Ghaf account or external banking connection.")
-            onboardingPoint(icon: "chart.bar", title: "Understand your habits", description: "See spending trends and budget progress.")
+            onboardingPoint(icon: "iphone", title: localized("Stored on your device", "محفوظة على جهازك"), description: localized("Transactions and settings are saved locally.", "تُحفظ العمليات والإعدادات محلياً على جهازك."))
+            onboardingPoint(icon: "server.rack", title: localized("No financial servers", "لا خوادم مالية"), description: localized("No Ghaf account or external banking connection.", "لا يتطلب غاف حساباً خارجياً أو اتصالاً بالبنوك."))
+            onboardingPoint(icon: "chart.bar", title: localized("Understand your habits", "افهم عاداتك المالية"), description: localized("See spending trends and budget progress.", "تابع اتجاهات الإنفاق وتقدم ميزانيتك."))
         }
     }
 
@@ -460,47 +460,47 @@ struct GhafOnboardingView: View {
                 .font(.system(size: 48, weight: .medium))
                 .foregroundStyle(theme.accent)
 
-            Text("Your transactions, automatically.")
+            Text(localized("Your transactions, automatically.", "عملياتك المالية، تلقائياً."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text("Ghaf's bank-message action is ready to use from Apple Shortcuts.")
+            Text(localized("Ghaf's bank-message action is ready to use from Apple Shortcuts.", "إجراء غاف لرسائل البنوك جاهز للاستخدام عبر تطبيق الاختصارات من Apple."))
                 .font(GhafTypography.body(16, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            onboardingPoint(icon: "message", title: "Bank messages", description: "Pass incoming SMS message text to Ghaf.")
-            onboardingPoint(icon: "app.badge", title: "Bank notifications", description: "Where iOS exposes the notification content, send it to Ghaf.")
-            onboardingPoint(icon: "checkmark.shield", title: "You stay in control", description: "OTP messages, promotions and incomplete transfer requests are filtered.")
+            onboardingPoint(icon: "message", title: localized("Bank messages", "رسائل البنوك"), description: localized("Pass incoming SMS message text to Ghaf.", "أرسل نص رسائل البنك الواردة إلى غاف."))
+            onboardingPoint(icon: "app.badge", title: localized("Bank notifications", "إشعارات البنوك"), description: localized("Where iOS exposes the notification content, send it to Ghaf.", "أرسل محتوى الإشعار إلى غاف عندما يتيح iOS الوصول إليه."))
+            onboardingPoint(icon: "checkmark.shield", title: localized("You stay in control", "أنت تتحكم"), description: localized("OTP messages, promotions and incomplete transfer requests are filtered.", "تُستبعد رسائل رموز التحقق والعروض وطلبات التحويل غير المكتملة."))
         }
     }
 
     private var setupPage: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Let's set up your budget.")
+            Text(localized("Let's set up your budget.", "لنُعدّ ميزانيتك."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text("These numbers help calculate a realistic daily spending limit.")
+            Text(localized("These numbers help calculate a realistic daily spending limit.", "تساعد هذه البيانات على حساب حد إنفاق يومي واقعي."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            formLabel("Your name")
-            onboardingField("Name", text: $name)
+            formLabel(localized("Your name", "اسمك"))
+            onboardingField(localized("Name", "الاسم"), text: $name)
 
-            formLabel("Main currency")
-            Picker("Currency", selection: $currency) {
+            formLabel(localized("Main currency", "العملة الرئيسية"))
+            Picker(localized("Currency", "العملة"), selection: $currency) {
                 ForEach(currencies, id: \.self) { code in Text(code).tag(code) }
             }
             .pickerStyle(.menu)
             .tint(theme.accent)
 
-            formLabel("Monthly income")
-            onboardingField("e.g. 5000", text: $income, numeric: true)
+            formLabel(localized("Monthly income", "الدخل الشهري"))
+            onboardingField(localized("e.g. 5000", "مثال: ٥٠٠٠"), text: $income, numeric: true)
 
-            formLabel("Fixed monthly commitments")
-            onboardingField("e.g. 1500", text: $commitments, numeric: true)
+            formLabel(localized("Fixed monthly commitments", "الالتزامات الشهرية الثابتة"))
+            onboardingField(localized("e.g. 1500", "مثال: ١٥٠٠"), text: $commitments, numeric: true)
 
-            Text("You can change all of these values later in Settings.")
+            Text(localized("You can change all of these values later in Settings.", "يمكنك تعديل جميع هذه البيانات لاحقاً من الإعدادات."))
                 .font(GhafTypography.body(13, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -583,7 +583,7 @@ struct GhafOnboardingView: View {
                             Spacer()
 
                             if balanceSetupMode == "manual" {
-                                TextField("0.00", text: $draft.startingBalance)
+                                TextField(localized("0.00", "٠٫٠٠"), text: $draft.startingBalance)
                                     .font(GhafTypography.number(15, weight: .semibold))
                                     .keyboardType(.decimalPad)
                                     .multilineTextAlignment(.trailing)
@@ -643,7 +643,7 @@ struct GhafOnboardingView: View {
                             .font(GhafTypography.body(13, languageCode: languageCode))
                             .foregroundStyle(theme.primaryText)
                         Spacer()
-                        Picker("Salary day", selection: $salaryDay) {
+                        Picker(languageCode == "ar" ? "يوم الراتب" : "Salary day", selection: $salaryDay) {
                             ForEach(1...31, id: \.self) { day in
                                 Text("\(day)").tag(day)
                             }
@@ -733,26 +733,26 @@ struct GhafOnboardingView: View {
                 .font(.system(size: 48, weight: .medium))
                 .foregroundStyle(theme.accent)
 
-            Text("Your bank action is already in Ghaf.")
+            Text(localized("Your bank action is already in Ghaf.", "إجراء البنك جاهز داخل غاف."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text("The Ghaf action appears automatically in Shortcuts after installing the app. You only need to choose which bank message should trigger it.")
+            Text(localized("The Ghaf action appears automatically in Shortcuts after installing the app. You only need to choose which bank message should trigger it.", "يظهر إجراء غاف تلقائياً في تطبيق الاختصارات بعد تثبيت التطبيق. ما عليك سوى اختيار رسالة البنك التي ستشغّله."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            onboardingPoint(icon: "checkmark.circle", title: "No shortcut to build", description: "Ghaf provides the Log Bank Message action for you.")
-            onboardingPoint(icon: "person.crop.circle", title: "One iOS confirmation step", description: "You create the personal automation trigger because iOS keeps those under your control.")
+            onboardingPoint(icon: "checkmark.circle", title: localized("No shortcut to build", "لا حاجة لإنشاء اختصار"), description: localized("Ghaf provides the Log Bank Message action for you.", "يوفر غاف إجراء تسجيل رسالة البنك جاهزاً."))
+            onboardingPoint(icon: "person.crop.circle", title: localized("One iOS confirmation step", "خطوة تأكيد واحدة في iOS"), description: localized("You create the personal automation trigger because iOS keeps those under your control.", "تنشئ محفّز الأتمتة الشخصية بنفسك لأن iOS يضع هذه الخطوة تحت تحكمك."))
 
             Button {
                 showAutomationGuide = true
             } label: {
-                Label("Set up automatic tracking", systemImage: "arrow.up.right")
+                Label(localized("Set up automatic tracking", "إعداد التتبع التلقائي"), systemImage: "arrow.up.right")
                     .frame(maxWidth: .infinity)
             }
             .ghafProminentButton(theme: theme, languageCode: languageCode)
 
-            Text("iOS controls whether some automations can run without confirmation. Some banking apps also hide transaction details in notification previews.")
+            Text(localized("iOS controls whether some automations can run without confirmation. Some banking apps also hide transaction details in notification previews.", "يحدد iOS ما إذا كان يمكن تشغيل بعض الأتمتة دون تأكيد. كما تخفي بعض التطبيقات البنكية تفاصيل العمليات في معاينة الإشعارات."))
                 .font(GhafTypography.body(13, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -774,6 +774,10 @@ struct GhafOnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func localized(_ english: String, _ arabic: String) -> String {
+        languageCode == "ar" ? arabic : english
     }
 
     private func formLabel(_ value: String) -> some View {
