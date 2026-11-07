@@ -162,6 +162,8 @@ struct GhafInsightsView: View {
         }
     }
 
+    // MARK: - Summary Cards
+
     private func summaryCard(
         title: String,
         amount: Decimal,
@@ -194,6 +196,8 @@ struct GhafInsightsView: View {
         )
     }
 
+    // MARK: - Category Chart
+
     private var categoryChart: some View {
 
         VStack(alignment: .leading, spacing: 16) {
@@ -222,15 +226,9 @@ struct GhafInsightsView: View {
                     .cornerRadius(6)
                 }
                 .frame(height: 230)
-                .chartYAxisLabel(settings.currency)
+                .chartYAxisLabel(Text(settings.currency))
                 .chartXAxis {
-                    AxisMarks(
-                        values: .automatic
-                    ) { value in
-
-                        AxisValueLabel()
-                            .foregroundStyle(theme.secondaryText)
-                    }
+                    AxisMarks()
                 }
             }
         }
@@ -240,6 +238,8 @@ struct GhafInsightsView: View {
             in: RoundedRectangle(cornerRadius: 22)
         )
     }
+
+    // MARK: - Category Breakdown
 
     private var categoryList: some View {
 
