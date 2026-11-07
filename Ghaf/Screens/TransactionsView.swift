@@ -450,8 +450,9 @@ struct GhafTransactionEditor: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
 
+                    let selectedAccount = accounts.first(where: { $0.id == accountID })
                     if let contact = GhafBankSupportDirectory.contact(
-                        for: [transaction.bank, accounts.first(where: { $0.id == accountID })?.institution]
+                        for: [transaction.bank, selectedAccount?.institution, selectedAccount?.name]
                     ) {
                         VStack(alignment: .leading, spacing: 10) {
                             editorLabel(languageCode == "ar" ? "دعم البنك" : "BANK SUPPORT")
