@@ -49,12 +49,12 @@ public enum GhafVoiceTransactionParser {
             var merchant = segment
             merchant.removeSubrange(amountRange)
             merchant = merchant.replacingOccurrences(
-                of: #"(?i)\b(?:i|we|just|went|to|the|store|bought|buy|got|paid|for|spent|on|at|a|an|and|then|dhs?|dirhams?|aed|sar|kwd|bhd|omr|qar|usd|eur|gbp|today|yesterday|tomorrow|this morning|last night)\b"#,
+                of: #"(?i)\b(?:i|we|just|went|to|the|store|bought|buy|got|paid|for|spent|on|at|a|an|and|then|dhs?|dirhams?|aed|sar|kwd|bhd|omr|qar|usd|eur|gbp|saudi|qatari|kuwaiti|bahraini|omani|emirati|today|yesterday|tomorrow|this morning|last night)\b"#,
                 with: " ",
                 options: .regularExpression
             )
             merchant = merchant.replacingOccurrences(
-                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|البارحة|الليلة الماضية|غداً|باجر|بكرة|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
+                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|البارحة|الليلة الماضية|غداً|باجر|بكرة|سعودي|السعودي|قطري|القطري|كويتي|الكويتي|بحريني|البحريني|عماني|العماني|إماراتي|الإماراتي|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
                 with: " ",
                 options: .regularExpression
             )
