@@ -39,6 +39,7 @@ struct GhafTransactionsView: View {
             let searchValues = [
                 transaction.merchant ?? "",
                 transaction.category,
+                GhafLocalization.category(transaction.category, languageCode: settings.languageCode),
                 transaction.bank ?? "",
                 transaction.note ?? "",
                 accounts.first(where: { $0.id == transaction.accountID })?.name ?? ""
