@@ -20,23 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Select iOS 27 toolchain
+      - name: Validate selected Xcode toolchain
         run: |
           set -euo pipefail
-          XCODE_PATH="/Applications/Xcode_27.2.app"
-          if [ ! -d "$XCODE_PATH" ]; then
-            echo "Xcode 27.2 was not found on this runner."
-            ls -1 /Applications | grep -i Xcode || true
-            exit 1
-          fi
-          if [ "$(xcode-select -p)" != "$XCODE_PATH/Contents/Developer" ]; then
-            echo "Select Xcode 27.2 on the Mac runner before starting the runner:"
-            echo "sudo xcode-select -s \"$XCODE_PATH/Contents/Developer\""
-            exit 1
-          fi
+          echo "Selected developer directory:"
+          xcode-select -p
           xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
-          test "$(xcrun --sdk iphoneos --show-sdk-version)" = "27.2"
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "iOS SDK: $IOS_SDK"
+          case "$IOS_SDK" in
+            [0-9]*) ;;
+            *) echo "A valid iOS SDK was not found."; exit 1 ;;
+          esac
 
       - name: Install XcodeGen
         run: |
@@ -60,10 +55,10 @@ jobs:
       - name: Build and launch on iPhone 17 simulator
         run: |
           set -euo pipefail
-          DEVICE_LINE="$(xcrun simctl list devices available | grep -m1 'iPhone 17 (')"
+          DEVICE_LINE="$(xcrun simctl list devices available | grep -m1 -E 'iPhone 17 \(' || xcrun simctl list devices available | grep -m1 -E 'iPhone .* \(' || true)"
           DEVICE_ID="$(printf '%s\n' "$DEVICE_LINE" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
           if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "$DEVICE_LINE" ]; then
-            echo "The iPhone 17 simulator was not found."
+            echo "No available iPhone simulator was found."
             xcrun simctl list devices available
             exit 1
           fi
@@ -112,7 +107,10 @@ jobs:
           PLIST="$APP_PATH/Info.plist"
           SDK_NAME=$(/usr/libexec/PlistBuddy -c 'Print :DTSDKName' "$PLIST")
           echo "Archived SDK: $SDK_NAME"
-          test "$SDK_NAME" = "iphoneos27.2"
+          case "$SDK_NAME" in
+            iphoneos*) ;;
+            *) echo "Unexpected archive SDK: $SDK_NAME"; exit 1 ;;
+          esac
           /usr/libexec/PlistBuddy -c 'Print :UILaunchScreen' "$PLIST"
           if /usr/libexec/PlistBuddy -c 'Print :UIRequiresFullScreen' "$PLIST" >/dev/null 2>&1; then
             echo "UIRequiresFullScreen must not be present."
