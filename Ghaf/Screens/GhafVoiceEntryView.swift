@@ -144,9 +144,12 @@ struct GhafVoiceEntryView: View {
                                     .pickerStyle(.menu)
                                     .tint(theme.accent)
                                     Spacer()
-                                    Text(draft.direction == "credit" ? (isArabic ? "دخل" : "Income") : (isArabic ? "مصروف" : "Expense"))
-                                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
-                                        .foregroundStyle(theme.secondaryText)
+                                    Picker(isArabic ? "النوع" : "Type", selection: $draft.direction) {
+                                        Text(isArabic ? "مصروف" : "Expense").tag("debit")
+                                        Text(isArabic ? "دخل" : "Income").tag("credit")
+                                    }
+                                    .pickerStyle(.menu)
+                                    .tint(theme.accent)
                                 }
                                 DatePicker(isArabic ? "التاريخ والوقت" : "Date and time", selection: $draft.date, displayedComponents: [.date, .hourAndMinute])
                                     .font(GhafTypography.body(11, languageCode: settings.languageCode))
