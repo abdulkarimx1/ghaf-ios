@@ -146,10 +146,7 @@ struct GhafInsightsView: View {
                     }
                     .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        theme.surface,
-                        in: RoundedRectangle(cornerRadius: 22)
-                    )
+                    .ghafGlass(theme: theme, radius: 22)
 
                     categoryChart
 
@@ -234,10 +231,7 @@ struct GhafInsightsView: View {
             }
         }
         .padding(20)
-        .background(
-            theme.surface,
-            in: RoundedRectangle(cornerRadius: 22)
-        )
+        .ghafGlass(theme: theme, radius: 22)
     }
 
     // MARK: - Category Breakdown
@@ -254,7 +248,7 @@ struct GhafInsightsView: View {
 
                 HStack {
 
-                    Text(item.category)
+                    Text(LocalizedStringKey(item.category))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(theme.primaryText)
 
@@ -272,9 +266,6 @@ struct GhafInsightsView: View {
             }
         }
         .padding(20)
-        .background(
-            theme.surface,
-            in: RoundedRectangle(cornerRadius: 22)
-        )
+        .ghafGlass(theme: theme, radius: 22)
     }
 }

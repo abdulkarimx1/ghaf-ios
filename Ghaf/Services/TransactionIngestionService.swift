@@ -88,7 +88,8 @@ final class TransactionIngestionService {
         )
 
         // Determine whether the user should review it.
-        let needsReview = parser.shouldSendToReview(parsed)
+        let needsReview = parser.shouldSendToReview(parsed) ||
+            (parsed.merchant != nil && category == "Other")
 
         let isReversal = message.range(
             of: "reversal",

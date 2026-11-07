@@ -17,6 +17,7 @@ private struct GhafBackupPayload: Codable {
 private struct GhafSettingsBackup: Codable {
 
     var userName: String
+    var languageCode: String?
     var currency: String
 
     var monthlyIncome: Decimal
@@ -98,6 +99,7 @@ enum GhafBackupService {
 
         let settingsBackup = GhafSettingsBackup(
             userName: settings.userName,
+            languageCode: settings.languageCode,
             currency: settings.currency,
             monthlyIncome: settings.monthlyIncome,
             fixedCommitments: settings.fixedCommitments,
@@ -231,6 +233,7 @@ enum GhafBackupService {
 
         let settings = GhafSettings(
             userName: source.userName,
+            languageCode: source.languageCode ?? "en",
             currency: source.currency,
             monthlyIncome: source.monthlyIncome,
             fixedCommitments: source.fixedCommitments,

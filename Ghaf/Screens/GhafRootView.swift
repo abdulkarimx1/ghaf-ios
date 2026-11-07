@@ -36,6 +36,10 @@ struct GhafRootView: View {
                     }
             }
         }
+        .environment(\.locale, Locale(identifier: settings.first?.languageCode ?? "en"))
+        .environment(\.layoutDirection, (settings.first?.languageCode ?? "en") == "ar" ? .rightToLeft : .leftToRight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.clear.ignoresSafeArea())
     }
 }
 
@@ -97,6 +101,10 @@ struct GhafTabView: View {
                 .tag(4)
         }
         .tint(theme.accent)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background.ignoresSafeArea())
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .preferredColorScheme(
             settings.appearanceMode == "Dark" ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
@@ -109,10 +117,13 @@ struct GhafTabView: View {
 struct GhafOnboardingView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var systemColorScheme
 
     let settings: GhafSettings
 
     @State private var step = 0
+    @State private var languageCode = "en"
+    @State private var showAutomationGuide = false
 
     @State private var name = ""
     @State private var currency = "AED"
@@ -120,11 +131,13 @@ struct GhafOnboardingView: View {
     @State private var income = ""
     @State private var commitments = ""
 
-    private let theme = GhafTheme.resolve(
-        name: "Dawn",
-        appearanceMode: "Light",
-        systemIsDark: false
-    )
+    private var theme: GhafTheme {
+        GhafTheme.resolve(
+            name: settings.themeName,
+            appearanceMode: settings.appearanceMode,
+            systemIsDark: systemColorScheme == .dark
+        )
+    }
 
     private let currencies = [
         "AED", "USD", "EUR", "GBP", "SAR",
@@ -135,6 +148,7 @@ struct GhafOnboardingView: View {
 
         self.settings = settings
 
+        _languageCode = State(initialValue: settings.languageCode)
         _name = State(initialValue: settings.userName)
         _currency = State(initialValue: settings.currency)
 
@@ -164,9 +178,15 @@ struct GhafOnboardingView: View {
 
                 Spacer()
 
-                if step < 3 {
+                Picker("Language", selection: $languageCode) {
+                    Text("English").tag("en")
+                    Text("العربية").tag("ar")
+                }
+                .pickerStyle(.menu)
+                .tint(theme.accent)
 
-                    Text("\(step + 1) OF 3")
+                if step < 5 {
+                    Text("\(step + 1) OF 5")
                         .font(GhafTypeScale.caption)
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -200,7 +220,7 @@ struct GhafOnboardingView: View {
                     advance()
                 }
                 .buttonStyle(
-                    GhafPrimaryButtonStyle(theme: theme)
+                    GhafGlassButtonStyle(theme: theme)
                 )
 
                 if step > 0 {
@@ -213,30 +233,45 @@ struct GhafOnboardingView: View {
             }
             .padding(24)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
+        .onChange(of: languageCode) { _, newValue in
+            settings.languageCode = newValue
+            try? modelContext.save()
+        }
+        .sheet(isPresented: $showAutomationGuide) {
+            GhafAutomationGuideView(settings: settings)
+        }
     }
 
     private var welcomePage: some View {
 
         VStack(alignment: .leading, spacing: 22) {
 
-            RoundedRectangle(cornerRadius: 28)
-                .fill(theme.accent)
-                .frame(height: 210)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [theme.accent, theme.accent.opacity(0.68), theme.elevatedSurface.opacity(0.72)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(height: 218)
                 .overlay {
-
-                    VStack(spacing: 12) {
-
-                        Image(systemName: "leaf.fill")
-                            .font(.system(size: 58))
-                            .foregroundStyle(theme.accentContrast)
-
+                    VStack(spacing: 13) {
+                        GhafTreeMark(color: theme.accentContrast)
+                            .frame(width: 82, height: 92)
                         Text("GHAF")
-                            .font(.system(size: 34, weight: .heavy))
+                            .font(.system(size: 34, weight: .heavy, design: .rounded))
                             .tracking(5)
                             .foregroundStyle(theme.accentContrast)
                     }
                 }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .stroke(.white.opacity(0.28), lineWidth: 1)
+                }
+                .shadow(color: theme.accent.opacity(0.18), radius: 22, y: 12)
 
             Text("Make every dirham count.")
 
@@ -411,7 +446,15 @@ struct GhafOnboardingView: View {
                 description: "Choose Log Bank Message. Pass Message Text and Sender / App Name. Enable automatic running wherever the trigger supports it."
             )
 
-            Text("You can configure the automations after setup. Notification-trigger availability and unattended execution depend on your installed iOS version.")
+            Button {
+                showAutomationGuide = true
+            } label: {
+                Label("Open step-by-step setup", systemImage: "arrow.up.right.square")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(GhafGlassButtonStyle(theme: theme))
+
+            Text("iOS controls whether notification automations can run without confirmation. Some bank apps also hide transaction details in notification previews.")
                 .font(.system(size: 13))
                 .foregroundStyle(theme.secondaryText)
         }

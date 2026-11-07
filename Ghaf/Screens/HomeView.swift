@@ -58,7 +58,8 @@ struct GhafHomeView: View {
                 }
                 .padding(20)
             }
-            .background(theme.background)
+            .background(theme.background.ignoresSafeArea())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationBarHidden(true)
             .sheet(isPresented: $showQuickAdd) {
 
@@ -73,7 +74,7 @@ struct GhafHomeView: View {
 
             VStack(alignment: .leading, spacing: 5) {
 
-                Text("GOOD \(greeting.uppercased())")
+                Text(greeting)
                     .font(GhafTypeScale.caption)
                     .tracking(1.5)
                     .foregroundStyle(theme.secondaryText)
@@ -95,11 +96,8 @@ struct GhafHomeView: View {
 
             Spacer()
 
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 25))
-                .foregroundStyle(theme.accent)
-                .frame(width: 50, height: 50)
-                .background(theme.surface, in: Circle())
+            GhafTreeMark(color: theme.accent)
+                .frame(width: 54, height: 54)
         }
     }
 
@@ -110,12 +108,15 @@ struct GhafHomeView: View {
             from: Date()
         )
 
+        if settings.languageCode == "ar" {
+            return hour < 17 ? "صباح الخير" : "مساء الخير"
+        }
         if hour < 12 {
-            return "Morning"
+            return "GOOD MORNING"
         } else if hour < 17 {
-            return "Afternoon"
+            return "GOOD AFTERNOON"
         } else {
-            return "Evening"
+            return "GOOD EVENING"
         }
     }
 
@@ -208,13 +209,29 @@ struct GhafHomeView: View {
         }
         .padding(22)
         .background(
-            theme.accent,
-            in: RoundedRectangle(cornerRadius: 28)
+            LinearGradient(
+                colors: [theme.accent, theme.accent.opacity(0.78)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 30, style: .continuous)
         )
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke(.white.opacity(0.24), lineWidth: 1)
+        }
+        .shadow(color: theme.accent.opacity(0.18), radius: 20, y: 10)
     }
 
     private var statusTitle: String {
 
+        if settings.languageCode == "ar" {
+            switch snapshot.status {
+            case .comfortable: return "ضمن الميزانية"
+            case .close: return "اقتربت من الحد"
+            case .over: return "تجاوزت الميزانية"
+            }
+        }
         switch snapshot.status {
         case .comfortable:
             return "Comfortable"
@@ -269,14 +286,10 @@ struct GhafHomeView: View {
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 14, weight: .bold))
             }
-            .foregroundStyle(theme.accentContrast)
+            .foregroundStyle(theme.primaryText)
             .padding(18)
-            .background(
-                theme.accent.opacity(0.92),
-                in: RoundedRectangle(cornerRadius: 18)
-            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(GhafGlassButtonStyle(theme: theme))
     }
 
     private var todaySection: some View {
@@ -314,10 +327,7 @@ struct GhafHomeView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(28)
-                .background(
-                    theme.surface,
-                    in: RoundedRectangle(cornerRadius: 20)
-                )
+                .ghafGlass(theme: theme, radius: 22)
 
             } else {
 
@@ -400,14 +410,7 @@ struct GhafTransactionRow: View {
 
         HStack(spacing: 13) {
 
-            Image(systemName: iconName)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 42, height: 42)
-                .background(
-                    theme.background,
-                    in: RoundedRectangle(cornerRadius: 13)
-                )
+            GhafCategoryIcon(category: transaction.category, tint: theme.accent)
 
             VStack(alignment: .leading, spacing: 4) {
 

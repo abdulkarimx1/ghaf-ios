@@ -29,6 +29,7 @@ final class GhafSettings {
     var id: UUID
 
     var userName: String
+    var languageCode: String = "en"
     var currency: String
 
     var monthlyIncome: Decimal
@@ -46,6 +47,7 @@ final class GhafSettings {
 
     init(
         userName: String = "",
+        languageCode: String = "en",
         currency: String = "AED",
         monthlyIncome: Decimal = 0,
         fixedCommitments: Decimal = 0,
@@ -57,6 +59,7 @@ final class GhafSettings {
         self.id = UUID()
 
         self.userName = userName
+        self.languageCode = languageCode
         self.currency = currency
 
         self.monthlyIncome = monthlyIncome

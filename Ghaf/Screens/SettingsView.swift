@@ -29,6 +29,7 @@ struct GhafSettingsView: View {
     let settings: GhafSettings
 
     @State private var name = ""
+    @State private var languageCode = "en"
     @State private var currency = "AED"
 
     @State private var income = ""
@@ -85,6 +86,22 @@ struct GhafSettingsView: View {
                         ForEach(currencies, id: \.self) {
                             Text($0).tag($0)
                         }
+                    }
+                }
+
+                Section("Language") {
+                    Picker("App language", selection: $languageCode) {
+                        Text("English").tag("en")
+                        Text("العربية").tag("ar")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section("Bank connection") {
+                    NavigationLink {
+                        GhafAutomationGuideView(settings: settings)
+                    } label: {
+                        Label("Set up bank notifications", systemImage: "app.badge.checkmark")
                     }
                 }
 
@@ -307,12 +324,17 @@ struct GhafSettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(theme.background)
+            .background(theme.background.ignoresSafeArea())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .tint(theme.accent)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 loadSettings()
+            }
+            .onChange(of: languageCode) { _, newValue in
+                settings.languageCode = newValue
+                try? modelContext.save()
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -386,6 +408,7 @@ struct GhafSettingsView: View {
     private func loadSettings() {
 
         name = settings.userName
+        languageCode = settings.languageCode
         currency = settings.currency
 
         income = GhafFormat.decimal(
@@ -418,6 +441,7 @@ struct GhafSettingsView: View {
             in: .whitespacesAndNewlines
         )
 
+        settings.languageCode = languageCode
         settings.currency = currency
 
         settings.monthlyIncome = Decimal(
