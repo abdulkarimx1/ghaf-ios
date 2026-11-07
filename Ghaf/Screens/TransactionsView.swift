@@ -110,14 +110,15 @@ struct GhafTransactionsView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .listRowBackground(theme.surface)
+                            .listRowBackground(.ultraThinMaterial)
                         }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                 }
             }
-            .background(theme.background)
+            .background(theme.background.ignoresSafeArea())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle("Transactions")
             .navigationBarTitleDisplayMode(.large)
             .searchable(
