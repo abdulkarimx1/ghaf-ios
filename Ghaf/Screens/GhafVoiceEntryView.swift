@@ -34,6 +34,12 @@ struct GhafVoiceEntryView: View {
                          : "Describe your purchases and amounts. You can include several transactions in one recording.")
                         .font(GhafTypography.body(14, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
+                    Text(isArabic
+                         ? "مثال: اشتريت بقالة بـ ٥٦٠ درهماً، ثم أدوية بـ ١٢٠ درهماً الساعة ٣ مساءً."
+                         : "Example: Groceries for AED 560, then medicine for AED 120 at 3 pm.")
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button {
