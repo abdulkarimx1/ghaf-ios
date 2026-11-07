@@ -1,1 +1,3 @@
 "CFBundleDisplayName" = "غاف";
+"NSMicrophoneUsageDescription" = "يستخدم غاف الميكروفون عند اختيارك تسجيل تفاصيل العمليات بالصوت."; 
+"NSSpeechRecognitionUsageDescription" = "يحوّل غاف تفاصيل عملياتك المنطوقة إلى نص قابل للتعديل على جهازك.";
