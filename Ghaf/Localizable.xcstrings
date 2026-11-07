@@ -1,0 +1,102 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Log Bank Message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log Bank Message"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تسجيل رسالة بنكية"
+          }
+        }
+      }
+    },
+    "Parse and save a bank transaction locally in Ghaf.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parse and save a bank transaction locally in Ghaf."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحليل عملية بنكية وحفظها محلياً في غاف."
+          }
+        }
+      }
+    },
+    "Message Text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message Text"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نص الرسالة"
+          }
+        }
+      }
+    },
+    "The incoming bank transaction message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The incoming bank transaction message."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نص رسالة العملية البنكية الواردة."
+          }
+        }
+      }
+    },
+    "Sender / App Name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender / App Name"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسم المرسل أو التطبيق"
+          }
+        }
+      }
+    },
+    "The bank or application name.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bank or application name."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسم البنك أو التطبيق."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
