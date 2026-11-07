@@ -81,19 +81,7 @@ struct GhafHomeView: View {
                     )
                 }
             }
-            .sheet(isPresented: $showSalaryCheckIn) {
-                GhafSalaryCheckInView(settings: settings, accounts: accounts)
-            }
-            .onAppear(perform: checkSalaryDue)
-            .task {
-                if settings.salaryEnabled == true, settings.salaryReminderEnabled == true,
-                   let day = settings.salaryDay {
-                    try? await GhafSalaryReminderService.scheduleNext(
-                        salaryDay: day,
-                        languageCode: settings.languageCode
-                    )
-                }
-            }
+
         }
     }
 
