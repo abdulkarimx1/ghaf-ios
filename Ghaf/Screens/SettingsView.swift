@@ -379,7 +379,7 @@ struct GhafSettingsView: View {
 
                 ForEach(settings.categories, id: \.self) { category in
                     HStack(spacing: 12) {
-                        Text(category)
+                        Text(GhafLocalization.category(category, languageCode: languageCode))
                             .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
                             .foregroundStyle(theme.primaryText)
                         Spacer()
