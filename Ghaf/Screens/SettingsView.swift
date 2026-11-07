@@ -737,15 +737,12 @@ struct GhafAboutView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .fill(theme.accent.opacity(0.10))
-                        .frame(width: 104, height: 104)
-                    Image(systemName: "leaf.fill")
-                        .font(.system(size: 43, weight: .medium))
-                        .foregroundStyle(theme.accent)
-                }
-                .padding(.top, 24)
+                Image("GhafBrandMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 104, height: 104)
+                    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+                    .padding(.top, 24)
 
                 Text(settings.languageCode == "ar" ? "غــــاف" : "Ghaf")
                     .font(GhafTypography.display(34, languageCode: settings.languageCode))
