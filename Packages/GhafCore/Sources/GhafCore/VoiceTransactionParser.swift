@@ -9,7 +9,7 @@ public struct GhafVoiceTransactionDraft: Identifiable {
         let normalized = isGroupedThousands
             ? amountText.replacingOccurrences(of: ",", with: "")
             : amountText.replacingOccurrences(of: ",", with: ".")
-        return Decimal(string: normalized) ?? 0
+        return Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX")) ?? 0
     }
     public var currency: String
     public var date: Date
@@ -43,7 +43,7 @@ public enum GhafVoiceTransactionParser {
             let amountText = isGroupedThousands
                 ? rawAmount.replacingOccurrences(of: ",", with: "")
                 : rawAmount.replacingOccurrences(of: ",", with: ".")
-            guard let amount = Decimal(string: amountText), amount > 0 else { return nil }
+            guard let amount = Decimal(string: amountText, locale: Locale(identifier: "en_US_POSIX")), amount > 0 else { return nil }
 
             let currency = detectCurrency(in: segment) ?? baseCurrency
             var merchant = segment
