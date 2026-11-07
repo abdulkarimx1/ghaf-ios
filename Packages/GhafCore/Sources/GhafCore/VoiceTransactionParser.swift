@@ -49,7 +49,7 @@ public enum GhafVoiceTransactionParser {
             var merchant = segment
             merchant.removeSubrange(amountRange)
             merchant = merchant.replacingOccurrences(
-                of: #"(?i)\b(?:i|we|just|went|to|the|store|bought|buy|got|paid|for|spent|on|at|a|an|and|then|dhs?|dirhams?|aed|sar|kwd|bhd|omr|qar|usd|eur|gbp|today|yesterday|this morning|last night)\b"#,
+                of: #"(?i)\b(?:i|we|just|went|to|the|store|bought|buy|got|paid|for|spent|on|at|a|an|and|then|dhs?|dirhams?|aed|sar|kwd|bhd|omr|qar|usd|eur|gbp|today|yesterday|tomorrow|this morning|last night)\b"#,
                 with: " ",
                 options: .regularExpression
             )
