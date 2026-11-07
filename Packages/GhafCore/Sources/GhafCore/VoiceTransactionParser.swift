@@ -54,7 +54,7 @@ public enum GhafVoiceTransactionParser {
                 options: .regularExpression
             )
             merchant = merchant.replacingOccurrences(
-                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
+                of: #"(?<![\p{L}\p{N}])(?:درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|البارحة|الليلة الماضية|غداً|باجر|بكرة|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
                 with: " ",
                 options: .regularExpression
             )
@@ -118,8 +118,12 @@ public enum GhafVoiceTransactionParser {
         let lower = text.lowercased()
         let calendar = Calendar.current
         var date = Date()
-        if lower.contains("yesterday") || lower.contains("أمس") {
+        if lower.contains("yesterday") || lower.contains("last night")
+            || lower.contains("أمس") || lower.contains("البارحة") || lower.contains("الليلة الماضية") {
             date = calendar.date(byAdding: .day, value: -1, to: date) ?? date
+        } else if lower.contains("tomorrow") || lower.contains("غداً")
+                    || lower.contains("باجر") || lower.contains("بكرة") {
+            date = calendar.date(byAdding: .day, value: 1, to: date) ?? date
         }
 
         let timePattern = #"(?i)\b([0-1]?[0-9])(?::([0-5][0-9]))?\s*(am|pm)\b|(?:الساعة\s*)?([0-1]?[0-9])(?::([0-5][0-9]))?\s*(صباحاً|صباحا|مساءً|مساء|عصراً|عصرا)"#
