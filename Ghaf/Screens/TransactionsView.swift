@@ -11,6 +11,9 @@ struct GhafTransactionsView: View {
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
     @State private var showEditor = false
+    @State private var sortOrder = "Newest"
+    @State private var transactionToDelete: GhafTransaction?
+    @State private var showDeleteConfirmation = false
 
     let settings: GhafSettings
 
@@ -42,6 +45,15 @@ struct GhafTransactionsView: View {
                 $0.localizedCaseInsensitiveContains(query)
             }
             return matchesFilter && matchesSearch
+        }
+    }
+
+    private var orderedTransactions: [GhafTransaction] {
+        switch sortOrder {
+        case "Oldest": filteredTransactions.sorted { $0.date < $1.date }
+        case "Highest": filteredTransactions.sorted { $0.amount > $1.amount }
+        case "Lowest": filteredTransactions.sorted { $0.amount < $1.amount }
+        default: filteredTransactions.sorted { $0.date > $1.date }
         }
     }
 
@@ -82,6 +94,20 @@ struct GhafTransactionsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showEditor) {
                 transactionEditorSheet
+            }
+            .confirmationDialog(
+                settings.languageCode == "ar" ? "حذف هذه العملية؟" : "Delete this transaction?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button(settings.languageCode == "ar" ? "حذف العملية" : "Delete transaction", role: .destructive) {
+                    deletePendingTransaction()
+                }
+                Button(settings.languageCode == "ar" ? "إلغاء" : "Cancel", role: .cancel) {
+                    transactionToDelete = nil
+                }
+            } message: {
+                Text(settings.languageCode == "ar" ? "لا يمكن التراجع عن هذا الإجراء." : "This action cannot be undone.")
             }
         }
     }
@@ -214,13 +240,23 @@ struct GhafTransactionsView: View {
                         .font(GhafTypography.heading(19, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
                     Spacer()
+                    Menu {
+                        Button(settings.languageCode == "ar" ? "الأحدث أولاً" : "Newest first") { sortOrder = "Newest" }
+                        Button(settings.languageCode == "ar" ? "الأقدم أولاً" : "Oldest first") { sortOrder = "Oldest" }
+                        Button(settings.languageCode == "ar" ? "الأعلى مبلغاً" : "Highest amount") { sortOrder = "Highest" }
+                        Button(settings.languageCode == "ar" ? "الأقل مبلغاً" : "Lowest amount") { sortOrder = "Lowest" }
+                    } label: {
+                        Label(settings.languageCode == "ar" ? "ترتيب" : "Sort", systemImage: "arrow.up.arrow.down")
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                    }
                     Text("\(filteredTransactions.count)")
                         .font(GhafTypography.number(12, weight: .semibold))
                         .foregroundStyle(theme.secondaryText)
                 }
 
                 VStack(spacing: 0) {
-                    ForEach(filteredTransactions, id: \.id) { transaction in
+                    ForEach(orderedTransactions, id: \.id) { transaction in
                         Button {
                             selectedTransaction = transaction
                             showEditor = true
@@ -232,6 +268,14 @@ struct GhafTransactionsView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label(settings.languageCode == "ar" ? "حذف" : "Delete", systemImage: "trash")
+                            }
+                        }
 
                         Divider().overlay(theme.outline).padding(.leading, 58)
                     }
@@ -240,6 +284,17 @@ struct GhafTransactionsView: View {
                 .ghafCard(theme: theme, radius: 19)
             }
         }
+    }
+
+    private func deletePendingTransaction() {
+        guard let transaction = transactionToDelete else { return }
+        modelContext.delete(transaction)
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+        }
+        transactionToDelete = nil
     }
 
     @ViewBuilder
