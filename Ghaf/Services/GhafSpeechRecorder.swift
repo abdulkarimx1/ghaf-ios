@@ -94,8 +94,8 @@ final class GhafSpeechRecorder: ObservableObject {
         }
 
         audioEngine.prepare()
-        try audioEngine.start()
         isRecording = true
+        try audioEngine.start()
 
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
