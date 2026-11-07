@@ -1,0 +1,37 @@
+name: Ghaf
+
+options:
+  bundleIdPrefix: com.ghaf
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  xcodeVersion: "16.4"
+  projectFormat: xcode16_0
+
+packages:
+  GhafCore:
+    path: Packages/GhafCore
+
+targets:
+  Ghaf:
+    type: application
+    platform: iOS
+
+    sources:
+      - path: Ghaf
+
+    dependencies:
+      - package: GhafCore
+        product: GhafCore
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app
+        PRODUCT_NAME: Ghaf
+        SWIFT_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Ghaf
+        SUPPORTS_MACCATALYST: NO
+        ENABLE_PREVIEWS: YES
