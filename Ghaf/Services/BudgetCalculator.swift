@@ -103,16 +103,40 @@ enum BudgetCalculator {
 }
 
 enum GhafFormat {
-    static func money(_ amount: Decimal, currency: String) -> String {
+    private static func locale(for currency: String, languageCode: String) -> Locale {
+        let regions: [String: String] = [
+            "AED": "AE", "SAR": "SA", "KWD": "KW", "BHD": "BH",
+            "OMR": "OM", "QAR": "QA", "USD": "US", "EUR": "DE", "GBP": "GB"
+        ]
+        let region = regions[currency.uppercased()] ?? "AE"
+        return Locale(identifier: "\(languageCode == "ar" ? "ar" : "en")_\(region)")
+    }
+
+    static func symbol(for currency: String, languageCode: String = "en") -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = currency
-        formatter.locale = Locale(identifier: "en_AE")
+        formatter.currencyCode = currency.uppercased()
+        formatter.locale = locale(for: currency, languageCode: languageCode)
+        let symbol = formatter.currencySymbol
+        return symbol.isEmpty || symbol == currency.uppercased()
+            ? currency.uppercased()
+            : symbol
+    }
+
+    static func money(
+        _ amount: Decimal,
+        currency: String,
+        languageCode: String = "en"
+    ) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency.uppercased()
+        formatter.locale = locale(for: currency, languageCode: languageCode)
         formatter.maximumFractionDigits = 2
         formatter.minimumFractionDigits = 2
 
         return formatter.string(from: amount as NSDecimalNumber)
-            ?? "\(currency) \(NSDecimalNumber(decimal: amount))"
+            ?? "\(symbol(for: currency, languageCode: languageCode)) \(NSDecimalNumber(decimal: amount))"
     }
 
     static func decimal(_ amount: Decimal) -> String {
