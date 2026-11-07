@@ -1,0 +1,132 @@
+name: Build Ghaf iOS
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and Build Ghaf
+
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Select pinned Xcode
+        run: |
+          XCODE_PATH="/Applications/Xcode_16.4.app"
+
+          if [ ! -d "$XCODE_PATH" ]; then
+            echo "Xcode 16.4 was not found on this runner."
+            exit 1
+          fi
+
+          sudo xcode-select -s \
+            "$XCODE_PATH/Contents/Developer"
+
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: |
+          set -o pipefail
+          xcodegen generate 2>&1 | tee xcodegen.log
+
+      - name: Test GhafCore
+        run: |
+          set -o pipefail
+
+          swift test \
+            --package-path Packages/GhafCore \
+            2>&1 | tee core-tests.log
+
+      - name: Build iOS application
+        run: |
+          set -o pipefail
+
+          xcodebuild \
+            -project Ghaf.xcodeproj \
+            -scheme Ghaf \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log
+
+      - name: Archive unsigned application
+        run: |
+          set -o pipefail
+
+          xcodebuild \
+            -project Ghaf.xcodeproj \
+            -scheme Ghaf \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            -archivePath build/Ghaf.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive 2>&1 | tee archive.log
+
+      - name: Package unsigned IPA
+        run: |
+          set -e
+
+          APP_PATH="build/Ghaf.xcarchive/Products/Applications/Ghaf.app"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Archived Ghaf.app was not found."
+            exit 1
+          fi
+
+          rm -rf Payload
+          mkdir -p Payload
+
+          ditto "$APP_PATH" Payload/Ghaf.app
+
+          /usr/bin/ditto \
+            -c -k \
+            --sequesterRsrc \
+            --keepParent \
+            Payload \
+            Ghaf.ipa
+
+          unzip -t Ghaf.ipa
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ghaf-unsigned-ipa
+          path: Ghaf.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ghaf-build-logs
+          path: |
+            xcodegen.log
+            core-tests.log
+            build.log
+            archive.log
+          if-no-files-found: ignore
+          retention-days: 7
