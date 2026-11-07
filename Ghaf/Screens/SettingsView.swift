@@ -106,7 +106,7 @@ struct GhafSettingsView: View {
                         prompt = .importBackup
                     }
                 case .failure(let error):
-                    prompt = .message("Import failed: \(error.localizedDescription)")
+                    prompt = .message(languageCode == "ar" ? "تعذر استيراد النسخة الاحتياطية." : "Could not import the backup.")
                 }
             }
             .alert(item: $prompt) { selectedPrompt in
@@ -638,9 +638,9 @@ struct GhafSettingsView: View {
 
         do {
             try modelContext.save()
-            prompt = .message("Settings saved successfully.")
+            prompt = .message(languageCode == "ar" ? "تم حفظ الإعدادات بنجاح." : "Settings saved successfully.")
         } catch {
-            prompt = .message("Could not save settings.")
+            prompt = .message(languageCode == "ar" ? "تعذر حفظ الإعدادات." : "Could not save settings.")
         }
     }
 
@@ -685,7 +685,7 @@ struct GhafSettingsView: View {
         do {
             backupURL = try GhafBackupService.export(context: modelContext)
         } catch {
-            prompt = .message("Could not create backup: \(error.localizedDescription)")
+            prompt = .message(languageCode == "ar" ? "تعذر إنشاء النسخة الاحتياطية." : "Could not create the backup.")
         }
     }
 
@@ -694,9 +694,9 @@ struct GhafSettingsView: View {
         do {
             try GhafBackupService.restore(from: url, context: modelContext)
             pendingImportURL = nil
-            prompt = .message("Backup restored successfully.")
+            prompt = .message(languageCode == "ar" ? "تمت استعادة النسخة الاحتياطية بنجاح." : "Backup restored successfully.")
         } catch {
-            prompt = .message("Could not restore backup: \(error.localizedDescription)")
+            prompt = .message(languageCode == "ar" ? "تعذرت استعادة النسخة الاحتياطية." : "Could not restore the backup.")
         }
     }
 
@@ -712,7 +712,7 @@ struct GhafSettingsView: View {
 
             try modelContext.save()
         } catch {
-            prompt = .message("Could not delete all data.")
+            prompt = .message(languageCode == "ar" ? "تعذر حذف جميع البيانات." : "Could not delete all data.")
         }
     }
 }
