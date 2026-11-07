@@ -66,6 +66,28 @@ final class VoiceTransactionParserTests: XCTestCase {
         XCTAssertEqual(arabic.first?.direction, "credit")
     }
 
+    func testDisambiguatesArabicGCCCurrencyNames() {
+        let saudi = GhafVoiceTransactionParser.parse(
+            "اشتريت شيئاً بـ ٢٠ ريال سعودي",
+            languageCode: "ar",
+            baseCurrency: "AED"
+        )
+        let bahraini = GhafVoiceTransactionParser.parse(
+            "اشتريت شيئاً بـ ٢٠ دينار بحريني",
+            languageCode: "ar",
+            baseCurrency: "AED"
+        )
+        let genericRiyal = GhafVoiceTransactionParser.parse(
+            "اشتريت شيئاً بـ ٢٠ ريال",
+            languageCode: "ar",
+            baseCurrency: "QAR"
+        )
+
+        XCTAssertEqual(saudi.first?.currency, "SAR")
+        XCTAssertEqual(bahraini.first?.currency, "BHD")
+        XCTAssertEqual(genericRiyal.first?.currency, "QAR")
+    }
+
     func testUnderstandsRelativeDatesInEnglishAndGulfArabic() {
         let yesterday = GhafVoiceTransactionParser.parse(
             "I bought medicine for 20 AED last night",
