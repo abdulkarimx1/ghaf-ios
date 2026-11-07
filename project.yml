@@ -26,6 +26,10 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations:
+          - en
+          - ar
         NSFaceIDUsageDescription: Ghaf uses Face ID or your device passcode to protect your financial information.
         UIAppFonts:
           - IBMPlexSans-Variable.ttf
