@@ -156,7 +156,7 @@ struct GhafSettingsView: View {
             settingsField(languageCode == "ar" ? "الاسم" : "Name", text: $name)
 
             settingsLabel(languageCode == "ar" ? "العملة الرئيسية" : "Main currency")
-            Picker("Main currency", selection: $currency) {
+            Picker(languageCode == "ar" ? "العملة الرئيسية" : "Main currency", selection: $currency) {
                 ForEach(currencies, id: \.self) { Text($0).tag($0) }
             }
             .pickerStyle(.menu)
@@ -166,7 +166,7 @@ struct GhafSettingsView: View {
 
     private var languageCard: some View {
         settingsCard(languageCode == "ar" ? "اللغة" : "Language", subtitle: languageCode == "ar" ? "لغة الواجهة في جميع أجزاء غاف" : "The language used throughout Ghaf") {
-            Picker("App language", selection: $languageCode) {
+            Picker(languageCode == "ar" ? "لغة التطبيق" : "App language", selection: $languageCode) {
                 Text("English").tag("en")
                 Text("العربية").tag("ar")
             }
@@ -293,7 +293,7 @@ struct GhafSettingsView: View {
             .pickerStyle(.menu)
 
             settingsLabel(languageCode == "ar" ? "وضع المظهر" : "Appearance mode")
-            Picker("Appearance mode", selection: $appearanceMode) {
+            Picker(languageCode == "ar" ? "وضع المظهر" : "Appearance mode", selection: $appearanceMode) {
                 Text(languageCode == "ar" ? "حسب الجهاز" : "System").tag("System")
                 Text(languageCode == "ar" ? "فاتح" : "Light").tag("Light")
                 Text(languageCode == "ar" ? "داكن" : "Dark").tag("Dark")
@@ -356,7 +356,7 @@ struct GhafSettingsView: View {
 
     private var budgetCard: some View {
         settingsCard(languageCode == "ar" ? "الميزانية" : "Budget", subtitle: languageCode == "ar" ? "حدد طريقة حساب المبلغ المتاح" : "Choose how your available money is measured") {
-            Picker("Budget method", selection: $budgetMode) {
+            Picker(languageCode == "ar" ? "طريقة الميزانية" : "Budget method", selection: $budgetMode) {
                 Text(languageCode == "ar" ? "حد يومي" : "Daily limit").tag("Daily")
                 Text(languageCode == "ar" ? "ميزانيات الفئات" : "Category budgets").tag("Category")
             }
@@ -364,10 +364,10 @@ struct GhafSettingsView: View {
 
             if budgetMode == "Daily" {
                 settingsLabel(languageCode == "ar" ? "الدخل الشهري" : "Monthly income")
-                settingsField("e.g. 5000", text: $income, numeric: true)
+                settingsField(languageCode == "ar" ? "مثال: ٥٠٠٠" : "e.g. 5000", text: $income, numeric: true)
 
                 settingsLabel(languageCode == "ar" ? "الالتزامات الشهرية الثابتة" : "Fixed monthly commitments")
-                settingsField("e.g. 1500", text: $commitments, numeric: true)
+                settingsField(languageCode == "ar" ? "مثال: ١٥٠٠" : "e.g. 1500", text: $commitments, numeric: true)
 
                 Text(languageCode == "ar" ? "الميزانية اليومية = (الدخل − الالتزامات) ÷ عدد أيام الشهر." : "Daily budget = (income − commitments) ÷ days in month.")
                     .font(GhafTypography.body(12, languageCode: languageCode))
@@ -383,7 +383,7 @@ struct GhafSettingsView: View {
                             .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
                             .foregroundStyle(theme.primaryText)
                         Spacer()
-                        TextField("0", text: budgetBinding(for: category))
+                        TextField(languageCode == "ar" ? "٠" : "0", text: budgetBinding(for: category))
                             .font(GhafTypography.number(14))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
