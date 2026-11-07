@@ -280,9 +280,19 @@ struct GhafOnboardingView: View {
             settings.languageCode = newValue
             try? modelContext.save()
         }
-        .sheet(isPresented: $showAutomationGuide) {
+        .sheet(isPresented: $showAutomationGuide, onDismiss: {
+            settings.hasSeenAutomationIntro = true
+            try? modelContext.save()
+        }) {
             NavigationStack {
                 GhafAutomationGuideView(settings: settings)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                showAutomationGuide = false
+                            }
+                        }
+                    }
             }
         }
     }

@@ -79,16 +79,19 @@ struct GhafHomeView: View {
                     .tracking(1.5)
                     .foregroundStyle(theme.secondaryText)
 
-                Text(
-                    settings.userName.isEmpty
-                        ? "Welcome to Ghaf"
-                        : "Hello, \(settings.userName)"
-                )
+                Group {
+                    if settings.userName.isEmpty {
+                        Text("Welcome to Ghaf")
+                    } else {
+                        Text("Hello, \(settings.userName)")
+                    }
+                }
                 .font(GhafTypeScale.title)
                 .foregroundStyle(theme.primaryText)
 
                 Text(Date.now.formatted(
                     .dateTime.weekday(.wide).month(.abbreviated).day()
+                    .locale(Locale(identifier: settings.languageCode))
                 ))
                 .font(.system(size: 13))
                 .foregroundStyle(theme.secondaryText)
@@ -133,14 +136,18 @@ struct GhafHomeView: View {
                         .tracking(1.3)
                         .foregroundStyle(theme.accentContrast.opacity(0.75))
 
-                    Text(
-                        snapshot.hasBudget
-                            ? GhafFormat.money(
-                                snapshot.remaining,
-                                currency: settings.currency
+                    Group {
+                        if snapshot.hasBudget {
+                            Text(
+                                GhafFormat.money(
+                                    snapshot.remaining,
+                                    currency: settings.currency
+                                )
                             )
-                            : "Set your budget"
-                    )
+                        } else {
+                            Text("Set your budget")
+                        }
+                    }
                     .font(
                         .system(
                             size: snapshot.hasBudget ? 36 : 27,
@@ -198,13 +205,15 @@ struct GhafHomeView: View {
 
             if !snapshot.hasBudget {
 
-                Text(
-                    settings.budgetMode == "Category"
-                        ? "Add category budgets in Settings."
-                        : "Add your monthly income in Settings."
-                )
-                .font(.system(size: 12))
-                .foregroundStyle(theme.accentContrast.opacity(0.8))
+                if settings.budgetMode == "Category" {
+                    Text("Add category budgets in Settings.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.accentContrast.opacity(0.8))
+                } else {
+                    Text("Add your monthly income in Settings.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.accentContrast.opacity(0.8))
+                }
             }
         }
         .padding(22)
@@ -249,7 +258,7 @@ struct GhafHomeView: View {
 
         VStack(alignment: .leading, spacing: 5) {
 
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 10, weight: .bold))
                 .tracking(1)
                 .foregroundStyle(theme.accentContrast.opacity(0.70))
@@ -351,10 +360,7 @@ struct GhafHomeView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .background(
-                    theme.surface,
-                    in: RoundedRectangle(cornerRadius: 20)
-                )
+                .ghafGlass(theme: theme, radius: 22)
             }
         }
     }
@@ -414,18 +420,24 @@ struct GhafTransactionRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
 
-                Text(
-                    transaction.merchant?.isEmpty == false
-                        ? transaction.merchant!
-                        : transaction.category
-                )
+                Group {
+                    if let merchant = transaction.merchant, !merchant.isEmpty {
+                        Text(merchant)
+                    } else {
+                        Text(LocalizedStringKey(transaction.category))
+                    }
+                }
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(theme.primaryText)
                 .lineLimit(1)
 
-                Text(
-                    "\(transaction.category) · \(transaction.date.formatted(date: .omitted, time: .shortened))"
-                )
+                HStack(spacing: 4) {
+                    Text(LocalizedStringKey(transaction.category))
+                    Text("·")
+                    Text(transaction.date.formatted(
+                        .dateTime.hour().minute().locale(Locale(identifier: settings.languageCode))
+                    ))
+                }
                 .font(.system(size: 11))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
