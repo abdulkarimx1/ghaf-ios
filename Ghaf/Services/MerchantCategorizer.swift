@@ -21,6 +21,45 @@ enum MerchantCategorizer {
         ("التعاونية", "Groceries"),
         ("جمعية الشارقة التعاونية", "Groceries"),
         
+        // Spoken purchase descriptions
+        ("grocery", "Groceries"),
+        ("groceries", "Groceries"),
+        ("supermarket", "Groceries"),
+        ("food shop", "Groceries"),
+        ("بقالة", "Groceries"),
+        ("مواد غذائية", "Groceries"),
+        ("تموينات", "Groceries"),
+
+        ("medicine", "Health"),
+        ("medication", "Health"),
+        ("meds", "Health"),
+        ("pharmacy", "Health"),
+        ("صيدلية", "Health"),
+        ("أدوية", "Health"),
+        ("دواء", "Health"),
+
+        ("petrol", "Fuel"),
+        ("gas station", "Fuel"),
+        ("fuel", "Fuel"),
+        ("بنزين", "Fuel"),
+        ("وقود", "Fuel"),
+
+        ("taxi", "Transport"),
+        ("parking", "Transport"),
+        ("metro", "Transport"),
+        ("bus", "Transport"),
+        ("مواصلات", "Transport"),
+        ("موقف", "Transport"),
+
+        ("rent", "Bills & Utilities"),
+        ("electricity", "Bills & Utilities"),
+        ("water bill", "Bills & Utilities"),
+        ("internet bill", "Bills & Utilities"),
+        ("إيجار", "Bills & Utilities"),
+        ("كهرباء", "Bills & Utilities"),
+        ("مياه", "Bills & Utilities"),
+        ("إنترنت", "Bills & Utilities"),
+
         // Dining
         ("talabat", "Dining"),
         ("طلبات", "Dining"),
