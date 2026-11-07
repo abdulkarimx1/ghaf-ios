@@ -159,7 +159,9 @@ struct GhafSettingsView: View {
                     Circle()
                         .fill(theme.accent.opacity(0.12))
                         .frame(width: 54, height: 54)
-                    Text(name.isEmpty ? "غ" : String(name.prefix(1)).uppercased())
+                    Text(name.isEmpty
+                         ? (languageCode == "ar" ? "غ" : "G")
+                         : String(name.prefix(1)).uppercased())
                         .font(GhafTypography.heading(22, languageCode: languageCode))
                         .foregroundStyle(theme.accent)
                 }
