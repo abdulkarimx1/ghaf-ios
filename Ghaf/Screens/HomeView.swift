@@ -623,7 +623,7 @@ struct GhafQuickAddView: View {
 
                     fieldLabel(settings.languageCode == "ar" ? "الفئة" : "Category")
                     Picker(settings.languageCode == "ar" ? "الفئة" : "Category", selection: $category) {
-                        ForEach(settings.categories, id: \.self) { Text($0).tag($0) }
+                        ForEach(settings.categories, id: \.self) { Text(GhafLocalization.category($0, languageCode: settings.languageCode)).tag($0) }
                     }
                     .pickerStyle(.menu)
                     .tint(theme.accent)
