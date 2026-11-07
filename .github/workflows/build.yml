@@ -61,6 +61,7 @@ jobs:
           fi
           xcrun simctl boot "$DEVICE_ID" 2>/dev/null || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl ui "$DEVICE_ID" appearance dark
 
           set -o pipefail
           xcodebuild \

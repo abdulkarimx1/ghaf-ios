@@ -490,7 +490,7 @@ struct GhafQuickAddView: View {
                     }
 
                     Button("Save transaction", action: save)
-                        .ghafProminentButton(theme: theme)
+                        .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
                 .padding(22)
                 .frame(maxWidth: 580)

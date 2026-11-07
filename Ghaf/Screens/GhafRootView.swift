@@ -244,7 +244,7 @@ struct GhafOnboardingView: View {
                 Button(step == 4 ? "Start using Ghaf" : "Continue") {
                     advance()
                 }
-                .ghafProminentButton(theme: theme)
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
 
                 if step > 0 {
                     Button("Back") { step -= 1 }
@@ -403,7 +403,7 @@ struct GhafOnboardingView: View {
                 Label("Set up automatic tracking", systemImage: "arrow.up.right")
                     .frame(maxWidth: .infinity)
             }
-            .ghafProminentButton(theme: theme)
+            .ghafProminentButton(theme: theme, languageCode: languageCode)
 
             Text("iOS controls whether some automations can run without confirmation. Some banking apps also hide transaction details in notification previews.")
                 .font(GhafTypography.body(13, languageCode: languageCode))

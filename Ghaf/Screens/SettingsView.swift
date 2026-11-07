@@ -63,7 +63,7 @@ struct GhafSettingsView: View {
                     dangerCard
 
                     Button("Save settings", action: saveSettings)
-                        .ghafProminentButton(theme: theme)
+                        .ghafProminentButton(theme: theme, languageCode: languageCode)
                         .padding(.top, 2)
 
                     Text("Your data stays on this iPhone. Ghaf does not connect to a financial server.")

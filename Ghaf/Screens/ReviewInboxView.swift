@@ -125,7 +125,7 @@ struct GhafReviewInboxView: View {
                     selectedTransaction = transaction
                     showEditor = true
                 }
-                .ghafProminentButton(theme: theme)
+                .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
 
                 Button {
                     transaction.needsReview = false

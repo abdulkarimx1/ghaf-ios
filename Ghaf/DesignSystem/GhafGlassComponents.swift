@@ -42,20 +42,32 @@ extension View {
     }
 
     @ViewBuilder
-    func ghafProminentButton(theme: GhafTheme) -> some View {
+    func ghafProminentButton(
+        theme: GhafTheme,
+        languageCode: String = "en"
+    ) -> some View {
         if #available(iOS 26.0, *) {
-            self.buttonStyle(.glassProminent)
+            self
+                .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                .tint(theme.accent)
+                .buttonStyle(.glassProminent)
         } else {
             self.buttonStyle(GhafPrimaryButtonStyle(theme: theme))
         }
     }
 
     @ViewBuilder
-    func ghafGlassButton(theme: GhafTheme) -> some View {
+    func ghafGlassButton(
+        theme: GhafTheme,
+        languageCode: String = "en"
+    ) -> some View {
         if #available(iOS 26.0, *) {
-            self.buttonStyle(.glass)
+            self
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                .tint(theme.accent)
+                .buttonStyle(.glass)
         } else {
-            self.buttonStyle(.borderedProminent).tint(theme.accent)
+            self.buttonStyle(.bordered).tint(theme.accent)
         }
     }
 }

@@ -356,7 +356,7 @@ struct GhafTransactionEditor: View {
                     }
 
                     Button(languageCode == "ar" ? "حفظ التغييرات" : "Save changes", action: save)
-                        .ghafProminentButton(theme: theme)
+                        .ghafProminentButton(theme: theme, languageCode: languageCode)
                 }
                 .padding(22)
                 .frame(maxWidth: 560)
