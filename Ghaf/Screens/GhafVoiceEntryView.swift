@@ -6,6 +6,7 @@ struct GhafVoiceEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
 
     @StateObject private var recorder = GhafSpeechRecorder()
@@ -206,6 +207,9 @@ struct GhafVoiceEntryView: View {
                 ?? accounts.first(where: { !$0.isArchived })?.id
         }
         .onChange(of: recorder.transcript) { _, value in transcript = value }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { recorder.stop() }
+        }
         .onDisappear { recorder.reset() }
         .animation(.easeInOut(duration: 0.2), value: drafts.count)
     }
