@@ -727,8 +727,8 @@ struct GhafAboutView: View {
                         .foregroundStyle(theme.primaryText)
 
                     Text(settings.languageCode == "ar"
-                         ? "بدأ غاف من حاجة شخصية إلى طريقة أبسط لمتابعة المصروفات وتنظيم المال والادخار. صُمم وطُوّر بالاستعانة بالذكاء الاصطناعي بهدف مساعدة الناس على فهم أموالهم وتخطيطها بوضوح، مع تقليل الوقت الذي يقضونه في إدخال العمليات يدوياً."
-                         : "Ghaf started with a small personal problem: keeping track of spending, organizing money and planning savings took too much manual effort. Built with the help of AI to support people who want a clearer, simpler way to categorize transactions and plan their savings, while spending less time entering everything by hand.")
+                         ? "بدأ غاف من حاجة شخصية إلى طريقة أبسط لمتابعة المصروفات وتنظيم المال والادخار. صُمم وطُوّر بالكامل بالذكاء الاصطناعي لمساعدة الناس على فهم أموالهم وتصنيف عملياتهم وتخطيط مدخراتهم بوضوح، مع تقليل الوقت الذي يقضونه في إدخال العمليات يدوياً."
+                         : "Ghaf started with a small personal problem: keeping track of spending, organizing money and planning savings took too much manual effort. Designed and built entirely with AI to support people who want a clearer, simpler way to categorize transactions and plan their savings, while spending less time entering everything by hand.")
                         .font(GhafTypography.body(14, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
