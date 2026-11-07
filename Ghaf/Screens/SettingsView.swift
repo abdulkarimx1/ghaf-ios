@@ -472,7 +472,7 @@ struct GhafSettingsView: View {
 
             if let backupURL {
                 ShareLink(item: backupURL) {
-                    settingsActionRow(languageCode == "ar" ? "مشاركة النسخة أو حفظها" : "Share or save backup", detail: languageCode == "ar" ? "اختر الملفات أو AirDrop أو وجهة أخرى" : "Choose Files, AirDrop or another destination", icon: "square.and.arrow.up.on.square")
+                    settingsActionRow(languageCode == "ar" ? "مشاركة النسخة أو حفظها" : "Share or save backup", detail: languageCode == "ar" ? "احفظها في iCloud Drive أو Google Drive عبر تطبيق الملفات" : "Save to iCloud Drive or Google Drive through the Files app", icon: "square.and.arrow.up.on.square")
                 }
                 .buttonStyle(.plain)
             }
