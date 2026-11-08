@@ -62,7 +62,7 @@ struct GhafHomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 header
                 balancesCard
                 budgetCard
@@ -400,11 +400,11 @@ struct GhafHomeView: View {
             HStack(spacing: 8) {
                 Image(systemName: "bolt.badge.clock").font(.system(size: 15, weight: .semibold))
                 Text(settings.languageCode == "ar" ? "ربط البنك" : "Bank setup")
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
                     .lineLimit(1).minimumScaleFactor(0.78)
             }
             .foregroundStyle(theme.primaryText)
-            .frame(maxWidth: .infinity).frame(height: 48)
+            .frame(maxWidth: .infinity).frame(minHeight: 58)
             .ghafLiquidGlass(theme: theme, radius: 16)
         }
         .buttonStyle(.plain)
@@ -434,14 +434,14 @@ struct GhafHomeView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 15, weight: .bold))
                 Text(settings.languageCode == "ar" ? "إضافة عملية" : "Add transaction")
-                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                    .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .bold))
                 Spacer()
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(theme.accent)
             .padding(.horizontal, 16)
-            .frame(height: 48)
+            .frame(minHeight: 58)
             .background(theme.accent.opacity(0.075), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -454,20 +454,20 @@ struct GhafHomeView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(activityPeriodTitle)
-                        .font(GhafTypography.heading(15, languageCode: settings.languageCode))
+                        .font(GhafTypography.heading(16, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
                     Text(settings.languageCode == "ar" ? "\(activityTransactions.count) عملية" : "\(activityTransactions.count) transactions")
-                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                        .font(GhafTypography.body(12, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
                 Spacer(minLength: 8)
                 Text(GhafFormat.money(activityTotal, currency: settings.currency, languageCode: settings.languageCode))
-                    .font(GhafTypography.number(15, weight: .semibold))
+                    .font(GhafTypography.number(16, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.75)
                 Image(systemName: "arrow.2.circlepath").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.accent)
             }
-            .padding(.horizontal, 15).padding(.vertical, 12)
+            .padding(.horizontal, 16).padding(.vertical, 14)
             .ghafCard(theme: theme, radius: 17)
             .contentShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
         }
