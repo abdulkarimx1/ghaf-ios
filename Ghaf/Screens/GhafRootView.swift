@@ -480,33 +480,11 @@ struct GhafOnboardingView: View {
     }
 
     private var welcomePage: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(theme.accent)
-                VStack(spacing: 12) {
-                    GhafTreeMark(color: theme.accentContrast)
-                        .frame(width: 80, height: 85)
-                    Text("GHAF")
-                        .font(GhafTypography.number(26, weight: .bold))
-                        .tracking(5)
-                        .foregroundStyle(theme.accentContrast)
-                }
-            }
-            .frame(height: 218)
-
-            Text(localized("Make every dirham count.", "اجعل كل درهم محسوباً."))
-                .font(GhafTypography.display(34, languageCode: languageCode))
-                .foregroundStyle(theme.primaryText)
-
-            Text(localized("A clearer picture of your money, your spending and your daily budget.", "رؤية أوضح لأموالك ومصروفاتك وميزانيتك اليومية."))
-                .font(GhafTypography.body(16, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
-
-            Text(localized("A simple financial companion that helps you stay in control.", "رفيق مالي بسيط يساعدك على إدارة أموالك بثقة."))
-                .font(GhafTypography.body(15, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
-        }
+        Image("GhafWelcomeArtwork")
+            .resizable()
+            .scaledToFit()
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(languageCode == "ar" ? "غاف، صنع بحب في الإمارات" : "Ghaf, made with love in the UAE")
     }
 
     private var privacyPage: some View {
