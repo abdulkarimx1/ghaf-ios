@@ -76,7 +76,7 @@ final class TransactionIngestionService {
 
         let category = try MerchantCategorizer.category(
             for: parsed.merchant,
-            direction: parsed.direction.rawValue,
+            direction: parsed.direction,
             context: context
         )
 
