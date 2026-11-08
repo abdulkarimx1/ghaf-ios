@@ -38,6 +38,7 @@ struct GhafSettingsView: View {
     @State private var pendingImportURL: URL?
     @State private var showImporter = false
     @State private var prompt: GhafSettingsPrompt?
+    @State private var hasLoadedSettings = false
 
     private let currencies = ["AED", "USD", "EUR", "GBP", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -68,10 +69,6 @@ struct GhafSettingsView: View {
                     aboutCard
                     dangerCard
 
-                    Button(languageCode == "ar" ? "حفظ الإعدادات" : "Save settings", action: saveSettings)
-                        .ghafProminentButton(theme: theme, languageCode: languageCode)
-                        .padding(.top, 2)
-
                     Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
                         .font(GhafTypography.body(12, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
@@ -90,10 +87,15 @@ struct GhafSettingsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .tint(theme.accent)
             .onAppear(perform: loadSettings)
-            .onChange(of: languageCode) { _, newValue in
-                settings.languageCode = newValue
-                try? modelContext.save()
-            }
+            .onChange(of: languageCode) { _, _ in persistSettings() }
+            .onChange(of: name) { _, _ in persistSettings() }
+            .onChange(of: currency) { _, _ in persistSettings() }
+            .onChange(of: income) { _, _ in persistSettings() }
+            .onChange(of: commitments) { _, _ in persistSettings() }
+            .onChange(of: themeName) { _, _ in persistSettings() }
+            .onChange(of: appearanceMode) { _, _ in persistSettings() }
+            .onChange(of: budgetMode) { _, _ in persistSettings() }
+            .onChange(of: categoryBudgetTexts) { _, _ in persistSettings() }
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: [.json],
@@ -625,9 +627,11 @@ struct GhafSettingsView: View {
             let value = settings.categoryBudgets[category]
             categoryBudgetTexts[category] = value.map(GhafFormat.decimal) ?? ""
         }
+        hasLoadedSettings = true
     }
 
-    private func saveSettings() {
+    private func persistSettings() {
+        guard hasLoadedSettings else { return }
         settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.languageCode = languageCode
         settings.currency = currency
@@ -647,9 +651,8 @@ struct GhafSettingsView: View {
 
         do {
             try modelContext.save()
-            prompt = .message(languageCode == "ar" ? "تم حفظ الإعدادات بنجاح." : "Settings saved successfully.")
         } catch {
-            prompt = .message(languageCode == "ar" ? "تعذر حفظ الإعدادات." : "Could not save settings.")
+            prompt = .message(languageCode == "ar" ? "تعذر حفظ التغييرات." : "Could not save your changes.")
         }
     }
 
@@ -701,11 +704,31 @@ struct GhafSettingsView: View {
     private func restoreBackup() {
         guard let url = pendingImportURL else { return }
         do {
-            try GhafBackupService.restore(from: url, context: modelContext)
-            pendingImportURL = nil
-            prompt = .message(languageCode == "ar" ? "تمت استعادة النسخة الاحتياطية بنجاح." : "Backup restored successfully.")
+            if GhafExpendImportService.canImport(url) {
+                let result = try GhafExpendImportService.importFile(from: url, context: modelContext)
+                pendingImportURL = nil
+                let message: String
+                if languageCode == "ar" {
+                    message = "تم استيراد \(result.accountsImported) حساباً و\(result.transactionsImported) قيداً مالياً من Expend. " +
+                        (result.recurringRulesNotImported > 0
+                         ? "لم تُنقل قواعد التكرار وعددها \(result.recurringRulesNotImported) لأن غاف لا يدعم حفظ الجداول المتكررة حالياً."
+                         : "")
+                } else {
+                    message = "Imported \(result.accountsImported) wallets and \(result.transactionsImported) ledger entries from Expend. " +
+                        (result.recurringRulesNotImported > 0
+                         ? "\(result.recurringRulesNotImported) recurring rules were not imported because Ghaf does not yet store recurring schedules."
+                         : "")
+                }
+                prompt = .message(message)
+            } else {
+                try GhafBackupService.restore(from: url, context: modelContext)
+                pendingImportURL = nil
+                prompt = .message(languageCode == "ar" ? "تمت استعادة نسخة غاف الاحتياطية بنجاح." : "Ghaf backup restored successfully.")
+            }
         } catch {
-            prompt = .message(languageCode == "ar" ? "تعذرت استعادة النسخة الاحتياطية." : "Could not restore the backup.")
+            prompt = .message(languageCode == "ar"
+                ? "تعذر استيراد الملف. التفاصيل: \(error.localizedDescription)"
+                : "Could not import the file. Details: \(error.localizedDescription)")
         }
     }
 
