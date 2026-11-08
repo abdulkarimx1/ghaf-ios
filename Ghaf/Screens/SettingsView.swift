@@ -795,17 +795,19 @@ struct GhafAboutView: View {
                 .ghafCard(theme: theme, radius: 20)
 
                 VStack(alignment: .leading, spacing: 7) {
-                    Link(destination: URL(string: "https://github.com/abdulkarimx1/ghaf-ios/blob/main/PRIVACY.md")!) {
-                    Label(
-                        settings.languageCode == "ar" ? "سياسة الخصوصية" : "Privacy policy",
-                        systemImage: "hand.raised"
-                    )
-                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .ghafCard(theme: theme, radius: 18)
-                }
+                    NavigationLink {
+                        GhafPrivacyPolicyView(settings: settings)
+                    } label: {
+                        Label(
+                            settings.languageCode == "ar" ? "سياسة الخصوصية" : "Privacy policy",
+                            systemImage: "hand.raised"
+                        )
+                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .ghafCard(theme: theme, radius: 18)
+                    }
 
                 Text(settings.languageCode == "ar" ? "المطور" : "Developer")
                         .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
