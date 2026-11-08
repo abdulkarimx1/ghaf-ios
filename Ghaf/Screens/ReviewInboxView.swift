@@ -45,7 +45,7 @@ struct GhafReviewInboxView: View {
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
             }
-            .background(theme.background.ignoresSafeArea())
+            .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showEditor) {
                 transactionEditorSheet
