@@ -3,6 +3,15 @@ import SwiftData
 
 @MainActor
 enum GhafPersistence {
+    private static var sharedContainer: ModelContainer?
+
+    static func shared() throws -> ModelContainer {
+        if let sharedContainer { return sharedContainer }
+        let container = try makeContainer()
+        sharedContainer = container
+        return container
+    }
+
     static func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             GhafTransaction.self,
