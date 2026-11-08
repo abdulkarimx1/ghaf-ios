@@ -14,8 +14,7 @@ struct GhafTransactionsView: View {
     @State private var searchText = ""
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
-    @State private var showEditor = false
-    @State private var sortOrder = "Newest"
+        @State private var sortOrder = "Newest"
     @State private var transactionToDelete: GhafTransaction?
     @State private var showDeleteConfirmation = false
 
@@ -107,8 +106,10 @@ struct GhafTransactionsView: View {
             .ghafBackground(theme: theme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showEditor) {
-                transactionEditorSheet
+            .sheet(item: $selectedTransaction) { transaction in
+                GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName, appearanceMode: settings.appearanceMode, languageCode: settings.languageCode, accounts: accounts.filter { !$0.isArchived })
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .confirmationDialog(
                 settings.languageCode == "ar" ? "حذف هذه العملية؟" : "Delete this transaction?",
@@ -202,7 +203,7 @@ struct GhafTransactionsView: View {
             }
         }
         .padding(.horizontal, 15)
-        .frame(height: 48)
+        .frame(height: 54)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.outline, lineWidth: 1))
     }
@@ -222,11 +223,11 @@ struct GhafTransactionsView: View {
             filter = value
         } label: {
             Text(label)
-                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity)
-                .frame(height: 37)
+                .frame(height: 46)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.secondaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
                 .overlay(Capsule().stroke(isSelected ? theme.accent : theme.outline, lineWidth: 1))
@@ -277,7 +278,6 @@ struct GhafTransactionsView: View {
                     ForEach(orderedTransactions, id: \.id) { transaction in
                         Button {
                             selectedTransaction = transaction
-                            showEditor = true
                         } label: {
                             GhafTransactionRow(
                                 transaction: transaction,
