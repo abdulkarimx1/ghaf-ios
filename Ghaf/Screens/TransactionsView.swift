@@ -427,7 +427,11 @@ struct GhafTransactionEditor: View {
                         Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
                             Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
                             ForEach(accounts, id: \.id) { account in
-                                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                                HStack(spacing: 7) {
+                                Text(account.name)
+                                GhafCurrencyIcon(currency: account.currency, size: 15)
+                            }
+                            .tag(Optional(account.id))
                             }
                         }
                         .pickerStyle(.menu)
