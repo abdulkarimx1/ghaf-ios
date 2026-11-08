@@ -332,16 +332,11 @@ struct GhafOnboardingView: View {
 
                 Spacer()
 
-                Picker(localized("Language", "اللغة"), selection: $languageCode) {
-                    Text("English").tag("en")
-                    Text("العربية").tag("ar")
+                if step > 0 {
+                    Text("\(step) / 6")
+                        .font(GhafTypography.number(12, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
                 }
-                .pickerStyle(.menu)
-                .tint(theme.accent)
-
-                Text("\(step + 1) / 6")
-                    .font(GhafTypography.number(12, weight: .semibold))
-                    .foregroundStyle(theme.secondaryText)
             }
             .padding(.horizontal, 24)
             .padding(.top, 18)
@@ -350,14 +345,16 @@ struct GhafOnboardingView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 25) {
                         if step == 0 {
-                            welcomePage
+                            languageSelectionPage
                         } else if step == 1 {
-                            privacyPage
+                            welcomePage
                         } else if step == 2 {
-                            automationIntroPage
+                            privacyPage
                         } else if step == 3 {
-                            setupPage
+                            automationIntroPage
                         } else if step == 4 {
+                            setupPage
+                        } else if step == 5 {
                             accountsAndSalaryPage
                         } else {
                             connectionPage
@@ -369,7 +366,7 @@ struct GhafOnboardingView: View {
             }
 
             VStack(spacing: 10) {
-                Button(step == 5 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
+                Button(step == 6 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
                     advance()
                 }
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
@@ -403,6 +400,80 @@ struct GhafOnboardingView: View {
                         }
                     }
             }
+        }
+    }
+
+    private var languageSelectionPage: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            Spacer(minLength: 26)
+            Text("GHAF")
+                .font(GhafTypography.number(15, weight: .bold))
+                .tracking(3.5)
+                .foregroundStyle(theme.accent)
+            Text("Choose your language.")
+                .font(GhafTypography.display(34, languageCode: "en"))
+                .foregroundStyle(theme.primaryText)
+            Text("اختر لغة التطبيق.")
+                .font(GhafTypography.display(31, languageCode: "ar"))
+                .foregroundStyle(theme.primaryText)
+            Text(localized(
+                "Your choice will refresh the entire app, including typography, alignment and content.",
+                "سيتم تحديث التطبيق بالكامل وفقاً لاختيارك، بما في ذلك الخطوط والمحاذاة وجميع النصوص."
+            ))
+            .font(GhafTypography.body(14, languageCode: languageCode))
+            .foregroundStyle(theme.secondaryText)
+            .padding(.bottom, 8)
+
+            Button {
+                languageCode = "en"
+            } label: {
+                HStack(spacing: 14) {
+                    Text("EN")
+                        .font(GhafTypography.number(19, weight: .bold))
+                        .frame(width: 46, height: 46)
+                        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("English")
+                            .font(GhafTypography.heading(18, languageCode: "en"))
+                        Text("Continue in English")
+                            .font(GhafTypography.body(12, languageCode: "en"))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    Spacer()
+                    Image(systemName: languageCode == "en" ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(theme.accent)
+                }
+                .foregroundStyle(theme.primaryText)
+                .padding(16)
+                .ghafLiquidGlass(theme: theme, radius: 20)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                languageCode = "ar"
+            } label: {
+                HStack(spacing: 14) {
+                    Text("ع")
+                        .font(GhafTypography.display(24, languageCode: "ar"))
+                        .frame(width: 46, height: 46)
+                        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("العربية")
+                            .font(GhafTypography.heading(19, languageCode: "ar"))
+                        Text("متابعة باللغة العربية")
+                            .font(GhafTypography.body(12, languageCode: "ar"))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    Spacer()
+                    Image(systemName: languageCode == "ar" ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(theme.accent)
+                }
+                .foregroundStyle(theme.primaryText)
+                .padding(16)
+                .ghafLiquidGlass(theme: theme, radius: 20)
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 10)
         }
     }
 
@@ -799,21 +870,21 @@ struct GhafOnboardingView: View {
     }
 
     private func advance() {
-        if step < 3 {
+        if step < 4 {
             step += 1
             return
         }
 
-        if step == 3 {
+        if step == 4 {
             settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
             settings.currency = currency
             settings.monthlyIncome = Decimal(string: income) ?? 0
             settings.fixedCommitments = Decimal(string: commitments) ?? 0
-            step = 4
+            step = 5
             return
         }
 
-        if step == 4 {
+        if step == 5 {
             guard !accountDrafts.isEmpty else {
                 accountSetupError = true
                 return
@@ -866,7 +937,7 @@ struct GhafOnboardingView: View {
             settings.salaryReminderEnabled = salaryEnabled && salaryReminderEnabled
             do {
                 try modelContext.save()
-                step = 5
+                step = 6
                 accountSetupError = false
                 if salaryEnabled && salaryReminderEnabled {
                     Task {
