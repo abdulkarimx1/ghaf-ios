@@ -287,7 +287,7 @@ struct GhafAccountEditorView: View {
     @State private var errorMessage = false
     @State private var showArchiveConfirmation = false
 
-    private let currencies = ["AED", "USD", "SAR", "QAR", "KWD", "BHD", "OMR", "EUR", "GBP", "INR"]
+    private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
