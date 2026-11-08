@@ -3,7 +3,14 @@ import SwiftData
 
 @MainActor
 enum GhafPersistence {
+    private static var cachedContainer: ModelContainer?
+
+    /// Reuse one container inside the app process so App Intents and SwiftUI
+    /// resolve the same persistent store and observe each other's writes.
     static func makeContainer() throws -> ModelContainer {
+        if let cachedContainer {
+            return cachedContainer
+        }
         let schema = Schema([
             GhafTransaction.self,
             GhafSettings.self,
@@ -18,7 +25,9 @@ enum GhafPersistence {
             cloudKitDatabase: .none
         )
 
-        return try ModelContainer(for: schema, configurations: [configuration])
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        cachedContainer = container
+        return container
     }
 
     static func settings(in context: ModelContext) throws -> GhafSettings {
