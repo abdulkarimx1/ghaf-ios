@@ -12,12 +12,9 @@ private struct GhafCardSurface: ViewModifier {
                     .overlay(shape.fill(theme.surface.opacity(0.48)))
             }
             .overlay {
-                shape.stroke(.white.opacity(0.34), lineWidth: 1)
+                shape.stroke(theme.outline.opacity(0.52), lineWidth: 0.8)
             }
-            .overlay(alignment: .top) {
-                shape.stroke(theme.accent.opacity(0.13), lineWidth: 0.7)
-            }
-            .shadow(color: .black.opacity(0.055), radius: 16, x: 0, y: 7)
+            .shadow(color: .black.opacity(0.035), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -64,8 +61,9 @@ extension View {
     ) -> some View {
         if #available(iOS 26.0, *) {
             self
-                .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                .font(GhafTypography.body(17, languageCode: languageCode, weight: .bold))
                 .tint(theme.accent)
+                .frame(minHeight: 58)
                 .buttonStyle(.glassProminent)
         } else {
             self.buttonStyle(GhafPrimaryButtonStyle(theme: theme))
@@ -79,8 +77,9 @@ extension View {
     ) -> some View {
         if #available(iOS 26.0, *) {
             self
-                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
                 .tint(theme.accent)
+                .frame(minHeight: 54)
                 .buttonStyle(.glass)
         } else {
             self.buttonStyle(.bordered).tint(theme.accent)
