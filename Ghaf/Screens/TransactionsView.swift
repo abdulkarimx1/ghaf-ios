@@ -104,7 +104,7 @@ struct GhafTransactionsView: View {
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
             }
-            .background(theme.background.ignoresSafeArea())
+            .ghafBackground(theme: theme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showEditor) {
@@ -521,7 +521,7 @@ struct GhafTransactionEditor: View {
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
             }
-            .background(theme.background.ignoresSafeArea())
+            .ghafBackground(theme: theme)
             .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
