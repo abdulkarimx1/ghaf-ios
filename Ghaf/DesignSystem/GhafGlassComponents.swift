@@ -82,7 +82,11 @@ extension View {
                 .frame(minHeight: 54)
                 .buttonStyle(.glass)
         } else {
-            self.buttonStyle(.bordered).tint(theme.accent)
+            self
+                .controlSize(.large)
+                .frame(minHeight: 54)
+                .buttonStyle(.bordered)
+                .tint(theme.accent)
         }
     }
 }
@@ -138,11 +142,11 @@ struct GhafCategoryIcon: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 18, weight: .semibold))
+            .font(.system(size: 20, weight: .bold))
             .symbolRenderingMode(.hierarchical)
             .foregroundStyle(tint)
-            .frame(width: 46, height: 46)
-            .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(width: 48, height: 48)
+            .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
 }
 
