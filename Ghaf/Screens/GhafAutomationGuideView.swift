@@ -54,7 +54,7 @@ struct GhafAutomationGuideView: View {
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
         }
-        .background(theme.background.ignoresSafeArea())
+        .ghafBackground(theme: theme)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(localized("Bank automation", "أتمتة البنك"))
         .navigationBarTitleDisplayMode(.inline)
