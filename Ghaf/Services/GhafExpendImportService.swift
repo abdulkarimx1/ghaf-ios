@@ -41,19 +41,19 @@ enum GhafExpendImportService {
         "transportation": "Transport",
         "utilities": "Bills & Utilities",
         "others-income": "Transfers",
-        "reimbursements": "Other",
+        "reimbursements": "Other Income",
         "salary": "Salary",
-        "fcfb4ee5-fc91-4680-8265-588a4b84639a": "Other",
+        "fcfb4ee5-fc91-4680-8265-588a4b84639a": "Other Income",
         "transfer": "Transfers",
         "transfer-fee": "Fees",
         "debt-repayment": "Debt Repayment",
         "payable-debt-expansion": "Borrowed Money",
         "payable-debt-interest": "Interest",
-        "payment-collection": "Other",
+        "payment-collection": "Other Income",
         "receivable-debt-expansion": "Lent Money",
         "receivable-debt-interest": "Interest",
         "adjustment-expense": "Other",
-        "adjustment-income": "Other"
+        "adjustment-income": "Other Income"
     ]
 
     static func canImport(_ url: URL) -> Bool {
@@ -128,6 +128,14 @@ enum GhafExpendImportService {
             let currency = string(row["currencyCode"])?.uppercased() ?? mainCurrency
             let openingBalance = decimal(row["initialAmount"]) ?? 0
             let created = date(row["dateCreated"]) ?? .distantPast
+            let firstActivityDate = transactionRows
+                .filter {
+                    string($0["srcWallet"]) == sourceID ||
+                    string($0["destWallet"]) == sourceID
+                }
+                .compactMap { date($0["dateCreated"]) }
+                .min()
+            let balanceStartDate = min(created, firstActivityDate ?? created)
             let institution = string(row["institution"])
             let archived = (row["isArchived"] as? Bool ?? false) || (row["deleted"] as? Bool ?? false)
             let primaryWalletID = string(profile["defaultWalletID"])
@@ -139,7 +147,7 @@ enum GhafExpendImportService {
                 accountType: type,
                 currency: currency,
                 openingBalance: openingBalance,
-                openingDate: created,
+                openingDate: balanceStartDate,
                 isArchived: archived,
                 isPrimary: primary,
                 sortOrder: integer(row["order"]) ?? index,
