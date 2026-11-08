@@ -7,6 +7,14 @@ struct GhafCurrencyIcon: View {
 
     private var normalized: String { currency.uppercased() }
 
+    private var assetName: String? {
+        switch normalized {
+        case "SAR": "CurrencySAR"
+        case "OMR": "CurrencyOMR"
+        default: nil
+        }
+    }
+
     private var symbol: String {
         switch normalized {
         case "AED": "banknote.fill"
@@ -43,11 +51,20 @@ struct GhafCurrencyIcon: View {
             Circle()
                 .stroke(tint.opacity(0.34), lineWidth: max(0.8, size * 0.045))
                 .padding(size * 0.055)
-            Image(systemName: symbol)
-                .symbolRenderingMode(.hierarchical)
-                .font(.system(size: size * 0.49, weight: .semibold))
-                .foregroundStyle(tint)
-                .minimumScaleFactor(0.6)
+            if let assetName {
+                Image(assetName)
+                    .resizable()
+                    .renderingMode(.template)
+                    .scaledToFit()
+                    .foregroundStyle(tint)
+                    .padding(size * 0.19)
+            } else {
+                Image(systemName: symbol)
+                    .symbolRenderingMode(.hierarchical)
+                    .font(.system(size: size * 0.49, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .minimumScaleFactor(0.6)
+            }
         }
         .frame(width: size, height: size)
         .accessibilityLabel(accessibilityName)
