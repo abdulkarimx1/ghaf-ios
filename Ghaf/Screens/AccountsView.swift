@@ -65,7 +65,7 @@ struct GhafAccountsView: View {
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
         }
-        .background(theme.background.ignoresSafeArea())
+        .ghafBackground(theme: theme)
         .navigationTitle(settings.languageCode == "ar" ? "الحسابات" : "Accounts")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingEditor) {
