@@ -7,6 +7,7 @@ struct GhafExternalImportResult {
     let transactionsImported: Int
     let skippedTransactions: Int
     let recurringRulesNotImported: Int
+    let budgetsNotImported: Int
     let sourceName: String
 }
 
@@ -15,6 +16,7 @@ enum GhafExpendImportError: LocalizedError {
     case unsupportedFormat
     case noValidWallets
     case invalidTransactionData
+    case walletBalanceMismatch(String)
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +24,7 @@ enum GhafExpendImportError: LocalizedError {
         case .unsupportedFormat: "This JSON file is not a supported Expend export."
         case .noValidWallets: "No valid wallets were found in the Expend export."
         case .invalidTransactionData: "The Expend transaction data is incomplete."
+        case .walletBalanceMismatch(let name): "The imported ledger does not reconcile with the exported balance for wallet: \\(name)."
         }
     }
 }
@@ -144,7 +147,24 @@ enum GhafExpendImportService {
             )
         }
 
-        let categoryValues = Set(categoryMap.values).union(["Other"])
+        let categoryValues = Set(categoryMap.values).union(GhafDefaults.defaultCategories)
+        let accountByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
+        for row in validWalletRows {
+            guard let sourceID = string(row["_id"]),
+                  let accountID = walletIDs[sourceID],
+                  let account = accountByID[accountID] else { continue }
+            let computed = parsedTransactions
+                .filter { $0.accountID == accountID && $0.date >= account.openingDate }
+                .reduce(account.openingBalance) { total, item in
+                    item.direction == .credit ? total + item.amount : total - item.amount
+                }
+            let exported = decimal(row["currentAmount"]) ?? computed
+            let difference = abs(NSDecimalNumber(decimal: computed - exported).doubleValue)
+            if difference > 0.01 {
+                throw GhafExpendImportError.walletBalanceMismatch(account.name)
+            }
+        }
+
         let currentRules = try context.fetch(FetchDescriptor<MerchantCategoryRule>())
         let currentTransactions = try context.fetch(FetchDescriptor<GhafTransaction>())
         let currentAccounts = try context.fetch(FetchDescriptor<GhafAccount>())
@@ -199,6 +219,7 @@ enum GhafExpendImportService {
             transactionsImported: parsedTransactions.count,
             skippedTransactions: max(0, skipped),
             recurringRulesNotImported: (root["recurringTransactions"] as? [[String: Any]])?.count ?? 0,
+            budgetsNotImported: (root["budgets"] as? [[String: Any]])?.count ?? 0,
             sourceName: "Expend"
         )
     }
