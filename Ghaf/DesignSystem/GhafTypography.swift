@@ -3,7 +3,7 @@ import SwiftUI
 enum GhafTypography {
     static func display(_ size: CGFloat, languageCode: String) -> Font {
         if languageCode == "ar" {
-            return .custom("thmanyahserifdisplay-Black", size: size, relativeTo: .largeTitle)
+            return .custom("ThmanyahSerifDisplay-Black", size: size, relativeTo: .largeTitle)
         }
         return .custom("IBMPlexSans-Regular", size: size, relativeTo: .largeTitle)
             .weight(.bold)
@@ -11,7 +11,7 @@ enum GhafTypography {
 
     static func heading(_ size: CGFloat, languageCode: String) -> Font {
         if languageCode == "ar" {
-            return .custom("thmanyahserifdisplay-Black", size: size, relativeTo: .title)
+            return .custom("ThmanyahSerifDisplay-Black", size: size, relativeTo: .title)
         }
         return .custom("IBMPlexSans-Regular", size: size, relativeTo: .title)
             .weight(.semibold)
@@ -92,7 +92,7 @@ struct GhafLaunchSplash: View {
 
                 VStack(spacing: 13) {
                     Text("غاف")
-                        .font(.custom("thmanyahserifdisplay-Black", size: 94))
+                        .font(.custom("ThmanyahSerifDisplay-Black", size: 94))
                         .foregroundStyle(Color(red: 0.97, green: 0.94, blue: 0.84))
                         .shadow(color: .black.opacity(0.16), radius: 16, y: 5)
 
