@@ -37,7 +37,7 @@ struct GhafAutomationGuideView: View {
                 instructionCard(
                     number: "03",
                     title: localized("Connect the message", "اربط نص الرسالة"),
-                    detail: localized("Set Message Text to the incoming Message variable. Set Sender / App Name to the Sender variable if it is available. Leave it empty if Shortcuts does not offer it.", "اربط حقل Message Text بمتغير Message الوارد، وحقل Sender / App Name بمتغير Sender إذا كان متاحاً. اترك حقل المُرسل فارغاً إذا لم يقدّم تطبيق الاختصارات هذا المتغير.")
+                    detail: localized("For an SMS trigger, map Message Text to the incoming Message variable and leave Notification Title empty. If your iOS version offers a bank-notification trigger with separate title and body values, map the title to Notification Title and the body to Message Text. Enter the bank name as plain text in Sender / App Name when the trigger does not provide an app name. If Shortcuts does not offer that notification trigger or its contents, Ghaf cannot read the alert directly; use the SMS trigger where available.", "عند استخدام مُحفّز SMS، اربط Message Text بمتغير Message واترك Notification Title فارغاً. إذا كان إصدار iOS لديك يوفّر مُحفّزاً لإشعارات البنك مع عنوان ونص منفصلين، اربط العنوان بحقل Notification Title والنص بحقل Message Text. أدخل اسم البنك كنص عادي في Sender / App Name إذا لم يوفّر المُحفّز اسم التطبيق. إذا لم يوفّر تطبيق الاختصارات مُحفّز الإشعارات أو محتواها، فلن يستطيع غاف قراءة التنبيه مباشرة؛ استخدم مُحفّز SMS عند توفره.")
                 )
 
                 instructionCard(
