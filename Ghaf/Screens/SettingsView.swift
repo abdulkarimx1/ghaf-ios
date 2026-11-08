@@ -156,35 +156,67 @@ struct GhafSettingsView: View {
 
     private var profileCard: some View {
         settingsCard(languageCode == "ar" ? "الملف الشخصي" : "Profile", subtitle: languageCode == "ar" ? "بياناتك ونشاطك المالي" : "Your details and financial activity") {
-            HStack(spacing: 13) {
+            let activeAccountCount = accounts.filter { !$0.isArchived }.count
+            let initials = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
+            let accountCount = languageCode == "ar"
+                ? GhafLocalization.count(activeAccountCount, singular: "حساب واحد", dual: "حسابان", plural: "حسابات", afterTen: "حساباً", languageCode: "ar")
+                : GhafLocalization.count(activeAccountCount, singular: "account", dual: "accounts", plural: "accounts", afterTen: "accounts", languageCode: "en")
+            let transactionCount = languageCode == "ar"
+                ? GhafLocalization.count(transactions.count, singular: "عملية واحدة", dual: "عمليتان", plural: "عمليات", afterTen: "عملية", languageCode: "ar")
+                : GhafLocalization.count(transactions.count, singular: "transaction", dual: "transactions", plural: "transactions", afterTen: "transactions", languageCode: "en")
+
+            HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(theme.accent.opacity(0.12))
-                        .frame(width: 54, height: 54)
-                    Text(name.isEmpty
-                         ? (languageCode == "ar" ? "غ" : "G")
-                         : String(name.prefix(1)).uppercased())
-                        .font(GhafTypography.heading(22, languageCode: languageCode))
+                        .fill(theme.accent.opacity(0.13))
+                        .frame(width: 68, height: 68)
+                    Circle()
+                        .stroke(theme.accent.opacity(0.24), lineWidth: 1)
+                        .frame(width: 60, height: 60)
+                    Text(initials.isEmpty ? (languageCode == "ar" ? "غ" : "G") : initials)
+                        .font(GhafTypography.heading(23, languageCode: languageCode))
                         .foregroundStyle(theme.accent)
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(theme.accentContrast)
+                        .frame(width: 21, height: 21)
+                        .background(theme.accent, in: Circle())
+                        .overlay(Circle().stroke(theme.surface, lineWidth: 2))
+                        .offset(x: 25, y: 24)
                 }
-                VStack(alignment: .leading, spacing: 4) {
+
+                VStack(alignment: .leading, spacing: 5) {
                     Text(name.isEmpty
-                         ? (languageCode == "ar" ? "مستخدم غاف" : "Ghaf user")
-                         : name)
-                        .font(GhafTypography.heading(16, languageCode: languageCode))
+                         ? (languageCode == "ar" ? "مرحباً بك في غاف" : "Welcome to Ghaf")
+                         : (languageCode == "ar" ? "مرحباً، \(name)" : "Hello, \(name)"))
+                        .font(GhafTypography.heading(18, languageCode: languageCode))
                         .foregroundStyle(theme.primaryText)
-                    let activeAccountCount = accounts.filter { !$0.isArchived }.count
-                    let accountCount = languageCode == "ar"
-                        ? GhafLocalization.count(activeAccountCount, singular: "حساب واحد", dual: "حسابان", plural: "حسابات", afterTen: "حساباً", languageCode: "ar")
-                        : GhafLocalization.count(activeAccountCount, singular: "account", dual: "accounts", plural: "accounts", afterTen: "accounts", languageCode: "en")
-                    let transactionCount = languageCode == "ar"
-                        ? GhafLocalization.count(transactions.count, singular: "عملية واحدة", dual: "عمليتان", plural: "عمليات", afterTen: "عملية", languageCode: "ar")
-                        : GhafLocalization.count(transactions.count, singular: "transaction", dual: "transactions", plural: "transactions", afterTen: "transactions", languageCode: "en")
-                    Text("\(accountCount) · \(transactionCount)")
+                    Text(languageCode == "ar"
+                         ? "مساحتك الخاصة لفهم أموالك وتنظيمها."
+                         : "Your personal space to understand and organise your money.")
                         .font(GhafTypography.body(11, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(languageCode == "ar" ? "ملفك المالي" : "YOUR MONEY PROFILE")
+                        .font(GhafTypography.body(9, languageCode: languageCode, weight: .bold))
+                        .tracking(languageCode == "ar" ? 0 : 1.2)
+                        .foregroundStyle(theme.accent)
                 }
                 Spacer(minLength: 0)
+            }
+            .padding(.bottom, 2)
+
+            HStack(spacing: 8) {
+                profileMetric(
+                    icon: "wallet.pass.fill",
+                    value: "\(activeAccountCount)",
+                    title: languageCode == "ar" ? "الحسابات" : "ACCOUNTS"
+                )
+                profileMetric(
+                    icon: "arrow.left.arrow.right",
+                    value: "\(transactions.count)",
+                    title: languageCode == "ar" ? "العمليات" : "TRANSACTIONS"
+                )
             }
             .padding(.bottom, 4)
 
@@ -198,6 +230,30 @@ struct GhafSettingsView: View {
             .pickerStyle(.menu)
             .tint(theme.accent)
         }
+    }
+
+    private func profileMetric(icon: String, value: String, title: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 30, height: 30)
+                .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(GhafTypography.number(17, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+                Text(title)
+                    .font(GhafTypography.body(8, languageCode: languageCode, weight: .bold))
+                    .tracking(languageCode == "ar" ? 0 : 0.8)
+                    .foregroundStyle(theme.secondaryText)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var languageCard: some View {
