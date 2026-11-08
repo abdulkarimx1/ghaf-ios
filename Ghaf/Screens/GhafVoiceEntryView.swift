@@ -22,6 +22,9 @@ struct GhafVoiceEntryView: View {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: systemColorScheme == .dark)
     }
     private var isArabic: Bool { settings.languageCode == "ar" }
+    private var transcriptLanguageCode: String {
+        transcript.unicodeScalars.contains { (0x0600...0x06FF).contains(Int($0.value)) } ? "ar" : "en"
+    }
 
     var body: some View {
         ScrollView {
@@ -218,7 +221,7 @@ struct GhafVoiceEntryView: View {
     }
 
     private func updateDrafts(from text: String) {
-        drafts = GhafVoiceTransactionParser.parse(text, languageCode: settings.languageCode, baseCurrency: settings.currency).map { parsed in
+        drafts = GhafVoiceTransactionParser.parse(text, languageCode: text.unicodeScalars.contains { (0x0600...0x06FF).contains(Int($0.value)) } ? "ar" : "en", baseCurrency: settings.currency).map { parsed in
             var result = parsed
             let direction = TransactionDirection(rawValue: parsed.direction) ?? .debit
             result.category = (try? MerchantCategorizer.category(for: parsed.merchant, direction: direction, context: modelContext)) ?? "Other"
