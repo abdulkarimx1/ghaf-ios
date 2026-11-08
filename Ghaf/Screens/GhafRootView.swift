@@ -9,7 +9,6 @@ struct GhafRootView: View {
 
     @State private var showAutomationIntro = false
     @State private var showLaunch = true
-    @State private var launchScale: CGFloat = 0.62
     @State private var launchHasStarted = false
     @State private var isUnlocked = true
     @State private var authenticationMessage: String?
@@ -32,7 +31,7 @@ struct GhafRootView: View {
                 .background(Color.clear.ignoresSafeArea())
 
             if showLaunch {
-                GhafLaunchSplash(scale: launchScale)
+                GhafWelcomeLaunchScreen()
                     .transition(.opacity)
                     .zIndex(10)
             }
@@ -180,10 +179,6 @@ struct GhafRootView: View {
     private func beginLaunch() {
         guard !launchHasStarted else { return }
         launchHasStarted = true
-
-        withAnimation(.spring(response: 0.78, dampingFraction: 0.78)) {
-            launchScale = 1
-        }
 
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.85))
@@ -944,5 +939,33 @@ struct GhafOnboardingView: View {
 
         settings.hasCompletedOnboarding = true
         try? modelContext.save()
+    }
+}
+
+
+// MARK: - Branded cold-launch welcome
+
+/// Shown on every fresh app process launch. This is deliberately separate
+/// from onboarding completion, so returning users see the artwork without
+/// repeating setup or resetting any financial data.
+private struct GhafWelcomeLaunchScreen: View {
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Color(uiColor: .systemBackground)
+                    .ignoresSafeArea()
+
+                Image("GhafWelcomeArtwork")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 24)
+                    .accessibilityLabel("Ghaf")
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .ignoresSafeArea()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
