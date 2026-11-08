@@ -234,7 +234,7 @@ struct GhafCityBackdrop: View {
                     }
                 }
 
-                context.stroke(drawing, with: .color(theme.accent.opacity(0.12)), lineWidth: 1.25)
+                context.stroke(drawing, with: .color(theme.accent.opacity(0.20)), lineWidth: 1.45)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
