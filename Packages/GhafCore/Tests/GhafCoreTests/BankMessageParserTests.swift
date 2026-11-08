@@ -43,6 +43,26 @@ final class BankMessageParserTests: XCTestCase {
         XCTAssertEqual(transaction.date, referenceDate)
     }
 
+    func testParsesBankNotificationBodyWithoutSenderMetadata() {
+        // Notification automations pass the notification content as text;
+        // the originating app name is not a separate input to Ghaf.
+        let sample = "Purchase of AED 2.00 was made with Card ending XX000 at SAMPLE MERCHANT. Available Balance: AED 1.35"
+
+        let result = parser.parse(
+            sample,
+            sender: nil,
+            referenceDate: referenceDate
+        )
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.amount, Decimal(string: "2.00"))
+        XCTAssertEqual(result?.currency, "AED")
+        XCTAssertEqual(result?.merchant, "SAMPLE MERCHANT")
+        XCTAssertEqual(result?.direction, .debit)
+        XCTAssertNil(result?.bank)
+        XCTAssertFalse(parser.shouldSendToReview(result!))
+    }
+
     func testParsesIvestorCreditAndDoesNotUseAvailableBalance() {
         // SYNTHETIC PLACEHOLDER based on the supplied message structure.
         let sample = "Your DFM iVESTOR card xxxx0000 has been credited with USD 1.00. Available Balance AED 0.00 (Reversal)"
