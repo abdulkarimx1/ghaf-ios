@@ -107,7 +107,7 @@ struct GhafPrivacyPolicyView: View {
         }
         .scrollBounceBehavior(.never)
         .scrollIndicators(.hidden)
-        .background(theme.background.ignoresSafeArea())
+        .ghafBackground(theme: theme)
         .navigationTitle(isArabic ? "الخصوصية" : "Privacy")
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, Locale(identifier: settings.languageCode))
