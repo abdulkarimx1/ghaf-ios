@@ -145,12 +145,12 @@ struct GhafTransactionsView: View {
     private var monthSummary: some View {
         HStack(spacing: 10) {
             summaryCell(
-                title: settings.languageCode == "ar" ? "المصروفات (\(settings.currency))" : "SPENT IN \(settings.currency)",
+                title: settings.languageCode == "ar" ? "المصروفات" : "SPENT",
                 amount: monthExpenses,
                 color: theme.debit
             )
             summaryCell(
-                title: settings.languageCode == "ar" ? "الدخل (\(settings.currency))" : "INCOME IN \(settings.currency)",
+                title: settings.languageCode == "ar" ? "الدخل" : "INCOME",
                 amount: monthIncome,
                 color: theme.credit
             )
@@ -159,11 +159,14 @@ struct GhafTransactionsView: View {
 
     private func summaryCell(title: String, amount: Decimal, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(title)
-                .font(GhafTypography.body(9, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.0)
-                .foregroundStyle(theme.secondaryText)
-                .lineLimit(1)
+            HStack(spacing: 7) {
+                GhafCurrencyIcon(currency: settings.currency, size: 14)
+                Text(title)
+                    .font(GhafTypography.body(9, languageCode: settings.languageCode, weight: .bold))
+                    .tracking(settings.languageCode == "ar" ? 0 : 1.0)
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1)
+            }
             Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
                 .font(GhafTypography.number(19, weight: .bold))
                 .foregroundStyle(color)
