@@ -5,12 +5,14 @@ import UniformTypeIdentifiers
 private enum GhafSettingsPrompt: Identifiable {
     case deleteData
     case importBackup
+    case importExpend
     case message(String)
 
     var id: String {
         switch self {
         case .deleteData: return "delete"
         case .importBackup: return "import"
+        case .importExpend: return "import-expend"
         case .message(let value): return "message-\(value)"
         }
     }
@@ -105,7 +107,7 @@ struct GhafSettingsView: View {
                 case .success(let urls):
                     if let url = urls.first {
                         pendingImportURL = url
-                        prompt = .importBackup
+                        prompt = GhafExpendImportService.canImport(url) ? .importExpend : .importBackup
                     }
                 case .failure:
                     prompt = .message(languageCode == "ar" ? "تعذر استيراد النسخة الاحتياطية." : "Could not import the backup.")
@@ -122,9 +124,20 @@ struct GhafSettingsView: View {
                     )
                 case .importBackup:
                     return Alert(
-                        title: Text(languageCode == "ar" ? "استبدال البيانات الحالية؟" : "Replace current data?"),
-                        message: Text(languageCode == "ar" ? "سيؤدي استيراد هذه النسخة الاحتياطية إلى استبدال جميع بيانات غاف الموجودة على هذا الجهاز." : "Importing this backup replaces all existing Ghaf records on this device."),
-                        primaryButton: .destructive(Text(languageCode == "ar" ? "استبدال البيانات" : "Replace data"), action: restoreBackup),
+                        title: Text(languageCode == "ar" ? "استعادة نسخة غاف؟" : "Restore Ghaf backup?"),
+                        message: Text(languageCode == "ar"
+                            ? "سيؤدي ذلك إلى استبدال السجلات المالية والإعدادات الحالية بالنسخة الاحتياطية."
+                            : "This replaces the current Ghaf records and settings with the selected Ghaf backup."),
+                        primaryButton: .destructive(Text(languageCode == "ar" ? "استعادة النسخة" : "Restore backup"), action: restoreBackup),
+                        secondaryButton: .cancel()
+                    )
+                case .importExpend:
+                    return Alert(
+                        title: Text(languageCode == "ar" ? "استيراد بيانات Expend؟" : "Import Expend data?"),
+                        message: Text(languageCode == "ar"
+                            ? "سيتم استبدال بيانات غاف الحالية بمحافظ Expend وعملياته. سيتم التحقق من أرصدة المحافظ قبل اعتماد الاستيراد. لا تُنقل الميزانيات والجداول المتكررة حالياً."
+                            : "This replaces current Ghaf records with Expend wallets and transactions. Wallet balances are checked before the import is committed. Budgets and recurring schedules are not imported yet."),
+                        primaryButton: .destructive(Text(languageCode == "ar" ? "استيراد واستبدال" : "Import and replace"), action: restoreBackup),
                         secondaryButton: .cancel()
                     )
                 case .message(let message):
