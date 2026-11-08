@@ -111,8 +111,8 @@ struct GhafHomeView: View {
         VStack(spacing: 13) {
             HStack {
                 Text(settings.languageCode == "ar" ? "الأرصـدة المتـاحة" : "AVAILABLE BALANCES")
-                    .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                    .tracking(1.5)
+                    .font(GhafTypography.heading(settings.languageCode == "ar" ? 14 : 10, languageCode: settings.languageCode))
+                    .tracking(settings.languageCode == "ar" ? 0 : 1.5)
                     .foregroundStyle(theme.secondaryText)
 
                 Spacer()
@@ -244,7 +244,9 @@ struct GhafHomeView: View {
                     .tracking(settings.languageCode == "ar" ? 0 : 1.8)
                     .foregroundStyle(theme.secondaryText)
 
-                Text(settings.userName.isEmpty ? "Your money, in view." : "Hello, \(settings.userName).")
+                Text(settings.languageCode == "ar"
+                     ? (settings.userName.isEmpty ? "أموالك بوضوح" : "مرحباً، \(settings.userName)")
+                     : (settings.userName.isEmpty ? "Your money, in view." : "Hello, \(settings.userName)."))
                     .font(GhafTypography.display(30, languageCode: settings.languageCode))
                     .foregroundStyle(theme.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -282,7 +284,7 @@ struct GhafHomeView: View {
     }
 
     private var budgetCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text(settings.languageCode == "ar" ? (settings.budgetMode == "Category" ? "المتبقي هذا الشهر" : "المتبقي اليوم") : snapshot.periodTitle.uppercased())
                     .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
@@ -350,7 +352,7 @@ struct GhafHomeView: View {
                     .foregroundStyle(theme.accentContrast.opacity(0.78))
             }
         }
-        .padding(22)
+        .padding(17)
         .background(theme.accent, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
