@@ -6,7 +6,7 @@ enum GhafTypography {
             return .custom("ThmanyahSerifDisplay-Black", size: size, relativeTo: .largeTitle)
         }
         return .custom("IBMPlexSans-Regular", size: size, relativeTo: .largeTitle)
-            .weight(.bold)
+            .weight(.heavy)
     }
 
     static func heading(_ size: CGFloat, languageCode: String) -> Font {
@@ -14,7 +14,7 @@ enum GhafTypography {
             return .custom("ThmanyahSerifDisplay-Black", size: size, relativeTo: .title)
         }
         return .custom("IBMPlexSans-Regular", size: size, relativeTo: .title)
-            .weight(.semibold)
+            .weight(.bold)
     }
 
     static func body(
@@ -37,12 +37,12 @@ enum GhafTypography {
         }
 
         return .custom("IBMPlexSans-Regular", size: size, relativeTo: .body)
-            .weight(weight)
+            .weight(weight == .regular ? .medium : (weight == .medium ? .semibold : .bold))
     }
 
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
         .custom("IBMPlexSans-Regular", size: size, relativeTo: .title)
-            .weight(weight)
+            .weight(weight == .regular ? .medium : .bold)
     }
 }
 
