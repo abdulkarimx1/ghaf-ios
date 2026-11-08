@@ -12,7 +12,7 @@ struct GhafAppShortcuts: AppShortcutsProvider {
                 "سجّل رسالة بنكية في \(.applicationName)",
                 "احفظ عملية في \(.applicationName)"
             ],
-            shortTitle: "Log Bank Message",
+            shortTitle: "أضف عملية بنكية",
             systemImageName: "arrow.down.circle"
         )
     }
