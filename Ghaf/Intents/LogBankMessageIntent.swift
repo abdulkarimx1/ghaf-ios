@@ -5,10 +5,10 @@ import SwiftData
 struct LogBankMessageIntent: AppIntent {
 
     static var title: LocalizedStringResource =
-        "Log Bank Message"
+        "أضف عملية من رسالة بنكية"
 
     static var description = IntentDescription(
-        "Parse and save a bank transaction locally in Ghaf."
+        "Add a bank transaction to Ghaf from the incoming notification text."
     )
 
     // The action must not open the main application.
@@ -19,12 +19,6 @@ struct LogBankMessageIntent: AppIntent {
         description: "The incoming bank transaction message."
     )
     var messageText: String
-
-    @Parameter(
-        title: "Sender / App Name",
-        description: "The bank or application name."
-    )
-    var sender: String?
 
     func perform() async throws
         -> some IntentResult & ReturnsValue<String> {
@@ -41,7 +35,7 @@ struct LogBankMessageIntent: AppIntent {
 
             let result = try service.ingest(
                 messageText: messageText,
-                sender: sender
+                sender: nil
             )
 
             return result.confirmation
