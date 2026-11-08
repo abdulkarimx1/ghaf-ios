@@ -30,7 +30,14 @@ enum GhafLocalization {
             "Travel": "السفر",
             "Transfers": "التحويلات",
             "Salary": "الراتب",
-            "Other": "أخرى"
+            "Other": "أخرى",
+            "Other Income": "دخل آخر",
+            "Subscriptions": "الاشتراكات",
+            "Fees": "الرسوم",
+            "Debt Repayment": "سداد الديون",
+            "Borrowed Money": "أموال مقترضة",
+            "Lent Money": "أموال مُقرضة",
+            "Interest": "الفوائد"
         ]
         return translations[value] ?? value
     }
