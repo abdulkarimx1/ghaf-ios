@@ -39,7 +39,7 @@ struct LogBankMessageIntent: AppIntent {
 
             let container = try GhafPersistence.makeContainer()
 
-            let context = ModelContext(container)
+            let context = container.mainContext
 
             let service = TransactionIngestionService(
                 context: context
