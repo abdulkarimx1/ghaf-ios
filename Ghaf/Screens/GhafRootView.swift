@@ -564,7 +564,10 @@ struct GhafOnboardingView: View {
 
             formLabel(localized("Main currency", "العملة الرئيسية"))
             Picker(localized("Currency", "العملة"), selection: $currency) {
-                ForEach(currencies, id: \.self) { code in Text(code).tag(code) }
+                ForEach(currencies, id: \.self) { code in
+                    GhafCurrencyIcon(currency: code, size: 18)
+                        .tag(code)
+                }
             }
             .pickerStyle(.menu)
             .tint(theme.accent)
@@ -649,7 +652,8 @@ struct GhafOnboardingView: View {
                                 selection: $draft.currency
                             ) {
                                 ForEach(currencies, id: \.self) { code in
-                                    Text(code).tag(code)
+                                    GhafCurrencyIcon(currency: code, size: 17)
+                                        .tag(code)
                                 }
                             }
                             .pickerStyle(.menu)
@@ -664,9 +668,12 @@ struct GhafOnboardingView: View {
                                     .multilineTextAlignment(.trailing)
                                     .frame(width: 110)
                             } else {
-                                Text(currencyZeroLabel(for: draft.currency))
-                                    .font(GhafTypography.number(13, weight: .semibold))
-                                    .foregroundStyle(theme.secondaryText)
+                                HStack(spacing: 7) {
+                                    GhafCurrencyIcon(currency: draft.currency, size: 16)
+                                    Text(currencyZeroLabel(for: draft.currency))
+                                        .font(GhafTypography.number(13, weight: .semibold))
+                                        .foregroundStyle(theme.secondaryText)
+                                }
                             }
                         }
                     }
@@ -798,8 +805,7 @@ struct GhafOnboardingView: View {
     }
 
     private func currencyZeroLabel(for code: String) -> String {
-        if languageCode == "ar" { return "٠٫٠٠ \(code)" }
-        return "0.00 \(code)"
+        GhafFormat.money(0, currency: code, languageCode: languageCode)
     }
 
     private var connectionPage: some View {
