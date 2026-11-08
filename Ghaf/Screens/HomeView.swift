@@ -261,12 +261,27 @@ struct GhafHomeView: View {
 
             Spacer(minLength: 4)
 
-            ZStack {
-                Circle().fill(theme.accent.opacity(0.10))
-                GhafTreeMark(color: theme.accent)
-                    .padding(12)
+            Group {
+                if settings.themeName == "Fujairah" {
+                    Image("FujairahHeritage")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 76, height: 76)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(theme.accent.opacity(0.18), lineWidth: 1)
+                        }
+                } else {
+                    ZStack {
+                        Circle().fill(theme.accent.opacity(0.10))
+                        GhafTreeMark(color: theme.accent)
+                            .padding(12)
+                    }
+                    .frame(width: 54, height: 54)
+                }
             }
-            .frame(width: 54, height: 54)
             .accessibilityHidden(true)
         }
         .padding(.top, 8)
