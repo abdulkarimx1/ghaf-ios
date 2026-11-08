@@ -456,7 +456,7 @@ struct GhafHomeView: View {
                     Text(activityPeriodTitle)
                         .font(GhafTypography.heading(15, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
-                    Text(settings.languageCode == "ar" ? "\\(activityTransactions.count) عملية" : "\\(activityTransactions.count) transactions")
+                    Text(settings.languageCode == "ar" ? "\(activityTransactions.count) عملية" : "\(activityTransactions.count) transactions")
                         .font(GhafTypography.body(11, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
