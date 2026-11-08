@@ -302,8 +302,7 @@ struct GhafOnboardingView: View {
     }
 
     private let currencies = [
-        "AED", "USD", "EUR", "GBP", "SAR",
-        "KWD", "BHD", "OMR", "QAR"
+        "AED", "SAR", "KWD", "BHD", "OMR", "QAR"
     ]
 
     init(settings: GhafSettings) {
