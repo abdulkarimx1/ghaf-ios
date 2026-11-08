@@ -7,10 +7,10 @@ struct GhafAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: LogBankMessageIntent(),
             phrases: [
-                "Log a bank message in \(.applicationName)",
-                "Save a transaction in \(.applicationName)",
-                "سجّل رسالة بنكية في \(.applicationName)",
-                "احفظ عملية في \(.applicationName)"
+                "Add a transaction from a bank notification in \\(.applicationName)",
+                "Log a bank notification in \\(.applicationName)",
+                "أضف عملية من رسالة بنكية في \\(.applicationName)",
+                "سجّل عملية من إشعار بنكي في \\(.applicationName)"
             ],
             shortTitle: "أضف عملية بنكية",
             systemImageName: "arrow.down.circle"
