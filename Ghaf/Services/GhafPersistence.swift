@@ -17,7 +17,8 @@ enum GhafPersistence {
             GhafTransaction.self,
             GhafSettings.self,
             GhafAccount.self,
-            MerchantCategoryRule.self
+            MerchantCategoryRule.self,
+            GhafSubscription.self
         ])
 
         let configuration = ModelConfiguration(
