@@ -3,7 +3,7 @@ name: Build Ghaf iOS
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, ghaf-v2-corrections]
 
 concurrency:
   group: ghaf-ios-main-build
