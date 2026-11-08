@@ -21,6 +21,12 @@ struct LogBankMessageIntent: AppIntent {
     var messageText: String
 
     @Parameter(
+        title: "Notification Title",
+        description: "Optional title shown above the notification body."
+    )
+    var notificationTitle: String?
+
+    @Parameter(
         title: "Sender / App Name",
         description: "The bank or application name."
     )
@@ -41,6 +47,7 @@ struct LogBankMessageIntent: AppIntent {
 
             let result = try service.ingest(
                 messageText: messageText,
+                notificationTitle: notificationTitle,
                 sender: sender
             )
 
