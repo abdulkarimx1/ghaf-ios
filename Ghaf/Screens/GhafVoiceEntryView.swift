@@ -242,9 +242,9 @@ struct GhafVoiceEntryView: View {
                 let category = draft.category == "Other"
                     ? ((try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: modelContext)) ?? "Other")
                     : draft.category
-                let matchingAccount = accounts.first { !$0.isArchived && $0.currency == draft.currency }
                 let selectedAccount = accounts.first { $0.id == selectedAccountID && !$0.isArchived && $0.currency == draft.currency }
-                let assignedAccount = matchingAccount ?? selectedAccount
+                let matchingAccount = accounts.first { !$0.isArchived && $0.currency == draft.currency }
+                let assignedAccount = selectedAccount ?? matchingAccount
                 let transaction = GhafTransaction(
                     fingerprint: "voice-\(UUID().uuidString)",
                     parsed: parsed,
