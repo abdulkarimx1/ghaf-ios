@@ -49,7 +49,6 @@ struct GhafRootView: View {
         .background(Color.clear.ignoresSafeArea())
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicators(.hidden)
-        .clipped()
         .onAppear(perform: beginLaunch)
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
@@ -283,9 +282,9 @@ struct GhafOnboardingView: View {
     @State private var income = ""
     @State private var commitments = ""
     @State private var balanceSetupMode = "zero"
-    @State private var accountDrafts: [GhafAccountDraft] = [
-        GhafAccountDraft(name: "Cash wallet", type: .cash, currency: "AED", startingBalance: "0")
-    ]
+    // Start empty: don't silently create a zero-balance cash wallet for users
+    // who only want to track their bank accounts and cards.
+    @State private var accountDrafts: [GhafAccountDraft] = []
     @State private var salaryEnabled = false
     @State private var salaryDay = 28
     @State private var salaryAmountText = ""
@@ -312,14 +311,7 @@ struct GhafOnboardingView: View {
         _currency = State(initialValue: settings.currency)
         _income = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
         _commitments = State(initialValue: GhafFormat.decimal(settings.fixedCommitments))
-        _accountDrafts = State(initialValue: [
-            GhafAccountDraft(
-                name: settings.languageCode == "ar" ? "محفظة نقدية" : "Cash wallet",
-                type: .cash,
-                currency: settings.currency,
-                startingBalance: "0"
-            )
-        ])
+        _accountDrafts = State(initialValue: [])
         _salaryAmountText = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
     }
 
@@ -604,6 +596,17 @@ struct GhafOnboardingView: View {
                                 text: $draft.name
                             )
                             .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                            Spacer()
+                            Button(role: .destructive) {
+                                accountDrafts.removeAll { $0.id == draft.id }
+                                if salaryAccountDraftID == draft.id {
+                                    salaryAccountDraftID = accountDrafts.first?.id
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(languageCode == "ar" ? "حذف الحساب" : "Remove account")
                         }
 
                         TextField(
