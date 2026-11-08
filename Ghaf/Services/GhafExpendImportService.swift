@@ -24,7 +24,7 @@ enum GhafExpendImportError: LocalizedError {
         case .unsupportedFormat: "This JSON file is not a supported Expend export."
         case .noValidWallets: "No valid wallets were found in the Expend export."
         case .invalidTransactionData: "The Expend transaction data is incomplete."
-        case .walletBalanceMismatch(let name): "The imported ledger does not reconcile with the exported balance for wallet: \\(name)."
+        case .walletBalanceMismatch(let name): "The imported ledger does not reconcile with the exported balance for wallet: \(name)."
         }
     }
 }
