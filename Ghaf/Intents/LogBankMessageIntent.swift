@@ -15,8 +15,8 @@ struct LogBankMessageIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(
-        title: "Message Text",
-        description: "The incoming bank transaction message."
+        title: "نص الرسالة",
+        description: "محتوى إشعار أو رسالة العملية البنكية الواردة."
     )
     var messageText: String
 
