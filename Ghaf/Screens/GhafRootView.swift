@@ -8,9 +8,7 @@ struct GhafRootView: View {
     @Query private var settings: [GhafSettings]
 
     @State private var showAutomationIntro = false
-    @State private var showLaunch = true
-    @State private var launchScale: CGFloat = 0.62
-    @State private var launchHasStarted = false
+    @State private var showWelcome = true
     @State private var isUnlocked = true
     @State private var authenticationMessage: String?
     @State private var authenticationInProgress = false
@@ -31,13 +29,17 @@ struct GhafRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear.ignoresSafeArea())
 
-            if showLaunch {
-                GhafLaunchSplash(scale: launchScale)
-                    .transition(.opacity)
-                    .zIndex(10)
+            if showWelcome {
+                GhafWelcomeScreen(languageCode: languageCode) {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        showWelcome = false
+                    }
+                }
+                .transition(.opacity)
+                .zIndex(10)
             }
 
-            if requiresAuthentication && !isUnlocked && !showLaunch {
+            if requiresAuthentication && !isUnlocked && !showWelcome {
                 authenticationLockScreen
                     .transition(.opacity)
                     .zIndex(20)
@@ -50,7 +52,11 @@ struct GhafRootView: View {
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicators(.hidden)
         .clipped()
-        .onAppear(perform: beginLaunch)
+        .onAppear { showWelcome = true }
+        .onChange(of: languageCode) { _, _ in
+            // Re-enter the complete welcome sequence whenever the app language changes.
+            showWelcome = true
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 if requiresAuthentication { isUnlocked = false }
@@ -179,24 +185,7 @@ struct GhafRootView: View {
     }
 
     private func beginLaunch() {
-        guard !launchHasStarted else { return }
-        launchHasStarted = true
-
-        withAnimation(.spring(response: 0.78, dampingFraction: 0.78)) {
-            launchScale = 1
-        }
-
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.85))
-            withAnimation(.easeOut(duration: 0.42)) {
-                showLaunch = false
-            }
-            if requiresAuthentication {
-                isUnlocked = false
-                authenticateUser()
-            }
-            presentAutomationIntroIfNeeded()
-        }
+        showWelcome = true
     }
 
     private func presentAutomationIntroIfNeeded() {
