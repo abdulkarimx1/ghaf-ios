@@ -1,123 +1,73 @@
 import SwiftUI
 
+/// A compact currency mark, not a country flag.
+/// GCC marks use the locally recognised currency abbreviation/symbol in a
+/// dedicated coin-style badge so the visual remains distinct from ISO codes.
 struct GhafCurrencyIcon: View {
     let currency: String
     var size: CGFloat = 24
 
     private var normalized: String { currency.uppercased() }
 
+    private var mark: String {
+        switch normalized {
+        case "AED": "د.إ"
+        case "SAR": "ر.س"
+        case "OMR": "ر.ع"
+        case "QAR": "ر.ق"
+        case "KWD": "د.ك"
+        case "BHD": "د.ب"
+        case "USD": "$"
+        case "EUR": "€"
+        case "GBP": "£"
+        default: "¤"
+        }
+    }
+
+    private var tint: Color {
+        switch normalized {
+        case "AED": Color(red: 0.10, green: 0.43, blue: 0.30)
+        case "SAR": Color(red: 0.12, green: 0.43, blue: 0.34)
+        case "OMR": Color(red: 0.60, green: 0.20, blue: 0.18)
+        case "QAR": Color(red: 0.43, green: 0.15, blue: 0.29)
+        case "KWD": Color(red: 0.18, green: 0.30, blue: 0.48)
+        case "BHD": Color(red: 0.60, green: 0.19, blue: 0.25)
+        case "USD": Color(red: 0.18, green: 0.34, blue: 0.52)
+        case "EUR": Color(red: 0.22, green: 0.31, blue: 0.62)
+        case "GBP": Color(red: 0.42, green: 0.22, blue: 0.43)
+        default: .secondary
+        }
+    }
+
     var body: some View {
         ZStack {
-            flag
+            Circle()
+                .fill(tint.opacity(0.12))
+            Circle()
+                .stroke(tint.opacity(0.42), lineWidth: max(0.8, size * 0.045))
+                .padding(size * 0.055)
+            Circle()
+                .stroke(tint.opacity(0.18), lineWidth: max(0.6, size * 0.025))
+                .padding(size * 0.17)
+
+            Text(mark)
+                .font(markFont)
+                .foregroundStyle(tint)
+                .minimumScaleFactor(0.55)
+                .lineLimit(1)
+                .padding(size * 0.17)
         }
-        .frame(width: size * 1.38, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.17, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: size * 0.17, style: .continuous)
-                .stroke(.primary.opacity(0.10), lineWidth: 0.65)
-        }
+        .frame(width: size, height: size)
         .accessibilityLabel(accessibilityName)
         .accessibilityAddTraits(.isImage)
     }
 
-    @ViewBuilder
-    private var flag: some View {
+    private var markFont: Font {
         switch normalized {
-        case "AED":
-            ZStack {
-                VStack(spacing: 0) {
-                    Color(red: 0.0, green: 0.48, blue: 0.24)
-                    Color.white
-                    Color.black
-                }
-                HStack(spacing: 0) {
-                    Color(red: 0.86, green: 0.08, blue: 0.12)
-                        .frame(width: size * 0.33)
-                    Spacer(minLength: 0)
-                }
-            }
-        case "SAR":
-            ZStack {
-                Color(red: 0.0, green: 0.39, blue: 0.22)
-                VStack(spacing: size * 0.12) {
-                    Capsule().fill(.white).frame(width: size * 0.77, height: max(1.2, size * 0.075))
-                    Spacer(minLength: 0)
-                    Capsule().fill(.white).frame(width: size * 0.73, height: max(1.2, size * 0.075))
-                }
-                .padding(.vertical, size * 0.25)
-            }
-        case "KWD":
-            HStack(spacing: 0) {
-                GhafFlagPolygon(points: [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0.25), CGPoint(x: 1, y: 0.75), CGPoint(x: 0, y: 1)])
-                    .fill(.black)
-                    .frame(width: size * 0.39)
-                VStack(spacing: 0) {
-                    Color(red: 0.0, green: 0.47, blue: 0.24)
-                    Color.white
-                    Color(red: 0.82, green: 0.08, blue: 0.16)
-                }
-            }
-        case "BHD":
-            ZStack(alignment: .leading) {
-                Color(red: 0.78, green: 0.08, blue: 0.17)
-                GhafSerratedBand(teeth: 5)
-                    .fill(.white)
-                    .frame(width: size * 0.55)
-            }
-        case "OMR":
-            HStack(spacing: 0) {
-                Color(red: 0.86, green: 0.08, blue: 0.12).frame(width: size * 0.34)
-                VStack(spacing: 0) {
-                    Color.white
-                    Color(red: 0.86, green: 0.08, blue: 0.12)
-                    Color(red: 0.0, green: 0.43, blue: 0.27)
-                }
-            }
-        case "QAR":
-            ZStack(alignment: .leading) {
-                Color(red: 0.38, green: 0.06, blue: 0.20)
-                GhafSerratedBand(teeth: 9)
-                    .fill(.white)
-                    .frame(width: size * 0.58)
-            }
-        case "USD":
-            ZStack(alignment: .topLeading) {
-                VStack(spacing: 0) {
-                    ForEach(0..<7, id: \.self) { index in
-                        (index.isMultiple(of: 2) ? Color(red: 0.72, green: 0.08, blue: 0.16) : Color.white)
-                    }
-                }
-                Color(red: 0.12, green: 0.20, blue: 0.42)
-                    .frame(width: size * 0.60, height: size * 0.56)
-            }
-        case "EUR":
-            ZStack {
-                Color(red: 0.02, green: 0.18, blue: 0.48)
-                ForEach(0..<12, id: \.self) { index in
-                    Circle()
-                        .fill(Color(red: 1.0, green: 0.82, blue: 0.16))
-                        .frame(width: max(1.2, size * 0.07))
-                        .offset(
-                            x: cos(Double(index) * .pi / 6) * size * 0.28,
-                            y: sin(Double(index) * .pi / 6) * size * 0.28
-                        )
-                }
-            }
-        case "GBP":
-            ZStack {
-                Color(red: 0.08, green: 0.15, blue: 0.34)
-                Rectangle().fill(.white).frame(height: size * 0.23)
-                Rectangle().fill(.white).frame(width: size * 0.23)
-                Rectangle().fill(Color(red: 0.78, green: 0.08, blue: 0.17)).frame(height: size * 0.09)
-                Rectangle().fill(Color(red: 0.78, green: 0.08, blue: 0.17)).frame(width: size * 0.09)
-            }
+        case "AED", "SAR", "OMR", "QAR", "KWD", "BHD":
+            .system(size: size * 0.36, weight: .bold, design: .rounded)
         default:
-            ZStack {
-                Color.secondary.opacity(0.14)
-                Image(systemName: "globe")
-                    .font(.system(size: size * 0.55, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
+            .system(size: size * 0.57, weight: .bold, design: .rounded)
         }
     }
 
@@ -132,42 +82,7 @@ struct GhafCurrencyIcon: View {
         case "USD": "US dollar"
         case "EUR": "Euro"
         case "GBP": "British pound"
-        default: "\(normalized) currency"
+        default: "(normalized) currency"
         }
-    }
-}
-
-private struct GhafFlagPolygon: Shape {
-    let points: [CGPoint]
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        guard let first = points.first else { return path }
-        path.move(to: CGPoint(x: first.x * rect.width, y: first.y * rect.height))
-        for point in points.dropFirst() {
-            path.addLine(to: CGPoint(x: point.x * rect.width, y: point.y * rect.height))
-        }
-        path.closeSubpath()
-        return path
-    }
-}
-
-private struct GhafSerratedBand: Shape {
-    let teeth: Int
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: .zero)
-        path.addLine(to: CGPoint(x: rect.maxX * 0.58, y: 0))
-        for index in 0..<teeth {
-            let top = rect.height * CGFloat(index) / CGFloat(teeth)
-            let middle = top + rect.height / CGFloat(teeth) * 0.5
-            let bottom = rect.height * CGFloat(index + 1) / CGFloat(teeth)
-            path.addLine(to: CGPoint(x: rect.maxX * 0.98, y: middle))
-            path.addLine(to: CGPoint(x: rect.maxX * 0.58, y: bottom))
-        }
-        path.addLine(to: CGPoint(x: 0, y: rect.maxY))
-        path.closeSubpath()
-        return path
     }
 }
