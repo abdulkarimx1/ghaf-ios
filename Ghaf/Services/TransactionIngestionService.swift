@@ -80,9 +80,9 @@ final class TransactionIngestionService {
             context: context
         )
 
-        let accountNeedsReview = !activeBankAccounts.isEmpty
-            && (parsed.bank != nil || sender != nil)
-            && resolvedAccount == nil
+        // Never silently leave a bank notification unassigned. This is
+        // especially important when the notification body omits the bank name.
+        let accountNeedsReview = resolvedAccount == nil
         let needsReview = parser.shouldSendToReview(parsed)
             || (parsed.merchant != nil && category == "Other")
             || accountNeedsReview
