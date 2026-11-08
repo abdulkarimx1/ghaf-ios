@@ -3,21 +3,32 @@ import SwiftUI
 private struct GhafCardSurface: ViewModifier {
     let theme: GhafTheme
     let radius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let isDark = colorScheme == .dark
         content
             .background {
-                shape.fill(.ultraThinMaterial)
-                    .overlay(shape.fill(theme.surface.opacity(0.48)))
+                shape.fill(.regularMaterial)
+                    .overlay(shape.fill(theme.surface.opacity(isDark ? 0.48 : 0.24)))
             }
             .overlay {
-                shape.stroke(.white.opacity(0.34), lineWidth: 1)
+                shape.stroke(.white.opacity(isDark ? 0.16 : 0.72), lineWidth: 1)
             }
             .overlay(alignment: .top) {
-                shape.stroke(theme.accent.opacity(0.13), lineWidth: 0.7)
+                shape.stroke(theme.accent.opacity(isDark ? 0.20 : 0.22), lineWidth: 0.9)
             }
-            .shadow(color: .black.opacity(0.055), radius: 16, x: 0, y: 7)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [.white.opacity(isDark ? 0.10 : 0.48), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(shape)
+                .padding(1)
+            }
+            .shadow(color: .black.opacity(isDark ? 0.16 : 0.075), radius: 18, x: 0, y: 8)
     }
 }
 
@@ -234,7 +245,7 @@ struct GhafCityBackdrop: View {
                     }
                 }
 
-                context.stroke(drawing, with: .color(theme.accent.opacity(0.12)), lineWidth: 1.25)
+                context.stroke(drawing, with: .color(theme.accent.opacity(0.24)), lineWidth: 1.65)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
