@@ -225,7 +225,10 @@ struct GhafSettingsView: View {
 
             settingsLabel(languageCode == "ar" ? "العملة الرئيسية" : "Main currency")
             Picker(languageCode == "ar" ? "العملة الرئيسية" : "Main currency", selection: $currency) {
-                ForEach(currencies, id: \.self) { Text($0).tag($0) }
+                ForEach(currencies, id: \.self) { code in
+                    GhafCurrencyIcon(currency: code, size: 18)
+                        .tag(code)
+                }
             }
             .pickerStyle(.menu)
             .tint(theme.accent)
