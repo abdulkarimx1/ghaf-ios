@@ -469,32 +469,91 @@ struct GhafOnboardingView: View {
     }
 
     private var welcomePage: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(theme.accent)
-                VStack(spacing: 12) {
-                    GhafTreeMark(color: theme.accentContrast)
-                        .frame(width: 80, height: 85)
-                    Text("GHAF")
-                        .font(GhafTypography.number(26, weight: .bold))
-                        .tracking(5)
-                        .foregroundStyle(theme.accentContrast)
-                }
-            }
-            .frame(height: 218)
-
-            Text(localized("Make every dirham count.", "اجعل كل درهم محسوباً."))
-                .font(GhafTypography.display(34, languageCode: languageCode))
+        VStack(alignment: .leading, spacing: 20) {
+            Text(localized("A little introduction.", "دعنا نتعرّف عليك."))
+                .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text(localized("A clearer picture of your money, your spending and your daily budget.", "رؤية أوضح لأموالك ومصروفاتك وميزانيتك اليومية."))
-                .font(GhafTypography.body(16, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
+            Text(localized(
+                "Make Ghaf feel like your own space. You can change this later.",
+                "اجعل غاف مساحتك الخاصة. يمكنك تعديل هذه البيانات لاحقاً."
+            ))
+            .font(GhafTypography.body(15, languageCode: languageCode))
+            .foregroundStyle(theme.secondaryText)
 
-            Text(localized("A simple financial companion that helps you stay in control.", "رفيق مالي بسيط يساعدك على إدارة أموالك بثقة."))
-                .font(GhafTypography.body(15, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(theme.accent.opacity(0.14))
+                            .frame(width: 76, height: 76)
+                        RoundedRectangle(cornerRadius: 19, style: .continuous)
+                            .stroke(theme.accent.opacity(0.32), lineWidth: 1)
+                            .frame(width: 66, height: 66)
+                        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 37, weight: .regular))
+                                .foregroundStyle(theme.accent)
+                        } else {
+                            Text(String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1)).uppercased())
+                                .font(GhafTypography.display(34, languageCode: languageCode))
+                                .foregroundStyle(theme.accent)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                             ? localized("Your Ghaf profile", "ملفك في غاف")
+                             : name.trimmingCharacters(in: .whitespacesAndNewlines))
+                            .font(GhafTypography.heading(20, languageCode: languageCode, weight: .bold))
+                            .foregroundStyle(theme.primaryText)
+                        Text(localized("Your personal money space", "مساحتك المالية الشخصية"))
+                            .font(GhafTypography.body(13, languageCode: languageCode))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                VStack(alignment: .leading, spacing: 9) {
+                    formLabel(localized("What should we call you?", "بماذا نناديك؟"))
+                    TextField(localized("Your name", "اسمك"), text: $name)
+                        .font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
+                        .textContentType(.givenName)
+                        .submitLabel(.done)
+                        .padding(.horizontal, 16)
+                        .frame(height: 58)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                                .stroke(theme.outline.opacity(0.8), lineWidth: 1)
+                        }
+                }
+
+                HStack(spacing: 9) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                    Text(languageCode == "ar" ? "لغة التطبيق" : "APP LANGUAGE")
+                        .font(GhafTypography.body(10, languageCode: languageCode, weight: .bold))
+                        .tracking(languageCode == "ar" ? 0 : 1.1)
+                        .foregroundStyle(theme.secondaryText)
+                    Spacer()
+                    Text(languageCode == "ar" ? "العربية" : "English")
+                        .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                }
+                .padding(14)
+                .background(theme.surface.opacity(0.68), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+            .padding(19)
+            .ghafLiquidGlass(theme: theme, radius: 26)
+
+            Text(localized(
+                "Your profile is stored on this iPhone. Ghaf does not need your email address or a social account.",
+                "يُحفظ ملفك على هذا الـ iPhone. لا يحتاج غاف إلى بريدك الإلكتروني أو حساباتك الاجتماعية."
+            ))
+            .font(GhafTypography.body(12, languageCode: languageCode))
+            .foregroundStyle(theme.secondaryText)
         }
     }
 
@@ -547,9 +606,6 @@ struct GhafOnboardingView: View {
             Text(localized("These numbers help calculate a realistic daily spending limit.", "تساعد هذه البيانات على حساب حد إنفاق يومي واقعي."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
-
-            formLabel(localized("Your name", "اسمك"))
-            onboardingField(localized("Name", "الاسم"), text: $name)
 
             formLabel(localized("Main currency", "العملة الرئيسية"))
             Picker(localized("Currency", "العملة"), selection: $currency) {
@@ -867,6 +923,11 @@ struct GhafOnboardingView: View {
     }
 
     private func advance() {
+        if step == 1 {
+            settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            try? modelContext.save()
+        }
+
         if step < 4 {
             step += 1
             return
