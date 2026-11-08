@@ -420,7 +420,7 @@ struct GhafTransactionEditor: View {
                         editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
                         Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
                             Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
-                            ForEach(accounts, id: \\.id) { account in
+                            ForEach(accounts, id: \.id) { account in
                                 Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                             }
                         }
