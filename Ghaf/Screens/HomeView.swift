@@ -151,17 +151,15 @@ struct GhafHomeView: View {
             } else {
                 VStack(spacing: 4) {
                     ForEach(totals) { item in
-                        Text(hideBalances ? "••••••" : GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
-                            .font(GhafTypography.number(totals.count == 1 ? 32 : 22, weight: .bold))
-                            .foregroundStyle(theme.primaryText)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.65)
-                            .contentTransition(.numericText())
-                        if totals.count > 1 {
-                            Text(item.currency)
-                                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .medium))
-                                .foregroundStyle(theme.secondaryText)
+                        HStack(spacing: 9) {
+                            GhafCurrencyIcon(currency: item.currency, size: totals.count == 1 ? 22 : 18)
+                            Text(hideBalances ? "••••••" : GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
+                                .font(GhafTypography.number(totals.count == 1 ? 32 : 22, weight: .bold))
+                                .foregroundStyle(theme.primaryText)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.65)
+                                .contentTransition(.numericText())
                         }
                     }
                 }
