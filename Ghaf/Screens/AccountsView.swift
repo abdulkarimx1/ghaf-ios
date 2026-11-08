@@ -101,9 +101,7 @@ struct GhafAccountsView: View {
 
             ForEach(currencyBalances) { item in
                 HStack {
-                    Text(item.currency)
-                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
+                    GhafCurrencyIcon(currency: item.currency, size: 20)
                     Spacer()
                     Text(GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
                         .font(GhafTypography.number(20, weight: .bold))
@@ -209,9 +207,7 @@ struct GhafAccountsView: View {
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
-                Text(account.currency)
-                    .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
+                GhafCurrencyIcon(currency: account.currency, size: 15)
             }
 
             Image(systemName: "chevron.right")
