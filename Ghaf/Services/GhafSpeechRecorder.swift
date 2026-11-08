@@ -116,7 +116,7 @@ final class GhafSpeechRecorder: ObservableObject {
                     }
                     if error != nil {
                         self.recognitionTasks[language] = nil
-                        if self.recognitionTasks.values.allSatisfy({ $0 == nil }) && self.isRecording {
+                        if self.recognitionTasks.isEmpty && self.isRecording {
                             self.errorMessage = self.activeLanguageCode == "ar"
                                 ? "توقف التعرّف على الكلام. حاول مرة أخرى."
                                 : "Speech recognition stopped. Try again."
@@ -129,13 +129,11 @@ final class GhafSpeechRecorder: ObservableObject {
 
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
+        let activeRequests = Array(recognitionRequests.values)
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { [weak self] buffer, _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                for request in self.recognitionRequests.values {
-                    request.append(buffer)
-                }
+        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { buffer, _ in
+            for request in activeRequests {
+                request.append(buffer)
             }
         }
 
