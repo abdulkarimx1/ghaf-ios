@@ -7,11 +7,17 @@ private struct GhafCardSurface: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background(theme.surface, in: shape)
-            .overlay {
-                shape.stroke(theme.outline.opacity(0.72), lineWidth: 1)
+            .background {
+                shape.fill(.ultraThinMaterial)
+                    .overlay(shape.fill(theme.surface.opacity(0.48)))
             }
-            .shadow(color: .black.opacity(0.035), radius: 12, x: 0, y: 5)
+            .overlay {
+                shape.stroke(.white.opacity(0.34), lineWidth: 1)
+            }
+            .overlay(alignment: .top) {
+                shape.stroke(theme.accent.opacity(0.13), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.055), radius: 16, x: 0, y: 7)
     }
 }
 
@@ -23,7 +29,7 @@ private struct GhafLiquidGlassSurface: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.glassEffect(
-                .regular.tint(theme.accent.opacity(0.12)).interactive(),
+                .regular.tint(theme.accent.opacity(0.09)),
                 in: RoundedRectangle(cornerRadius: radius, style: .continuous)
             )
         } else {
@@ -34,7 +40,17 @@ private struct GhafLiquidGlassSurface: ViewModifier {
 
 extension View {
     func ghafCard(theme: GhafTheme, radius: CGFloat = 22) -> some View {
-        modifier(GhafCardSurface(theme: theme, radius: radius))
+        modifier(GhafLiquidGlassSurface(theme: theme, radius: radius))
+    }
+
+    func ghafBackground(theme: GhafTheme) -> some View {
+        background {
+            ZStack {
+                theme.background.ignoresSafeArea()
+                GhafCityBackdrop(theme: theme)
+                    .ignoresSafeArea()
+            }
+        }
     }
 
     func ghafLiquidGlass(theme: GhafTheme, radius: CGFloat = 22) -> some View {
@@ -128,5 +144,101 @@ struct GhafCategoryIcon: View {
             .foregroundStyle(tint)
             .frame(width: 46, height: 46)
             .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+
+struct GhafCityBackdrop: View {
+    let theme: GhafTheme
+
+    var body: some View {
+        GeometryReader { proxy in
+            Canvas { context, size in
+                var drawing = Path()
+                let w = size.width
+                let h = size.height
+                let origin = CGPoint(x: w * 0.68, y: h * 0.36)
+                let scale = min(w, h) * 0.48
+
+                switch theme.name {
+                case "Dubai":
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.40, y: origin.y + scale * 0.55))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.40, y: origin.y + scale * 0.12))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.22, y: origin.y + scale * 0.12))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.12, y: origin.y - scale * 0.32))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.03, y: origin.y - scale * 0.32))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.03, y: origin.y - scale * 0.84))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.09, y: origin.y - scale * 0.32))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.20, y: origin.y - scale * 0.32))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.20, y: origin.y + scale * 0.55))
+                    drawing.move(to: CGPoint(x: origin.x + scale * 0.31, y: origin.y + scale * 0.55))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.31, y: origin.y - scale * 0.08))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.55, y: origin.y - scale * 0.08))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.55, y: origin.y + scale * 0.55))
+                case "Sharjah":
+                    for offset in [-0.48, -0.08, 0.30] {
+                        let x = origin.x + scale * offset
+                        drawing.addRect(CGRect(x: x, y: origin.y + scale * 0.02, width: scale * 0.25, height: scale * 0.50))
+                        drawing.addRect(CGRect(x: x + scale * 0.06, y: origin.y - scale * 0.12, width: scale * 0.13, height: scale * 0.14))
+                        drawing.move(to: CGPoint(x: x + scale * 0.12, y: origin.y - scale * 0.12))
+                        drawing.addLine(to: CGPoint(x: x + scale * 0.12, y: origin.y - scale * 0.27))
+                    }
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.56, y: origin.y + scale * 0.52))
+                    drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.64, y: origin.y + scale * 0.52), control: CGPoint(x: origin.x, y: origin.y + scale * 0.32))
+                case "Ajman":
+                    drawing.addRect(CGRect(x: origin.x + scale * 0.20, y: origin.y - scale * 0.42, width: scale * 0.12, height: scale * 0.88))
+                    drawing.move(to: CGPoint(x: origin.x + scale * 0.16, y: origin.y - scale * 0.42))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.36, y: origin.y - scale * 0.42))
+                    drawing.addEllipse(in: CGRect(x: origin.x + scale * 0.12, y: origin.y - scale * 0.58, width: scale * 0.28, height: scale * 0.18))
+                    for row in 0..<3 {
+                        let y = origin.y + scale * (0.18 + Double(row) * 0.13)
+                        drawing.move(to: CGPoint(x: origin.x - scale * 0.58, y: y))
+                        drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.60, y: y), control: CGPoint(x: origin.x, y: y - scale * 0.16))
+                    }
+                case "Umm Al Quwain":
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.10, y: origin.y + scale * 0.48))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.05, y: origin.y - scale * 0.08))
+                    for angle in [-1.0, -0.5, 0.25, 0.72, 1.15] {
+                        let end = CGPoint(x: origin.x - scale * 0.05 + scale * 0.42 * cos(angle), y: origin.y - scale * 0.10 + scale * 0.32 * sin(angle))
+                        drawing.move(to: CGPoint(x: origin.x - scale * 0.05, y: origin.y - scale * 0.08))
+                        drawing.addLine(to: end)
+                        drawing.addEllipse(in: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8))
+                    }
+                    for row in 0..<2 {
+                        let y = origin.y + scale * (0.34 + Double(row) * 0.13)
+                        drawing.move(to: CGPoint(x: origin.x - scale * 0.60, y: y))
+                        drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.62, y: y), control: CGPoint(x: origin.x, y: y - scale * 0.13))
+                    }
+                case "Ras Al Khaimah", "Fujairah":
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.70, y: origin.y + scale * 0.55))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.36, y: origin.y + scale * 0.14))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.21, y: origin.y + scale * 0.24))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.02, y: origin.y - scale * 0.34))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.21, y: origin.y + scale * 0.02))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.36, y: origin.y - scale * 0.06))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.70, y: origin.y + scale * 0.55))
+                    if theme.name == "Fujairah" {
+                        drawing.addRect(CGRect(x: origin.x - scale * 0.08, y: origin.y + scale * 0.24, width: scale * 0.20, height: scale * 0.24))
+                        drawing.addRect(CGRect(x: origin.x - scale * 0.03, y: origin.y + scale * 0.12, width: scale * 0.10, height: scale * 0.12))
+                    }
+                default: // Abu Dhabi: waterfront dome and colonnade.
+                    drawing.addEllipse(in: CGRect(x: origin.x - scale * 0.23, y: origin.y - scale * 0.26, width: scale * 0.46, height: scale * 0.42))
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.23, y: origin.y - scale * 0.05))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.23, y: origin.y + scale * 0.50))
+                    drawing.move(to: CGPoint(x: origin.x + scale * 0.23, y: origin.y - scale * 0.05))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.23, y: origin.y + scale * 0.50))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.56, y: origin.y + scale * 0.50))
+                    for index in 0..<4 {
+                        let x = origin.x - scale * 0.15 + Double(index) * scale * 0.10
+                        drawing.addArc(center: CGPoint(x: x, y: origin.y + scale * 0.13), radius: scale * 0.07, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
+                    }
+                }
+
+                context.stroke(drawing, with: .color(theme.accent.opacity(0.12)), lineWidth: 1.25)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
