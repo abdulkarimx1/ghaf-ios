@@ -52,7 +52,7 @@ struct GhafRootView: View {
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicators(.hidden)
         .clipped()
-        .onAppear { showWelcome = true }
+        .onAppear { showWelcome = settings.first?.hasCompletedOnboarding != true }
         .onChange(of: languageCode) { _, _ in
             // Re-enter the complete welcome sequence whenever the app language changes.
             showWelcome = true
