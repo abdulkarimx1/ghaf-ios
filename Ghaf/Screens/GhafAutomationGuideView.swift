@@ -25,7 +25,7 @@ struct GhafAutomationGuideView: View {
                 instructionCard(
                     number: "01",
                     title: localized("Choose the trigger", "اختر مُحفّز التشغيل"),
-                    detail: localized("In Shortcuts, open Automation and create a personal automation for a message from your bank. Select the bank sender. Use a notification trigger instead only when your iOS version exposes the bank app and its notification content.", "افتح تطبيق الاختصارات، ثم الأتمتة، وأنشئ أتمتة شخصية لرسالة من بنكك. اختر مُرسل البنك. استخدم مُحفّز الإشعارات بدلاً من ذلك فقط إذا كان إصدار iOS لديك يتيح اختيار تطبيق البنك ومحتوى إشعاراته.")
+                    detail: localized("In Shortcuts, open Automation and create a personal automation using the Message trigger. Choose the bank's SMS sender. This works only when the bank sends a transaction SMS to Messages.", "افتح تطبيق الاختصارات، ثم الأتمتة، وأنشئ أتمتة شخصية باستخدام محفّز الرسائل. اختر مُرسل رسائل البنك النصية. تعمل هذه الطريقة عندما يرسل البنك تفاصيل العملية عبر SMS إلى تطبيق الرسائل.")
                 )
 
                 instructionCard(
@@ -37,7 +37,7 @@ struct GhafAutomationGuideView: View {
                 instructionCard(
                     number: "03",
                     title: localized("Connect the message", "اربط نص الرسالة"),
-                    detail: localized("Set Message Text to the incoming Message variable. Set Sender / App Name to the sender or source-app variable when Shortcuts provides it. Leave that field empty if the source is not available.", "اجعل حقل نص الرسالة مرتبطاً بمتغير الرسالة الواردة. واربط حقل اسم المُرسل أو التطبيق بمتغير المُرسل أو التطبيق المصدر إذا كان متاحاً. اتركه فارغاً إذا لم يوفره تطبيق الاختصارات.")
+                    detail: localized("Set Message Text to the incoming Message variable. Set Sender / App Name to the Sender variable if it is available. Leave it empty if Shortcuts does not offer it.", "اربط حقل Message Text بمتغير Message الوارد، وحقل Sender / App Name بمتغير Sender إذا كان متاحاً. اترك حقل المُرسل فارغاً إذا لم يقدّم تطبيق الاختصارات هذا المتغير.")
                 )
 
                 instructionCard(
@@ -72,8 +72,8 @@ struct GhafAutomationGuideView: View {
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
             Text(settings.languageCode == "ar"
-                 ? "الإجراء جاهز داخل التطبيق. تحتاج فقط إلى اختيار الرسالة التي تشغّله."
-                 : "The Ghaf action is already included. You only choose which bank message triggers it.")
+                 ? "الإجراء موجود داخل غاف. بعد إعداد أتمتة رسائل SMS مرة واحدة، يمكن معالجة الرسائل البنكية المدعومة دون إدخال كل عملية يدوياً."
+                 : "The Ghaf action is included. After a one-time SMS automation setup, supported bank messages can be processed without manually entering each transaction.")
                 .font(GhafTypography.body(14, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
