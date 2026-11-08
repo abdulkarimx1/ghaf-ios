@@ -711,17 +711,58 @@ struct GhafSettingsView: View {
             if GhafExpendImportService.canImport(url) {
                 let result = try GhafExpendImportService.importFile(from: url, context: modelContext)
                 pendingImportURL = nil
-                let message: String
-                if languageCode == "ar" {
-                    message = "تم استيراد \(result.accountsImported) حساباً و\(result.transactionsImported) قيداً مالياً من Expend. " +
-                        (result.recurringRulesNotImported > 0
-                         ? "لم تُنقل قواعد التكرار وعددها \(result.recurringRulesNotImported) لأن غاف لا يدعم حفظ الجداول المتكررة حالياً."
-                         : "")
-                } else {
-                    message = "Imported \(result.accountsImported) wallets and \(result.transactionsImported) ledger entries from Expend. " +
-                        (result.recurringRulesNotImported > 0
-                         ? "\(result.recurringRulesNotImported) recurring rules were not imported because Ghaf does not yet store recurring schedules."
-                         : "")
+
+                let walletCount = GhafLocalization.count(
+                    result.accountsImported,
+                    singular: "حساب واحد",
+                    dual: "حسابان",
+                    plural: "حسابات",
+                    afterTen: "حساباً",
+                    languageCode: languageCode
+                )
+                let entryCount = GhafLocalization.count(
+                    result.transactionsImported,
+                    singular: "قيد واحد",
+                    dual: "قيدان",
+                    plural: "قيود",
+                    afterTen: "قيداً",
+                    languageCode: languageCode
+                )
+                let recurringCount = GhafLocalization.count(
+                    result.recurringRulesNotImported,
+                    singular: "جدولة متكررة واحدة",
+                    dual: "جدولتان متكررتان",
+                    plural: "جداول متكررة",
+                    afterTen: "جدولة متكررة",
+                    languageCode: languageCode
+                )
+                let budgetCount = GhafLocalization.count(
+                    result.budgetsNotImported,
+                    singular: "ميزانية واحدة",
+                    dual: "ميزانيتان",
+                    plural: "ميزانيات",
+                    afterTen: "ميزانية",
+                    languageCode: languageCode
+                )
+
+                var message = languageCode == "ar"
+                    ? "تم استيراد \(walletCount) و\(entryCount) من Expend. تمت مطابقة الأرصدة مع الملف المصدر."
+                    : "Imported \(result.accountsImported) wallets and \(result.transactionsImported) ledger entries from Expend. Wallet balances match the source export."
+
+                if result.budgetsNotImported > 0 {
+                    message += languageCode == "ar"
+                        ? " لم يتم نقل \(budgetCount) لأن غاف لا يدعم استيراد ميزانيات Expend حالياً."
+                        : " \(result.budgetsNotImported) budgets were not imported because Ghaf does not yet support Expend budget structures."
+                }
+                if result.recurringRulesNotImported > 0 {
+                    message += languageCode == "ar"
+                        ? " لم يتم نقل \(recurringCount) لأن غاف لا يدعم الجداول المتكررة حالياً."
+                        : " \(result.recurringRulesNotImported) recurring schedules were not imported because Ghaf does not yet support recurring schedules."
+                }
+                if result.skippedTransactions > 0 {
+                    message += languageCode == "ar"
+                        ? " تم تجاوز \(result.skippedTransactions) من السجلات غير الصالحة أو المحذوفة."
+                        : " \(result.skippedTransactions) deleted or invalid source records were skipped."
                 }
                 prompt = .message(message)
             } else {
@@ -731,7 +772,7 @@ struct GhafSettingsView: View {
             }
         } catch {
             prompt = .message(languageCode == "ar"
-                ? "تعذر استيراد الملف. التفاصيل: \(error.localizedDescription)"
+                ? "تعذر استيراد الملف. لم يتم اعتماد الاستيراد. التفاصيل: \(error.localizedDescription)"
                 : "Could not import the file. Details: \(error.localizedDescription)")
         }
     }
