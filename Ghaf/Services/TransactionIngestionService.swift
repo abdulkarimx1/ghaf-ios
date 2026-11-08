@@ -30,9 +30,14 @@ final class TransactionIngestionService {
 
     func ingest(
         messageText: String,
+        notificationTitle: String? = nil,
         sender: String? = nil
     ) throws -> TransactionIngestionResult {
-        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let message = [notificationTitle, messageText]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else {
             return TransactionIngestionResult(
                 status: .ignored,
@@ -51,16 +56,26 @@ final class TransactionIngestionService {
             )
         }
 
-        let fingerprint = makeFingerprint(message)
-        let descriptor = FetchDescriptor<GhafTransaction>(
-            predicate: #Predicate { $0.fingerprint == fingerprint }
+        let baseFingerprint = makeFingerprint(message, sender: sender)
+        let duplicateWindowStart = Date.now.addingTimeInterval(-180)
+        let recentDescriptor = FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.createdAt >= duplicateWindowStart }
         )
-        if try !context.fetch(descriptor).isEmpty {
+        let recentTransactions = try context.fetch(recentDescriptor)
+        let duplicatePrefix = baseFingerprint + ":"
+        if recentTransactions.contains(where: {
+            $0.fingerprint == baseFingerprint || $0.fingerprint.hasPrefix(duplicatePrefix)
+        }) {
             return TransactionIngestionResult(
                 status: .duplicate,
-                confirmation: "Transaction already recorded."
+                confirmation: "Matching bank alert received within the last 3 minutes."
             )
         }
+
+        // Keep the model's unique fingerprint constraint while allowing the
+        // same merchant/amount/message to be recorded again after the
+        // short cross-channel duplicate window has elapsed.
+        let fingerprint = duplicatePrefix + UUID().uuidString
 
         let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
         let activeBankAccounts = accounts.filter {
@@ -118,8 +133,9 @@ final class TransactionIngestionService {
         )
     }
 
-    private func makeFingerprint(_ message: String) -> String {
-        let normalized = message
+    private func makeFingerprint(_ message: String, sender: String?) -> String {
+        let normalized = [sender ?? "", message]
+            .joined(separator: " ")
             .lowercased()
             .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
