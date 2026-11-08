@@ -15,6 +15,10 @@ struct GhafCurrencyIcon: View {
         }
     }
 
+    private var usesTextFallback: Bool {
+        ["QAR", "KWD", "BHD"].contains(normalized)
+    }
+
     private var symbol: String {
         switch normalized {
         case "AED": "banknote.fill"
@@ -58,6 +62,12 @@ struct GhafCurrencyIcon: View {
                     .scaledToFit()
                     .foregroundStyle(tint)
                     .padding(size * 0.19)
+            } else if usesTextFallback {
+                Text(normalized)
+                    .font(.system(size: size * 0.29, weight: .bold, design: .rounded))
+                    .foregroundStyle(tint)
+                    .minimumScaleFactor(0.65)
+                    .lineLimit(1)
             } else {
                 Image(systemName: symbol)
                     .symbolRenderingMode(.hierarchical)
