@@ -82,7 +82,7 @@ struct GhafSettingsView: View {
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
             }
-            .background(theme.background.ignoresSafeArea())
+            .ghafBackground(theme: theme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
             .tint(theme.accent)
@@ -833,7 +833,7 @@ struct GhafAboutView: View {
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
         }
-        .background(theme.background.ignoresSafeArea())
+        .ghafBackground(theme: theme)
         .navigationTitle(settings.languageCode == "ar" ? "عن غــــاف" : "About Ghaf")
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, Locale(identifier: settings.languageCode))
