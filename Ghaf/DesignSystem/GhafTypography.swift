@@ -31,13 +31,13 @@ enum GhafTypography {
             } else if weight == .medium {
                 fontName = "IBMPlexSansArabic-Medium"
             } else {
-                fontName = "IBMPlexSansArabic-Regular"
+                fontName = "IBMPlexSansArabic-Medium"
             }
             return .custom(fontName, size: size, relativeTo: .body)
         }
 
         return .custom("IBMPlexSans-Regular", size: size, relativeTo: .body)
-            .weight(weight == .regular ? .medium : (weight == .medium ? .semibold : .bold))
+            .weight(weight == .regular ? .semibold : (weight == .medium ? .semibold : .bold))
     }
 
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
