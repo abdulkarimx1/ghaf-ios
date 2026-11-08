@@ -96,6 +96,1596 @@
           }
         }
       }
+    },
+    "Home": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرئيسية"
+          }
+        }
+      }
+    },
+    "Transactions": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المعاملات"
+          }
+        }
+      }
+    },
+    "Review": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المراجعة"
+          }
+        }
+      }
+    },
+    "Insights": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التحليلات"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإعدادات"
+          }
+        }
+      }
+    },
+    "Profile": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الملف الشخصي"
+          }
+        }
+      }
+    },
+    "Your name": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسمك"
+          }
+        }
+      }
+    },
+    "Main currency": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العملة الرئيسية"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اللغة"
+          }
+        }
+      }
+    },
+    "App language": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لغة التطبيق"
+          }
+        }
+      }
+    },
+    "Bank connection": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ربط البنك"
+          }
+        }
+      }
+    },
+    "Set up bank notifications": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعداد إشعارات البنك"
+          }
+        }
+      }
+    },
+    "Bank notification setup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعداد إشعارات البنك"
+          }
+        }
+      }
+    },
+    "Supported banks": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البنوك المدعومة"
+          }
+        }
+      }
+    },
+    "Open Shortcuts": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فتح الاختصارات"
+          }
+        }
+      }
+    },
+    "Open step-by-step setup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فتح دليل الإعداد خطوة بخطوة"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "متابعة"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رجوع"
+          }
+        }
+      }
+    },
+    "Start using Ghaf": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ باستخدام غاف"
+          }
+        }
+      }
+    },
+    "Make every dirham count.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اجعل لكل درهم قيمة."
+          }
+        }
+      }
+    },
+    "A clearer picture of your money, your spending and your daily budget.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رؤية أوضح لأموالك ومصروفاتك وميزانيتك اليومية."
+          }
+        }
+      }
+    },
+    "A simple financial companion that helps you stay in control.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رفيق مالي بسيط يساعدك على التحكم في أموالك."
+          }
+        }
+      }
+    },
+    "Your money data stays yours.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بياناتك المالية ملكك وحدك."
+          }
+        }
+      }
+    },
+    "Ghaf is designed to work locally on your iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صُمم غاف ليعمل محلياً على iPhone الخاص بك."
+          }
+        }
+      }
+    },
+    "Stored on your device": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محفوظة على جهازك"
+          }
+        }
+      }
+    },
+    "Transactions and settings are saved locally.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تُحفظ معاملاتك وإعداداتك على جهازك."
+          }
+        }
+      }
+    },
+    "No financial servers": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد خوادم مالية"
+          }
+        }
+      }
+    },
+    "No Ghaf account or external banking connection.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يحتاج غاف إلى حساب أو اتصال مباشر بالبنوك."
+          }
+        }
+      }
+    },
+    "Understand your habits": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افهم عاداتك"
+          }
+        }
+      }
+    },
+    "See spending trends and budget progress.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تابع أنماط الإنفاق وتقدم ميزانيتك."
+          }
+        }
+      }
+    },
+    "Your transactions, automatically.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معاملاتك، تلقائياً."
+          }
+        }
+      }
+    },
+    "Ghaf uses Apple Shortcuts to receive supported bank messages and notifications.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستخدم غاف تطبيق الاختصارات من Apple لاستقبال رسائل البنوك والإشعارات المدعومة."
+          }
+        }
+      }
+    },
+    "SMS messages": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسائل SMS"
+          }
+        }
+      }
+    },
+    "Create an automation when a bank message arrives.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أنشئ أتمتة عند وصول رسالة من البنك."
+          }
+        }
+      }
+    },
+    "Bank notifications": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إشعارات التطبيقات البنكية"
+          }
+        }
+      }
+    },
+    "Use a notification automation when your iOS version supports it.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدم أتمتة الإشعارات إذا كان إصدار iOS لديك يدعمها."
+          }
+        }
+      }
+    },
+    "You stay in control": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أنت تتحكم دائماً"
+          }
+        }
+      }
+    },
+    "Ghaf ignores OTPs, promotions and unconfirmed transfer requests.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتجاهل غاف رموز التحقق والعروض وطلبات التحويل غير المؤكدة."
+          }
+        }
+      }
+    },
+    "Let's set up your budget.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لنُعد ميزانيتك."
+          }
+        }
+      }
+    },
+    "These numbers help calculate a realistic daily spending limit.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تساعد هذه الأرقام في حساب حد إنفاق يومي واقعي."
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الاسم"
+          }
+        }
+      }
+    },
+    "Monthly income": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الدخل الشهري"
+          }
+        }
+      }
+    },
+    "Fixed monthly commitments": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الالتزامات الشهرية الثابتة"
+          }
+        }
+      }
+    },
+    "You can change all of these values later in Settings.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكنك تغيير هذه القيم لاحقاً من الإعدادات."
+          }
+        }
+      }
+    },
+    "Connect your bank messages.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اربط رسائل وإشعارات البنك."
+          }
+        }
+      }
+    },
+    "Ghaf does not read SMS or other apps directly. You configure Shortcuts to pass supported message text into Ghaf.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يستطيع غاف قراءة الرسائل أو إشعارات التطبيقات مباشرة. يجب إعداد الاختصارات لإرسال نص الإشعار المدعوم إلى غاف."
+          }
+        }
+      }
+    },
+    "Message automation": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أتمتة الرسائل"
+          }
+        }
+      }
+    },
+    "Notification automation": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أتمتة الإشعارات"
+          }
+        }
+      }
+    },
+    "Add Ghaf's action": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف إجراء غاف"
+          }
+        }
+      }
+    },
+    "Open Shortcuts → Automation → Message. Select your bank sender, then pass the Message variable to Ghaf's Log Bank Message action.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح الاختصارات ← الأتمتة ← الرسائل. اختر مرسل البنك ثم مرّر متغير الرسالة إلى إجراء تسجيل رسالة بنكية في غاف."
+          }
+        }
+      }
+    },
+    "Where supported, select your banking app under the Notification automation trigger and pass its available notification content.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر تطبيق البنك ضمن محفّز الإشعارات إذا كان متاحاً، ثم مرّر محتوى الإشعار إلى غاف."
+          }
+        }
+      }
+    },
+    "Choose Log Bank Message. Pass Message Text and Sender / App Name. Enable automatic running wherever the trigger supports it.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر إجراء Log Bank Message، ثم مرّر نص الرسالة واسم التطبيق. فعّل التشغيل التلقائي إذا كان المحفّز يسمح بذلك."
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المظهر"
+          }
+        }
+      }
+    },
+    "Appearance mode": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وضع المظهر"
+          }
+        }
+      }
+    },
+    "Theme": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "السمة"
+          }
+        }
+      }
+    },
+    "Dawn": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفجر"
+          }
+        }
+      }
+    },
+    "Dusk": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الغسق"
+          }
+        }
+      }
+    },
+    "Oasis": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الواحة"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حسب النظام"
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فاتح"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "داكن"
+          }
+        }
+      }
+    },
+    "Budget": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الميزانية"
+          }
+        }
+      }
+    },
+    "Budget method": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "طريقة الميزانية"
+          }
+        }
+      }
+    },
+    "Daily limit": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حد يومي"
+          }
+        }
+      }
+    },
+    "Category budgets": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ميزانيات التصنيفات"
+          }
+        }
+      }
+    },
+    "Set a monthly budget for each category.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدد ميزانية شهرية لكل تصنيف."
+          }
+        }
+      }
+    },
+    "Categories": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التصنيفات"
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة"
+          }
+        }
+      }
+    },
+    "Save settings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ الإعدادات"
+          }
+        }
+      }
+    },
+    "Data and backup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البيانات والنسخ الاحتياطي"
+          }
+        }
+      }
+    },
+    "Create JSON backup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إنشاء نسخة احتياطية JSON"
+          }
+        }
+      }
+    },
+    "Share or save backup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مشاركة النسخة أو حفظها"
+          }
+        }
+      }
+    },
+    "Import JSON backup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد نسخة JSON"
+          }
+        }
+      }
+    },
+    "Danger zone": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "منطقة خطرة"
+          }
+        }
+      }
+    },
+    "Delete all Ghaf data": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حذف جميع بيانات غاف"
+          }
+        }
+      }
+    },
+    "This permanently deletes your local transactions, settings and learned merchant rules.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيؤدي ذلك إلى حذف معاملاتك وإعداداتك وقواعد التجار المحفوظة نهائياً من الجهاز."
+          }
+        }
+      }
+    },
+    "Settings saved successfully.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم حفظ الإعدادات بنجاح."
+          }
+        }
+      }
+    },
+    "Could not save settings.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر حفظ الإعدادات."
+          }
+        }
+      }
+    },
+    "Backup restored successfully.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمت استعادة النسخة الاحتياطية بنجاح."
+          }
+        }
+      }
+    },
+    "Delete all data?": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هل تريد حذف جميع البيانات؟"
+          }
+        }
+      }
+    },
+    "Delete everything": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حذف كل شيء"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إلغاء"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حسناً"
+          }
+        }
+      }
+    },
+    "GOOD MORNING": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صباح الخير"
+          }
+        }
+      }
+    },
+    "GOOD AFTERNOON": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مساء الخير"
+          }
+        }
+      }
+    },
+    "GOOD EVENING": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مساء الخير"
+          }
+        }
+      }
+    },
+    "Welcome to Ghaf": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مرحباً بك في غاف"
+          }
+        }
+      }
+    },
+    "Set your budget": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدد ميزانيتك"
+          }
+        }
+      }
+    },
+    "BUDGET": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الميزانية"
+          }
+        }
+      }
+    },
+    "SPENT": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المصروف"
+          }
+        }
+      }
+    },
+    "STATUS": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحالة"
+          }
+        }
+      }
+    },
+    "Comfortable": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ضمن الميزانية"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اقتربت من الحد"
+          }
+        }
+      }
+    },
+    "Over budget": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تجاوزت الميزانية"
+          }
+        }
+      }
+    },
+    "Add category budgets in Settings.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف ميزانيات التصنيفات من الإعدادات."
+          }
+        }
+      }
+    },
+    "Add your monthly income in Settings.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف دخلك الشهري من الإعدادات."
+          }
+        }
+      }
+    },
+    "Add transaction": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة معاملة"
+          }
+        }
+      }
+    },
+    "Today's activity": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نشاط اليوم"
+          }
+        }
+      }
+    },
+    "transactions": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معاملات"
+          }
+        }
+      }
+    },
+    "No transactions yet": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد معاملات بعد"
+          }
+        }
+      }
+    },
+    "Your activity will appear here.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيظهر نشاطك هنا."
+          }
+        }
+      }
+    },
+    "All": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الكل"
+          }
+        }
+      }
+    },
+    "Expenses": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المصروفات"
+          }
+        }
+      }
+    },
+    "Income": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الدخل"
+          }
+        }
+      }
+    },
+    "Expense": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مصروف"
+          }
+        }
+      }
+    },
+    "Merchant, category or bank": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التاجر أو التصنيف أو البنك"
+          }
+        }
+      }
+    },
+    "No transactions found": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم يتم العثور على معاملات"
+          }
+        }
+      }
+    },
+    "Try changing your filters or search.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جرّب تغيير الفلاتر أو البحث."
+          }
+        }
+      }
+    },
+    "Needs Review": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بحاجة إلى مراجعة"
+          }
+        }
+      }
+    },
+    "You're all caught up.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد معاملات معلقة."
+          }
+        }
+      }
+    },
+    "There are no transactions waiting for review.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد معاملات بانتظار المراجعة."
+          }
+        }
+      }
+    },
+    "Accept": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعتماد"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعديل"
+          }
+        }
+      }
+    },
+    "Edit transaction": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعديل المعاملة"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التفاصيل"
+          }
+        }
+      }
+    },
+    "Amount": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المبلغ"
+          }
+        }
+      }
+    },
+    "Merchant": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التاجر"
+          }
+        }
+      }
+    },
+    "Direction": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النوع"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التصنيف"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التاريخ"
+          }
+        }
+      }
+    },
+    "Additional information": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معلومات إضافية"
+          }
+        }
+      }
+    },
+    "Note": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملاحظة"
+          }
+        }
+      }
+    },
+    "Optional note": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملاحظة اختيارية"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ"
+          }
+        }
+      }
+    },
+    "No spending data for this month.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد بيانات إنفاق لهذا الشهر."
+          }
+        }
+      }
+    },
+    "Net balance": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صافي الرصيد"
+          }
+        }
+      }
+    },
+    "Income minus recorded expenses this month.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الدخل مطروحاً منه المصروفات المسجلة هذا الشهر."
+          }
+        }
+      }
+    },
+    "Spending by category": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإنفاق حسب التصنيف"
+          }
+        }
+      }
+    },
+    "Category breakdown": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تفصيل التصنيفات"
+          }
+        }
+      }
+    },
+    "Groceries": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المواد الغذائية"
+          }
+        }
+      }
+    },
+    "Dining": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المطاعم"
+          }
+        }
+      }
+    },
+    "Transport": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المواصلات"
+          }
+        }
+      }
+    },
+    "Fuel": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الوقود"
+          }
+        }
+      }
+    },
+    "Bills & Utilities": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفواتير والخدمات"
+          }
+        }
+      }
+    },
+    "Shopping": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التسوق"
+          }
+        }
+      }
+    },
+    "Health": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصحة"
+          }
+        }
+      }
+    },
+    "Entertainment": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الترفيه"
+          }
+        }
+      }
+    },
+    "Travel": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "السفر"
+          }
+        }
+      }
+    },
+    "Transfers": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التحويلات"
+          }
+        }
+      }
+    },
+    "Salary": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الراتب"
+          }
+        }
+      }
+    },
+    "Other": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أخرى"
+          }
+        }
+      }
+    },
+    "Notification automation example": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مثال على أتمتة الإشعارات"
+          }
+        }
+      }
+    },
+    "When I receive a notification": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عند استلام إشعار"
+          }
+        }
+      }
+    },
+    "OR": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أو"
+          }
+        }
+      }
+    },
+    "Create one personal automation": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أنشئ أتمتة شخصية واحدة"
+          }
+        }
+      }
+    },
+    "Add the other bank triggers": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف محفزات البنوك الأخرى"
+          }
+        }
+      }
+    },
+    "Add Ghaf's transaction action": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف إجراء المعاملات في غاف"
+          }
+        }
+      }
+    },
+    "Pass the bank name when available": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مرّر اسم البنك عند توفره"
+          }
+        }
+      }
+    },
+    "Save and test the automation": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احفظ الأتمتة واختبرها"
+          }
+        }
+      }
+    },
+    "Privacy and iOS controls": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الخصوصية وتحكم iOS"
+          }
+        }
+      }
+    },
+    "One automation can listen for several bank apps and send each supported alert to Ghaf.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكن لأتمتة واحدة الاستماع إلى إشعارات عدة تطبيقات بنكية وإرسالها إلى غاف."
+          }
+        }
+      }
+    },
+    "Only choose apps that are installed and send transaction alerts to this iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر فقط التطبيقات المثبتة على iPhone والتي ترسل إشعارات المعاملات إليه."
+          }
+        }
+      }
+    },
+    "Use the + beside the app in the trigger to add another Notification trigger. Add Mbank, iVESTOR and ruya as separate triggers. In the automation editor they appear as alternatives joined by “or”, like the example above.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدم علامة + بجانب التطبيق في المحفّز لإضافة محفّز إشعارات آخر. أضف Mbank وiVESTOR وruya كمحفّزات منفصلة. ستظهر كخيارات بديلة مرتبطة بكلمة «أو»، مثل المثال أعلاه."
+          }
+        }
+      }
+    },
+    "Below the triggers, add Ghaf's Log Bank Message action. Set Message Text to Shortcut Input, which carries the notification input into the action.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أسفل المحفّزات أضف إجراء غاف Log Bank Message. اجعل Message Text يساوي Shortcut Input لتمرير محتوى الإشعار إلى الإجراء."
+          }
+        }
+      }
+    },
+    "If Shortcuts offers the notification's source app as a variable, connect it to Sender / App Name. If not, leave Sender / App Name empty; Ghaf can still parse a supported transaction body using its general parser.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إذا أتاح الاختصارات متغير التطبيق المُصدر للإشعار، اربطه بحقل Sender / App Name. وإلا فاتركه فارغاً، وسيظل غاف قادراً على تحليل نص المعاملة المدعوم."
+          }
+        }
+      }
+    },
+    "Save it and wait for a real bank transaction alert. Confirm the amount, merchant and category in Ghaf. Known merchants are categorized automatically. New or uncertain merchants appear in Needs Review, where correcting the category teaches Ghaf for next time.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احفظ الأتمتة وانتظر إشعار معاملة بنكية حقيقياً. تحقق من المبلغ والتاجر والتصنيف في غاف. تُصنّف المتاجر المعروفة تلقائياً، أما المتاجر الجديدة أو غير المؤكدة فتظهر في المراجعة، ويؤدي تصحيح التصنيف إلى تعليم غاف للمرة القادمة."
+          }
+        }
+      }
+    },
+    "Ghaf cannot read notifications by itself. Shortcuts must pass their input to Ghaf. Some banks hide the amount or merchant in notification previews, and iOS determines whether this notification automation can run without confirmation. Ghaf cannot bypass those restrictions.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يستطيع غاف قراءة الإشعارات بنفسه. يجب أن يمرّر الاختصارات محتواها إلى غاف. بعض البنوك تخفي المبلغ أو اسم التاجر في معاينة الإشعار، كما يحدد iOS إمكانية التشغيل دون تأكيد. لا يستطيع غاف تجاوز هذه القيود."
+          }
+        }
+      }
+    },
+    "Set Message Text to Shortcut Input": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اجعل Message Text يساوي Shortcut Input"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
