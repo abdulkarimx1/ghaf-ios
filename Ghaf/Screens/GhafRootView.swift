@@ -505,7 +505,7 @@ struct GhafOnboardingView: View {
                         Text(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                              ? localized("Your Ghaf profile", "ملفك في غاف")
                              : name.trimmingCharacters(in: .whitespacesAndNewlines))
-                            .font(GhafTypography.heading(20, languageCode: languageCode, weight: .bold))
+                            .font(GhafTypography.body(20, languageCode: languageCode, weight: .bold))
                             .foregroundStyle(theme.primaryText)
                         Text(localized("Your personal money space", "مساحتك المالية الشخصية"))
                             .font(GhafTypography.body(13, languageCode: languageCode))
