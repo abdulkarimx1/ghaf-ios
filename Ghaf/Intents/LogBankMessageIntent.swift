@@ -25,9 +25,9 @@ struct LogBankMessageIntent: AppIntent {
 
         let confirmation = try await MainActor.run {
 
-            let container = try GhafPersistence.makeContainer()
+            let container = try GhafPersistence.shared()
 
-            let context = ModelContext(container)
+            let context = container.mainContext
 
             let service = TransactionIngestionService(
                 context: context
