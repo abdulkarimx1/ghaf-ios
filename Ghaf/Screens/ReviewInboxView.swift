@@ -8,6 +8,9 @@ struct GhafReviewInboxView: View {
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
 
+    @Query(sort: \GhafAccount.sortOrder)
+    private var accounts: [GhafAccount]
+
     @State private var selectedTransaction: GhafTransaction?
     @State private var showEditor = false
 
@@ -153,7 +156,8 @@ struct GhafReviewInboxView: View {
                 categories: settings.categories,
                 themeName: settings.themeName,
                 appearanceMode: settings.appearanceMode,
-                languageCode: settings.languageCode
+                languageCode: settings.languageCode,
+                accounts: accounts.filter { !$0.isArchived }
             )
         }
     }
