@@ -1,26 +1,24 @@
 import SwiftUI
 
-/// A compact currency mark, not a country flag.
-/// GCC marks use the locally recognised currency abbreviation/symbol in a
-/// dedicated coin-style badge so the visual remains distinct from ISO codes.
+/// Currency-specific pictograms. These are deliberately not flags or ISO-code labels.
 struct GhafCurrencyIcon: View {
     let currency: String
     var size: CGFloat = 24
 
     private var normalized: String { currency.uppercased() }
 
-    private var mark: String {
+    private var symbol: String {
         switch normalized {
-        case "AED": "د.إ"
-        case "SAR": "ر.س"
-        case "OMR": "ر.ع"
-        case "QAR": "ر.ق"
-        case "KWD": "د.ك"
-        case "BHD": "د.ب"
-        case "USD": "$"
-        case "EUR": "€"
-        case "GBP": "£"
-        default: "¤"
+        case "AED": "banknote.fill"
+        case "SAR": "banknote"
+        case "OMR": "building.columns.fill"
+        case "QAR": "diamond.fill"
+        case "KWD": "circle.hexagongrid.fill"
+        case "BHD": "seal.fill"
+        case "USD": "dollarsign.circle.fill"
+        case "EUR": "eurosign.circle.fill"
+        case "GBP": "sterlingsign.circle.fill"
+        default: "circle.dotted"
         }
     }
 
@@ -41,34 +39,19 @@ struct GhafCurrencyIcon: View {
 
     var body: some View {
         ZStack {
+            Circle().fill(tint.opacity(0.12))
             Circle()
-                .fill(tint.opacity(0.12))
-            Circle()
-                .stroke(tint.opacity(0.42), lineWidth: max(0.8, size * 0.045))
+                .stroke(tint.opacity(0.34), lineWidth: max(0.8, size * 0.045))
                 .padding(size * 0.055)
-            Circle()
-                .stroke(tint.opacity(0.18), lineWidth: max(0.6, size * 0.025))
-                .padding(size * 0.17)
-
-            Text(mark)
-                .font(markFont)
+            Image(systemName: symbol)
+                .symbolRenderingMode(.hierarchical)
+                .font(.system(size: size * 0.49, weight: .semibold))
                 .foregroundStyle(tint)
-                .minimumScaleFactor(0.55)
-                .lineLimit(1)
-                .padding(size * 0.17)
+                .minimumScaleFactor(0.6)
         }
         .frame(width: size, height: size)
         .accessibilityLabel(accessibilityName)
         .accessibilityAddTraits(.isImage)
-    }
-
-    private var markFont: Font {
-        switch normalized {
-        case "AED", "SAR", "OMR", "QAR", "KWD", "BHD":
-            .system(size: size * 0.36, weight: .bold, design: .rounded)
-        default:
-            .system(size: size * 0.57, weight: .bold, design: .rounded)
-        }
     }
 
     private var accessibilityName: String {
@@ -82,7 +65,7 @@ struct GhafCurrencyIcon: View {
         case "USD": "US dollar"
         case "EUR": "Euro"
         case "GBP": "British pound"
-        default: "(normalized) currency"
+        default: "\(normalized) currency"
         }
     }
 }
