@@ -55,12 +55,13 @@ final class BankMessageParserTests: XCTestCase {
         )
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.amount, Decimal(string: "2.00"))
-        XCTAssertEqual(result?.currency, "AED")
-        XCTAssertEqual(result?.merchant, "SAMPLE MERCHANT")
-        XCTAssertEqual(result?.direction, .debit)
-        XCTAssertNil(result?.bank)
-        XCTAssertFalse(parser.shouldSendToReview(result!))
+        guard let transaction = result else { return }
+        XCTAssertEqual(transaction.amount, Decimal(string: "2.00"))
+        XCTAssertEqual(transaction.currency, "AED")
+        XCTAssertEqual(transaction.merchant, "SAMPLE MERCHANT")
+        XCTAssertEqual(transaction.direction, .debit)
+        XCTAssertNil(transaction.bank)
+        XCTAssertFalse(parser.shouldSendToReview(transaction))
     }
 
     func testParsesIvestorCreditAndDoesNotUseAvailableBalance() {
