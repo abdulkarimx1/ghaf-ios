@@ -533,17 +533,17 @@ struct GhafOnboardingView: View {
                 .font(.system(size: 48, weight: .medium))
                 .foregroundStyle(theme.accent)
 
-            Text(localized("Your transactions, automatically.", "عملياتك المالية، تلقائياً."))
+            Text(localized("Bank SMS, logged automatically.", "رسائل البنك تُسجّل تلقائياً."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text(localized("Ghaf's bank-message action is ready to use from Apple Shortcuts.", "إجراء غاف لرسائل البنوك جاهز للاستخدام عبر تطبيق الاختصارات من Apple."))
+            Text(localized("Connect supported bank SMS messages once through Apple Shortcuts. Ghaf can then sort matching transactions automatically.", "اربط رسائل SMS البنكية المدعومة مرة واحدة عبر تطبيق الاختصارات، وبعدها يستطيع غاف تصنيف العمليات المطابقة تلقائياً."))
                 .font(GhafTypography.body(16, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            onboardingPoint(icon: "message", title: localized("Bank messages", "رسائل البنوك"), description: localized("Pass incoming SMS message text to Ghaf.", "أرسل نص رسائل البنك الواردة إلى غاف."))
-            onboardingPoint(icon: "app.badge", title: localized("Bank notifications", "إشعارات البنوك"), description: localized("Where iOS exposes the notification content, send it to Ghaf.", "أرسل محتوى الإشعار إلى غاف عندما يتيح iOS الوصول إليه."))
-            onboardingPoint(icon: "checkmark.shield", title: localized("You stay in control", "أنت تتحكم"), description: localized("OTP messages, promotions and incomplete transfer requests are filtered.", "تُستبعد رسائل رموز التحقق والعروض وطلبات التحويل غير المكتملة."))
+            onboardingPoint(icon: "message", title: localized("Supported bank SMS", "رسائل SMS البنكية المدعومة"), description: localized("Choose a bank sender once. Matching transaction messages can be logged without retyping them.", "اختر مُرسل البنك مرة واحدة، وستُسجّل الرسائل المطابقة دون إعادة كتابتها."))
+            onboardingPoint(icon: "banknote", title: localized("Cash stays manual", "النقد يُسجّل يدوياً"), description: localized("Cash purchases and sources that do not send SMS still need a quick manual entry.", "المشتريات النقدية والمصادر التي لا ترسل رسائل SMS تحتاج إلى إدخال يدوي سريع."))
+            onboardingPoint(icon: "iphone.gen3", title: localized("iOS privacy boundary", "حدود الخصوصية في iOS"), description: localized("Ghaf cannot read bank-app push notifications directly. App notifications without SMS cannot be captured automatically by this shortcut.", "لا يستطيع غاف قراءة إشعارات التطبيقات البنكية مباشرة، ولا يمكن التقاطها تلقائياً عبر هذا الاختصار دون رسالة SMS."))
         }
     }
 
