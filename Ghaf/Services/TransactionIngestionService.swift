@@ -64,7 +64,7 @@ final class TransactionIngestionService {
         let isRecentDuplicate = recentTransactions.contains { existing in
             guard existing.amount == parsed.amount,
                   existing.currency == parsed.currency,
-                  existing.direction == parsed.direction,
+                  existing.direction == parsed.direction.rawValue,
                   normalizeMerchant(existing.merchant) == normalizedMerchant else {
                 return false
             }
