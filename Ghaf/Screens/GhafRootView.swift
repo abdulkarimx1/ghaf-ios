@@ -27,6 +27,7 @@ struct GhafRootView: View {
     var body: some View {
         ZStack {
             rootContent
+                .id(languageCode)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear.ignoresSafeArea())
 
@@ -46,6 +47,8 @@ struct GhafRootView: View {
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
+        .scrollBounceBehavior(.never)
+        .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
