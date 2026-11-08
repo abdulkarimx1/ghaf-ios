@@ -127,9 +127,7 @@ struct GhafVoiceEntryView: View {
                                         .foregroundStyle(theme.primaryText)
                                     Spacer(minLength: 8)
                                     HStack(spacing: 5) {
-                                        Text(GhafFormat.symbol(for: draft.currency, languageCode: settings.languageCode))
-                                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
-                                            .foregroundStyle(theme.secondaryText)
+                                        GhafCurrencyIcon(currency: draft.currency, size: 16)
                                         TextField("0.00", text: $draft.amountText)
                                             .font(GhafTypography.number(15, weight: .semibold))
                                             .keyboardType(.decimalPad)
