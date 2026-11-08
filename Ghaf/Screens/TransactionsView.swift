@@ -8,6 +8,9 @@ struct GhafTransactionsView: View {
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
 
+    @Query(sort: \GhafAccount.sortOrder)
+    private var accounts: [GhafAccount]
+
     @State private var searchText = ""
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
