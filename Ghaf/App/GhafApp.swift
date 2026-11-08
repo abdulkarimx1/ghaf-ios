@@ -16,7 +16,7 @@ struct GhafApp: App {
 
         do {
 
-            modelContainer = try GhafPersistence.makeContainer()
+            modelContainer = try GhafPersistence.shared()
 
         } catch {
 
