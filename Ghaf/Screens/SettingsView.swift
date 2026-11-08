@@ -174,9 +174,13 @@ struct GhafSettingsView: View {
                         .font(GhafTypography.heading(16, languageCode: languageCode))
                         .foregroundStyle(theme.primaryText)
                     let activeAccountCount = accounts.filter { !$0.isArchived }.count
-                    Text(languageCode == "ar"
-                         ? "\(activeAccountCount) حسابات · \(transactions.count) عملية"
-                         : "\(activeAccountCount) accounts · \(transactions.count) transactions")
+                    let accountCount = languageCode == "ar"
+                        ? GhafLocalization.count(activeAccountCount, singular: "حساب واحد", dual: "حسابان", plural: "حسابات", afterTen: "حساباً", languageCode: "ar")
+                        : GhafLocalization.count(activeAccountCount, singular: "account", dual: "accounts", plural: "accounts", afterTen: "accounts", languageCode: "en")
+                    let transactionCount = languageCode == "ar"
+                        ? GhafLocalization.count(transactions.count, singular: "عملية واحدة", dual: "عمليتان", plural: "عمليات", afterTen: "عملية", languageCode: "ar")
+                        : GhafLocalization.count(transactions.count, singular: "transaction", dual: "transactions", plural: "transactions", afterTen: "transactions", languageCode: "en")
+                    Text("\(accountCount) · \(transactionCount)")
                         .font(GhafTypography.body(11, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
