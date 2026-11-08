@@ -5,7 +5,7 @@ enum GhafDefaults {
     static let defaultCurrency = "AED"
     static let defaultCategories = [
         "Groceries", "Dining", "Transport", "Fuel", "Bills & Utilities",
-        "Shopping", "Health", "Entertainment", "Travel", "Transfers",
+        "Shopping", "Health", "Entertainment", "Travel", "Subscriptions", "Transfers",
         "Salary", "Other"
     ]
     static let defaultTheme = "Abu Dhabi"
