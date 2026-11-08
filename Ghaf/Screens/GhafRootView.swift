@@ -47,7 +47,6 @@ struct GhafRootView: View {
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
-        .scrollBounceBehavior(.never)
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
         .onChange(of: scenePhase) { _, phase in

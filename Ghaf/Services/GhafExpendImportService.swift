@@ -86,7 +86,7 @@ enum GhafExpendImportService {
         guard !validWalletRows.isEmpty else { throw GhafExpendImportError.noValidWallets }
 
         let walletIDs = Dictionary(uniqueKeysWithValues: validWalletRows.compactMap { row -> (String, UUID)? in
-            guard let sourceID = string(row["_id"]) else { return nil }
+            guard let sourceID = string(row["_id"]) else { return [] }
             return (sourceID, UUID(uuidString: sourceID) ?? UUID())
         })
 
@@ -240,7 +240,7 @@ enum GhafExpendImportService {
         let sourceCurrency = string(sourceWallet?["currencyCode"])?.uppercased() ?? "AED"
         let bank = string(sourceWallet?["institution"])
         let originalNotes = string(row["notes"])
-        let noteParts = [originalNotes, subcategory.map { "Subcategory: ($0)" }]
+        let noteParts = [originalNotes, subcategory.map { "Subcategory: \\($0)" }]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         let note = noteParts.isEmpty ? nil : noteParts.joined(separator: " · ")
@@ -249,7 +249,7 @@ enum GhafExpendImportService {
 
         if type == "transfer" {
             let source = PreparedTransaction(
-                fingerprint: "expend-(sourceID)-out",
+                fingerprint: "expend-\\(sourceID)-out",
                 amount: amount,
                 currency: sourceCurrency,
                 merchant: merchant ?? "Transfer",
@@ -270,7 +270,7 @@ enum GhafExpendImportService {
             }
             let destinationAmount = decimal(row["destAmount"]) ?? amount
             let destination = PreparedTransaction(
-                fingerprint: "expend-(sourceID)-in",
+                fingerprint: "expend-\\(sourceID)-in",
                 amount: destinationAmount,
                 currency: string(destinationWallet["currencyCode"])?.uppercased() ?? sourceCurrency,
                 merchant: merchant ?? "Transfer",
@@ -289,7 +289,7 @@ enum GhafExpendImportService {
 
         let direction: TransactionDirection = type == "income" ? .credit : .debit
         return [PreparedTransaction(
-            fingerprint: "expend-(sourceID)",
+            fingerprint: "expend-\\(sourceID)",
             amount: amount,
             currency: sourceCurrency,
             merchant: merchant,

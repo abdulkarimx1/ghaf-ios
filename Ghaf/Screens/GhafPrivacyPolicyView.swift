@@ -105,7 +105,6 @@ struct GhafPrivacyPolicyView: View {
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
         }
-        .scrollBounceBehavior(.never)
         .scrollIndicators(.hidden)
         .ghafBackground(theme: theme)
         .navigationTitle(isArabic ? "الخصوصية" : "Privacy")
