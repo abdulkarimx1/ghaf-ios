@@ -45,9 +45,6 @@ targets:
           UIColorName: GhafLaunchBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-          - UIInterfaceOrientationPortraitUpsideDown
         UIApplicationSupportsIndirectInputEvents: true
 
     settings:
