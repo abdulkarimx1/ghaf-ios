@@ -3,21 +3,32 @@ import SwiftUI
 private struct GhafCardSurface: ViewModifier {
     let theme: GhafTheme
     let radius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let isDark = colorScheme == .dark
         content
             .background {
-                shape.fill(.ultraThinMaterial)
-                    .overlay(shape.fill(theme.surface.opacity(0.48)))
+                shape.fill(.regularMaterial)
+                    .overlay(shape.fill(theme.surface.opacity(isDark ? 0.48 : 0.24)))
             }
             .overlay {
-                shape.stroke(.white.opacity(0.34), lineWidth: 1)
+                shape.stroke(.white.opacity(isDark ? 0.16 : 0.72), lineWidth: 1)
             }
             .overlay(alignment: .top) {
-                shape.stroke(theme.accent.opacity(0.13), lineWidth: 0.7)
+                shape.stroke(theme.accent.opacity(isDark ? 0.20 : 0.22), lineWidth: 0.9)
             }
-            .shadow(color: .black.opacity(0.055), radius: 16, x: 0, y: 7)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [.white.opacity(isDark ? 0.10 : 0.48), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(shape)
+                .padding(1)
+            }
+            .shadow(color: .black.opacity(isDark ? 0.16 : 0.075), radius: 18, x: 0, y: 8)
     }
 }
 
@@ -157,8 +168,8 @@ struct GhafCityBackdrop: View {
                 var drawing = Path()
                 let w = size.width
                 let h = size.height
-                let origin = CGPoint(x: w * 0.68, y: h * 0.36)
-                let scale = min(w, h) * 0.48
+                let origin = CGPoint(x: w * 0.66, y: h * 0.39)
+                let scale = min(w, h) * 0.57
 
                 switch theme.name {
                 case "Dubai":
@@ -209,18 +220,39 @@ struct GhafCityBackdrop: View {
                         drawing.move(to: CGPoint(x: origin.x - scale * 0.60, y: y))
                         drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.62, y: y), control: CGPoint(x: origin.x, y: y - scale * 0.13))
                     }
-                case "Ras Al Khaimah", "Fujairah":
-                    drawing.move(to: CGPoint(x: origin.x - scale * 0.70, y: origin.y + scale * 0.55))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.36, y: origin.y + scale * 0.14))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.21, y: origin.y + scale * 0.24))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.02, y: origin.y - scale * 0.34))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.21, y: origin.y + scale * 0.02))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.36, y: origin.y - scale * 0.06))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.70, y: origin.y + scale * 0.55))
-                    if theme.name == "Fujairah" {
-                        drawing.addRect(CGRect(x: origin.x - scale * 0.08, y: origin.y + scale * 0.24, width: scale * 0.20, height: scale * 0.24))
-                        drawing.addRect(CGRect(x: origin.x - scale * 0.03, y: origin.y + scale * 0.12, width: scale * 0.10, height: scale * 0.12))
+                case "Ras Al Khaimah":
+                    // Hajar mountain ridgeline with a small hilltop fort.
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.76, y: origin.y + scale * 0.48))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.53, y: origin.y + scale * 0.12))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.39, y: origin.y + scale * 0.23))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.12, y: origin.y - scale * 0.48))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.08, y: origin.y - scale * 0.10))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.28, y: origin.y - scale * 0.31))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.48, y: origin.y + scale * 0.08))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.76, y: origin.y + scale * 0.48))
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.70, y: origin.y + scale * 0.49))
+                    drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.72, y: origin.y + scale * 0.49), control: CGPoint(x: origin.x, y: origin.y + scale * 0.34))
+                    drawing.addRect(CGRect(x: origin.x + scale * 0.37, y: origin.y + scale * 0.16, width: scale * 0.17, height: scale * 0.25))
+                    drawing.move(to: CGPoint(x: origin.x + scale * 0.34, y: origin.y + scale * 0.16))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.455, y: origin.y + scale * 0.04))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.56, y: origin.y + scale * 0.16))
+                case "Fujairah":
+                    // East-coast fort, watchtower and open-water contours.
+                    drawing.addRect(CGRect(x: origin.x - scale * 0.18, y: origin.y - scale * 0.05, width: scale * 0.40, height: scale * 0.46))
+                    drawing.addRect(CGRect(x: origin.x - scale * 0.11, y: origin.y - scale * 0.29, width: scale * 0.15, height: scale * 0.24))
+                    drawing.addRect(CGRect(x: origin.x + scale * 0.08, y: origin.y - scale * 0.20, width: scale * 0.11, height: scale * 0.15))
+                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.15, y: origin.y - scale * 0.29))
+                    drawing.move(to: CGPoint(x: origin.x - scale * 0.62, y: origin.y + scale * 0.52))
+                    drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.70, y: origin.y + scale * 0.52), control: CGPoint(x: origin.x, y: origin.y + scale * 0.39))
+                    for row in 0..<3 {
+                        let y = origin.y + scale * (0.63 + Double(row) * 0.10)
+                        drawing.move(to: CGPoint(x: origin.x - scale * 0.72, y: y))
+                        drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.72, y: y), control: CGPoint(x: origin.x, y: y - scale * 0.10))
                     }
+                    drawing.move(to: CGPoint(x: origin.x + scale * 0.43, y: origin.y + scale * 0.48))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.48, y: origin.y + scale * 0.08))
+                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.53, y: origin.y + scale * 0.48))
+                    drawing.addEllipse(in: CGRect(x: origin.x + scale * 0.38, y: origin.y + scale * 0.02, width: scale * 0.20, height: scale * 0.10))
                 default: // Abu Dhabi: waterfront dome and colonnade.
                     drawing.addEllipse(in: CGRect(x: origin.x - scale * 0.23, y: origin.y - scale * 0.26, width: scale * 0.46, height: scale * 0.42))
                     drawing.move(to: CGPoint(x: origin.x - scale * 0.23, y: origin.y - scale * 0.05))
@@ -234,7 +266,7 @@ struct GhafCityBackdrop: View {
                     }
                 }
 
-                context.stroke(drawing, with: .color(theme.accent.opacity(0.12)), lineWidth: 1.25)
+                context.stroke(drawing, with: .color(theme.accent.opacity(0.24)), lineWidth: 1.65)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }

@@ -901,8 +901,8 @@ struct GhafAboutView: View {
                         .foregroundStyle(theme.primaryText)
 
                     Text(settings.languageCode == "ar"
-                         ? "بدأ غاف من حاجة شخصية إلى طريقة أبسط لمتابعة المصروفات وتنظيم المال والادخار. صُمم وطُوّر بالكامل بالذكاء الاصطناعي لمساعدة الناس على فهم أموالهم وتصنيف عملياتهم وتخطيط مدخراتهم بوضوح، مع تقليل الوقت الذي يقضونه في إدخال العمليات يدوياً."
-                         : "Ghaf started with a small personal problem: keeping track of spending, organizing money and planning savings took too much manual effort. Designed and built entirely with AI to support people who want a clearer, simpler way to categorize transactions and plan their savings, while spending less time entering everything by hand.")
+                         ? "بدأ غاف من حاجة شخصية إلى طريقة أبسط لمتابعة المصروفات وتنظيم المال والادخار. يهدف غاف إلى مساعدة الناس على فهم أموالهم وتصنيف عملياتهم وتخطيط مدخراتهم بوضوح، مع تقليل الوقت الذي يقضونه في إدخال العمليات يدوياً."
+                         : "Ghaf started with a small personal problem: keeping track of spending, organizing money and planning savings took too much manual effort. Ghaf is being developed to give people a clearer, simpler way to categorize transactions, understand spending and plan savings, while spending less time entering everything by hand.")
                         .font(GhafTypography.body(14, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -926,12 +926,38 @@ struct GhafAboutView: View {
                         .ghafCard(theme: theme, radius: 18)
                     }
 
-                Text(settings.languageCode == "ar" ? "المطور" : "Developer")
+                    Text(settings.languageCode == "ar" ? "المطور" : "Developer")
                         .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                         .foregroundStyle(theme.secondaryText)
                     Text("Abdulkarim Bayassi")
                         .font(GhafTypography.heading(17, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(19)
+                .ghafCard(theme: theme, radius: 20)
+
+                VStack(alignment: .leading, spacing: 13) {
+                    Text(settings.languageCode == "ar" ? "تابع غاف" : "FOLLOW GHAF")
+                        .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                        .tracking(settings.languageCode == "ar" ? 0 : 1.3)
+                        .foregroundStyle(theme.secondaryText)
+
+                    socialPlaceholderRow(
+                        title: "Instagram",
+                        detail: settings.languageCode == "ar" ? "سيُضاف الرابط قبل الإطلاق" : "Link to be added before launch",
+                        icon: "camera"
+                    )
+                    socialPlaceholderRow(
+                        title: "TikTok",
+                        detail: settings.languageCode == "ar" ? "سيُضاف الرابط قبل الإطلاق" : "Link to be added before launch",
+                        icon: "play.rectangle"
+                    )
+                    socialPlaceholderRow(
+                        title: "Email",
+                        detail: settings.languageCode == "ar" ? "سيُضاف البريد قبل الإطلاق" : "Address to be added before launch",
+                        icon: "envelope"
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(19)
@@ -955,5 +981,29 @@ struct GhafAboutView: View {
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, Locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, settings.languageCode == "ar" ? .rightToLeft : .leftToRight)
+    }
+
+    private func socialPlaceholderRow(title: String, detail: String, icon: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 38, height: 38)
+                .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                Text(detail)
+                    .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            Spacer()
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.secondaryText.opacity(0.55))
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
     }
 }

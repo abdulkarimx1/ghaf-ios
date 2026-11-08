@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 import SwiftData
 import GhafCore
 
@@ -30,9 +29,14 @@ final class TransactionIngestionService {
 
     func ingest(
         messageText: String,
+        notificationTitle: String? = nil,
         sender: String? = nil
     ) throws -> TransactionIngestionResult {
-        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let message = [notificationTitle, messageText]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else {
             return TransactionIngestionResult(
                 status: .ignored,
@@ -51,16 +55,34 @@ final class TransactionIngestionService {
             )
         }
 
-        let fingerprint = makeFingerprint(message)
-        let descriptor = FetchDescriptor<GhafTransaction>(
-            predicate: #Predicate { $0.fingerprint == fingerprint }
+        let duplicateWindowStart = Date.now.addingTimeInterval(-180)
+        let recentDescriptor = FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.createdAt >= duplicateWindowStart }
         )
-        if try !context.fetch(descriptor).isEmpty {
+        let recentTransactions = try context.fetch(recentDescriptor)
+        let normalizedMerchant = normalizeMerchant(parsed.merchant)
+        let isRecentDuplicate = recentTransactions.contains { existing in
+            guard existing.amount == parsed.amount,
+                  existing.currency == parsed.currency,
+                  existing.direction == parsed.direction.rawValue,
+                  normalizeMerchant(existing.merchant) == normalizedMerchant else {
+                return false
+            }
+
+            // When both sources identify a bank, require the same bank.
+            return existing.bank == nil || parsed.bank == nil || existing.bank == parsed.bank
+        }
+        if isRecentDuplicate {
             return TransactionIngestionResult(
                 status: .duplicate,
-                confirmation: "Transaction already recorded."
+                confirmation: "Matching transaction already received within the last 3 minutes."
             )
         }
+
+        // Fingerprints remain unique. Duplicate protection is based on parsed
+        // transaction details and a short creation-time window, not permanent
+        // equality of the original notification text.
+        let fingerprint = UUID().uuidString
 
         let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
         let activeBankAccounts = accounts.filter {
@@ -118,12 +140,10 @@ final class TransactionIngestionService {
         )
     }
 
-    private func makeFingerprint(_ message: String) -> String {
-        let normalized = message
-            .lowercased()
+    private func normalizeMerchant(_ merchant: String?) -> String? {
+        merchant?
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
-        let digest = SHA256.hash(data: Data(normalized.utf8))
-        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
