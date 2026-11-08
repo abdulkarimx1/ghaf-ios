@@ -113,14 +113,26 @@ enum GhafFormat {
     }
 
     static func symbol(for currency: String, languageCode: String = "en") -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currency.uppercased()
-        formatter.locale = locale(for: currency, languageCode: languageCode)
-        let symbol = formatter.currencySymbol ?? ""
-        return symbol.isEmpty || symbol == currency.uppercased()
-            ? currency.uppercased()
-            : symbol
+        switch currency.uppercased() {
+        case "AED": return "\u{20C3}"
+        case "SAR": return "\u{20C1}"
+        case "OMR": return "\u{20C4}"
+        case "KWD": return "د.ك"
+        case "BHD": return "د.ب"
+        case "QAR": return "ر.ق"
+        case "USD": return "$"
+        case "EUR": return "€"
+        case "GBP": return "£"
+        default:
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .currency
+            formatter.currencyCode = currency.uppercased()
+            formatter.locale = locale(for: currency, languageCode: languageCode)
+            let symbol = formatter.currencySymbol ?? ""
+            return symbol.isEmpty || symbol == currency.uppercased()
+                ? currency.uppercased()
+                : symbol
+        }
     }
 
     static func money(
