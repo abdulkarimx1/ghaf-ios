@@ -62,32 +62,27 @@ struct GhafHomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    header
-                    balancesCard
-                    budgetCard
-                    salaryCard
-                    automationCard
+            VStack(alignment: .leading, spacing: 12) {
+                header
+                balancesCard
+                budgetCard
+                todaySection
+                HStack(spacing: 10) {
                     manualEntryButton
-                    todaySection
+                    automationCard
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 28)
-                .frame(maxWidth: 620)
-                .frame(maxWidth: .infinity)
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .frame(maxWidth: 560)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .ghafBackground(theme: theme)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showQuickAdd) {
-                GhafQuickAddView(settings: settings)
-            }
+            .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings) }
             .sheet(isPresented: $showVoiceEntry) {
-                NavigationStack {
-                    GhafVoiceEntryView(settings: settings)
-                }
+                NavigationStack { GhafVoiceEntryView(settings: settings) }
             }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
@@ -106,20 +101,16 @@ struct GhafHomeView: View {
             .task {
                 if settings.salaryEnabled == true, settings.salaryReminderEnabled == true,
                    let day = settings.salaryDay {
-                    try? await GhafSalaryReminderService.scheduleNext(
-                        salaryDay: day,
-                        languageCode: settings.languageCode
-                    )
+                    try? await GhafSalaryReminderService.scheduleNext(salaryDay: day, languageCode: settings.languageCode)
                 }
             }
-
         }
     }
 
     private var balancesCard: some View {
         VStack(spacing: 13) {
             HStack {
-                Text(settings.languageCode == "ar" ? "الأرصدة المتاحة" : "AVAILABLE BALANCES")
+                Text(settings.languageCode == "ar" ? "الأرصـدة المتـاحة" : "AVAILABLE BALANCES")
                     .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                     .tracking(1.5)
                     .foregroundStyle(theme.secondaryText)
@@ -250,9 +241,9 @@ struct GhafHomeView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(greeting.uppercased())
-                    .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                    .tracking(1.8)
+                Text(settings.languageCode == "ar" ? greeting : greeting.uppercased())
+                    .font(GhafTypography.heading(settings.languageCode == "ar" ? 18 : 11, languageCode: settings.languageCode))
+                    .tracking(settings.languageCode == "ar" ? 0 : 1.8)
                     .foregroundStyle(theme.secondaryText)
 
                 Text(settings.userName.isEmpty ? "Your money, in view." : "Hello, \(settings.userName).")
@@ -285,7 +276,7 @@ struct GhafHomeView: View {
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         if settings.languageCode == "ar" {
-            return hour < 17 ? "صباح الخير" : "مساء الخير"
+            return hour < 17 ? "صـبـاح الخـير" : "مسـاء الخـير"
         }
         if hour < 12 { return "Good morning" }
         if hour < 17 { return "Good afternoon" }
@@ -405,54 +396,18 @@ struct GhafHomeView: View {
     }
 
     private var automationCard: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(theme.accent.opacity(0.10))
-                        .frame(width: 52, height: 52)
-                    Image(systemName: "bolt.horizontal.circle.fill")
-                        .font(.system(size: 26, weight: .medium))
-                        .foregroundStyle(theme.accent)
-                }
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(settings.languageCode == "ar" ? "فعّل التتبع التلقائي" : "Automate your bank tracking")
-                        .font(GhafTypography.heading(18, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.primaryText)
-                        .multilineTextAlignment(.leading)
-
-                    Text(settings.languageCode == "ar"
-                         ? "غاف جاهز. افتح اختصارات لإكمال الربط."
-                         : "Ghaf is ready. Open Shortcuts to connect your bank.")
-                        .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.secondaryText)
-                        .multilineTextAlignment(.leading)
-                }
-
-                Spacer(minLength: 2)
+        Button { showAutomationGuide = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.badge.clock").font(.system(size: 15, weight: .semibold))
+                Text(settings.languageCode == "ar" ? "ربط البنك" : "Bank setup")
+                    .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.78)
             }
-
-            ShortcutsLink(action: {})
-                .shortcutsLinkStyle(.automatic)
-                .frame(maxWidth: .infinity)
-
-            Text(settings.languageCode == "ar"
-                 ? "الإجراء الجاهز من غاف سيظهر في تطبيق الاختصارات."
-                 : "Ghaf's ready-made action appears on its Shortcuts page.")
-                .font(GhafTypography.body(11, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-
-            Button(settings.languageCode == "ar" ? "كيف يعمل الربط؟" : "How bank setup works") {
-                showAutomationGuide = true
-            }
-            .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-            .foregroundStyle(theme.accent)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 1)
+            .foregroundStyle(theme.primaryText)
+            .frame(maxWidth: .infinity).frame(height: 48)
+            .ghafLiquidGlass(theme: theme, radius: 16)
         }
-        .padding(17)
-        .ghafLiquidGlass(theme: theme, radius: 22)
+        .buttonStyle(.plain)
     }
 
     private var manualEntryButton: some View {
@@ -493,74 +448,34 @@ struct GhafHomeView: View {
     }
 
     private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            Button {
-                withAnimation(.snappy(duration: 0.24)) {
-                    activityPeriodIndex = (activityPeriodIndex + 1) % 3
-                }
-            } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+        Button {
+            activityPeriodIndex = (activityPeriodIndex + 1) % 3
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(activityPeriodTitle)
-                        .font(GhafTypography.display(25, languageCode: settings.languageCode))
+                        .font(GhafTypography.heading(15, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text("\(activityTransactions.count) \(settings.languageCode == "ar" ? "عمليات" : "transactions")")
-                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
-                            .foregroundStyle(theme.secondaryText)
-                        Text(GhafFormat.money(activityTotal, currency: settings.currency, languageCode: settings.languageCode))
-                            .font(GhafTypography.number(11, weight: .semibold))
-                            .foregroundStyle(theme.secondaryText)
-                    }
-                    Image(systemName: "arrow.2.circlepath")
-                        .font(.system(size: 11, weight: .semibold))
+                    Text(settings.languageCode == "ar" ? "\\(activityTransactions.count) عملية" : "\\(activityTransactions.count) transactions")
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
-                .contentShape(Rectangle())
+                Spacer(minLength: 8)
+                Text(GhafFormat.money(activityTotal, currency: settings.currency, languageCode: settings.languageCode))
+                    .font(GhafTypography.number(15, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                Image(systemName: "arrow.2.circlepath").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.accent)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(settings.languageCode == "ar" ? "تغيير فترة عرض العمليات" : "Change activity period")
-            .accessibilityHint(settings.languageCode == "ar"
-                               ? "اضغط للتبديل بين اليوم والأسبوع والشهر."
-                               : "Tap to cycle between day, week and month.")
-
-            if activityTransactions.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(settings.languageCode == "ar" ? "لا توجد عمليات في هذه الفترة" : "No transactions in this period")
-                        .font(GhafTypography.heading(17, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.primaryText)
-                    Text(settings.languageCode == "ar"
-                         ? "ستظهر عملياتك هنا فور تسجيلها."
-                         : "Your transactions will appear here as they are recorded.")
-                        .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.secondaryText)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
-                .ghafCard(theme: theme, radius: 20)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(activityTransactions.prefix(6)), id: \.id) { transaction in
-                        GhafTransactionRow(
-                            transaction: transaction,
-                            theme: theme,
-                            languageCode: settings.languageCode
-                        )
-                        if transaction.id != activityTransactions.prefix(6).last?.id {
-                            Divider()
-                                .overlay(theme.outline)
-                                .padding(.leading, 58)
-                        }
-                    }
-                }
-                .padding(.horizontal, 14)
-                .ghafCard(theme: theme, radius: 20)
-            }
+            .padding(.horizontal, 15).padding(.vertical, 12)
+            .ghafCard(theme: theme, radius: 17)
+            .contentShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
+        .accessibilityLabel(settings.languageCode == "ar" ? "تغيير فترة عرض العمليات" : "Change activity period")
+        .accessibilityHint(settings.languageCode == "ar" ? "اضغط للتبديل بين اليوم والأسبوع والشهر." : "Tap to cycle between day, week and month.")
     }
+
 }
 
 // MARK: - Transaction Row
