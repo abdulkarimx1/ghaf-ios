@@ -234,21 +234,21 @@ struct GhafTabView: View {
                 .tabItem { Label(settings.languageCode == "ar" ? "الرئيسية" : "Home", systemImage: "house.fill") }
                 .tag(0)
 
-            GhafTransactionsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "العمليات" : "Transactions", systemImage: "arrow.left.arrow.right") }
+            GhafAIView(settings: settings)
+                .tabItem { Label(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI", systemImage: "sparkles") }
                 .tag(1)
 
-            GhafReviewInboxView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "المراجعة" : "Review", systemImage: "tray.full.fill") }
-                .badge(reviewCount)
+            GhafSubscriptionsView(settings: settings)
+                .tabItem { Label(settings.languageCode == "ar" ? "الاشتراكات" : "Subscriptions", systemImage: "repeat") }
                 .tag(2)
 
-            GhafInsightsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "التقارير" : "Insights", systemImage: "chart.bar.xaxis") }
+            GhafTransactionsView(settings: settings)
+                .tabItem { Label(settings.languageCode == "ar" ? "العمليات" : "Transactions", systemImage: "arrow.left.arrow.right") }
+                .badge(reviewCount)
                 .tag(3)
 
             GhafSettingsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "الإعدادات" : "Settings", systemImage: "slider.horizontal.3") }
+                .tabItem { Label(settings.languageCode == "ar" ? "المزيد" : "More", systemImage: "ellipsis") }
                 .tag(4)
         }
         .tint(theme.accent)
