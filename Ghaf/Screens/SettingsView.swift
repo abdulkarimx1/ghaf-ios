@@ -42,7 +42,7 @@ struct GhafSettingsView: View {
     @State private var prompt: GhafSettingsPrompt?
     @State private var hasLoadedSettings = false
 
-    private let currencies = ["AED", "USD", "EUR", "GBP", "SAR", "KWD", "BHD", "OMR", "QAR"]
+    private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
