@@ -58,9 +58,11 @@ enum GhafAccountBalanceCalculator {
             .filter { !$0.isEmpty }
         guard !incoming.isEmpty else { return nil }
 
-        let bankAccounts = accounts.filter {
-            !$0.isArchived && $0.type.isBankAccount
-        }
+        // Account names are user-defined. A card wallet may be labelled
+        // "iVESTOR" while its account type is still Cash or Prepaid.
+        // Match names across all active accounts, but prefer real bank accounts
+        // when scores are otherwise equal.
+        let bankAccounts = accounts.filter { !$0.isArchived }
 
         let ranked = bankAccounts.map { account -> (GhafAccount, Int) in
             let institution = normalize(account.institution ?? "")
@@ -69,7 +71,9 @@ enum GhafAccountBalanceCalculator {
 
             for value in incoming {
                 if !institution.isEmpty && value == institution { score = max(score, 100) }
-                if !name.isEmpty && value == name { score = max(score, 95) }
+                if !name.isEmpty && value == name {
+                    score = max(score, account.type.isBankAccount ? 100 : 95)
+                }
                 if !institution.isEmpty && value.contains(institution) { score = max(score, 80) }
                 if !institution.isEmpty && institution.contains(value) { score = max(score, 70) }
                 if !name.isEmpty && value.contains(name) { score = max(score, 65) }
