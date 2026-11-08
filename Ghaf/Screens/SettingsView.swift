@@ -107,7 +107,7 @@ struct GhafSettingsView: View {
                         pendingImportURL = url
                         prompt = .importBackup
                     }
-                case .failure(let error):
+                case .failure:
                     prompt = .message(languageCode == "ar" ? "تعذر استيراد النسخة الاحتياطية." : "Could not import the backup.")
                 }
             }
