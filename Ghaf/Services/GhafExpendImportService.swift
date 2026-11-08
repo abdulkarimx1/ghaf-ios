@@ -104,7 +104,7 @@ enum GhafExpendImportService {
             }
         )
 
-        let parsedTransactions = transactionRows.compactMap { row -> PreparedTransaction? in
+        let parsedTransactions = transactionRows.flatMap { row in
             prepare(row, walletIDs: walletIDs, walletsByID: walletsByID, subcategoryNames: subcategoryNames)
         }
         guard !parsedTransactions.isEmpty else {
@@ -224,7 +224,7 @@ enum GhafExpendImportService {
         walletIDs: [String: UUID],
         walletsByID: [String: [String: Any]],
         subcategoryNames: [String: String]
-    ) -> [PreparedTransaction]? {
+    ) -> [PreparedTransaction] {
         guard let sourceID = string(row["_id"]),
               let type = string(row["type"])?.lowercased(),
               let amount = decimal(row["amount"]), amount > 0 else { return nil }
