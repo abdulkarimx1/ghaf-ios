@@ -68,4 +68,42 @@ final class CategoryMatcherTests: XCTestCase {
         XCTAssertNil(rules["adjust"], "Other is never learned")
         XCTAssertEqual(rules.count, 1)
     }
+
+    func testSuggestsNewBuiltInCategoryWhenUserHasNone() {
+        let zumba = CategoryMatcher.match("zumba class", catalog: catalog, learned: [:])
+        XCTAssertEqual(zumba?.category, "Sports & Fitness")
+        XCTAssertEqual(zumba?.subcategory, "Fitness classes")
+        XCTAssertEqual(zumba?.isNewCategory, true)
+        // One typo is tolerated.
+        XCTAssertEqual(CategoryMatcher.match("zuba", catalog: catalog, learned: [:])?.subcategory, "Fitness classes")
+        XCTAssertEqual(CategoryMatcher.match("سبا", catalog: catalog, learned: [:])?.category, "Health & Wellness")
+    }
+
+    func testSuggestsNewSubcategoryInsideUsersCategory() {
+        let rental = CategoryMatcher.match("car rental hertz", catalog: catalog, learned: [:])
+        XCTAssertEqual(rental?.category, "Car")
+        XCTAssertEqual(rental?.subcategory, "Rental")
+        XCTAssertEqual(rental?.isNewSubcategory, true)
+        XCTAssertEqual(rental?.isNewCategory, false)
+    }
+
+    func testGulfDialectWords() {
+        XCTAssertEqual(CategoryMatcher.match("ريوق", catalog: catalog, learned: [:])?.category, "Food")
+        XCTAssertEqual(CategoryMatcher.match("قراج", catalog: catalog, learned: [:])?.category, "Car")
+        XCTAssertEqual(CategoryMatcher.match("ساهر", catalog: catalog, learned: [:])?.subcategory, "Fines")
+    }
+
+    func testOneEditAway() {
+        XCTAssertTrue(CategoryMatcher.isOneEditAway("zuba", "zumba"))
+        XCTAssertFalse(CategoryMatcher.isOneEditAway("zub", "zumba"))
+        XCTAssertFalse(CategoryMatcher.isOneEditAway("zumba", "zumba"))
+    }
+
+    func testEveryBuiltInCategoryHasSubcategoriesAndArabic() {
+        for category in CategoryTaxonomy.all {
+            XCTAssertFalse(category.subcategories.isEmpty, category.name)
+            XCTAssertFalse(category.arabic.isEmpty, category.name)
+        }
+        XCTAssertGreaterThanOrEqual(CategoryTaxonomy.all.count, 15)
+    }
 }

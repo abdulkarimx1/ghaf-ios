@@ -34,6 +34,10 @@ public enum CategoryMatcher {
         public let subcategory: String?
         public let confidence: Double
         public let source: Source
+        /// The user doesn't have this category yet; offer to create it.
+        public var isNewCategory = false
+        /// The category exists but this subcategory doesn't yet.
+        public var isNewSubcategory = false
     }
 
     /// `catalog` is category name → subcategory names. `learned` is keyed by `normalize(merchant)`.
@@ -59,16 +63,17 @@ public enum CategoryMatcher {
             }
         }
         if let category = catalog.keys.sorted().first(where: { contains(padded, $0) }) {
+            // "car rental": the category is named, a built-in word can still pick the subcategory.
+            if let hit = taxonomyHit(padded), case let refined = resolve(hit.category, hit.sub, in: catalog),
+               refined.category == category {
+                return refined
+            }
             return Match(category: category, subcategory: nil, confidence: 0.75, source: .name)
         }
 
-        // 3. Concept synonyms, resolved to the user's own category/subcategory names.
-        for concept in concepts where concept.words.contains(where: { padded.contains(" \($0) ") }) {
-            if let found = resolve(concept, in: catalog) {
-                return Match(category: found.category, subcategory: found.subcategory, confidence: 0.6, source: .synonym)
-            }
-        }
-        return nil
+        // 3. Built-in GCC words (exact, then one-typo fuzzy), mapped onto the user's own names.
+        guard let hit = taxonomyHit(padded) ?? fuzzyTaxonomyHit(key) else { return nil }
+        return resolve(hit.category, hit.sub, in: catalog)
     }
 
     /// Builds rules from past transactions: the most common category/subcategory per merchant.
@@ -102,51 +107,67 @@ public enum CategoryMatcher {
         return !word.isEmpty && padded.contains(" \(word) ")
     }
 
-    private struct Concept {
-        let categoryNames: [String]   // what users tend to call the category
-        let subcategoryNames: [String]
-        let words: [String]           // normalized trigger words, English and Arabic
-    }
+    private typealias Hit = (category: CategoryTaxonomy.Category, sub: CategoryTaxonomy.Subcategory)
 
-    private static func resolve(_ concept: Concept, in catalog: [String: [String]]) -> (category: String, subcategory: String?)? {
-        let wanted = Set(concept.categoryNames.map(normalize))
-        // A subcategory with a concept name (e.g. "Fuel" under "Car") is the most specific answer.
-        for (category, subs) in catalog.sorted(by: { $0.key < $1.key }) {
-            if let sub = subs.first(where: { concept.subcategoryNames.map(normalize).contains(normalize($0)) }) {
-                return (category, sub)
+    /// Longest built-in keyword found as whole words in the text.
+    private static func taxonomyHit(_ padded: String) -> Hit? {
+        var best: (hit: Hit, length: Int)?
+        for category in CategoryTaxonomy.all {
+            for sub in category.subcategories {
+                for word in sub.words {
+                    let key = normalize(word)
+                    guard !key.isEmpty, padded.contains(" \(key) "), key.count > (best?.length ?? 0) else { continue }
+                    best = ((category, sub), key.count)
+                }
             }
         }
-        if let category = catalog.keys.sorted().first(where: { wanted.contains(normalize($0)) }) {
-            return (category, nil)
+        return best?.hit
+    }
+
+    /// Tolerates one typo in a single word ("zuba" → "zumba"), only for keywords of 5+ letters.
+    private static func fuzzyTaxonomyHit(_ key: String) -> Hit? {
+        let words = key.split(separator: " ").map(String.init).filter { $0.count >= 4 }
+        for category in CategoryTaxonomy.all {
+            for sub in category.subcategories {
+                for keyword in sub.words.map(normalize) where keyword.count >= 5 && !keyword.contains(" ") {
+                    if words.contains(where: { isOneEditAway($0, keyword) }) { return (category, sub) }
+                }
+            }
         }
         return nil
     }
 
-    private static let concepts: [Concept] = [
-        Concept(categoryNames: ["Car", "Transport", "Transportation", "Fuel"], subcategoryNames: ["Fuel", "Petrol"],
-                words: ["petrol", "fuel", "gas", "adnoc", "enoc", "eppco", "emarat", "بنزين", "وقود", "ادنوك"]),
-        Concept(categoryNames: ["Car", "Transport", "Transportation"], subcategoryNames: ["Parking"],
-                words: ["parking", "mawaqif", "rta", "salik", "باركينغ", "مواقف", "سالك"]),
-        Concept(categoryNames: ["Transport", "Transportation", "Car"], subcategoryNames: ["Taxi"],
-                words: ["taxi", "uber", "careem", "metro", "bus", "تاكسي", "كريم", "اوبر", "مترو"]),
-        Concept(categoryNames: ["Food", "Dining", "Restaurants"], subcategoryNames: ["Lunch", "Dinner", "Breakfast", "Cafeteria", "Coffee"],
-                words: ["restaurant", "shawarma", "burger", "pizza", "coffee", "cafe", "karak", "breakfast", "lunch", "dinner",
-                        "talabat", "deliveroo", "noon food", "mcdonalds", "kfc", "starbucks", "tim hortons",
-                        "مطعم", "شاورما", "قهوة", "كرك", "غداء", "عشاء", "فطور", "طلبات"]),
-        Concept(categoryNames: ["Grocery", "Groceries", "Supermarket"], subcategoryNames: [],
-                words: ["grocery", "groceries", "supermarket", "carrefour", "lulu", "spinneys", "nesto", "coop", "union coop",
-                        "بقالة", "كارفور", "لولو", "جمعية"]),
-        Concept(categoryNames: ["Utilities", "Bills & Utilities", "Bills"], subcategoryNames: ["Du", "Etisalat", "Electricity", "Water"],
-                words: ["dewa", "sewa", "addc", "etisalat", "e&", "du", "electricity", "water", "internet", "كهرباء", "ماء", "انترنت", "اتصالات"]),
-        Concept(categoryNames: ["Subscriptions"], subcategoryNames: [],
-                words: ["netflix", "spotify", "icloud", "youtube", "shahid", "osn", "anghami", "chatgpt", "openai", "adobe", "subscription", "اشتراك"]),
-        Concept(categoryNames: ["Health & Wellness", "Health", "Medical"], subcategoryNames: ["Medicine", "Barber", "Pharmacy"],
-                words: ["pharmacy", "medicine", "doctor", "clinic", "hospital", "barber", "gym", "صيدلية", "دواء", "عيادة", "مستشفى", "حلاق"]),
-        Concept(categoryNames: ["Shopping"], subcategoryNames: ["Gifts", "Clothes"],
-                words: ["amazon", "noon", "mall", "clothes", "shoes", "gift", "ikea", "namshi", "shein", "تسوق", "ملابس", "هدية"]),
-        Concept(categoryNames: ["Entertainment"], subcategoryNames: ["Cinema", "Games"],
-                words: ["cinema", "vox", "movie", "game", "playstation", "billiards", "padel", "paddle", "سينما", "لعبة"]),
-        Concept(categoryNames: ["Travel"], subcategoryNames: ["Flights", "Hotel"],
-                words: ["flight", "emirates", "flydubai", "air arabia", "etihad", "hotel", "booking", "airbnb", "طيران", "فندق"])
-    ]
+    /// Finds the user's version of a built-in category/subcategory, or marks it as new.
+    private static func resolve(_ category: CategoryTaxonomy.Category, _ sub: CategoryTaxonomy.Subcategory,
+                                in catalog: [String: [String]]) -> Match {
+        let names = Set(([category.name] + category.aliases).map(normalize))
+        let userCategory = catalog.keys.sorted().first { names.contains(normalize($0)) }
+            // e.g. the user's "Car" holds "Fuel" even if called something else
+            ?? catalog.first { $0.value.contains { normalize($0) == normalize(sub.name) } }?.key
+        guard let userCategory else {
+            var match = Match(category: category.name, subcategory: sub.name, confidence: 0.5, source: .synonym)
+            match.isNewCategory = true
+            return match
+        }
+        let subWords = Set(([sub.name] + sub.words).map(normalize))
+        if let userSub = catalog[userCategory]?.first(where: { subWords.contains(normalize($0)) }) {
+            return Match(category: userCategory, subcategory: userSub, confidence: 0.65, source: .synonym)
+        }
+        var match = Match(category: userCategory, subcategory: sub.name, confidence: 0.55, source: .synonym)
+        match.isNewSubcategory = true
+        return match
+    }
+
+    static func isOneEditAway(_ a: String, _ b: String) -> Bool {
+        let a = Array(a), b = Array(b)
+        guard abs(a.count - b.count) <= 1, a != b else { return false }
+        var i = 0, j = 0, edits = 0
+        while i < a.count && j < b.count {
+            if a[i] == b[j] { i += 1; j += 1; continue }
+            edits += 1
+            if edits > 1 { return false }
+            if a.count > b.count { i += 1 } else if a.count < b.count { j += 1 } else { i += 1; j += 1 }
+        }
+        return edits + (a.count - i) + (b.count - j) <= 1
+    }
 }

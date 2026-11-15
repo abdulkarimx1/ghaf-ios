@@ -1,13 +1,17 @@
 import Foundation
+import GhafCore
 import SwiftData
 
 enum GhafDefaults {
     static let defaultCurrency = "AED"
-    static let defaultCategories = [
-        "Groceries", "Dining", "Transport", "Fuel", "Bills & Utilities",
-        "Shopping", "Health", "Entertainment", "Travel", "Subscriptions", "Transfers",
-        "Salary", "Other"
-    ]
+    /// GCC-wide built-in categories (see CategoryTaxonomy) plus the system ones the app relies on.
+    static let defaultCategories = CategoryTaxonomy.defaultNames
+
+    static var defaultCategoryMeta: [String: GhafCategoryMeta] {
+        Dictionary(uniqueKeysWithValues: CategoryTaxonomy.all.map {
+            ($0.name, GhafCategoryMeta(subcategories: $0.subcategories.map(\.name), icon: $0.icon, color: $0.color))
+        })
+    }
     static let defaultTheme = "Abu Dhabi"
 }
 
@@ -79,6 +83,7 @@ final class GhafSettings {
         self.appearanceMode = appearanceMode
         self.budgetMode = budgetMode
         self.categoriesJSON = Self.encode(GhafDefaults.defaultCategories)
+        self.categoryMetaJSON = Self.encode(GhafDefaults.defaultCategoryMeta)
         self.categoryBudgetsJSON = "{}"
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.createdAt = .now
@@ -133,7 +138,17 @@ final class GhafSettings {
     func addCategory(_ rawName: String, subcategory rawSub: String? = nil) -> (category: String, subcategory: String?) {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         let category = categories.first { $0.caseInsensitiveCompare(name) == .orderedSame } ?? name
-        if !categories.contains(category) { categories.append(category) }
+        if !categories.contains(category) {
+            // Insert before the system "Transfers"/"Other" so they stay last.
+            var list = categories
+            list.insert(category, at: list.firstIndex(where: { $0 == "Transfers" || $0 == "Other" }) ?? list.endIndex)
+            categories = list
+            if let builtIn = CategoryTaxonomy.category(named: category), categoryMeta[category] == nil {
+                var meta = categoryMeta
+                meta[category] = GhafCategoryMeta(subcategories: [], icon: builtIn.icon, color: builtIn.color)
+                categoryMeta = meta
+            }
+        }
         guard let sub = rawSub?.trimmingCharacters(in: .whitespacesAndNewlines), !sub.isEmpty else { return (category, nil) }
         var meta = categoryMeta
         var entry = meta[category] ?? GhafCategoryMeta()

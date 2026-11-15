@@ -234,15 +234,20 @@ final class GhafAssistant: ObservableObject {
 
 /// Saves confirmed transaction drafts and learns merchant categories from them.
 enum GhafDraftSaver {
+    /// Returns the new transactions' ids, in draft order.
     @MainActor
+    @discardableResult
     static func save(
         _ drafts: [GhafVoiceTransactionDraft],
         preferredAccountID: UUID?,
         accounts: [GhafAccount],
         context: ModelContext,
         note: String
-    ) throws {
+    ) throws -> [UUID] {
+        var ids: [UUID] = []
+        let settings = try context.fetch(FetchDescriptor<GhafSettings>()).first
         for draft in drafts {
+            if draft.category != "Other", let settings { settings.addCategory(draft.category, subcategory: draft.subcategory) }
             let direction = TransactionDirection(rawValue: draft.direction) ?? .debit
             let parsed = ParsedTransaction(amount: draft.amount, currency: draft.currency, merchant: draft.merchant.isEmpty ? nil : draft.merchant, date: draft.date, direction: direction, confidence: 0.82, bank: nil)
             let category = draft.category == "Other"
@@ -259,6 +264,7 @@ enum GhafDraftSaver {
                 accountID: assigned?.id
             )
             transaction.note = note
+            ids.append(transaction.id)
             transaction.subcategory = category == draft.category ? draft.subcategory : nil
             context.insert(transaction)
             if let merchant = transaction.merchant, !merchant.isEmpty, category != "Other" {
@@ -266,6 +272,7 @@ enum GhafDraftSaver {
             }
         }
         try context.save()
+        return ids
     }
 }
 

@@ -164,7 +164,7 @@ enum MerchantCategorizer {
         direction: TransactionDirection,
         context: ModelContext
     ) throws -> String {
-        if let match = suggestion(for: merchant, context: context) { return match.category }
+        if let match = suggestion(for: merchant, context: context), !match.isNewCategory { return match.category }
         if merchant.map(normalize)?.contains("salary") == true { return "Salary" }
         return direction == .credit ? "Transfers" : "Other"
     }

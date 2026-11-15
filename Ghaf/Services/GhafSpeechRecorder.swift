@@ -8,6 +8,16 @@ final class GhafSpeechRecorder: ObservableObject {
     @Published private(set) var transcript = ""
     @Published private(set) var isRecording = false
     @Published private(set) var errorMessage: String?
+    /// 0…1 microphone level for the live waveform.
+    @Published private(set) var level: Float = 0
+    /// Bumped when the speaker goes quiet after saying something; the view decides what to do.
+    @Published private(set) var finishedSpeakingCount = 0
+
+    /// Seconds of no new words after speech before recording ends by itself.
+    var silenceTimeout: TimeInterval = 1.6
+    private var lastSpeechAt: Date?
+    private var silenceTask: Task<Void, Never>?
+    private var contextualStrings: [String] = []
 
     private let audioEngine = AVAudioEngine()
     private var recognitionRequests: [String: SFSpeechAudioBufferRecognitionRequest] = [:]
@@ -16,8 +26,11 @@ final class GhafSpeechRecorder: ObservableObject {
     private var activeRecognizers: [String: SFSpeechRecognizer] = [:]
     private var activeLanguageCode = "en"
 
-    func start(languageCode: String) async {
+    /// `hints` are words the recognizer should favour: the user's merchants, categories and Gulf terms.
+    func start(languageCode: String, hints: [String] = []) async {
         guard !isRecording else { return }
+        contextualStrings = Array(hints.prefix(100))
+        lastSpeechAt = nil
         errorMessage = nil
         transcript = ""
         activeLanguageCode = languageCode
@@ -42,7 +55,7 @@ final class GhafSpeechRecorder: ObservableObject {
 
         // Run Arabic and English recognition side by side. The selected UI language
         // controls labels only; it must not constrain the spoken language.
-        let recognizers = ["en-US", "ar-SA"].compactMap { identifier -> (String, SFSpeechRecognizer)? in
+        let recognizers = ["en-US", Self.gulfArabicLocale].compactMap { identifier -> (String, SFSpeechRecognizer)? in
             guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: identifier)),
                   recognizer.isAvailable else { return nil }
             let code = identifier.hasPrefix("ar") ? "ar" : "en"
@@ -67,7 +80,19 @@ final class GhafSpeechRecorder: ObservableObject {
         }
     }
 
+    /// Arabic recognizer for the user's own Gulf country when iOS has it (ar-AE, ar-KW, ar-QA…), else Saudi.
+    static var gulfArabicLocale: String {
+        let region = Locale.current.region?.identifier ?? "AE"
+        let gulf = ["AE", "SA", "KW", "QA", "BH", "OM"]
+        let preferred = gulf.contains(region) ? "ar-\(region)" : "ar-AE"
+        let supported = SFSpeechRecognizer.supportedLocales().map { $0.identifier.replacingOccurrences(of: "_", with: "-") }
+        return [preferred, "ar-AE", "ar-SA"].first(where: supported.contains) ?? "ar-SA"
+    }
+
     func stop() {
+        silenceTask?.cancel()
+        silenceTask = nil
+        level = 0
         guard isRecording || audioEngine.isRunning else { return }
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
@@ -100,6 +125,8 @@ final class GhafSpeechRecorder: ObservableObject {
             request.shouldReportPartialResults = true
             request.taskHint = .dictation
             request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+            request.contextualStrings = contextualStrings
+            request.addsPunctuation = true
             recognitionRequests[language] = request
 
             recognitionTasks[language] = recognizer.recognitionTask(with: request) { [weak self] result, error in
@@ -112,7 +139,9 @@ final class GhafSpeechRecorder: ObservableObject {
                             result.bestTranscription.formattedString,
                             confidence / Float(count)
                         )
+                        let before = self.transcript
                         self.updateChosenTranscript()
+                        if self.transcript != before { self.lastSpeechAt = .now }
                     }
                     if error != nil {
                         self.recognitionTasks[language] = nil
@@ -131,15 +160,18 @@ final class GhafSpeechRecorder: ObservableObject {
         let format = input.outputFormat(forBus: 0)
         let activeRequests = Array(recognitionRequests.values)
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { [weak self] buffer, _ in
             for request in activeRequests {
                 request.append(buffer)
             }
+            let level = Self.rms(buffer)
+            Task { @MainActor in self?.level = level }
         }
 
         audioEngine.prepare()
         try audioEngine.start()
         isRecording = true
+        watchForSilence()
     }
 
     private func updateChosenTranscript() {
@@ -170,6 +202,29 @@ final class GhafSpeechRecorder: ObservableObject {
         guard let chosen = candidates.max(by: { $0.score < $1.score }) else { return }
         transcript = chosen.text
         activeLanguageCode = chosen.language
+    }
+
+    /// Ends recording once words have arrived and then nothing new is heard for `silenceTimeout`.
+    private func watchForSilence() {
+        silenceTask?.cancel()
+        silenceTask = Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled, self.isRecording {
+                try? await Task.sleep(for: .milliseconds(250))
+                if let last = self.lastSpeechAt, Date.now.timeIntervalSince(last) >= self.silenceTimeout {
+                    self.stop()
+                    self.finishedSpeakingCount += 1
+                    return
+                }
+            }
+        }
+    }
+
+    nonisolated private static func rms(_ buffer: AVAudioPCMBuffer) -> Float {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        var sum: Float = 0
+        for index in 0..<Int(buffer.frameLength) { sum += samples[index] * samples[index] }
+        let rms = (sum / Float(buffer.frameLength)).squareRoot()
+        return min(max(rms * 12, 0), 1)
     }
 
     private func cancelRecognitionTasks() {

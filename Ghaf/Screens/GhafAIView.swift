@@ -12,6 +12,8 @@ private struct GhafChatMessage: Identifiable {
     var isStreaming = false
     var drafts: [GhafVoiceTransactionDraft] = []
     var draftState: DraftState = .pending
+    /// Transactions created when the drafts were saved, so later corrections can update them.
+    var savedIDs: [UUID] = []
 }
 
 struct GhafAIView: View {
@@ -20,6 +22,7 @@ struct GhafAIView: View {
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     @Query private var subscriptions: [GhafSubscription]
+    @Query(sort: \MerchantCategoryRule.hits, order: .reverse) private var rules: [MerchantCategoryRule]
 
     @StateObject private var assistant = GhafAssistant()
     @StateObject private var recorder = GhafSpeechRecorder()
@@ -68,6 +71,7 @@ struct GhafAIView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.success, trigger: savedCount)
             .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
+            .onChange(of: recorder.finishedSpeakingCount) { _, _ in finishVoice() }
             .onChange(of: recorder.transcript) { _, text in
                 if recorder.isRecording { prompt = text }
             }
@@ -169,6 +173,17 @@ struct GhafAIView: View {
                 .foregroundStyle(item.isUser ? theme.accentContrast : theme.primaryText)
                 .padding(.horizontal, 14).padding(.vertical, 11)
                 .background(item.isUser ? theme.accent : theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .contextMenu {
+                    if item.isUser {
+                        Button { prompt = item.text; inputFocused = true } label: {
+                            Label(ar ? "تعديل وإعادة الإرسال" : "Edit & resend", systemImage: "pencil")
+                        }
+                    }
+                    Button { UIPasteboard.general.string = item.text } label: {
+                        Label(ar ? "نسخ" : "Copy", systemImage: "doc.on.doc")
+                    }
+                    ShareLink(item: item.text) { Label(ar ? "مشاركة" : "Share", systemImage: "square.and.arrow.up") }
+                }
             }
             if !item.drafts.isEmpty { draftCard(message) }
         }
@@ -181,19 +196,37 @@ struct GhafAIView: View {
         let state = message.wrappedValue.draftState
         return VStack(spacing: 10) {
             ForEach(message.drafts) { $draft in
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(draft.merchant.isEmpty ? (ar ? "بدون اسم" : "No name") : draft.merchant)
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Name and amount stay editable until saved, in case speech was misheard.
+                        TextField(ar ? "الاسم" : "Name", text: $draft.merchant)
                             .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .bold))
                             .foregroundStyle(theme.primaryText)
+                            .disabled(state != .pending)
                         GhafCategoryPicker(category: $draft.category, subcategory: $draft.subcategory,
                                            languageCode: settings.languageCode, tint: theme.accent)
                             .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                        .disabled(state != .pending)
+                            .disabled(state != .pending)
+                        if state == .pending && isNewCategory(draft) {
+                            Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
+                                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                                .foregroundStyle(theme.accentContrast)
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(theme.accent, in: Capsule())
+                        }
                     }
                     Spacer(minLength: 6)
-                    GhafMoneyLabel(amount: draft.amount, currency: draft.currency, languageCode: settings.languageCode, size: 16)
-                        .foregroundStyle(draft.direction == "credit" ? theme.credit : theme.primaryText)
+                    HStack(spacing: 4) {
+                        GhafCurrencyIcon(currency: draft.currency, size: 14)
+                        TextField("0", text: $draft.amountText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .font(GhafTypography.number(17, weight: .heavy))
+                            .fixedSize()
+                            .disabled(state != .pending)
+                    }
+                    .foregroundStyle(draft.direction == "credit" ? theme.credit : theme.primaryText)
+                    .environment(\.layoutDirection, .leftToRight)
                 }
             }
             switch state {
@@ -244,9 +277,14 @@ struct GhafAIView: View {
         let hasText = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return VStack(spacing: 6) {
             if recorder.isRecording {
-                Text(ar ? "أستمع… اضغط للإرسال" : "Listening… tap to send")
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .bold))
-                    .foregroundStyle(theme.accent)
+                HStack(spacing: 8) {
+                    GhafLevelBars(level: recorder.level, tint: theme.accent)
+                    Text(ar ? "أستمع… توقف عن الكلام للإرسال · العربية والإنجليزية"
+                            : "Listening… pause to send · Arabic & English")
+                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                }
+                .transition(.opacity)
             } else if let error = recorder.errorMessage {
                 Text(error)
                     .font(GhafTypography.body(12, languageCode: settings.languageCode))
@@ -291,14 +329,63 @@ struct GhafAIView: View {
         synthesizer.stopSpeaking(at: .immediate)
         prompt = ""
         inputFocused = false
-        Task { await recorder.start(languageCode: settings.languageCode) }
+        // Bias recognition towards this user's own merchants and categories.
+        let hints = rules.prefix(60).map(\.normalizedMerchant)
+            + settings.categories + settings.categories.flatMap(settings.subcategories(of:))
+        Task { await recorder.start(languageCode: settings.languageCode, hints: hints) }
     }
 
+    /// Called by the stop button, or automatically after a pause. Clear speech is sent;
+    /// unclear speech stays in the box to fix and send.
     private func finishVoice() {
         recorder.stop()
-        let text = recorder.transcript.isEmpty ? prompt : recorder.transcript
+        let text = (recorder.transcript.isEmpty ? prompt : recorder.transcript).trimmingCharacters(in: .whitespacesAndNewlines)
         recorder.reset()
-        send(text, isVoice: true)
+        let letters = text.filter(\.isLetter).count
+        let understood = GhafMessageIntent.isQuestion(text)
+            || !GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).isEmpty
+            || ChatCorrection.parse(text, recent: recentDraftRefs().map(\.name)) != nil
+        if letters >= 2 && understood {
+            send(text, isVoice: true)
+        } else {
+            prompt = text
+            withAnimation(.snappy) {
+                messages.append(GhafChatMessage(isUser: false, text: text.isEmpty
+                    ? (ar ? "لم أسمع شيئاً. اضغط الميكروفون وحاول مرة أخرى." : "I didn't hear anything. Tap the mic and try again.")
+                    : (ar ? "لم أفهم كل الكلام. عدّل النص في الأسفل ثم أرسله، أو سجّل مرة أخرى."
+                          : "I didn't catch all of that. Fix the text below and send it, or record again.")))
+            }
+        }
+    }
+
+    /// Latest draft entries first: (message index, draft index, name).
+    private func recentDraftRefs() -> [(message: Int, draft: Int, name: String)] {
+        messages.indices.reversed().flatMap { m in
+            messages[m].draftState == .discarded ? [] :
+                messages[m].drafts.indices.reversed().map { (m, $0, messages[m].drafts[$0].merchant) }
+        }
+    }
+
+    /// "no, edit karak it was 5 dhs": updates the draft (or the saved transaction) in place.
+    private func applyCorrection(_ text: String) -> Bool {
+        let refs = recentDraftRefs()
+        guard let result = ChatCorrection.parse(text, recent: refs.map(\.name)), let amount = result.amount else { return false }
+        let ref = refs[result.index]
+        messages[ref.message].drafts[ref.draft].amountText = NSDecimalNumber(decimal: amount).stringValue
+        let draft = messages[ref.message].drafts[ref.draft]
+        if messages[ref.message].draftState == .saved, ref.draft < messages[ref.message].savedIDs.count {
+            let id = messages[ref.message].savedIDs[ref.draft]
+            if let transaction = try? modelContext.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first {
+                transaction.amount = amount
+                try? modelContext.save()
+            }
+        }
+        let money = GhafFormat.money(amount, currency: draft.currency, languageCode: settings.languageCode)
+        let reply = ar ? "تم. عدّلت \(draft.merchant) إلى \(money)." : "Done. Updated \(draft.merchant) to \(money)."
+        withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: reply)) }
+        savedCount += 1
+        speak(reply)
+        return true
     }
 
     private func send(_ raw: String, isVoice: Bool = false) {
@@ -306,10 +393,12 @@ struct GhafAIView: View {
         guard !text.isEmpty, !isThinking else { return }
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
+        if applyCorrection(text) { return }
 
         // A purchase ("35 AED lunch") becomes a draft card; anything else goes to the assistant.
         let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
             var result = draft
+            result.merchant = Self.tidyTitle(draft.merchant)
             if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
                 result.category = match.category
                 result.subcategory = match.subcategory
@@ -323,9 +412,19 @@ struct GhafAIView: View {
                 ? (drafts.count == 1 ? "وجدت عملية. راجع الفئة ثم احفظ:" : "وجدت \(drafts.count) عمليات. راجعها ثم احفظ:")
                 : (drafts.count == 1 ? "Got it. Check the category, then save:" : "I found \(drafts.count) transactions. Check them, then save:")
             let unmatched = drafts.filter { $0.category == "Other" && !$0.merchant.isEmpty }.map(\.merchant)
-            let hint = unmatched.isEmpty ? "" : (ar
-                ? "\nلا توجد فئة مناسبة لـ \(unmatched.joined(separator: "، ")). اضغط على الفئة واختر «فئة جديدة» لحفظها."
-                : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category to save one.")
+            let suggested = drafts.filter(isNewCategory).map { draft in
+                "\(draft.merchant) → \(GhafLocalization.category(draft.category, languageCode: settings.languageCode))"
+                    + (draft.subcategory.map { " › \(GhafLocalization.category($0, languageCode: settings.languageCode))" } ?? "")
+            }
+            var hint = ""
+            if !suggested.isEmpty {
+                hint += ar ? "\nاقتراح فئة جديدة: \(suggested.joined(separator: "، ")). ستُضاف عند الحفظ، ويمكنك تغييرها."
+                           : "\nSuggested new category: \(suggested.joined(separator: ", ")). It's added when you save, or tap it to change."
+            }
+            if !unmatched.isEmpty {
+                hint += ar ? "\nلم أجد فئة لـ \(unmatched.joined(separator: "، ")). اضغط على الفئة واختر «فئة جديدة»."
+                           : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category."
+            }
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro + hint, drafts: drafts)) }
             speak(intro)
             return
@@ -356,10 +455,27 @@ struct GhafAIView: View {
         }
     }
 
+    /// "zumba class" → "Zumba Class". Arabic and already-capitalised words are left as spoken.
+    static func tidyTitle(_ text: String) -> String {
+        text.split(separator: " ").map { word in
+            guard word.unicodeScalars.allSatisfy({ $0.isASCII }), word == word.lowercased() else { return String(word) }
+            return word.prefix(1).uppercased() + word.dropFirst()
+        }.joined(separator: " ")
+    }
+
+    /// The suggested category or subcategory isn't in the user's list yet.
+    private func isNewCategory(_ draft: GhafVoiceTransactionDraft) -> Bool {
+        guard draft.category != "Other" else { return false }
+        if !settings.categories.contains(draft.category) { return true }
+        if let sub = draft.subcategory { return !settings.subcategories(of: draft.category).contains(sub) }
+        return false
+    }
+
     private func saveDrafts(_ message: Binding<GhafChatMessage>) {
         do {
-            try GhafDraftSaver.save(message.wrappedValue.drafts, preferredAccountID: nil, accounts: accounts,
+            let ids = try GhafDraftSaver.save(message.wrappedValue.drafts, preferredAccountID: nil, accounts: accounts,
                                     context: modelContext, note: ar ? "أضيفت عبر غاف AI" : "Added with Ghaf AI")
+            message.wrappedValue.savedIDs = ids
             message.wrappedValue.draftState = .saved
             savedCount += 1
             let learned = message.wrappedValue.drafts.filter { !$0.merchant.isEmpty && $0.category != "Other" }
@@ -400,6 +516,26 @@ private struct GhafAIOrb: View {
                 .foregroundStyle(theme.accent)
                 .symbolEffect(.bounce, value: active)
         }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Five bars that follow the microphone level while recording.
+private struct GhafLevelBars: View {
+    let level: Float
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<5, id: \.self) { index in
+                let weight = [0.5, 0.8, 1.0, 0.8, 0.5][index]
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 3, height: 4 + CGFloat(level) * 16 * weight)
+            }
+        }
+        .frame(height: 20)
+        .animation(.easeOut(duration: 0.12), value: level)
         .accessibilityHidden(true)
     }
 }

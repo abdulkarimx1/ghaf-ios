@@ -1,4 +1,5 @@
 import Foundation
+import GhafCore
 
 enum GhafLocalization {
     static func count(_ value: Int, singular: String, dual: String, plural: String, afterTen: String, languageCode: String) -> String {
@@ -39,6 +40,6 @@ enum GhafLocalization {
             "Lent Money": "أموال مُقرضة",
             "Interest": "الفوائد"
         ]
-        return translations[value] ?? value
+        return translations[value] ?? CategoryTaxonomy.arabicName(for: value) ?? value
     }
 }

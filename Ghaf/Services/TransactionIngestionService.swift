@@ -101,7 +101,8 @@ final class TransactionIngestionService {
             isReversal: isReversal,
             accountID: resolvedAccount?.id
         )
-        transaction.subcategory = suggestion?.category == category ? suggestion?.subcategory : nil
+        transaction.subcategory = suggestion?.category == category && suggestion?.isNewSubcategory == false
+            ? suggestion?.subcategory : nil
 
         let detectedSubscription = parsed.direction == .debit && !isReversal
             ? try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)

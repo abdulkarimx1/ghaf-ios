@@ -47,7 +47,7 @@ public enum GhafVoiceTransactionParser {
     }
 
     public static func parse(_ transcript: String, languageCode: String, baseCurrency: String) -> [GhafVoiceTransactionDraft] {
-        let separated = transcript
+        let separated = NumberWords.replace(in: normalizeNumerals(transcript))
             .replacingOccurrences(of: "،", with: ",")
             .replacingOccurrences(
                 of: #"(?i)\b(?:then|and then|after that|also)\b|ثم|وبعدها|بعد ذلك|بعدين|عقبها|وعقبها"#,
@@ -81,7 +81,7 @@ public enum GhafVoiceTransactionParser {
                 options: .regularExpression
             )
             merchant = merchant.replacingOccurrences(
-                of: #"(?<![\p{L}\p{N}])(?:د\s*\.\s*ا|د\s*إ|درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|دفعت|بقيمه|بقيمة|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|البارحة|الليلة الماضية|غداً|باجر|بكرة|سعودي|السعودي|قطري|القطري|كويتي|الكويتي|بحريني|البحريني|عماني|العماني|إماراتي|الإماراتي|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
+                of: #"(?<![\p{L}\p{N}])(?:د\s*\.\s*ا|د\s*إ|درهم|دراهم|ريال|ريالات|دينار|دنانير|اشتريت|اشتريتُ|شريت|خذيت|أخذت|اخذت|حطيت|صرفت|عطيت|دفعت|سويت|بقيمه|بقيمة|بمبلغ|مبلغ|قيمة|من|في|على|اليوم|أمس|البارحة|الليلة الماضية|غداً|باجر|بكرة|سعودي|السعودي|قطري|القطري|كويتي|الكويتي|بحريني|البحريني|عماني|العماني|إماراتي|الإماراتي|ثم|وبعدها|بعدين|عقبها|وعقبها)(?![\p{L}\p{N}])"#,
                 with: " ",
                 options: .regularExpression
             )
@@ -107,7 +107,7 @@ public enum GhafVoiceTransactionParser {
         }
     }
 
-    private static func normalizeNumerals(_ value: String) -> String {
+    static func normalizeNumerals(_ value: String) -> String {
         let replacements: [Character: Character] = [
             "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
             "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
