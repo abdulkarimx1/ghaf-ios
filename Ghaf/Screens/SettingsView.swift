@@ -105,6 +105,7 @@ struct GhafSettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
             .tint(theme.accent)
+        }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear(perform: loadSettings)
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: name) { _, _ in persistSettings() }
@@ -165,7 +166,6 @@ struct GhafSettingsView: View {
                     )
                 }
             }
-        }
     }
 
     private var ar: Bool { languageCode == "ar" }
