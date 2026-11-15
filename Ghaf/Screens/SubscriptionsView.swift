@@ -14,6 +14,9 @@ struct GhafSubscriptionsView: View {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
     private var active: [GhafSubscription] { subscriptions.filter(\.isActive) }
+    private var suggested: [GhafSubscription] { subscriptions.filter(\.needsConfirmation) }
+    private var tracked: [GhafSubscription] { subscriptions.filter { !$0.needsConfirmation } }
+    private var ar: Bool { settings.languageCode == "ar" }
     private var monthlyEquivalent: Decimal {
         active.reduce(Decimal.zero) { total, item in
             let factor: Decimal
@@ -55,6 +58,8 @@ struct GhafSubscriptionsView: View {
                     }
                     .padding(18).ghafCard(theme: theme, radius: 20)
 
+                    if !suggested.isEmpty { suggestionsCard }
+
                     HStack {
                         Text(settings.languageCode == "ar" ? "كل الاشتراكات" : "YOUR SUBSCRIPTIONS")
                             .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
@@ -65,7 +70,7 @@ struct GhafSubscriptionsView: View {
                                 .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
                         }.buttonStyle(.borderedProminent).tint(theme.accent)
                     }
-                    if subscriptions.isEmpty {
+                    if tracked.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
                             Image(systemName: "calendar.badge.clock").font(.system(size: 30, weight: .medium)).foregroundStyle(theme.accent)
                             Text(settings.languageCode == "ar" ? "لا توجد اشتراكات بعد" : "No subscriptions yet")
@@ -75,11 +80,11 @@ struct GhafSubscriptionsView: View {
                         }.padding(20).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme, radius: 18)
                     } else {
                         VStack(spacing: 0) {
-                            ForEach(subscriptions) { item in
+                            ForEach(tracked) { item in
                                 Button { editing = item; showingEditor = true } label: {
                                     subscriptionRow(item)
                                 }.buttonStyle(.plain)
-                                if item.id != subscriptions.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
+                                if item.id != tracked.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
                             }
                         }.padding(.horizontal, 14).ghafCard(theme: theme, radius: 18)
                     }
@@ -92,6 +97,47 @@ struct GhafSubscriptionsView: View {
                 GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: editing)
             }
         }
+    }
+
+    /// Subscriptions found in bank messages. Nothing is tracked or reminded until the user confirms.
+    private var suggestionsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(ar ? "اشتراكات محتملة" : "Found in your bank messages", systemImage: "sparkles")
+                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
+                .foregroundStyle(theme.accent)
+            ForEach(suggested) { item in
+                VStack(spacing: 10) {
+                    subscriptionRow(item)
+                    HStack(spacing: 10) {
+                        Button { dismissSuggestion(item) } label: {
+                            Text(ar ? "ليس اشتراكاً" : "Not a subscription").frame(maxWidth: .infinity).padding(.vertical, 6)
+                        }.buttonStyle(.bordered).tint(theme.secondaryText)
+                        Button { confirm(item) } label: {
+                            Text(ar ? "تأكيد" : "Confirm").frame(maxWidth: .infinity).padding(.vertical, 6)
+                        }.buttonStyle(.borderedProminent).tint(theme.accent)
+                    }
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
+                }
+            }
+        }
+        .padding(16).ghafCard(theme: theme, radius: 18)
+    }
+
+    private func confirm(_ item: GhafSubscription) {
+        item.needsConfirmation = false
+        item.isActive = true
+        do {
+            try context.save()
+            Task {
+                _ = await GhafSubscriptionReminderService.requestPermission()
+                GhafSubscriptionReminderService.schedule(item, language: settings.languageCode)
+            }
+        } catch { context.rollback() }
+    }
+
+    private func dismissSuggestion(_ item: GhafSubscription) {
+        context.delete(item)
+        do { try context.save() } catch { context.rollback() }
     }
 
     private func subscriptionRow(_ item: GhafSubscription) -> some View {
@@ -190,7 +236,7 @@ private struct GhafSubscriptionEditor: View {
         item.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         item.amount = value; item.currency = currency; item.billingCycle = cycle.rawValue
         item.nextPaymentDate = nextDate; item.category = category; item.accountID = accountID
-        item.reminderDays = reminderDays; item.isActive = active
+        item.reminderDays = reminderDays; item.isActive = active; item.needsConfirmation = false
         do {
             try context.save()
             Task {

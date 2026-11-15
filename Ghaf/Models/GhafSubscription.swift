@@ -35,6 +35,8 @@ final class GhafSubscription {
     var accountID: UUID?
     var reminderDays: Int
     var isActive: Bool
+    /// Auto-detected from a bank message; stays inactive until the user confirms it.
+    var needsConfirmation: Bool = false
     var notes: String?
     var createdAt: Date
 

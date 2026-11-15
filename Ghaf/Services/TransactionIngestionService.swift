@@ -108,11 +108,7 @@ final class TransactionIngestionService {
         context.insert(transaction)
         try context.save()
 
-        if let detectedSubscription {
-            let language = (try? context.fetch(FetchDescriptor<GhafSettings>()).first?.languageCode) ?? "en"
-            GhafSubscriptionReminderService.schedule(detectedSubscription, language: language)
-        }
-        let subscriptionNote = detectedSubscription.map { " Subscription detected: \($0.name)." } ?? ""
+        let subscriptionNote = detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""
 
         let amount = NSDecimalNumber(decimal: parsed.amount).stringValue
         if needsReview {
@@ -128,7 +124,8 @@ final class TransactionIngestionService {
         )
     }
 
-    /// Creates a subscription when this debit looks recurring and the merchant is not tracked yet.
+    /// Suggests a subscription when this debit looks recurring and the merchant is not tracked yet.
+    /// It stays inactive, with no reminders, until the user confirms it.
     private func addSubscriptionIfRecurring(_ parsed: ParsedTransaction, accountID: UUID?) throws -> GhafSubscription? {
         guard let merchant = parsed.merchant else { return nil }
         let key = SubscriptionDetector.normalize(merchant)
@@ -154,8 +151,10 @@ final class TransactionIngestionService {
             billingCycle: billing,
             nextPaymentDate: billing.nextDate(after: parsed.date),
             accountID: accountID,
+            isActive: false,
             notes: "Auto-detected from a bank message"
         )
+        subscription.needsConfirmation = true
         context.insert(subscription)
         return subscription
     }

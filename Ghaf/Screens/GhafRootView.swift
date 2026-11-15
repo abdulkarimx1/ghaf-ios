@@ -234,6 +234,11 @@ struct GhafTabView: View {
                 .tabItem { Label(settings.languageCode == "ar" ? "الرئيسية" : "Home", systemImage: "house.fill") }
                 .tag(0)
 
+            GhafTransactionsView(settings: settings)
+                .tabItem { Label(settings.languageCode == "ar" ? "العمليات" : "Transactions", systemImage: "arrow.left.arrow.right") }
+                .badge(reviewCount)
+                .tag(3)
+
             GhafAIView(settings: settings)
                 .tabItem { Label(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI", systemImage: "sparkles") }
                 .tag(1)
@@ -241,11 +246,6 @@ struct GhafTabView: View {
             GhafSubscriptionsView(settings: settings)
                 .tabItem { Label(settings.languageCode == "ar" ? "الاشتراكات" : "Subscriptions", systemImage: "repeat") }
                 .tag(2)
-
-            GhafTransactionsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "العمليات" : "Transactions", systemImage: "arrow.left.arrow.right") }
-                .badge(reviewCount)
-                .tag(3)
 
             GhafSettingsView(settings: settings)
                 .tabItem { Label(settings.languageCode == "ar" ? "المزيد" : "More", systemImage: "ellipsis") }
@@ -306,15 +306,6 @@ struct GhafOnboardingView: View {
         _currency = State(initialValue: settings.currency)
         _income = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
         _commitments = State(initialValue: GhafFormat.decimal(settings.fixedCommitments))
-        // Start with one cash wallet so step 5 can continue without extra taps.
-        _accountDrafts = State(initialValue: [
-            GhafAccountDraft(
-                name: settings.languageCode == "ar" ? "محفظة نقدية" : "Cash wallet",
-                type: .cash,
-                currency: settings.currency,
-                startingBalance: "0"
-            )
-        ])
         _salaryAmountText = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
     }
 
@@ -676,7 +667,9 @@ struct GhafOnboardingView: View {
                     )
                 } label: {
                     Label(
-                        languageCode == "ar" ? "إضافة بطاقة أو حساب" : "Add another account",
+                        accountDrafts.isEmpty
+                            ? (languageCode == "ar" ? "أضف حسابك الأول" : "Add your first account")
+                            : (languageCode == "ar" ? "إضافة بطاقة أو حساب" : "Add another account"),
                         systemImage: "plus"
                     )
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
