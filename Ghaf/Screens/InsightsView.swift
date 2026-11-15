@@ -40,7 +40,7 @@ struct GhafInsightsView: View {
     }
 
     private var totalExpenses: Decimal {
-        expenses.reduce(Decimal.zero) { $0 + $1.amount }
+        expenses.reduce(Decimal.zero) { $0 + $1.spendingAmount }
     }
 
     private var totalIncome: Decimal {
@@ -50,12 +50,13 @@ struct GhafInsightsView: View {
     private var categoryTotals: [GhafCategoryTotal] {
         let groups = Dictionary(grouping: expenses, by: \.category)
         return groups.map { category, items in
-            let total = items.reduce(Decimal.zero) { $0 + $1.amount }
+            let total = items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
             return GhafCategoryTotal(
                 category: category,
                 amount: NSDecimalNumber(decimal: total).doubleValue
             )
         }
+        .filter { $0.amount > 0 }
         .sorted { $0.amount > $1.amount }
     }
 

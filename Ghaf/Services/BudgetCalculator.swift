@@ -45,7 +45,7 @@ enum BudgetCalculator {
                     $0.date <= date &&
                     budgets[$0.category] != nil
                 }
-                .reduce(Decimal.zero) { $0 + $1.amount }
+                .reduce(Decimal.zero) { $0 + $1.spendingAmount }
 
             return makeSnapshot(
                 limit: limit,
@@ -62,7 +62,7 @@ enum BudgetCalculator {
 
         let spentToday = currencyDebits
             .filter { calendar.isDate($0.date, inSameDayAs: date) }
-            .reduce(Decimal.zero) { $0 + $1.amount }
+            .reduce(Decimal.zero) { $0 + $1.spendingAmount }
 
         return makeSnapshot(
             limit: dailyLimit,

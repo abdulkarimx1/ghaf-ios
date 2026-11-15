@@ -44,23 +44,23 @@ enum GhafFinanceFacts {
             let inPeriod = transactions.filter { interval.contains($0.date) }
             for currency in currencies {
                 let items = inPeriod.filter { $0.currency == currency }
-                let spent = sum(items.filter { $0.isExpense && !$0.isReversal })
-                let income = sum(items.filter { $0.isIncome && !$0.isReversal })
+                let spent = spendingSum(items)
+                let income = sum(items.filter(\.isIncome))
                 if spent > 0 || income > 0 {
-                    lines.append("Spent \(label): \(fmt(spent)) \(currency); income \(label): \(fmt(income)) \(currency); \(items.count) transactions.")
+                    lines.append("Spent \(label) (refunds subtracted): \(fmt(spent)) \(currency); income \(label): \(fmt(income)) \(currency); \(items.count) transactions.")
                 }
             }
         }
 
         if let month = window(.month) {
-            let debits = transactions.filter { month.contains($0.date) && $0.isExpense && !$0.isReversal }
+            let debits = transactions.filter { month.contains($0.date) && $0.isExpense }
             let byCategory = Dictionary(grouping: debits) { "\($0.category) (\($0.currency))" }
-                .mapValues(sum).sorted { $0.value > $1.value }.prefix(5)
+                .mapValues(spendingSum).filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(5)
             if !byCategory.isEmpty {
                 lines.append("Top categories this month: " + byCategory.map { "\($0.key) \(fmt($0.value))" }.joined(separator: ", ") + ".")
             }
             let byMerchant = Dictionary(grouping: debits.filter { $0.merchant != nil }) { "\($0.merchant ?? "") (\($0.currency))" }
-                .mapValues(sum).sorted { $0.value > $1.value }.prefix(5)
+                .mapValues(spendingSum).filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(5)
             if !byMerchant.isEmpty {
                 lines.append("Top merchants this month: " + byMerchant.map { "\($0.key) \(fmt($0.value))" }.joined(separator: ", ") + ".")
             }
@@ -88,6 +88,10 @@ enum GhafFinanceFacts {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    static func spendingSum(_ items: [GhafTransaction]) -> Decimal {
+        items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
     }
 
     static func sum(_ items: [GhafTransaction]) -> Decimal {

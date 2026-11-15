@@ -29,6 +29,14 @@ private enum BankPatterns {
         #"(?i)\bdeposit(?:ed)?\b"#, #"(?i)\bcashback\b"#
     ]
 
+    static let reversals = [#"(?i)\brevers(?:al|ed)\b"#, #"(?i)تم\s+عكس|عكس\s+(?:عملية|مبلغ)"#]
+    static let refunds = [#"(?i)\brefund(?:ed)?\b"#, #"استرداد|مسترد"#]
+    static let pending = [
+        #"(?i)\bpending\b"#, #"(?i)\bon\s+hold\b"#, #"(?i)\bblocked\s+amount\b"#,
+        #"(?i)\bpre-?authori[sz](?:ation|ed)\b"#, #"(?i)\bauthori[sz]ation\s+hold\b"#, #"قيد\s+المعالجة|معلق"#
+    ]
+    static let explicitDebit = [#"(?i)\bdebited\b"#, #"تم\s+خصم"#]
+
     static let transactionSignals = debits + credits + [
         #"(?i)\bwas\s+made\b"#, #"(?i)\btransaction\b"#,
         #"(?i)\breversal\b"#
@@ -128,7 +136,18 @@ private enum TransactionExtractor {
         return (fallback, false)
     }
 
-    static func direction(_ message: String) -> (TransactionDirection, Bool) {
+    static func kind(_ message: String) -> ParsedTransaction.Kind {
+        if Regex.matches(BankPatterns.pending, in: message) { return .pending }
+        if Regex.matches(BankPatterns.reversals, in: message) { return .reversal }
+        if Regex.matches(BankPatterns.refunds, in: message) { return .refund }
+        return .standard
+    }
+
+    static func direction(_ message: String, kind: ParsedTransaction.Kind) -> (TransactionDirection, Bool) {
+        // "Reversal of purchase ..." names a debit word but returns money: credit unless it says debited.
+        if kind == .refund || kind == .reversal {
+            return (Regex.matches(BankPatterns.explicitDebit, in: message) ? .debit : .credit, true)
+        }
         let debit = Regex.matches(BankPatterns.debits, in: message)
         let credit = Regex.matches(BankPatterns.credits, in: message)
         guard debit != credit else { return (.debit, false) }
@@ -182,7 +201,8 @@ struct RegexBankMessageRule: BankMessageRule {
             defaultCurrency: defaultCurrency
         ) else { return nil }
 
-        let direction = TransactionExtractor.direction(message)
+        let kind = TransactionExtractor.kind(message)
+        let direction = TransactionExtractor.direction(message, kind: kind)
         // Amount-only or balance-only messages are not transactions.
         guard direction.1 else { return nil }
 
@@ -205,7 +225,8 @@ struct RegexBankMessageRule: BankMessageRule {
             date: date.0,
             direction: direction.0,
             confidence: confidence,
-            bank: bankName
+            bank: bankName,
+            kind: kind
         )
     }
 }

@@ -7,6 +7,12 @@ public enum TransactionDirection: String, Codable, CaseIterable {
 
 public struct ParsedTransaction: Codable, Equatable {
 
+    /// What the message reports. Refunds and reversals offset an earlier purchase;
+    /// a pending authorization is not money that has moved yet.
+    public enum Kind: String, Codable {
+        case standard, refund, reversal, pending
+    }
+
     public let amount: Decimal
     public let currency: String
     public let merchant: String?
@@ -14,6 +20,7 @@ public struct ParsedTransaction: Codable, Equatable {
     public let direction: TransactionDirection
     public let confidence: Double
     public let bank: String?
+    public let kind: Kind
 
     public init(
         amount: Decimal,
@@ -22,7 +29,8 @@ public struct ParsedTransaction: Codable, Equatable {
         date: Date,
         direction: TransactionDirection,
         confidence: Double,
-        bank: String?
+        bank: String?,
+        kind: Kind = .standard
     ) {
         self.amount = amount
         self.currency = currency
@@ -31,5 +39,6 @@ public struct ParsedTransaction: Codable, Equatable {
         self.direction = direction
         self.confidence = min(max(confidence, 0.0), 1.0)
         self.bank = bank
+        self.kind = kind
     }
 }

@@ -65,14 +65,14 @@ struct GhafHomeView: View {
             if date < interval.start { continue }
             summary.count += 1
             guard transaction.currency == main, transaction.isSpendingOrIncome else { continue }
-            if transaction.direction == "debit" {
-                summary.spent += transaction.amount
-                byCategory[transaction.category, default: 0] += transaction.amount
-            } else if transaction.direction == "credit" {
+            if transaction.isExpense {
+                summary.spent += transaction.spendingAmount
+                byCategory[transaction.category, default: 0] += transaction.spendingAmount
+            } else if transaction.isIncome {
                 summary.income += transaction.amount
             }
         }
-        if let top = byCategory.max(by: { $0.value < $1.value }) { summary.topCategory = (top.key, top.value) }
+        if let top = byCategory.max(by: { $0.value < $1.value }), top.value > 0 { summary.topCategory = (top.key, top.value) }
         return summary
     }
 

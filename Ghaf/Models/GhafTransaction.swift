@@ -24,8 +24,12 @@ final class GhafTransaction {
     /// Moves between the user's own wallets and balance adjustments change balances,
     /// but are never spending or income.
     var isSpendingOrIncome: Bool { category != "Transfers" && category != "Adjustment" }
-    var isExpense: Bool { direction == "debit" && isSpendingOrIncome }
-    var isIncome: Bool { direction == "credit" && isSpendingOrIncome }
+    /// Purchases, plus refunds/reversals of purchases (credits that offset spending).
+    /// shortcut: a reversed credit (debit with isReversal) counts as neither; offset income if that shows up.
+    var isExpense: Bool { isSpendingOrIncome && (direction == "debit") != isReversal }
+    var isIncome: Bool { direction == "credit" && isSpendingOrIncome && !isReversal }
+    /// Signed spending effect: a refund lowers spending and is never income.
+    var spendingAmount: Decimal { isExpense ? (isReversal ? -amount : amount) : 0 }
 
     // A transaction can remain unassigned when its source account is unknown.
     var accountID: UUID?
