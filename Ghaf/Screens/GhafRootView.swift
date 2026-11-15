@@ -306,7 +306,15 @@ struct GhafOnboardingView: View {
         _currency = State(initialValue: settings.currency)
         _income = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
         _commitments = State(initialValue: GhafFormat.decimal(settings.fixedCommitments))
-        _accountDrafts = State(initialValue: [])
+        // Start with one cash wallet so step 5 can continue without extra taps.
+        _accountDrafts = State(initialValue: [
+            GhafAccountDraft(
+                name: settings.languageCode == "ar" ? "محفظة نقدية" : "Cash wallet",
+                type: .cash,
+                currency: settings.currency,
+                startingBalance: "0"
+            )
+        ])
         _salaryAmountText = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
     }
 
@@ -957,10 +965,9 @@ private struct GhafWelcomeLaunchScreen: View {
 
                 Image("GhafWelcomeArtwork")
                     .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 24)
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
                     .accessibilityLabel("Ghaf")
             }
             .frame(width: geometry.size.width, height: geometry.size.height)

@@ -101,21 +101,63 @@ final class TransactionIngestionService {
             accountID: resolvedAccount?.id
         )
 
+        let detectedSubscription = parsed.direction == .debit && !isReversal
+            ? try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)
+            : nil
+
         context.insert(transaction)
         try context.save()
+
+        if let detectedSubscription {
+            let language = (try? context.fetch(FetchDescriptor<GhafSettings>()).first?.languageCode) ?? "en"
+            GhafSubscriptionReminderService.schedule(detectedSubscription, language: language)
+        }
+        let subscriptionNote = detectedSubscription.map { " Subscription detected: \($0.name)." } ?? ""
 
         let amount = NSDecimalNumber(decimal: parsed.amount).stringValue
         if needsReview {
             return TransactionIngestionResult(
                 status: .needsReview,
-                confirmation: "Transaction received. Review its category or account."
+                confirmation: "Transaction received. Review its category or account." + subscriptionNote
             )
         }
 
         return TransactionIngestionResult(
             status: .saved,
-            confirmation: "Saved \(amount) \(parsed.currency)."
+            confirmation: "Saved \(amount) \(parsed.currency)." + subscriptionNote
         )
+    }
+
+    /// Creates a subscription when this debit looks recurring and the merchant is not tracked yet.
+    private func addSubscriptionIfRecurring(_ parsed: ParsedTransaction, accountID: UUID?) throws -> GhafSubscription? {
+        guard let merchant = parsed.merchant else { return nil }
+        let key = SubscriptionDetector.normalize(merchant)
+
+        let existing = try context.fetch(FetchDescriptor<GhafSubscription>())
+        if existing.contains(where: { SubscriptionDetector.normalize($0.name) == key }) { return nil }
+
+        let debits = try context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.direction == "debit" && $0.merchant != nil }
+        ))
+        let history = debits.map {
+            SubscriptionDetector.PastCharge(merchant: $0.merchant ?? "", amount: $0.amount, date: $0.date)
+        }
+
+        guard let cycle = SubscriptionDetector.detect(
+            merchant: merchant, amount: parsed.amount, date: parsed.date, history: history
+        ), let billing = GhafBillingCycle(rawValue: cycle.rawValue) else { return nil }
+
+        let subscription = GhafSubscription(
+            name: merchant,
+            amount: parsed.amount,
+            currency: parsed.currency,
+            billingCycle: billing,
+            nextPaymentDate: billing.nextDate(after: parsed.date),
+            accountID: accountID,
+            notes: "Auto-detected from a bank message"
+        )
+        context.insert(subscription)
+        return subscription
     }
 
     private func makeFingerprint(_ message: String) -> String {

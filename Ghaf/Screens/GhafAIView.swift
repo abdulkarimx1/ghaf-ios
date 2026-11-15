@@ -37,7 +37,15 @@ struct GhafAIView: View {
                             suggestion(settings.languageCode == "ar" ? "ما الاشتراكات القادمة؟" : "Which subscriptions are coming up?")
                             suggestion(settings.languageCode == "ar" ? "ما أكثر فئة أنفق عليها؟" : "What category do I spend most on?")
                         }.padding(17).ghafCard(theme: theme, radius: 18)
-                        Text(settings.languageCode == "ar" ? "الاتصال الذكي السحابي قيد الإعداد" : "Secure cloud intelligence is not connected yet")
+                        ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
+                            Text(message)
+                                .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: index.isMultiple(of: 2) ? .bold : .regular))
+                                .foregroundStyle(index.isMultiple(of: 2) ? theme.accentContrast : theme.primaryText)
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: index.isMultiple(of: 2) ? .trailing : .leading)
+                                .background(index.isMultiple(of: 2) ? theme.accent : theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                        Text(settings.languageCode == "ar" ? "الإجابات محسوبة على جهازك من بياناتك فقط." : "Answers are worked out on your device from your own data.")
                             .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
                             .foregroundStyle(theme.secondaryText)
                     }.padding(20).frame(maxWidth: 620).frame(maxWidth: .infinity)
@@ -66,8 +74,50 @@ struct GhafAIView: View {
             .foregroundStyle(theme.accent).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 7)
     }
     private func submit() {
-        // Deliberately do not fabricate an AI response. The authenticated cloud
-        // reasoning endpoint must be configured before conversational requests are enabled.
+        let question = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty else { return }
+        messages.append(question)
+        messages.append(answer(to: question.lowercased()))
         prompt = ""
+    }
+
+    /// Rule-based answers from local data; no cloud model is connected.
+    private func answer(to q: String) -> String {
+        let ar = settings.languageCode == "ar"
+        let calendar = Calendar.current
+        let monthDebits = transactions.filter {
+            $0.direction == "debit" && !$0.isReversal && $0.currency == settings.currency
+                && calendar.isDate($0.date, equalTo: .now, toGranularity: .month)
+        }
+        func money(_ value: Decimal, _ currency: String? = nil) -> String {
+            GhafFormat.money(value, currency: currency ?? settings.currency, languageCode: settings.languageCode)
+        }
+
+        if q.contains("subscription") || q.contains("اشتراك") {
+            let soon = subscriptions
+                .filter { $0.isActive && $0.nextPaymentDate <= calendar.date(byAdding: .day, value: 30, to: .now)! }
+                .sorted { $0.nextPaymentDate < $1.nextPaymentDate }
+            guard !soon.isEmpty else {
+                return ar ? "لا توجد اشتراكات مستحقة خلال ٣٠ يوماً." : "No subscriptions are due in the next 30 days."
+            }
+            return soon.map {
+                "\($0.name): \(money($0.amount, $0.currency)) · \($0.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated)))"
+            }.joined(separator: "\n")
+        }
+        if q.contains("category") || q.contains("فئة") {
+            let byCategory = Dictionary(grouping: monthDebits, by: \.category)
+                .mapValues { $0.reduce(Decimal.zero) { $0 + $1.amount } }
+            guard let top = byCategory.max(by: { $0.value < $1.value }) else {
+                return ar ? "لا توجد مصاريف هذا الشهر بعد." : "No spending recorded this month yet."
+            }
+            return ar ? "أكثر فئة: \(top.key) بمبلغ \(money(top.value))." : "Top category: \(top.key) at \(money(top.value))."
+        }
+        if q.contains("spen") || q.contains("صرف") {
+            let total = monthDebits.reduce(Decimal.zero) { $0 + $1.amount }
+            return ar ? "صرفت \(money(total)) هذا الشهر في \(monthDebits.count) عملية."
+                      : "You spent \(money(total)) this month across \(monthDebits.count) transactions."
+        }
+        return ar ? "أستطيع الإجابة عن: مصروف الشهر، الاشتراكات القادمة، وأكثر فئة تنفق عليها."
+                  : "I can answer: spending this month, upcoming subscriptions, and your top category."
     }
 }

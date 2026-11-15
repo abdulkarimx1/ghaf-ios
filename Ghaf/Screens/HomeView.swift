@@ -15,6 +15,9 @@ struct GhafHomeView: View {
     @State private var showVoiceEntry = false
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
+    @State private var showAccounts = false
+    @State private var showInsights = false
+    @State private var showReview = false
     @State private var hideBalances = false
     @State private var activityPeriodIndex = 0
 
@@ -62,34 +65,36 @@ struct GhafHomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 header
-                balancesCard
-                budgetCard
+                heroCard
+                actionGrid
                 todaySection
-                HStack(spacing: 10) {
-                    manualEntryButton
-                    automationCard
-                }
-                Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 10)
             .frame(maxWidth: 560)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings) }
             .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }
+            }
+            .sheet(isPresented: $showInsights) {
+                GhafInsightsView(settings: settings).presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showReview) {
+                GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
                     GhafAutomationGuideView(settings: settings)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
-                                Button(settings.languageCode == "ar" ? "تم" : "Done") { showAutomationGuide = false }
+                                Button(ar ? "تم" : "Done") { showAutomationGuide = false }
                             }
                         }
                 }
@@ -107,117 +112,134 @@ struct GhafHomeView: View {
         }
     }
 
-    private var balancesCard: some View {
-        VStack(spacing: 13) {
+    private var ar: Bool { settings.languageCode == "ar" }
+
+    // MARK: Hero: total balance + what is left to spend
+
+    private var heroCard: some View {
+        let totals = GhafAccountBalanceCalculator.balancesByCurrency(accounts: accounts, transactions: transactions)
+        let main = totals.first(where: { $0.currency == settings.currency }) ?? totals.first
+        let currency = main?.currency ?? settings.currency
+
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(settings.languageCode == "ar" ? "الأرصـدة المتـاحة" : "AVAILABLE BALANCES")
-                    .font(GhafTypography.heading(settings.languageCode == "ar" ? 14 : 10, languageCode: settings.languageCode))
-                    .tracking(settings.languageCode == "ar" ? 0 : 1.5)
-                    .foregroundStyle(theme.secondaryText)
-
+                Text(ar ? "رصيدك" : "YOUR BALANCE")
+                    .font(GhafTypography.body(ar ? 14 : 11, languageCode: settings.languageCode, weight: .bold))
+                    .tracking(ar ? 0 : 1.6)
                 Spacer()
-
                 Button {
-                    withAnimation(.snappy(duration: 0.22)) {
-                        hideBalances.toggle()
-                    }
+                    withAnimation(.snappy(duration: 0.22)) { hideBalances.toggle() }
                 } label: {
-                    Image(systemName: hideBalances ? "eye.slash" : "eye")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(theme.secondaryText)
-                        .frame(width: 34, height: 34)
+                    Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 17, weight: .bold))
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(settings.languageCode == "ar"
-                                    ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
-                                    : (hideBalances ? "Show balances" : "Hide balances"))
+                .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
+                                       : (hideBalances ? "Show balances" : "Hide balances"))
             }
+            .foregroundStyle(theme.accentContrast.opacity(0.8))
 
-            let totals = GhafAccountBalanceCalculator.balancesByCurrency(
-                accounts: accounts,
-                transactions: transactions
-            )
-
-            if totals.isEmpty {
-                Text(hideBalances ? "••••••" : GhafFormat.money(0, currency: settings.currency, languageCode: settings.languageCode))
-                    .font(GhafTypography.number(32, weight: .bold))
-                    .foregroundStyle(theme.primaryText)
+            HStack(spacing: 10) {
+                GhafCurrencyIcon(currency: currency, size: 28)
+                Text(hideBalances ? "••••••" : GhafFormat.money(main?.amount ?? 0, currency: currency, languageCode: settings.languageCode))
+                    .font(GhafTypography.number(44, weight: .heavy))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
+            }
+            .foregroundStyle(theme.accentContrast)
 
-                Text(settings.languageCode == "ar" ? "أضف محفظتك أو حسابك الأول" : "Add your first wallet or account")
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.secondaryText)
-            } else {
-                VStack(spacing: 4) {
-                    ForEach(totals) { item in
-                        HStack(spacing: 9) {
-                            GhafCurrencyIcon(currency: item.currency, size: totals.count == 1 ? 22 : 18)
-                            Text(hideBalances ? "••••••" : GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
-                                .font(GhafTypography.number(totals.count == 1 ? 32 : 22, weight: .bold))
-                                .foregroundStyle(theme.primaryText)
-                                .monospacedDigit()
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.65)
-                                .contentTransition(.numericText())
-                        }
+            HStack(spacing: 8) {
+                Text(snapshot.hasBudget
+                     ? (ar ? "المتبقي للصرف" : "Left to spend") + " · " + GhafFormat.money(snapshot.remaining, currency: settings.currency, languageCode: settings.languageCode)
+                     : (ar ? "حدد دخلك الشهري في المزيد" : "Set your monthly income in More"))
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 4)
+                if totals.count > 1 {
+                    Text("+\(totals.count - 1)")
+                        .font(GhafTypography.number(13, weight: .bold))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(theme.accentContrast.opacity(0.15), in: Capsule())
+                }
+            }
+            .foregroundStyle(theme.accentContrast.opacity(0.9))
+
+            if snapshot.hasBudget {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(theme.accentContrast.opacity(0.18))
+                        Capsule().fill(theme.accentContrast)
+                            .frame(width: geometry.size.width * min(max(snapshot.progress, 0), 1))
                     }
                 }
+                .frame(height: 8)
             }
-
-            NavigationLink {
-                GhafAccountsView(settings: settings)
-            } label: {
-                HStack(spacing: 6) {
-                    Text(settings.languageCode == "ar" ? "إدارة الحسابات" : "Manage accounts")
-                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                    Image(systemName: settings.languageCode == "ar" ? "arrow.up.left" : "arrow.up.right")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(theme.accent)
-            }
-            .buttonStyle(.plain)
         }
-        .padding(18)
-        .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme, radius: 22)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.accent, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
-    private var salaryCard: some View {
-        Group {
-            if settings.salaryEnabled == true, let day = settings.salaryDay {
-                Button {
-                    showSalaryCheckIn = true
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(theme.accent)
-                            .frame(width: 42, height: 42)
-                            .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 13))
+    // MARK: Big action buttons (2 x 3, no scrolling)
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(settings.languageCode == "ar" ? "يوم الراتب: \(day)" : "Salary day: \(day)")
-                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                                .foregroundStyle(theme.primaryText)
-                            Text(settings.languageCode == "ar"
-                                 ? "اضغط لتأكيد وصول الراتب أو تأجيل التأكيد."
-                                 : "Tap to confirm whether your salary has arrived.")
-                                .font(GhafTypography.body(11, languageCode: settings.languageCode))
-                                .foregroundStyle(theme.secondaryText)
-                        }
-                        Spacer(minLength: 2)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(theme.secondaryText)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .ghafLiquidGlass(theme: theme, radius: 18)
-                }
-                .buttonStyle(.plain)
+    private var actionGrid: some View {
+        let reviewCount = transactions.filter(\.needsReview).count
+        return Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+            GridRow {
+                actionTile(ar ? "إضافة مصروف" : "Add expense", icon: "plus", filled: true) { showQuickAdd = true }
+                actionTile(ar ? "بالصوت" : "Say it", icon: "mic.fill", filled: true) { showVoiceEntry = true }
+            }
+            GridRow {
+                actionTile(ar ? "الحسابات" : "Accounts", icon: "wallet.bifold.fill") { showAccounts = true }
+                actionTile(ar ? "التحليلات" : "Insights", icon: "chart.pie.fill") { showInsights = true }
+            }
+            GridRow {
+                actionTile(ar ? "للمراجعة" : "To review", icon: "tray.full.fill", badge: reviewCount) { showReview = true }
+                actionTile(ar ? "ربط البنك" : "Bank setup", icon: "bolt.fill") { showAutomationGuide = true }
             }
         }
+        .frame(maxHeight: .infinity)
+    }
+
+    private func actionTile(_ title: String, icon: String, filled: Bool = false, badge: Int = 0,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    Image(systemName: icon)
+                        .font(.system(size: 24, weight: .bold))
+                    Spacer()
+                    if badge > 0 {
+                        Text("\(badge)")
+                            .font(GhafTypography.number(14, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 9).padding(.vertical, 4)
+                            .background(Color.red, in: Capsule())
+                    }
+                }
+                Spacer(minLength: 8)
+                Text(title)
+                    .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .heavy))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .foregroundStyle(filled ? theme.accentContrast : theme.primaryText)
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 92, maxHeight: .infinity, alignment: .leading)
+            .background(filled ? theme.accent : theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(filled ? .clear : theme.outline, lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(badge > 0 ? "\(title), \(badge)" : title)
     }
 
     private func checkSalaryDue() {
@@ -261,27 +283,11 @@ struct GhafHomeView: View {
 
             Spacer(minLength: 4)
 
-            Group {
-                if settings.themeName == "Fujairah" {
-                    Image("FujairahHeritage")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 76, height: 76)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(theme.accent.opacity(0.18), lineWidth: 1)
-                        }
-                } else {
-                    ZStack {
-                        Circle().fill(theme.accent.opacity(0.10))
-                        GhafTreeMark(color: theme.accent)
-                            .padding(12)
-                    }
-                    .frame(width: 54, height: 54)
-                }
+            ZStack {
+                Circle().fill(theme.accent.opacity(0.12))
+                GhafTreeMark(color: theme.accent).padding(11)
             }
+            .frame(width: 50, height: 50)
             .accessibilityHidden(true)
         }
         .padding(.top, 8)
@@ -296,170 +302,6 @@ struct GhafHomeView: View {
         if hour < 12 { return "Good morning" }
         if hour < 17 { return "Good afternoon" }
         return "Good evening"
-    }
-
-    private var budgetCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center) {
-                Text(settings.languageCode == "ar" ? (settings.budgetMode == "Category" ? "المتبقي هذا الشهر" : "المتبقي اليوم") : snapshot.periodTitle.uppercased())
-                    .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                    .tracking(1.7)
-                    .foregroundStyle(theme.accentContrast.opacity(0.72))
-
-                Spacer()
-
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(theme.accentContrast.opacity(0.74))
-            }
-
-            Text(snapshot.hasBudget
-                 ? GhafFormat.money(snapshot.remaining, currency: settings.currency, languageCode: settings.languageCode)
-                 : (settings.languageCode == "ar" ? "أكمل ميزانيتك" : "Set your budget"))
-                .font(GhafTypography.number(snapshot.hasBudget ? 42 : 29, weight: .bold))
-                .monospacedDigit()
-                .foregroundStyle(theme.accentContrast)
-                .lineLimit(1)
-                .minimumScaleFactor(0.66)
-                .contentTransition(.numericText())
-
-            VStack(alignment: .leading, spacing: 9) {
-                HStack {
-                    Text(settings.languageCode == "ar" ? "\(Int(snapshot.progress * 100))٪ مستخدم" : "\(Int(snapshot.progress * 100))% used")
-                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                        .foregroundStyle(theme.accentContrast.opacity(0.86))
-
-                    Spacer()
-
-                    Text(statusTitle)
-                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                        .foregroundStyle(theme.accentContrast)
-                }
-
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(theme.accentContrast.opacity(0.16))
-                        Capsule()
-                            .fill(theme.comfortable)
-                            .frame(width: geometry.size.width * min(max(snapshot.progress, 0), 1))
-                    }
-                }
-                .frame(height: 7)
-            }
-
-            Rectangle()
-                .fill(theme.accentContrast.opacity(0.18))
-                .frame(height: 1)
-
-            HStack(spacing: 0) {
-                budgetMetric(title: settings.languageCode == "ar" ? "الميزانية" : "BUDGET", amount: snapshot.limit)
-                Spacer(minLength: 8)
-                budgetMetric(title: settings.languageCode == "ar" ? "المصروف" : "SPENT", amount: snapshot.spent)
-                Spacer(minLength: 8)
-                budgetMetric(title: settings.languageCode == "ar" ? "المتبقي" : "LEFT", amount: snapshot.remaining, alignment: .trailing)
-            }
-
-            if !snapshot.hasBudget {
-                Text(settings.budgetMode == "Category"
-                     ? "Add category budgets in Settings."
-                     : "Add your monthly income in Settings.")
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.accentContrast.opacity(0.78))
-            }
-        }
-        .padding(17)
-        .background(theme.accent, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(theme.accentContrast.opacity(0.12), lineWidth: 1)
-        }
-        .shadow(color: theme.accent.opacity(0.13), radius: 18, x: 0, y: 8)
-    }
-
-    private func budgetMetric(
-        title: String,
-        amount: Decimal,
-        alignment: HorizontalAlignment = .leading
-    ) -> some View {
-        VStack(alignment: alignment, spacing: 5) {
-            Text(title)
-                .font(GhafTypography.body(9, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.25)
-                .foregroundStyle(theme.accentContrast.opacity(0.64))
-
-            Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
-                .font(GhafTypography.number(14, weight: .semibold))
-                .foregroundStyle(theme.accentContrast)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-    }
-
-    private var statusTitle: String {
-        if settings.languageCode == "ar" {
-            switch snapshot.status {
-            case .comfortable: return "ضمن الحد"
-            case .close: return "اقتربت من الحد"
-            case .over: return "تجاوزت الحد"
-            }
-        }
-        switch snapshot.status {
-        case .comfortable: return "On track"
-        case .close: return "Near limit"
-        case .over: return "Over budget"
-        }
-    }
-
-    private var automationCard: some View {
-        Button { showAutomationGuide = true } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "bolt.badge.clock").font(.system(size: 15, weight: .semibold))
-                Text(settings.languageCode == "ar" ? "ربط البنك" : "Bank setup")
-                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
-                    .lineLimit(1).minimumScaleFactor(0.78)
-            }
-            .foregroundStyle(theme.primaryText)
-            .frame(maxWidth: .infinity).frame(minHeight: 58)
-            .ghafLiquidGlass(theme: theme, radius: 16)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var manualEntryButton: some View {
-        Menu {
-            Button {
-                showVoiceEntry = true
-            } label: {
-                Label(
-                    settings.languageCode == "ar" ? "أضف بالصوت" : "Add with voice",
-                    systemImage: "waveform"
-                )
-            }
-
-            Button {
-                showQuickAdd = true
-            } label: {
-                Label(
-                    settings.languageCode == "ar" ? "إضافة يدوية" : "Add manually",
-                    systemImage: "square.and.pencil"
-                )
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .bold))
-                Text(settings.languageCode == "ar" ? "إضافة عملية" : "Add transaction")
-                    .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .bold))
-                Spacer()
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .semibold))
-            }
-            .foregroundStyle(theme.accent)
-            .padding(.horizontal, 16)
-            .frame(minHeight: 58)
-            .background(theme.accent.opacity(0.075), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 
     private var todaySection: some View {
