@@ -2,6 +2,24 @@ import XCTest
 @testable import GhafCore
 
 final class VoiceTransactionParserTests: XCTestCase {
+    func testSplitsOnAndWhenEachPartHasAnAmount() {
+        let drafts = GhafVoiceTransactionParser.parse("karak 3 and petrol 120 and gym 250", languageCode: "en", baseCurrency: "AED")
+        XCTAssertEqual(drafts.map(\.merchant), ["karak", "petrol", "gym"])
+        XCTAssertEqual(drafts.map(\.amount), [3, 120, 250])
+    }
+
+    func testKeepsAndInsideOneMerchant() {
+        let drafts = GhafVoiceTransactionParser.parse("coffee and cake 20, fuel 90", languageCode: "en", baseCurrency: "AED")
+        XCTAssertEqual(drafts.map(\.merchant), ["coffee cake", "fuel"])
+        XCTAssertEqual(drafts.map(\.amount), [20, 90])
+    }
+
+    func testSplitsArabicWaConnector() {
+        let drafts = GhafVoiceTransactionParser.parse("غداء ٣٥ درهم و بنزين ١٢٠", languageCode: "ar", baseCurrency: "AED")
+        XCTAssertEqual(drafts.count, 2)
+        XCTAssertEqual(drafts.map(\.amount), [35, 120])
+    }
+
     func testSplitsMultipleEnglishPurchasesAndPreservesMerchantContext() {
         let drafts = GhafVoiceTransactionParser.parse(
             "I went to supermarket and bought groceries for 560 dhs, then I bought meds for 120dhs",

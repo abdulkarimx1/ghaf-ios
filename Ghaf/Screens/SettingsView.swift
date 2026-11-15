@@ -530,9 +530,21 @@ struct GhafSettingsView: View {
         settingsCard(languageCode == "ar" ? "الفئات" : "Categories", subtitle: languageCode == "ar" ? "خصص طريقة تصنيف مصروفاتك" : "Teach Ghaf how you group your spending") {
             ForEach(settings.categories, id: \.self) { category in
                 HStack {
-                    Text(category)
-                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
-                        .foregroundStyle(theme.primaryText)
+                    GhafCategoryIcon(category: category, tint: theme.accent)
+                        .scaleEffect(0.7)
+                        .frame(width: 34, height: 34)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(GhafLocalization.category(category, languageCode: languageCode))
+                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
+                            .foregroundStyle(theme.primaryText)
+                        let subs = settings.subcategories(of: category)
+                        if !subs.isEmpty {
+                            Text(subs.joined(separator: " · "))
+                                .font(GhafTypography.body(11, languageCode: languageCode))
+                                .foregroundStyle(theme.secondaryText)
+                                .lineLimit(2)
+                        }
+                    }
                     Spacer()
                     Button(role: .destructive) {
                         removeCategory(category)

@@ -74,6 +74,7 @@ final class TransactionIngestionService {
         let resolvedAccount = matchedAccount
             ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil)
 
+        let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, context: context)
         let category = try MerchantCategorizer.category(
             for: parsed.merchant,
             direction: parsed.direction,
@@ -100,6 +101,7 @@ final class TransactionIngestionService {
             isReversal: isReversal,
             accountID: resolvedAccount?.id
         )
+        transaction.subcategory = suggestion?.category == category ? suggestion?.subcategory : nil
 
         let detectedSubscription = parsed.direction == .debit && !isReversal
             ? try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)

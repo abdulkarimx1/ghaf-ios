@@ -377,7 +377,8 @@ struct GhafTransactionRow: View {
                     .lineLimit(1)
 
                 HStack(spacing: 5) {
-                    Text(GhafLocalization.category(transaction.category, languageCode: languageCode))
+                    Text(GhafLocalization.category(transaction.category, languageCode: languageCode)
+                         + (transaction.subcategory.map { " · \($0)" } ?? ""))
                     Text("·")
                     Text(transaction.date.formatted(
                         .dateTime.hour().minute().locale(Locale(identifier: languageCode))

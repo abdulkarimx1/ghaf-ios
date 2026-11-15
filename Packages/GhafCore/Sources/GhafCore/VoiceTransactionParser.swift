@@ -14,11 +14,37 @@ public struct GhafVoiceTransactionDraft: Identifiable {
     public var currency: String
     public var date: Date
     public var category: String
+    public var subcategory: String? = nil
     public var direction: String
 }
 
 public enum GhafVoiceTransactionParser {
     private static let amountPattern = #"(?i)(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\s*)?([0-9]+,[0-9]{1,2}|[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?![0-9])\s*(?:\b(?:aed|dhs?|dirhams?|sar|kwd|bhd|omr|qar|usd|eur|gbp)\b|درهم|دراهم|ريال|ريالات|دينار|دنانير|ر\.س|د\.إ)?"#
+
+    /// Splits "karak 3 and petrol 120" on and / & / و / ", " but only where each side has its own amount,
+    /// so "coffee and cake 20" stays one purchase.
+    static func splitOnConnectors(_ part: String) -> [String] {
+        let pieces = normalizeNumerals(part)
+            .replacingOccurrences(of: #"(?i)\s+(?:and|&)\s+|\s+و\s*(?=\S)|,\s+"#, with: "|", options: .regularExpression)
+            .components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        var result: [String] = []
+        var pending = ""
+        for piece in pieces {
+            let joined = pending.isEmpty ? piece : pending + " " + piece
+            if piece.range(of: #"[0-9]"#, options: .regularExpression) != nil {
+                result.append(joined)
+                pending = ""
+            } else {
+                pending = joined
+            }
+        }
+        if !pending.isEmpty {
+            if let last = result.popLast() { result.append(last + " " + pending) } else { result.append(pending) }
+        }
+        return result
+    }
 
     public static func parse(_ transcript: String, languageCode: String, baseCurrency: String) -> [GhafVoiceTransactionDraft] {
         let separated = transcript
@@ -31,6 +57,7 @@ public enum GhafVoiceTransactionParser {
         let parts = separated.components(separatedBy: "|")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+            .flatMap(splitOnConnectors)
 
         return parts.compactMap { originalSegment in
             let segment = normalizeNumerals(originalSegment)

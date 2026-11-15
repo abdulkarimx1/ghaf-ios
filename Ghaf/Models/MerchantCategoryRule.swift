@@ -9,6 +9,11 @@ final class MerchantCategoryRule {
 
     var category: String
 
+    var subcategory: String? = nil
+
+    /// How many confirmed transactions taught this rule.
+    var hits: Int = 1
+
     var updatedAt: Date
 
     init(

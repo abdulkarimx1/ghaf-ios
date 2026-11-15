@@ -11,6 +11,12 @@ enum GhafDefaults {
     static let defaultTheme = "Abu Dhabi"
 }
 
+struct GhafCategoryMeta: Codable, Equatable {
+    var subcategories: [String] = []
+    var icon: String?
+    var color: String?
+}
+
 @Model
 final class GhafSettings {
     var id: UUID
@@ -25,6 +31,8 @@ final class GhafSettings {
     var budgetMode: String
     var categoriesJSON: String
     var categoryBudgetsJSON: String
+    /// Per-category subcategories, SF Symbol and colour. Keyed by the names in `categories`.
+    var categoryMetaJSON: String = "{}"
     var hasCompletedOnboarding: Bool
     var createdAt: Date
 
@@ -101,6 +109,39 @@ final class GhafSettings {
             return (try? JSONDecoder().decode([String: Decimal].self, from: data)) ?? [:]
         }
         set { categoryBudgetsJSON = Self.encode(newValue) }
+    }
+
+    var categoryMeta: [String: GhafCategoryMeta] {
+        get {
+            guard let data = categoryMetaJSON.data(using: .utf8) else { return [:] }
+            return (try? JSONDecoder().decode([String: GhafCategoryMeta].self, from: data)) ?? [:]
+        }
+        set { categoryMetaJSON = Self.encode(newValue) }
+    }
+
+    func subcategories(of category: String) -> [String] {
+        categoryMeta[category]?.subcategories ?? []
+    }
+
+    /// Category → subcategories, the shape `CategoryMatcher` works on.
+    var catalog: [String: [String]] {
+        Dictionary(uniqueKeysWithValues: categories.map { ($0, subcategories(of: $0)) })
+    }
+
+    /// Adds a category (and optionally a subcategory under it) if missing. Returns the stored names.
+    @discardableResult
+    func addCategory(_ rawName: String, subcategory rawSub: String? = nil) -> (category: String, subcategory: String?) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let category = categories.first { $0.caseInsensitiveCompare(name) == .orderedSame } ?? name
+        if !categories.contains(category) { categories.append(category) }
+        guard let sub = rawSub?.trimmingCharacters(in: .whitespacesAndNewlines), !sub.isEmpty else { return (category, nil) }
+        var meta = categoryMeta
+        var entry = meta[category] ?? GhafCategoryMeta()
+        let existing = entry.subcategories.first { $0.caseInsensitiveCompare(sub) == .orderedSame }
+        if existing == nil { entry.subcategories.append(sub) }
+        meta[category] = entry
+        categoryMeta = meta
+        return (category, existing ?? sub)
     }
 
     private static func encode<T: Encodable>(_ value: T) -> String {

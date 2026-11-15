@@ -259,9 +259,10 @@ enum GhafDraftSaver {
                 accountID: assigned?.id
             )
             transaction.note = note
+            transaction.subcategory = category == draft.category ? draft.subcategory : nil
             context.insert(transaction)
             if let merchant = transaction.merchant, !merchant.isEmpty, category != "Other" {
-                try MerchantCategorizer.learn(merchant: merchant, category: category, context: context, saveImmediately: false)
+                try MerchantCategorizer.learn(merchant: merchant, category: category, subcategory: transaction.subcategory, context: context, saveImmediately: false)
             }
         }
         try context.save()

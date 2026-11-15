@@ -344,6 +344,7 @@ struct GhafTransactionEditor: View {
     @State private var amount: String
     @State private var merchant: String
     @State private var category: String
+    @State private var subcategory: String?
     @State private var direction: String
     @State private var note: String
     @State private var date: Date
@@ -382,6 +383,7 @@ struct GhafTransactionEditor: View {
         _amount = State(initialValue: GhafFormat.decimal(transaction.amount))
         _merchant = State(initialValue: transaction.merchant ?? "")
         _category = State(initialValue: transaction.category)
+        _subcategory = State(initialValue: transaction.subcategory)
         _direction = State(initialValue: transaction.direction)
         _note = State(initialValue: transaction.note ?? "")
         _date = State(initialValue: transaction.date)
@@ -414,11 +416,11 @@ struct GhafTransactionEditor: View {
                     .pickerStyle(.segmented)
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
-                    Picker(languageCode == "ar" ? "الفئة" : "Category", selection: $category) {
-                        ForEach(categories, id: \.self) { Text(GhafLocalization.category($0, languageCode: languageCode)).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(theme.accent)
+                    GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: languageCode, tint: theme.accent)
+                        .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                        .padding(13)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
 
                     if !accounts.isEmpty {
                         editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
@@ -561,6 +563,7 @@ struct GhafTransactionEditor: View {
         transaction.amount = value
         transaction.merchant = merchant.isEmpty ? nil : merchant
         transaction.category = category
+        transaction.subcategory = subcategory
         transaction.direction = direction
         transaction.note = note
         transaction.date = date
@@ -569,7 +572,7 @@ struct GhafTransactionEditor: View {
 
         if let merchantName = transaction.merchant, !merchantName.isEmpty {
             do {
-                try MerchantCategorizer.learn(merchant: merchantName, category: category, context: modelContext)
+                try MerchantCategorizer.learn(merchant: merchantName, category: category, subcategory: subcategory, context: modelContext)
             } catch {
                 errorMessage = languageCode == "ar" ? "تعذر حفظ قاعدة المتجر." : "Could not save merchant rule."
                 return

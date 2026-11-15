@@ -109,9 +109,37 @@ struct GhafTreeMark: View {
     }
 }
 
+private struct GhafCategoryMetaKey: EnvironmentKey {
+    static let defaultValue: [String: GhafCategoryMeta] = [:]
+}
+
+extension EnvironmentValues {
+    /// The user's category icons and colours, injected once at the root.
+    var ghafCategoryMeta: [String: GhafCategoryMeta] {
+        get { self[GhafCategoryMetaKey.self] }
+        set { self[GhafCategoryMetaKey.self] = newValue }
+    }
+}
+
 struct GhafCategoryIcon: View {
     let category: String
     let tint: Color
+    @Environment(\.ghafCategoryMeta) private var meta
+
+    private static func color(named name: String?) -> Color? {
+        switch name?.lowercased() {
+        case "orange": Color(red: 0.95, green: 0.50, blue: 0.20)
+        case "green": Color(red: 0.20, green: 0.66, blue: 0.42)
+        case "blue": Color(red: 0.25, green: 0.52, blue: 0.95)
+        case "red": Color(red: 0.92, green: 0.30, blue: 0.40)
+        case "yellow": Color(red: 0.96, green: 0.72, blue: 0.10)
+        case "teal": Color(red: 0.15, green: 0.70, blue: 0.80)
+        case "purple": Color(red: 0.55, green: 0.40, blue: 0.95)
+        case "pink": Color(red: 0.85, green: 0.36, blue: 0.66)
+        case "gray", "grey": Color(red: 0.45, green: 0.52, blue: 0.60)
+        default: nil
+        }
+    }
 
     private var style: (symbol: String, color: Color) {
         switch category {
@@ -132,11 +160,13 @@ struct GhafCategoryIcon: View {
     }
 
     var body: some View {
-        Image(systemName: style.symbol)
+        let custom = meta[category]
+        Image(systemName: custom?.icon ?? style.symbol)
             .font(.system(size: 19, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: 46, height: 46)
-            .background(style.color.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background((Self.color(named: custom?.color) ?? style.color).gradient,
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .accessibilityHidden(true)
     }
 }

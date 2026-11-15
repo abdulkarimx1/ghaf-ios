@@ -186,18 +186,9 @@ struct GhafAIView: View {
                         Text(draft.merchant.isEmpty ? (ar ? "بدون اسم" : "No name") : draft.merchant)
                             .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .bold))
                             .foregroundStyle(theme.primaryText)
-                        Menu {
-                            ForEach(settings.categories, id: \.self) { category in
-                                Button(GhafLocalization.category(category, languageCode: settings.languageCode)) { draft.category = category }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(GhafLocalization.category(draft.category, languageCode: settings.languageCode))
-                                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
-                            }
+                        GhafCategoryPicker(category: $draft.category, subcategory: $draft.subcategory,
+                                           languageCode: settings.languageCode, tint: theme.accent)
                             .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                            .foregroundStyle(theme.accent)
-                        }
                         .disabled(state != .pending)
                     }
                     Spacer(minLength: 6)
@@ -319,15 +310,23 @@ struct GhafAIView: View {
         // A purchase ("35 AED lunch") becomes a draft card; anything else goes to the assistant.
         let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
             var result = draft
-            let direction = TransactionDirection(rawValue: draft.direction) ?? .debit
-            result.category = (try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: modelContext)) ?? "Other"
+            if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
+                result.category = match.category
+                result.subcategory = match.subcategory
+            } else {
+                result.category = draft.direction == "credit" ? "Transfers" : "Other"
+            }
             return result
         }
         if !drafts.isEmpty {
             let intro = ar
                 ? (drafts.count == 1 ? "وجدت عملية. راجع الفئة ثم احفظ:" : "وجدت \(drafts.count) عمليات. راجعها ثم احفظ:")
                 : (drafts.count == 1 ? "Got it. Check the category, then save:" : "I found \(drafts.count) transactions. Check them, then save:")
-            withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro, drafts: drafts)) }
+            let unmatched = drafts.filter { $0.category == "Other" && !$0.merchant.isEmpty }.map(\.merchant)
+            let hint = unmatched.isEmpty ? "" : (ar
+                ? "\nلا توجد فئة مناسبة لـ \(unmatched.joined(separator: "، ")). اضغط على الفئة واختر «فئة جديدة» لحفظها."
+                : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category to save one.")
+            withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro + hint, drafts: drafts)) }
             speak(intro)
             return
         }

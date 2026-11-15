@@ -140,17 +140,23 @@ enum MerchantCategorizer {
     ]
 
     static func normalize(_ merchant: String) -> String {
+        CategoryMatcher.normalize(merchant)
+    }
 
-        return merchant
-            .folding(
-                options: [.diacriticInsensitive, .caseInsensitive],
-                locale: Locale(identifier: "en_US")
-            )
-            .lowercased()
-            .split(whereSeparator: {
-                !$0.isLetter && !$0.isNumber
-            })
-            .joined(separator: " ")
+    /// Best category and subcategory for a merchant or spoken description, or nil when nothing fits.
+    static func suggestion(for merchant: String?, context: ModelContext) -> CategoryMatcher.Match? {
+        guard let merchant, !merchant.isEmpty else { return nil }
+        let catalog = (try? context.fetch(FetchDescriptor<GhafSettings>()).first)?.catalog
+            ?? Dictionary(uniqueKeysWithValues: GhafDefaults.defaultCategories.map { ($0, [String]()) })
+        var learned: [String: CategoryMatcher.Rule] = [:]
+        // Built-in UAE merchants first, so the user's own rules overwrite them.
+        for (name, category) in seededRules where catalog[category] != nil {
+            learned[normalize(name)] = CategoryMatcher.Rule(category: category, subcategory: nil, hits: 0)
+        }
+        for rule in (try? context.fetch(FetchDescriptor<MerchantCategoryRule>())) ?? [] where catalog[rule.category] != nil {
+            learned[rule.normalizedMerchant] = CategoryMatcher.Rule(category: rule.category, subcategory: rule.subcategory, hits: rule.hits)
+        }
+        return CategoryMatcher.match(merchant, catalog: catalog, learned: learned)
     }
 
     static func category(
@@ -158,85 +164,33 @@ enum MerchantCategorizer {
         direction: TransactionDirection,
         context: ModelContext
     ) throws -> String {
-
-        guard let merchant else {
-
-            return direction == .credit
-                ? "Transfers"
-                : "Other"
-        }
-
-        let key = normalize(merchant)
-
-        // User-defined rules take priority.
-        let descriptor = FetchDescriptor<MerchantCategoryRule>(
-            predicate: #Predicate {
-                $0.normalizedMerchant == key
-            }
-        )
-
-        if let learnedRule = try context.fetch(descriptor).first {
-            return learnedRule.category
-        }
-
-        // Use built-in UAE merchant rules.
-        // Match complete normalized words/phrases. Unbounded substring
-        // matching caused short rules such as "du" to match unrelated names.
-        let paddedKey = " \(key) "
-        for (merchantName, category) in seededRules {
-            let rule = normalize(merchantName)
-            guard !rule.isEmpty else { continue }
-            if paddedKey.contains(" \(rule) ") {
-                return category
-            }
-        }
-
-        if key.contains("salary") {
-            return "Salary"
-        }
-
-        return direction == .credit
-            ? "Transfers"
-            : "Other"
+        if let match = suggestion(for: merchant, context: context) { return match.category }
+        if merchant.map(normalize)?.contains("salary") == true { return "Salary" }
+        return direction == .credit ? "Transfers" : "Other"
     }
 
-    /// Saves a user's category correction.
+    /// Saves a confirmed category (and subcategory) for a merchant; repeated confirmations raise its weight.
     static func learn(
         merchant: String,
         category: String,
+        subcategory: String? = nil,
         context: ModelContext,
         saveImmediately: Bool = true
     ) throws {
-
         let key = normalize(merchant)
+        guard !key.isEmpty, category != "Other" else { return }
 
-        guard !key.isEmpty else {
-            return
-        }
-
-        let descriptor = FetchDescriptor<MerchantCategoryRule>(
-            predicate: #Predicate {
-                $0.normalizedMerchant == key
-            }
-        )
-
+        let descriptor = FetchDescriptor<MerchantCategoryRule>(predicate: #Predicate { $0.normalizedMerchant == key })
         if let existing = try context.fetch(descriptor).first {
-
+            existing.hits = existing.category == category && existing.subcategory == subcategory ? existing.hits + 1 : 1
             existing.category = category
+            existing.subcategory = subcategory
             existing.updatedAt = Date()
-
         } else {
-
-            let rule = MerchantCategoryRule(
-                normalizedMerchant: key,
-                category: category
-            )
-
+            let rule = MerchantCategoryRule(normalizedMerchant: key, category: category)
+            rule.subcategory = subcategory
             context.insert(rule)
         }
-
-        if saveImmediately {
-            try context.save()
-        }
+        if saveImmediately { try context.save() }
     }
 }

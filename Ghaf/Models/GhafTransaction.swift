@@ -13,6 +13,7 @@ final class GhafTransaction {
     var date: Date
     var direction: String
     var category: String
+    var subcategory: String? = nil
     var confidence: Double
     var bank: String?
     var needsReview: Bool

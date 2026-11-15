@@ -253,6 +253,7 @@ struct GhafTabView: View {
         }
         .tint(theme.accent)
         .sensoryFeedback(.selection, trigger: selectedTab)
+        .environment(\.ghafCategoryMeta, settings.categoryMeta)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
         .preferredColorScheme(

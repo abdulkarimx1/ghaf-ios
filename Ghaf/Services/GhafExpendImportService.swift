@@ -100,6 +100,25 @@ enum GhafExpendImportService {
             }
         )
 
+        // The user's own Expend categories (by id), with their subcategories, icons and colours.
+        let categoryRows = ((root["categories"] as? [[String: Any]]) ?? []).filter { ($0["deleted"] as? Bool) != true }
+        let categoryNames: [String: String] = Dictionary(categoryRows.compactMap { row -> (String, String)? in
+            guard let id = string(row["_id"]), let name = string(row["name"]) else { return nil }
+            return (id, transferCategoryIDs.contains(id) ? "Transfers" : name)
+        }, uniquingKeysWith: { first, _ in first })
+        var categoryMeta: [String: GhafCategoryMeta] = [:]
+        for row in categoryRows {
+            guard let id = string(row["_id"]), let name = categoryNames[id] else { continue }
+            categoryMeta[name, default: GhafCategoryMeta()].icon = symbol(forExpendIcon: string(row["icon"]))
+            categoryMeta[name, default: GhafCategoryMeta()].color = string(row["color"])
+        }
+        for row in (root["subcategories"] as? [[String: Any]]) ?? [] where (row["deleted"] as? Bool) != true {
+            guard let parent = string(row["mainCategoryID"]).flatMap({ categoryNames[$0] }),
+                  let name = string(row["name"]),
+                  categoryMeta[parent]?.subcategories.contains(name) != true else { continue }
+            categoryMeta[parent, default: GhafCategoryMeta()].subcategories.append(name)
+        }
+
         let walletsByID = Dictionary(
             uniqueKeysWithValues: validWalletRows.compactMap { row -> (String, [String: Any])? in
                 guard let id = string(row["_id"]) else { return nil }
@@ -108,7 +127,7 @@ enum GhafExpendImportService {
         )
 
         let parsedTransactions = transactionRows.flatMap { row in
-            prepare(row, walletIDs: walletIDs, walletsByID: walletsByID, subcategoryNames: subcategoryNames)
+            prepare(row, walletIDs: walletIDs, walletsByID: walletsByID, subcategoryNames: subcategoryNames, categoryNames: categoryNames)
         }
         guard !parsedTransactions.isEmpty else {
             throw GhafExpendImportError.invalidTransactionData
@@ -155,7 +174,13 @@ enum GhafExpendImportService {
             )
         }
 
-        let categoryValues = Set(categoryMap.values).union(GhafDefaults.defaultCategories)
+        // Keep the user's category order: categories they used first, then "Other".
+        let usedCategories = parsedTransactions.map(\.category)
+        var categoryValues: [String] = []
+        for name in categoryRows.compactMap({ string($0["_id"]).flatMap { categoryNames[$0] } }) + usedCategories + ["Other"]
+        where !categoryValues.contains(name) {
+            categoryValues.append(name)
+        }
         let accountByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
         for row in validWalletRows {
             guard let sourceID = string(row["_id"]),
@@ -174,6 +199,8 @@ enum GhafExpendImportService {
         }
 
         let currentRules = try context.fetch(FetchDescriptor<MerchantCategoryRule>())
+        let recurringRows = ((root["recurringTransactions"] as? [[String: Any]]) ?? []).filter { string($0["type"]) == "expense" }
+        var subscriptionsImported = 0
         let currentTransactions = try context.fetch(FetchDescriptor<GhafTransaction>())
         let currentAccounts = try context.fetch(FetchDescriptor<GhafAccount>())
 
@@ -187,7 +214,8 @@ enum GhafExpendImportService {
             settings.userName = string(profile["name"]) ?? settings.userName
             settings.currency = mainCurrency
             settings.languageCode = languageCode
-            settings.categories = Array(categoryValues).sorted()
+            settings.categories = categoryValues
+            settings.categoryMeta = categoryMeta
             settings.categoryBudgets = [:]
             settings.monthlyIncome = decimal(profile["monthlyIncome"]) ?? settings.monthlyIncome
             settings.fixedCommitments = decimal(profile["fixedCommitments"]) ?? settings.fixedCommitments
@@ -213,9 +241,33 @@ enum GhafExpendImportService {
                     accountID: item.accountID
                 )
                 transaction.note = item.note
+                transaction.subcategory = item.subcategory
                 context.insert(transaction)
             }
+
+            // Learn merchant → category/subcategory from the whole history.
+            let examples = parsedTransactions.filter { $0.direction == .debit && $0.category != "Transfers" }.compactMap { item in
+                item.merchant.map { CategoryMatcher.Example(merchant: $0, category: item.category, subcategory: item.subcategory) }
+            }
+            for (key, rule) in CategoryMatcher.learn(from: examples) {
+                let learned = MerchantCategoryRule(normalizedMerchant: key, category: rule.category)
+                learned.subcategory = rule.subcategory
+                learned.hits = rule.hits
+                context.insert(learned)
+            }
+
+            let existingNames = Set(((try? context.fetch(FetchDescriptor<GhafSubscription>())) ?? []).map { CategoryMatcher.normalize($0.name) })
+            for row in recurringRows {
+                guard let item = subscription(from: row, walletIDs: walletIDs, walletsByID: walletsByID,
+                                              categoryNames: categoryNames),
+                      !existingNames.contains(CategoryMatcher.normalize(item.name)) else { continue }
+                context.insert(item)
+                subscriptionsImported += 1
+            }
             try context.save()
+            for item in try context.fetch(FetchDescriptor<GhafSubscription>()) where item.isActive {
+                GhafSubscriptionReminderService.schedule(item, language: languageCode)
+            }
         } catch {
             context.rollback()
             throw error
@@ -226,7 +278,7 @@ enum GhafExpendImportService {
             accountsImported: accounts.count,
             transactionsImported: parsedTransactions.count,
             skippedTransactions: max(0, skipped),
-            recurringRulesNotImported: (root["recurringTransactions"] as? [[String: Any]])?.count ?? 0,
+            recurringRulesNotImported: max(0, ((root["recurringTransactions"] as? [[String: Any]])?.count ?? 0) - subscriptionsImported),
             budgetsNotImported: (root["budgets"] as? [[String: Any]])?.count ?? 0,
             sourceName: "Expend"
         )
@@ -240,6 +292,7 @@ enum GhafExpendImportService {
         let date: Date
         let direction: TransactionDirection
         let category: String
+        let subcategory: String?
         let note: String?
         let bank: String?
         let accountID: UUID?
@@ -252,7 +305,8 @@ enum GhafExpendImportService {
         _ row: [String: Any],
         walletIDs: [String: UUID],
         walletsByID: [String: [String: Any]],
-        subcategoryNames: [String: String]
+        subcategoryNames: [String: String],
+        categoryNames: [String: String]
     ) -> [PreparedTransaction] {
         guard let sourceID = string(row["_id"]),
               let type = string(row["type"])?.lowercased(),
@@ -261,7 +315,7 @@ enum GhafExpendImportService {
 
         let date = date(row["dateCreated"]) ?? date(row["lastUpdated"]) ?? .now
         let rawCategory = string(row["category"]) ?? "other"
-        let category = categoryMap[rawCategory] ?? "Other"
+        let category = categoryNames[rawCategory] ?? categoryMap[rawCategory] ?? "Other"
         let subcategory = string(row["subcategory"]).flatMap { subcategoryNames[$0] }
         let merchant = string(row["name"])
         let sourceAccountID = string(row["srcWallet"]).flatMap { walletIDs[$0] }
@@ -269,7 +323,7 @@ enum GhafExpendImportService {
         let sourceCurrency = string(sourceWallet?["currencyCode"])?.uppercased() ?? "AED"
         let bank = string(sourceWallet?["institution"])
         let originalNotes = string(row["notes"])
-        let noteParts = [originalNotes, subcategory.map { "Subcategory: \($0)" }]
+        let noteParts = [originalNotes]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         let note = noteParts.isEmpty ? nil : noteParts.joined(separator: " · ")
@@ -285,6 +339,7 @@ enum GhafExpendImportService {
                 date: date,
                 direction: .debit,
                 category: "Transfers",
+                subcategory: nil,
                 note: note,
                 bank: bank,
                 accountID: sourceAccountID,
@@ -306,6 +361,7 @@ enum GhafExpendImportService {
                 date: date,
                 direction: .credit,
                 category: "Transfers",
+                subcategory: nil,
                 note: note,
                 bank: string(destinationWallet["institution"]),
                 accountID: destinationAccountID,
@@ -325,6 +381,7 @@ enum GhafExpendImportService {
             date: date,
             direction: direction,
             category: category,
+            subcategory: subcategory,
             note: note,
             bank: bank,
             accountID: sourceAccountID,
@@ -332,6 +389,59 @@ enum GhafExpendImportService {
             isReversal: reversal,
             isTransferMirror: false
         )]
+    }
+
+    private static let transferCategoryIDs: Set<String> = ["transfer", "others-income"]
+
+    private static func subscription(
+        from row: [String: Any],
+        walletIDs: [String: UUID],
+        walletsByID: [String: [String: Any]],
+        categoryNames: [String: String]
+    ) -> GhafSubscription? {
+        guard let name = string(row["name"]), let amount = decimal(row["amount"]), amount > 0 else { return nil }
+        let cycle: GhafBillingCycle
+        switch string(row["recurrence"])?.lowercased() ?? "" {
+        case let value where value.contains("week"): cycle = .weekly
+        case let value where value.contains("quarter") || value.contains("3month"): cycle = .quarterly
+        case let value where value.contains("year"): cycle = .yearly
+        default: cycle = .monthly
+        }
+        let wallet = string(row["srcWallet"])
+        return GhafSubscription(
+            name: name,
+            amount: amount,
+            currency: string(wallet.flatMap { walletsByID[$0] }?["currencyCode"])?.uppercased() ?? "AED",
+            billingCycle: cycle,
+            nextPaymentDate: date(row["nextTransactionDate"]) ?? cycle.nextDate(after: .now),
+            category: string(row["category"]).flatMap { categoryNames[$0] } ?? "Subscriptions",
+            accountID: wallet.flatMap { walletIDs[$0] },
+            notes: "Imported from Expend"
+        )
+    }
+
+    /// Expend icon names → SF Symbols.
+    private static func symbol(forExpendIcon icon: String?) -> String? {
+        switch icon {
+        case "spoonFork": "fork.knife"
+        case "car": "car.fill"
+        case "shoppingCart": "cart.fill"
+        case "health": "heart.fill"
+        case "shoppingBag": "bag.fill"
+        case "lightBulb": "lightbulb.fill"
+        case "dice": "dice.fill"
+        case "bills": "doc.text.fill"
+        case "coin": "dollarsign.circle.fill"
+        case "coinStack": "banknote.fill"
+        case "wallet": "wallet.pass.fill"
+        case "transfer": "arrow.left.arrow.right"
+        case "adjustment": "slider.horizontal.3"
+        case "stonks": "chart.line.uptrend.xyaxis"
+        case "borrow": "arrow.down.circle.fill"
+        case "lend": "arrow.up.circle.fill"
+        case "others": "ellipsis.circle.fill"
+        default: nil
+        }
     }
 
     private static func accountType(for name: String) -> GhafAccountType {

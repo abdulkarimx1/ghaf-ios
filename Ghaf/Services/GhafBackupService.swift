@@ -9,6 +9,22 @@ private struct GhafBackupPayload: Codable {
     var transactions: [GhafTransactionBackup]
     var merchantRules: [GhafMerchantRuleBackup]
     var accounts: [GhafAccountBackup]?
+    var subscriptions: [GhafSubscriptionBackup]?
+}
+
+private struct GhafSubscriptionBackup: Codable {
+    var id: UUID
+    var name: String
+    var amount: Decimal
+    var currency: String
+    var billingCycle: String
+    var nextPaymentDate: Date
+    var category: String
+    var accountID: UUID?
+    var reminderDays: Int
+    var isActive: Bool
+    var needsConfirmation: Bool
+    var notes: String?
 }
 
 private struct GhafSettingsBackup: Codable {
@@ -22,6 +38,7 @@ private struct GhafSettingsBackup: Codable {
     var appearanceMode: String
     var budgetMode: String
     var categories: [String]
+    var categoryMeta: [String: GhafCategoryMeta]?
     var categoryBudgets: [String: Decimal]
     var hasCompletedOnboarding: Bool
 
@@ -45,6 +62,7 @@ private struct GhafTransactionBackup: Codable {
     var date: Date
     var direction: String
     var category: String
+    var subcategory: String?
     var confidence: Double
     var bank: String?
     var needsReview: Bool
@@ -74,6 +92,8 @@ private struct GhafAccountBackup: Codable {
 private struct GhafMerchantRuleBackup: Codable {
     var normalizedMerchant: String
     var category: String
+    var subcategory: String?
+    var hits: Int?
     var updatedAt: Date
 }
 
@@ -95,6 +115,7 @@ enum GhafBackupService {
         let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
         let rules = try context.fetch(FetchDescriptor<MerchantCategoryRule>())
         let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
+        let subscriptions = try context.fetch(FetchDescriptor<GhafSubscription>())
 
         let settingsBackup = GhafSettingsBackup(
             userName: settings.userName,
@@ -107,6 +128,7 @@ enum GhafBackupService {
             appearanceMode: settings.appearanceMode,
             budgetMode: settings.budgetMode,
             categories: settings.categories,
+            categoryMeta: settings.categoryMeta,
             categoryBudgets: settings.categoryBudgets,
             hasCompletedOnboarding: settings.hasCompletedOnboarding,
             balanceSetupMode: settings.balanceSetupMode,
@@ -130,6 +152,7 @@ enum GhafBackupService {
                 date: transaction.date,
                 direction: transaction.direction,
                 category: transaction.category,
+                subcategory: transaction.subcategory,
                 confidence: transaction.confidence,
                 bank: transaction.bank,
                 needsReview: transaction.needsReview,
@@ -163,17 +186,25 @@ enum GhafBackupService {
             GhafMerchantRuleBackup(
                 normalizedMerchant: $0.normalizedMerchant,
                 category: $0.category,
+                subcategory: $0.subcategory,
+                hits: $0.hits,
                 updatedAt: $0.updatedAt
             )
         }
 
         let payload = GhafBackupPayload(
-            version: 2,
+            version: 3,
             exportedAt: .now,
             settings: settingsBackup,
             transactions: transactionBackups,
             merchantRules: ruleBackups,
-            accounts: accountBackups
+            accounts: accountBackups,
+            subscriptions: subscriptions.map {
+                GhafSubscriptionBackup(id: $0.id, name: $0.name, amount: $0.amount, currency: $0.currency,
+                                       billingCycle: $0.billingCycle, nextPaymentDate: $0.nextPaymentDate,
+                                       category: $0.category, accountID: $0.accountID, reminderDays: $0.reminderDays,
+                                       isActive: $0.isActive, needsConfirmation: $0.needsConfirmation, notes: $0.notes)
+            }
         )
 
         let encoder = JSONEncoder()
@@ -187,7 +218,7 @@ enum GhafBackupService {
         return url
     }
 
-    /// Replaces current Ghaf data with a v1 or v2 backup.
+    /// Replaces current Ghaf data with a v1, v2 or v3 backup. Subscriptions are only replaced when the backup has them.
     static func restore(from url: URL, context: ModelContext) throws {
         let accessGranted = url.startAccessingSecurityScopedResource()
         defer {
@@ -199,7 +230,7 @@ enum GhafBackupService {
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(GhafBackupPayload.self, from: data)
 
-        guard payload.version == 1 || payload.version == 2 else {
+        guard (1...3).contains(payload.version) else {
             throw GhafBackupError.unsupportedVersion
         }
 
@@ -207,6 +238,12 @@ enum GhafBackupService {
         try context.fetch(FetchDescriptor<GhafAccount>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafSettings>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<MerchantCategoryRule>()).forEach { context.delete($0) }
+        if payload.subscriptions != nil {
+            try context.fetch(FetchDescriptor<GhafSubscription>()).forEach {
+                GhafSubscriptionReminderService.cancel($0)
+                context.delete($0)
+            }
+        }
 
         let source = payload.settings
         let settings = GhafSettings(
@@ -231,6 +268,7 @@ enum GhafBackupService {
             biometricLockEnabled: source.biometricLockEnabled ?? false
         )
         settings.categories = source.categories
+        settings.categoryMeta = source.categoryMeta ?? [:]
         settings.categoryBudgets = source.categoryBudgets
         context.insert(settings)
 
@@ -275,6 +313,7 @@ enum GhafBackupService {
             )
             transaction.id = item.id
             transaction.note = item.note
+            transaction.subcategory = item.subcategory
             transaction.createdAt = item.createdAt
             context.insert(transaction)
         }
@@ -285,9 +324,25 @@ enum GhafBackupService {
                 category: item.category
             )
             rule.updatedAt = item.updatedAt
+            rule.subcategory = item.subcategory
+            rule.hits = item.hits ?? 1
             context.insert(rule)
         }
 
+        for item in payload.subscriptions ?? [] {
+            let subscription = GhafSubscription(
+                id: item.id, name: item.name, amount: item.amount, currency: item.currency,
+                billingCycle: GhafBillingCycle(rawValue: item.billingCycle) ?? .monthly,
+                nextPaymentDate: item.nextPaymentDate, category: item.category, accountID: item.accountID,
+                reminderDays: item.reminderDays, isActive: item.isActive, notes: item.notes
+            )
+            subscription.needsConfirmation = item.needsConfirmation
+            context.insert(subscription)
+        }
+
         try context.save()
+        for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
+            GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
+        }
     }
 }
