@@ -129,7 +129,7 @@ struct GhafTransactionsView: View {
     }
 
     private var pageHeader: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(spacing: 5) {
             Text(settings.languageCode == "ar" ? "إدارة أموالك" : "YOUR MONEY")
                 .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                 .tracking(1.8)
@@ -141,6 +141,8 @@ struct GhafTransactionsView: View {
                 .font(GhafTypography.body(14, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 
     private var monthSummary: some View {
@@ -159,23 +161,19 @@ struct GhafTransactionsView: View {
     }
 
     private func summaryCell(title: String, amount: Decimal, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(spacing: 9) {
             HStack(spacing: 7) {
-                GhafCurrencyIcon(currency: settings.currency, size: 14)
                 Text(title)
                     .font(GhafTypography.body(9, languageCode: settings.languageCode, weight: .bold))
                     .tracking(settings.languageCode == "ar" ? 0 : 1.0)
                     .foregroundStyle(theme.secondaryText)
                     .lineLimit(1)
             }
-            Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
-                .font(GhafTypography.number(19, weight: .bold))
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: settings.languageCode, size: 19)
                 .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
         }
         .padding(15)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 17).stroke(theme.outline.opacity(0.65), lineWidth: 1))
     }

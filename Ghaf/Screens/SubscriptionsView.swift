@@ -34,7 +34,7 @@ struct GhafSubscriptionsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 5) {
+                    VStack(spacing: 5) {
                         Text(settings.languageCode == "ar" ? "الاشتراكات" : "RECURRING COMMITMENTS")
                             .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
                             .tracking(1.4).foregroundStyle(theme.secondaryText)
@@ -45,6 +45,8 @@ struct GhafSubscriptionsView: View {
                             .font(GhafTypography.body(14, languageCode: settings.languageCode))
                             .foregroundStyle(theme.secondaryText)
                     }
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 7) {
                             Text(settings.languageCode == "ar" ? "التكلفة الشهرية المقدرة" : "ESTIMATED MONTHLY")

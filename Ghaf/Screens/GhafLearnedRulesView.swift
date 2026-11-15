@@ -1,0 +1,64 @@
+import SwiftUI
+import SwiftData
+
+/// Shows the merchant → category rules Ghaf learned from the user's own corrections, with reset.
+struct GhafLearnedRulesView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.colorScheme) private var colorScheme
+    @Query(sort: \MerchantCategoryRule.updatedAt, order: .reverse) private var rules: [MerchantCategoryRule]
+    @State private var confirmReset = false
+    let settings: GhafSettings
+
+    private var ar: Bool { settings.languageCode == "ar" }
+    private var theme: GhafTheme {
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Text(ar ? "عندما تختار فئة لتاجر، يحفظ غاف ذلك على جهازك ويستخدمه في المرات القادمة. لا يُرسل شيء إلى أي خادم."
+                        : "When you pick a category for a merchant, Ghaf saves it on this iPhone and uses it next time. Nothing is sent to a server.")
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            if rules.isEmpty {
+                Text(ar ? "لم يتعلم غاف شيئاً بعد." : "Ghaf hasn't learned anything yet.")
+                    .foregroundStyle(theme.secondaryText)
+            } else {
+                Section(ar ? "التجار" : "Merchants") {
+                    ForEach(rules) { rule in
+                        HStack {
+                            Text(rule.normalizedMerchant.capitalized)
+                                .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
+                            Spacer()
+                            Text(GhafLocalization.category(rule.category, languageCode: settings.languageCode))
+                                .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                                .foregroundStyle(theme.accent)
+                        }
+                    }
+                    .onDelete { offsets in
+                        offsets.map { rules[$0] }.forEach(context.delete)
+                        try? context.save()
+                    }
+                }
+                Section {
+                    Button(ar ? "مسح كل ما تعلّمه غاف" : "Reset everything Ghaf learned", role: .destructive) { confirmReset = true }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .ghafBackground(theme: theme)
+        .navigationTitle(ar ? "ما تعلّمه غاف" : "What Ghaf learned")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .confirmationDialog(ar ? "مسح كل القواعد المتعلَّمة؟" : "Reset all learned rules?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button(ar ? "مسح" : "Reset", role: .destructive) {
+                rules.forEach(context.delete)
+                try? context.save()
+            }
+        } message: {
+            Text(ar ? "لن تتأثر عملياتك المسجلة." : "Your recorded transactions are not changed.")
+        }
+    }
+}

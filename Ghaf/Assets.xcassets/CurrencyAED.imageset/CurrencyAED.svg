@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UAE dirham sign: a D crossed by two horizontal bars. Redrawn for Ghaf; swap in the CBUAE master artwork when available. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <path fill="#231f20" fill-rule="evenodd" d="M250,140 H480 A360,360 0 0 1 480,860 H250 Z M350,240 V760 H480 A260,260 0 0 0 480,240 Z"/>
+  <path fill="#231f20" d="M110,375 H895 L870,435 H110 Z"/>
+  <path fill="#231f20" d="M110,565 H870 L895,625 H110 Z"/>
+</svg>

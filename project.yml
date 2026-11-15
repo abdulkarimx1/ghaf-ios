@@ -46,6 +46,8 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
+        # iOS OAuth client ID from Google Cloud Console (Drive backup). Empty = Drive sign-in hidden behind a setup note.
+        GHAF_GOOGLE_CLIENT_ID: ""
         LSRequiresIPhoneOS: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false

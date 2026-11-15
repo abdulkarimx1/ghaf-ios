@@ -68,7 +68,7 @@ struct GhafHomeView: View {
 
     /// Money text, or stars while balances are hidden. Values themselves are untouched.
     private func money(_ value: Decimal, _ currency: String) -> String {
-        hideBalances ? "★★★★" : GhafFormat.money(value, currency: currency, languageCode: settings.languageCode)
+        hideBalances ? GhafMoneyLabel.mask : GhafFormat.money(value, currency: currency, languageCode: settings.languageCode)
     }
 
     var body: some View {
@@ -76,7 +76,6 @@ struct GhafHomeView: View {
             VStack(alignment: .leading, spacing: 12) {
                 header
                 heroCard
-                periodCard
                 actionGrid
             }
             .padding(.horizontal, 16)
@@ -122,70 +121,84 @@ struct GhafHomeView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
 
-    // MARK: Hero: total balance + what is left to spend
+    // MARK: Hero: balance + tap-to-switch Day / Week / Month
+
+    private var periodName: String {
+        ar ? ["اليوم", "هذا الأسبوع", "هذا الشهر"][activityPeriodIndex]
+           : ["Today", "This week", "This month"][activityPeriodIndex]
+    }
 
     private var heroCard: some View {
-        let currency = mainCurrency
-        let main = balances.first { $0.currency == currency }
+        let main = balances.first { $0.currency == mainCurrency }
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        return VStack(spacing: 12) {
+            ZStack {
                 Text(ar ? "رصيدك" : "YOUR BALANCE")
                     .font(GhafTypography.body(ar ? 14 : 11, languageCode: settings.languageCode, weight: .bold))
                     .tracking(ar ? 0 : 1.6)
-                Spacer()
-                Button {
-                    withAnimation(.snappy(duration: 0.22)) { hideBalances.toggle() }
-                } label: {
-                    Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 17, weight: .bold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                HStack {
+                    Spacer()
+                    Button {
+                        withAnimation(.snappy(duration: 0.22)) { hideBalances.toggle() }
+                    } label: {
+                        Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .frame(width: 40, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
+                                           : (hideBalances ? "Show balances" : "Hide balances"))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
-                                       : (hideBalances ? "Show balances" : "Hide balances"))
             }
             .foregroundStyle(theme.accentContrast.opacity(0.8))
 
-            HStack(spacing: 10) {
-                GhafCurrencyIcon(currency: currency, size: 28)
-                Text(money(main?.amount ?? 0, currency))
-                    .font(GhafTypography.number(40, weight: .heavy))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .contentTransition(.numericText())
-            }
-            .foregroundStyle(theme.accentContrast)
-
-            HStack(spacing: 8) {
-                Text(snapshot.hasBudget
-                     ? (ar ? "المتبقي للصرف" : "Left to spend") + " · " + money(snapshot.remaining, settings.currency)
-                     : (ar ? "حدد دخلك الشهري في المزيد" : "Set your monthly income in More"))
-                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer(minLength: 4)
-            }
-            .foregroundStyle(theme.accentContrast.opacity(0.9))
-
-            if snapshot.hasBudget {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(theme.accentContrast.opacity(0.18))
-                        Capsule().fill(theme.accentContrast)
-                            .frame(width: geometry.size.width * min(max(snapshot.progress, 0), 1))
-                    }
-                }
-                .frame(height: 8)
-            }
+            GhafMoneyLabel(amount: main?.amount ?? 0, currency: mainCurrency,
+                           languageCode: settings.languageCode, size: 40, hidden: hideBalances)
+                .foregroundStyle(theme.accentContrast)
 
             accountStrip
+
+            // Tapping anywhere else on the card switches the period.
+            VStack(spacing: 8) {
+                HStack(spacing: 0) {
+                    periodMetric(ar ? "صرفت" : "Spent", activityTotal("debit"))
+                    periodMetric(ar ? "دخل" : "Income", activityTotal("credit"))
+                    VStack(spacing: 3) {
+                        Text(ar ? "عمليات" : "Transactions")
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
+                            .opacity(0.75)
+                        Text("\(activityTransactions.count)")
+                            .font(GhafTypography.number(17, weight: .heavy))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { index in
+                        Capsule()
+                            .fill(theme.accentContrast.opacity(index == activityPeriodIndex ? 0.9 : 0.25))
+                            .frame(width: index == activityPeriodIndex ? 18 : 6, height: 6)
+                    }
+                    Text(periodName + " · " + (ar ? "اضغط للتبديل" : "tap to switch"))
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
+                        .opacity(0.75)
+                }
+            }
+            .foregroundStyle(theme.accentContrast)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(theme.accentContrast.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .frame(maxWidth: .infinity)
         .background(theme.accent, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .onTapGesture {
+            withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(ar ? "اضغط للتبديل بين اليوم والأسبوع والشهر" : "Tap to switch between day, week and month")
+        .sensoryFeedback(.selection, trigger: activityPeriodIndex)
     }
 
     // MARK: Big action buttons (2 x 3, no scrolling)
@@ -212,28 +225,27 @@ struct GhafHomeView: View {
     private func actionTile(_ title: String, icon: String, filled: Bool = false, badge: Int = 0,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    Image(systemName: icon)
-                        .font(.system(size: 24, weight: .bold))
-                    Spacer()
-                    if badge > 0 {
-                        Text("\(badge)")
-                            .font(GhafTypography.number(14, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 9).padding(.vertical, 4)
-                            .background(Color.red, in: Capsule())
-                    }
-                }
-                Spacer(minLength: 8)
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .bold))
                 Text(title)
-                    .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .heavy))
+                    .font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .heavy))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
+            .overlay(alignment: .topTrailing) {
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(GhafTypography.number(13, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color.red, in: Capsule())
+                        .offset(x: 22, y: -10)
+                }
+            }
             .foregroundStyle(filled ? theme.accentContrast : theme.primaryText)
             .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 64, maxHeight: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 64, maxHeight: .infinity)
             .background(filled ? theme.accent : theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -262,32 +274,22 @@ struct GhafHomeView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
+        VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                GhafTreeMark(color: theme.accent).frame(width: 16, height: 16).accessibilityHidden(true)
                 Text(settings.languageCode == "ar" ? greeting : greeting.uppercased())
-                    .font(GhafTypography.heading(settings.languageCode == "ar" ? 18 : 11, languageCode: settings.languageCode))
+                    .font(GhafTypography.heading(settings.languageCode == "ar" ? 16 : 11, languageCode: settings.languageCode))
                     .tracking(settings.languageCode == "ar" ? 0 : 1.8)
                     .foregroundStyle(theme.secondaryText)
-
-                Text(settings.languageCode == "ar"
-                     ? (settings.userName.isEmpty ? "أموالك بوضوح" : "مرحباً، \(settings.userName)")
-                     : (settings.userName.isEmpty ? "Your money, in view." : "Hello, \(settings.userName)."))
-                    .font(GhafTypography.display(26, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.primaryText)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-
             }
-
-            Spacer(minLength: 4)
-
-            ZStack {
-                Circle().fill(theme.accent.opacity(0.12))
-                GhafTreeMark(color: theme.accent).padding(11)
-            }
-            .frame(width: 50, height: 50)
-            .accessibilityHidden(true)
+            Text(settings.languageCode == "ar"
+                 ? (settings.userName.isEmpty ? "أموالك بوضوح" : "مرحباً، \(settings.userName)")
+                 : (settings.userName.isEmpty ? "Your money, in view." : "Hello, \(settings.userName)."))
+                .font(GhafTypography.display(26, languageCode: settings.languageCode))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(1).minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 
     private var greeting: String {
@@ -306,63 +308,44 @@ struct GhafHomeView: View {
     private var accountStrip: some View {
         let open = accounts.filter { !$0.isArchived }
         if !open.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(open) { account in
-                        Button { showAccounts = true } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(account.name)
-                                    .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                                    .opacity(0.8)
-                                Text(money(GhafAccountBalanceCalculator.balance(for: account, transactions: transactions), account.currency))
-                                    .font(GhafTypography.number(14, weight: .heavy))
-                                    .monospacedDigit()
-                            }
-                            .lineLimit(1)
-                            .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(theme.accentContrast.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+            // Centered when the chips fit, scrollable when there are many accounts.
+            ViewThatFits(in: .horizontal) {
+                accountChips(open)
+                ScrollView(.horizontal, showsIndicators: false) { accountChips(open) }
             }
             .foregroundStyle(theme.accentContrast)
         }
     }
 
-    // MARK: Day / Week / Month overview
-
-    private var periodCard: some View {
-        VStack(spacing: 10) {
-            Picker(ar ? "الفترة" : "Period", selection: $activityPeriodIndex) {
-                Text(ar ? "اليوم" : "Day").tag(0)
-                Text(ar ? "الأسبوع" : "Week").tag(1)
-                Text(ar ? "الشهر" : "Month").tag(2)
-            }
-            .pickerStyle(.segmented)
-
-            HStack(spacing: 0) {
-                periodMetric(ar ? "صرفت" : "Spent", money(activityTotal("debit"), mainCurrency), theme.primaryText)
-                Divider().frame(height: 34)
-                periodMetric(ar ? "دخل" : "Income", money(activityTotal("credit"), mainCurrency), theme.credit)
-                Divider().frame(height: 34)
-                periodMetric(ar ? "عمليات" : "Transactions", "\(activityTransactions.count)", theme.primaryText)
+    private func accountChips(_ open: [GhafAccount]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(open) { account in
+                Button { showAccounts = true } label: {
+                    VStack(spacing: 2) {
+                        Text(account.name)
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
+                            .opacity(0.8)
+                        GhafMoneyLabel(amount: GhafAccountBalanceCalculator.balance(for: account, transactions: transactions),
+                                       currency: account.currency, languageCode: settings.languageCode,
+                                       size: 14, hidden: hideBalances)
+                    }
+                    .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .background(theme.accentContrast.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(12)
-        .ghafCard(theme: theme, radius: 18)
     }
 
-    private func periodMetric(_ title: String, _ value: String, _ color: Color) -> some View {
+    private func periodMetric(_ title: String, _ value: Decimal) -> some View {
         VStack(spacing: 3) {
             Text(title)
                 .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                .foregroundStyle(theme.secondaryText)
-            Text(value)
-                .font(GhafTypography.number(17, weight: .heavy))
-                .foregroundStyle(color)
-                .lineLimit(1).minimumScaleFactor(0.6)
-                .contentTransition(.numericText())
+                .opacity(0.75)
+            GhafMoneyLabel(amount: value, currency: mainCurrency, languageCode: settings.languageCode,
+                           size: 17, hidden: hideBalances)
         }
         .frame(maxWidth: .infinity)
     }

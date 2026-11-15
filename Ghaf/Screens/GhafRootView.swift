@@ -526,14 +526,7 @@ struct GhafOnboardingView: View {
             onboardingField(localized("Name", "الاسم"), text: $name)
 
             formLabel(localized("Main currency", "العملة الرئيسية"))
-            Picker(localized("Currency", "العملة"), selection: $currency) {
-                ForEach(currencies, id: \.self) { code in
-                    GhafCurrencyIcon(currency: code, size: 18)
-                        .tag(code)
-                }
-            }
-            .pickerStyle(.menu)
-            .tint(theme.accent)
+            GhafCurrencyPicker(selection: $currency, currencies: currencies, languageCode: languageCode, tint: theme.accent)
 
             formLabel(localized("Monthly income", "الدخل الشهري"))
             onboardingField(localized("e.g. 5000", "مثال: ٥٠٠٠"), text: $income, numeric: true)
@@ -621,17 +614,7 @@ struct GhafOnboardingView: View {
                         .tint(theme.accent)
 
                         HStack {
-                            Picker(
-                                languageCode == "ar" ? "العملة" : "Currency",
-                                selection: $draft.currency
-                            ) {
-                                ForEach(currencies, id: \.self) { code in
-                                    GhafCurrencyIcon(currency: code, size: 17)
-                                        .tag(code)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .tint(theme.accent)
+                            GhafCurrencyPicker(selection: $draft.currency, currencies: currencies, languageCode: languageCode, tint: theme.accent)
 
                             Spacer()
 

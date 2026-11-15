@@ -236,35 +236,8 @@ struct GhafVoiceEntryView: View {
         isSaving = true
         errorMessage = ""
         do {
-            for draft in drafts {
-                let direction = TransactionDirection(rawValue: draft.direction) ?? .debit
-                let parsed = ParsedTransaction(amount: draft.amount, currency: draft.currency, merchant: draft.merchant.isEmpty ? nil : draft.merchant, date: draft.date, direction: direction, confidence: 0.82, bank: nil)
-                let category = draft.category == "Other"
-                    ? ((try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: modelContext)) ?? "Other")
-                    : draft.category
-                let selectedAccount = accounts.first { $0.id == selectedAccountID && !$0.isArchived && $0.currency == draft.currency }
-                let matchingAccount = accounts.first { !$0.isArchived && $0.currency == draft.currency }
-                let assignedAccount = selectedAccount ?? matchingAccount
-                let transaction = GhafTransaction(
-                    fingerprint: "voice-\(UUID().uuidString)",
-                    parsed: parsed,
-                    category: category,
-                    needsReview: draft.merchant.isEmpty || category == "Other" || assignedAccount == nil,
-                    isReversal: false,
-                    accountID: assignedAccount?.id
-                )
-                transaction.note = isArabic ? "تمت الإضافة بالصوت" : "Added by voice"
-                modelContext.insert(transaction)
-                if let merchant = transaction.merchant, !merchant.isEmpty, category != "Other" {
-                    try MerchantCategorizer.learn(
-                        merchant: merchant,
-                        category: category,
-                        context: modelContext,
-                        saveImmediately: false
-                    )
-                }
-            }
-            try modelContext.save()
+            try GhafDraftSaver.save(drafts, preferredAccountID: selectedAccountID, accounts: accounts,
+                                    context: modelContext, note: isArabic ? "تمت الإضافة بالصوت" : "Added by voice")
             dismiss()
         } catch {
             errorMessage = isArabic ? "تعذر حفظ العمليات. حاول مرة أخرى." : "Could not save the transactions. Try again."
