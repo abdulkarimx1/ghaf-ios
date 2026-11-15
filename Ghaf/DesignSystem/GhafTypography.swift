@@ -40,9 +40,9 @@ enum GhafTypography {
             .weight(weight == .regular ? .semibold : (weight == .medium ? .semibold : .bold))
     }
 
+    /// Amounts use SF Pro Rounded: wide, friendly numerals that scan fast and animate cleanly.
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        .custom("IBMPlexSans-Regular", size: size, relativeTo: .title)
-            .weight(weight == .regular ? .medium : .bold)
+        .system(size: size, weight: weight == .regular ? .medium : weight, design: .rounded)
     }
 }
 
@@ -53,9 +53,9 @@ struct GhafScreenTitle: View {
     let theme: GhafTheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(spacing: 4) {
             Text(title)
-                .font(GhafTypography.display(31, languageCode: languageCode))
+                .font(GhafTypography.display(34, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
             if let subtitle {
@@ -64,7 +64,8 @@ struct GhafScreenTitle: View {
                     .foregroundStyle(theme.secondaryText)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 }
 

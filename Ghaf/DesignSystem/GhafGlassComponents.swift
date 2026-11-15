@@ -1,83 +1,189 @@
 import SwiftUI
 
-private struct GhafCardSurface: ViewModifier {
-    let theme: GhafTheme
-    let radius: CGFloat
-
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        content
-            .background(shape.fill(theme.surface))
-            .overlay {
-                shape.stroke(theme.outline.opacity(0.52), lineWidth: 0.8)
-            }
-            .shadow(color: .black.opacity(0.035), radius: 10, x: 0, y: 4)
-    }
-}
-
-/// Content cards stay solid; Liquid Glass is reserved for the floating tab bar and toolbars.
-private struct GhafLiquidGlassSurface: ViewModifier {
-    let theme: GhafTheme
-    let radius: CGFloat
-
-    func body(content: Content) -> some View {
-        content.modifier(GhafCardSurface(theme: theme, radius: radius))
-    }
-}
-
 extension View {
-    func ghafCard(theme: GhafTheme, radius: CGFloat = 22) -> some View {
-        modifier(GhafLiquidGlassSurface(theme: theme, radius: radius))
+    /// White rounded card with a soft shadow (hairline outline instead in dark mode).
+    func ghafCard(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return background(shape.fill(theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6))
+            .overlay { if theme.isDark { shape.stroke(theme.outline, lineWidth: 1) } }
     }
 
     func ghafBackground(theme: GhafTheme) -> some View {
-        background {
-            ZStack {
-                theme.background.ignoresSafeArea()
-                GhafCityBackdrop(theme: theme)
-                    .ignoresSafeArea()
+        background(theme.background.ignoresSafeArea())
+    }
+
+    func ghafLiquidGlass(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
+        ghafCard(theme: theme, radius: radius)
+    }
+
+    /// Full-width primary action: a bold accent capsule.
+    func ghafProminentButton(theme: GhafTheme, languageCode: String = "en") -> some View {
+        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, prominent: true))
+    }
+
+    /// Full-width secondary action: a tonal capsule.
+    func ghafGlassButton(theme: GhafTheme, languageCode: String = "en") -> some View {
+        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, prominent: false))
+    }
+}
+
+struct GhafCapsuleButtonStyle: ButtonStyle {
+    let theme: GhafTheme
+    let languageCode: String
+    let prominent: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(GhafTypography.body(17, languageCode: languageCode, weight: .bold))
+            .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .padding(.horizontal, 18)
+            .background(prominent ? theme.accent : theme.elevatedSurface, in: Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+/// Round pill action (icon + label), the row of big buttons under the balance.
+struct GhafPillButton: View {
+    let title: String
+    let icon: String
+    let theme: GhafTheme
+    let languageCode: String
+    var prominent = false
+    var badge = 0
+    let action: () -> Void
+    @State private var taps = 0
+
+    var body: some View {
+        Button {
+            taps += 1
+            action()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .symbolEffect(.bounce, value: taps)
+                Text(title)
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(GhafTypography.number(12, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7).frame(minHeight: 20)
+                        .background(theme.over, in: Capsule())
+                }
+            }
+            .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .padding(.horizontal, 10)
+            .background {
+                if prominent {
+                    Capsule().fill(theme.accent)
+                } else {
+                    Capsule().fill(theme.surface).shadow(color: theme.shadow, radius: 10, x: 0, y: 4)
+                }
+            }
+            .overlay { if theme.isDark && !prominent { Capsule().stroke(theme.outline, lineWidth: 1) } }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.ghafPress)
+        .sensoryFeedback(.impact(weight: .light), trigger: taps)
+        .accessibilityLabel(badge > 0 ? "\(title), \(badge)" : title)
+    }
+}
+
+/// Section title with an optional trailing text action ("See all").
+struct GhafSectionHeader: View {
+    let title: String
+    let theme: GhafTheme
+    let languageCode: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(GhafTypography.heading(20, languageCode: languageCode))
+                .foregroundStyle(theme.primaryText)
+            Spacer()
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
+                    .foregroundStyle(theme.accent)
+                    .buttonStyle(.ghafPress)
             }
         }
+        .padding(.horizontal, 4)
     }
+}
 
-    func ghafLiquidGlass(theme: GhafTheme, radius: CGFloat = 22) -> some View {
-        modifier(GhafLiquidGlassSurface(theme: theme, radius: radius))
+/// Round tinted glyph used by list rows and category icons.
+struct GhafIconBadge: View {
+    let symbol: String
+    let tint: Color
+    var size: CGFloat = 44
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.4, weight: .bold))
+            .foregroundStyle(tint)
+            .frame(width: size, height: size)
+            .background(tint.opacity(0.14), in: Circle())
+            .accessibilityHidden(true)
     }
+}
 
-    @ViewBuilder
-    func ghafProminentButton(
-        theme: GhafTheme,
-        languageCode: String = "en"
-    ) -> some View {
-        if #available(iOS 26.0, *) {
-            self
-                .font(GhafTypography.body(17, languageCode: languageCode, weight: .bold))
-                .tint(theme.accent)
-                .frame(minHeight: 58)
-                .buttonStyle(.glassProminent)
-        } else {
-            self.buttonStyle(GhafPrimaryButtonStyle(theme: theme))
+/// Clean list row: round icon, title + subtitle, trailing content, chevron optional.
+struct GhafListRow<Trailing: View>: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    var subtitle: String? = nil
+    let theme: GhafTheme
+    let languageCode: String
+    var chevron = false
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(spacing: 14) {
+            GhafIconBadge(symbol: icon, tint: tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(GhafTypography.body(13, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: 8)
+            trailing()
+            if chevron {
+                Image(systemName: "chevron.forward")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(theme.secondaryText.opacity(0.7))
+                    .accessibilityHidden(true)
+            }
         }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
+}
 
-    @ViewBuilder
-    func ghafGlassButton(
-        theme: GhafTheme,
-        languageCode: String = "en"
-    ) -> some View {
-        if #available(iOS 26.0, *) {
-            self
-                .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                .tint(theme.accent)
-                .frame(minHeight: 54)
-                .buttonStyle(.glass)
-        } else {
-            self
-                .controlSize(.large)
-                .frame(minHeight: 54)
-                .buttonStyle(.bordered)
-                .tint(theme.accent)
-        }
+extension GhafListRow where Trailing == EmptyView {
+    init(icon: String, tint: Color, title: String, subtitle: String? = nil, theme: GhafTheme,
+         languageCode: String, chevron: Bool = false) {
+        self.init(icon: icon, tint: tint, title: title, subtitle: subtitle, theme: theme,
+                  languageCode: languageCode, chevron: chevron) { EmptyView() }
     }
 }
 
@@ -161,108 +267,7 @@ struct GhafCategoryIcon: View {
 
     var body: some View {
         let custom = meta[category]
-        Image(systemName: custom?.icon ?? style.symbol)
-            .font(.system(size: 19, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: 46, height: 46)
-            .background((Self.color(named: custom?.color) ?? style.color).gradient,
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .accessibilityHidden(true)
-    }
-}
-
-
-struct GhafCityBackdrop: View {
-    let theme: GhafTheme
-
-    var body: some View {
-        GeometryReader { proxy in
-            Canvas { context, size in
-                var drawing = Path()
-                let w = size.width
-                let h = size.height
-                let origin = CGPoint(x: w * 0.68, y: h * 0.36)
-                let scale = min(w, h) * 0.48
-
-                switch theme.name {
-                case "Dubai":
-                    drawing.move(to: CGPoint(x: origin.x - scale * 0.40, y: origin.y + scale * 0.55))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.40, y: origin.y + scale * 0.12))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.22, y: origin.y + scale * 0.12))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.12, y: origin.y - scale * 0.32))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.03, y: origin.y - scale * 0.32))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.03, y: origin.y - scale * 0.84))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.09, y: origin.y - scale * 0.32))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.20, y: origin.y - scale * 0.32))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.20, y: origin.y + scale * 0.55))
-                    drawing.move(to: CGPoint(x: origin.x + scale * 0.31, y: origin.y + scale * 0.55))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.31, y: origin.y - scale * 0.08))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.55, y: origin.y - scale * 0.08))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.55, y: origin.y + scale * 0.55))
-                case "Sharjah":
-                    for offset in [-0.48, -0.08, 0.30] {
-                        let x = origin.x + scale * offset
-                        drawing.addRect(CGRect(x: x, y: origin.y + scale * 0.02, width: scale * 0.25, height: scale * 0.50))
-                        drawing.addRect(CGRect(x: x + scale * 0.06, y: origin.y - scale * 0.12, width: scale * 0.13, height: scale * 0.14))
-                        drawing.move(to: CGPoint(x: x + scale * 0.12, y: origin.y - scale * 0.12))
-                        drawing.addLine(to: CGPoint(x: x + scale * 0.12, y: origin.y - scale * 0.27))
-                    }
-                    drawing.move(to: CGPoint(x: origin.x - scale * 0.56, y: origin.y + scale * 0.52))
-                    drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.64, y: origin.y + scale * 0.52), control: CGPoint(x: origin.x, y: origin.y + scale * 0.32))
-                case "Ajman":
-                    drawing.addRect(CGRect(x: origin.x + scale * 0.20, y: origin.y - scale * 0.42, width: scale * 0.12, height: scale * 0.88))
-                    drawing.move(to: CGPoint(x: origin.x + scale * 0.16, y: origin.y - scale * 0.42))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.36, y: origin.y - scale * 0.42))
-                    drawing.addEllipse(in: CGRect(x: origin.x + scale * 0.12, y: origin.y - scale * 0.58, width: scale * 0.28, height: scale * 0.18))
-                    for row in 0..<3 {
-                        let y = origin.y + scale * (0.18 + Double(row) * 0.13)
-                        drawing.move(to: CGPoint(x: origin.x - scale * 0.58, y: y))
-                        drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.60, y: y), control: CGPoint(x: origin.x, y: y - scale * 0.16))
-                    }
-                case "Umm Al Quwain":
-                    drawing.move(to: CGPoint(x: origin.x - scale * 0.10, y: origin.y + scale * 0.48))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.05, y: origin.y - scale * 0.08))
-                    for angle in [-1.0, -0.5, 0.25, 0.72, 1.15] {
-                        let end = CGPoint(x: origin.x - scale * 0.05 + scale * 0.42 * cos(angle), y: origin.y - scale * 0.10 + scale * 0.32 * sin(angle))
-                        drawing.move(to: CGPoint(x: origin.x - scale * 0.05, y: origin.y - scale * 0.08))
-                        drawing.addLine(to: end)
-                        drawing.addEllipse(in: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8))
-                    }
-                    for row in 0..<2 {
-                        let y = origin.y + scale * (0.34 + Double(row) * 0.13)
-                        drawing.move(to: CGPoint(x: origin.x - scale * 0.60, y: y))
-                        drawing.addQuadCurve(to: CGPoint(x: origin.x + scale * 0.62, y: y), control: CGPoint(x: origin.x, y: y - scale * 0.13))
-                    }
-                case "Ras Al Khaimah", "Fujairah":
-                    drawing.move(to: CGPoint(x: origin.x - scale * 0.70, y: origin.y + scale * 0.55))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.36, y: origin.y + scale * 0.14))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.21, y: origin.y + scale * 0.24))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.02, y: origin.y - scale * 0.34))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.21, y: origin.y + scale * 0.02))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.36, y: origin.y - scale * 0.06))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.70, y: origin.y + scale * 0.55))
-                    if theme.name == "Fujairah" {
-                        drawing.addRect(CGRect(x: origin.x - scale * 0.08, y: origin.y + scale * 0.24, width: scale * 0.20, height: scale * 0.24))
-                        drawing.addRect(CGRect(x: origin.x - scale * 0.03, y: origin.y + scale * 0.12, width: scale * 0.10, height: scale * 0.12))
-                    }
-                default: // Abu Dhabi: waterfront dome and colonnade.
-                    drawing.addEllipse(in: CGRect(x: origin.x - scale * 0.23, y: origin.y - scale * 0.26, width: scale * 0.46, height: scale * 0.42))
-                    drawing.move(to: CGPoint(x: origin.x - scale * 0.23, y: origin.y - scale * 0.05))
-                    drawing.addLine(to: CGPoint(x: origin.x - scale * 0.23, y: origin.y + scale * 0.50))
-                    drawing.move(to: CGPoint(x: origin.x + scale * 0.23, y: origin.y - scale * 0.05))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.23, y: origin.y + scale * 0.50))
-                    drawing.addLine(to: CGPoint(x: origin.x + scale * 0.56, y: origin.y + scale * 0.50))
-                    for index in 0..<4 {
-                        let x = origin.x - scale * 0.15 + Double(index) * scale * 0.10
-                        drawing.addArc(center: CGPoint(x: x, y: origin.y + scale * 0.13), radius: scale * 0.07, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
-                    }
-                }
-
-                context.stroke(drawing, with: .color(theme.accent.opacity(0.20)), lineWidth: 1.45)
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        GhafIconBadge(symbol: custom?.icon ?? style.symbol,
+                      tint: Self.color(named: custom?.color) ?? style.color)
     }
 }

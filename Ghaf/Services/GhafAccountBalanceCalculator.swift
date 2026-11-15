@@ -30,18 +30,41 @@ enum GhafAccountBalanceCalculator {
         return account.openingBalance + activity
     }
 
+    /// Every account's balance in one pass over the transactions; same rules as `balance(for:)`.
+    static func balances(
+        accounts: [GhafAccount],
+        transactions: [GhafTransaction]
+    ) -> [UUID: Decimal] {
+        let byID = Dictionary(accounts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var result = Dictionary(uniqueKeysWithValues: byID.map { ($0.key, $0.value.openingBalance) })
+        for transaction in transactions {
+            guard let id = transaction.accountID, let account = byID[id] else { continue }
+            let direction = transaction.direction
+            guard direction == "credit" || direction == "debit",
+                  transaction.currency == account.currency,
+                  transaction.date >= account.openingDate else { continue }
+            result[id, default: 0] += direction == "credit" ? transaction.amount : -transaction.amount
+        }
+        return result
+    }
+
     static func balancesByCurrency(
         accounts: [GhafAccount],
         transactions: [GhafTransaction]
+    ) -> [GhafCurrencyBalance] {
+        balancesByCurrency(accounts: accounts, balances: balances(accounts: accounts, transactions: transactions))
+    }
+
+    static func balancesByCurrency(
+        accounts: [GhafAccount],
+        balances: [UUID: Decimal]
     ) -> [GhafCurrencyBalance] {
         let active = accounts.filter { !$0.isArchived && $0.includeInTotal }
         let grouped = Dictionary(grouping: active, by: \.currency)
         return grouped.map { currency, values in
             GhafCurrencyBalance(
                 currency: currency,
-                amount: values.reduce(Decimal.zero) {
-                    $0 + balance(for: $1, transactions: transactions)
-                }
+                amount: values.reduce(Decimal.zero) { $0 + (balances[$1.id] ?? $1.openingBalance) }
             )
         }
         .sorted { $0.currency < $1.currency }

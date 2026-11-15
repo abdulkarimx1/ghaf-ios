@@ -101,12 +101,18 @@ struct GhafMoneyLabel: View {
 
     static let mask = "✦✦✦✦"
 
-    private var number: String {
+    // Formatters are costly to build; one per language, reused by every row (main thread only).
+    private static let formatters: [String: NumberFormatter] = ["ar": "ar_AE", "en": "en_AE"].mapValues { id in
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE")
+        formatter.locale = Locale(identifier: id)
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
+        return formatter
+    }
+
+    private var number: String {
+        let formatter = Self.formatters[languageCode == "ar" ? "ar" : "en"]!
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 
