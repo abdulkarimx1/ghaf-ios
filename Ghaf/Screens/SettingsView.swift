@@ -150,8 +150,8 @@ struct GhafSettingsView: View {
                     return Alert(
                         title: Text(languageCode == "ar" ? "استيراد بيانات Expend؟" : "Import Expend data?"),
                         message: Text(languageCode == "ar"
-                            ? "سيتم استبدال بيانات غاف الحالية بمحافظ Expend وعملياته. سيتم التحقق من أرصدة المحافظ قبل اعتماد الاستيراد. لا تُنقل الميزانيات والجداول المتكررة حالياً."
-                            : "This replaces current Ghaf records with Expend wallets and transactions. Wallet balances are checked before the import is committed. Budgets and recurring schedules are not imported yet."),
+                            ? "سيتم استبدال بيانات غاف الحالية بمحافظ Expend وعملياته. سيتم التحقق من أرصدة المحافظ قبل اعتماد الاستيراد. تُضاف المدفوعات المتكررة كاشتراكات، ولا تُنقل الميزانيات حالياً."
+                            : "This replaces current Ghaf records with Expend wallets and transactions. Wallet balances are checked before the import is committed. Recurring payments become subscriptions; budgets are not imported yet."),
                         primaryButton: .destructive(Text(languageCode == "ar" ? "استيراد واستبدال" : "Import and replace"), action: restoreBackup),
                         secondaryButton: .cancel()
                     )

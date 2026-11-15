@@ -403,7 +403,7 @@ struct GhafAIView: View {
                 result.category = match.category
                 result.subcategory = match.subcategory
             } else {
-                result.category = draft.direction == "credit" ? "Transfers" : "Other"
+                result.category = draft.direction == "credit" ? "Other Income" : "Other"
             }
             return result
         }

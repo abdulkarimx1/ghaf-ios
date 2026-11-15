@@ -32,11 +32,11 @@ struct GhafInsightsView: View {
     }
 
     private var expenses: [GhafTransaction] {
-        monthTransactions.filter { $0.direction == "debit" }
+        monthTransactions.filter(\.isExpense)
     }
 
     private var incomeTransactions: [GhafTransaction] {
-        monthTransactions.filter { $0.direction == "credit" }
+        monthTransactions.filter(\.isIncome)
     }
 
     private var totalExpenses: Decimal {

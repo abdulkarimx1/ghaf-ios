@@ -314,6 +314,10 @@ struct GhafAccountEditorView: View {
                         Text(code).tag(code)
                     }
                 }
+                if let account {
+                    Toggle(settings.languageCode == "ar" ? "يُحسب في الرصيد الإجمالي" : "Include in total balance",
+                           isOn: Bindable(account).includeInTotal)
+                }
             }
 
             Section(settings.languageCode == "ar" ? "الرصيد المتاح حالياً" : "CURRENT AVAILABLE BALANCE") {

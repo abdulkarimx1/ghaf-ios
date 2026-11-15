@@ -53,6 +53,8 @@ final class GhafAccount {
     var isPrimary: Bool
     var sortOrder: Int
     var notes: String?
+    /// Counted in the combined balance (Expend's "show in balance").
+    var includeInTotal: Bool = true
     var createdAt: Date
 
     init(

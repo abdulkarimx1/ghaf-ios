@@ -21,6 +21,12 @@ final class GhafTransaction {
     var note: String?
     var createdAt: Date
 
+    /// Moves between the user's own wallets and balance adjustments change balances,
+    /// but are never spending or income.
+    var isSpendingOrIncome: Bool { category != "Transfers" && category != "Adjustment" }
+    var isExpense: Bool { direction == "debit" && isSpendingOrIncome }
+    var isIncome: Bool { direction == "credit" && isSpendingOrIncome }
+
     // A transaction can remain unassigned when its source account is unknown.
     var accountID: UUID?
 

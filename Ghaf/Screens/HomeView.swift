@@ -63,7 +63,7 @@ struct GhafHomeView: View {
     /// Period total in the main currency only; other currencies are never added in.
     private func activityTotal(_ direction: String) -> Decimal {
         activityTransactions
-            .filter { $0.currency == mainCurrency && $0.direction == direction }
+            .filter { $0.currency == mainCurrency && $0.direction == direction && $0.isSpendingOrIncome }
             .reduce(Decimal.zero) { $0 + $1.amount }
     }
 

@@ -104,7 +104,7 @@ enum GhafExpendImportService {
         let categoryRows = ((root["categories"] as? [[String: Any]]) ?? []).filter { ($0["deleted"] as? Bool) != true }
         let categoryNames: [String: String] = Dictionary(categoryRows.compactMap { row -> (String, String)? in
             guard let id = string(row["_id"]), let name = string(row["name"]) else { return nil }
-            return (id, transferCategoryIDs.contains(id) ? "Transfers" : name)
+            return (id, transferCategoryIDs.contains(id) ? "Transfers" : id == "others-income" ? "Transfers received" : name)
         }, uniquingKeysWith: { first, _ in first })
         var categoryMeta: [String: GhafCategoryMeta] = [:]
         for row in categoryRows {
@@ -159,7 +159,7 @@ enum GhafExpendImportService {
             let archived = (row["isArchived"] as? Bool ?? false) || (row["deleted"] as? Bool ?? false)
             let primaryWalletID = string(profile["defaultWalletID"])
             let primary = primaryWalletID == sourceID || (primaryWalletID == nil && index == 0)
-            return GhafAccount(
+            let account = GhafAccount(
                 id: accountID,
                 name: name,
                 institution: institution,
@@ -172,6 +172,8 @@ enum GhafExpendImportService {
                 sortOrder: integer(row["order"]) ?? index,
                 notes: nil
             )
+            account.includeInTotal = (row["showInBalance"] as? Bool) ?? true
+            return account
         }
 
         // Keep the user's category order: categories they used first, then "Other".
@@ -259,10 +261,9 @@ enum GhafExpendImportService {
             let existingNames = Set(((try? context.fetch(FetchDescriptor<GhafSubscription>())) ?? []).map { CategoryMatcher.normalize($0.name) })
             for row in recurringRows {
                 guard let item = subscription(from: row, walletIDs: walletIDs, walletsByID: walletsByID,
-                                              categoryNames: categoryNames),
-                      !existingNames.contains(CategoryMatcher.normalize(item.name)) else { continue }
-                context.insert(item)
-                subscriptionsImported += 1
+                                              categoryNames: categoryNames) else { continue }
+                subscriptionsImported += 1  // already-tracked ones count as handled
+                if !existingNames.contains(CategoryMatcher.normalize(item.name)) { context.insert(item) }
             }
             try context.save()
             for item in try context.fetch(FetchDescriptor<GhafSubscription>()) where item.isActive {
@@ -391,7 +392,7 @@ enum GhafExpendImportService {
         )]
     }
 
-    private static let transferCategoryIDs: Set<String> = ["transfer", "others-income"]
+    private static let transferCategoryIDs: Set<String> = ["transfer"]
 
     private static func subscription(
         from row: [String: Any],

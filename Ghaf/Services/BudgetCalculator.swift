@@ -20,8 +20,7 @@ enum BudgetCalculator {
     ) -> BudgetSnapshot {
         let calendar = Calendar.current
         let currencyDebits = transactions.filter {
-            $0.currency == settings.currency &&
-            $0.direction == TransactionDirection.debit.rawValue
+            $0.currency == settings.currency && $0.isExpense
         }
 
         let salaryDay = settings.salaryEnabled == true ? settings.salaryDay : nil

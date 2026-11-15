@@ -34,7 +34,7 @@ enum GhafAccountBalanceCalculator {
         accounts: [GhafAccount],
         transactions: [GhafTransaction]
     ) -> [GhafCurrencyBalance] {
-        let active = accounts.filter { !$0.isArchived }
+        let active = accounts.filter { !$0.isArchived && $0.includeInTotal }
         let grouped = Dictionary(grouping: active, by: \.currency)
         return grouped.map { currency, values in
             GhafCurrencyBalance(

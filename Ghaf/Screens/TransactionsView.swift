@@ -78,12 +78,12 @@ struct GhafTransactionsView: View {
     }
 
     private var monthExpenses: Decimal {
-        monthTransactions.filter { $0.direction == "debit" }
+        monthTransactions.filter(\.isExpense)
             .reduce(Decimal.zero) { $0 + $1.amount }
     }
 
     private var monthIncome: Decimal {
-        monthTransactions.filter { $0.direction == "credit" }
+        monthTransactions.filter(\.isIncome)
             .reduce(Decimal.zero) { $0 + $1.amount }
     }
 
