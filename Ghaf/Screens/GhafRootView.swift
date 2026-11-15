@@ -214,10 +214,18 @@ struct GhafRootView: View {
 
 // MARK: - Main Tab Navigation
 
+@Observable
+final class GhafTabRouter {
+    var selectedTab = 0
+}
+
 struct GhafTabView: View {
     @Environment(\.colorScheme) private var systemColorScheme
-    @Query private var transactions: [GhafTransaction]
-    @State private var selectedTab = 0
+    @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }) private var reviewItems: [GhafTransaction]
+    /// A stable reference in the environment: switching tabs never changes the tabs' inputs.
+    @State private var router = GhafTabRouter()
+    /// Decoded once, not on every tab switch, so category icons are not invalidated needlessly.
+    @State private var categoryMeta: [String: GhafCategoryMeta] = [:]
 
     let settings: GhafSettings
 
@@ -227,9 +235,9 @@ struct GhafTabView: View {
             appearanceMode: settings.appearanceMode,
             systemIsDark: systemColorScheme == .dark
         )
-        let reviewCount = transactions.filter { $0.needsReview }.count
+        let reviewCount = reviewItems.count
 
-        TabView(selection: $selectedTab) {
+        TabView(selection: $router.selectedTab) {
             GhafHomeView(settings: settings)
                 .tabItem { Label(settings.languageCode == "ar" ? "الرئيسية" : "Home", systemImage: "house.fill") }
                 .tag(0)
@@ -252,8 +260,10 @@ struct GhafTabView: View {
                 .tag(4)
         }
         .tint(theme.accent)
-        .sensoryFeedback(.selection, trigger: selectedTab)
-        .environment(\.ghafCategoryMeta, settings.categoryMeta)
+        .sensoryFeedback(.selection, trigger: router.selectedTab)
+        .environment(router)
+        .environment(\.ghafCategoryMeta, categoryMeta)
+        .onChange(of: settings.categoryMetaJSON, initial: true) { categoryMeta = settings.categoryMeta }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
         .preferredColorScheme(
@@ -264,6 +274,47 @@ struct GhafTabView: View {
 }
 
 // MARK: - Onboarding
+
+/// Intro illustration built from shapes and SF Symbols: a glowing disc, a hero glyph,
+/// and three orbiting badges that drift gently (still under Reduce Motion).
+struct GhafIntroIllustration: View {
+    let symbol: String
+    let satellites: [String]
+    let theme: GhafTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var floating = false
+
+    var body: some View {
+        ZStack {
+            Circle().fill(theme.accent.opacity(0.08)).frame(width: 230, height: 230)
+            Circle().stroke(theme.accent.opacity(0.15), style: StrokeStyle(lineWidth: 1.5, dash: [4, 7]))
+                .frame(width: 190, height: 190)
+            Circle().fill(theme.accent.gradient).frame(width: 116, height: 116)
+                .shadow(color: theme.accent.opacity(0.4), radius: 22, y: 10)
+            Image(systemName: symbol)
+                .font(.system(size: 50, weight: .bold))
+                .foregroundStyle(theme.accentContrast)
+                .symbolEffect(.bounce, value: floating)
+            ForEach(Array(satellites.prefix(3).enumerated()), id: \.offset) { index, name in
+                let angle = Angle.degrees([-140, -30, 95][index])
+                Image(systemName: name)
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 50, height: 50)
+                    .background(theme.surface, in: Circle())
+                    .shadow(color: .black.opacity(theme.isDark ? 0 : 0.08), radius: 10, y: 4)
+                    .offset(x: cos(angle.radians) * 98, y: sin(angle.radians) * 98 + (floating ? -5 : 5) * (index.isMultiple(of: 2) ? 1 : -1))
+            }
+        }
+        .frame(width: 260, height: 250)
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { floating = true }
+        }
+    }
+}
 
 struct GhafOnboardingView: View {
     @Environment(\.modelContext) private var modelContext
@@ -313,22 +364,19 @@ struct GhafOnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("GHAF")
-                    .font(GhafTypography.number(15, weight: .bold))
-                    .tracking(3)
-                    .foregroundStyle(theme.accent)
-
-                Spacer()
-
-                if step > 0 {
-                    Text("\(step) / 6")
-                        .font(GhafTypography.number(12, weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
+            // Progress: one capsule per step, the current one stretched.
+            HStack(spacing: 6) {
+                ForEach(0..<7, id: \.self) { index in
+                    Capsule()
+                        .fill(index <= step ? theme.accent : theme.secondaryText.opacity(0.2))
+                        .frame(width: index == step ? 26 : 8, height: 8)
                 }
             }
-            .padding(.horizontal, 24)
+            .animation(.snappy(duration: 0.3), value: step)
+            .frame(maxWidth: .infinity)
             .padding(.top, 18)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(localized("Step \(step + 1) of 7", "الخطوة \(step + 1) من 7"))
 
             GeometryReader { geometry in
                 ScrollView {
@@ -349,6 +397,9 @@ struct GhafOnboardingView: View {
                             connectionPage
                         }
                     }
+                    .id(step)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                            removal: .opacity))
                     .padding(24)
                     .frame(minHeight: geometry.size.height, alignment: .topLeading)
                 }
@@ -356,12 +407,12 @@ struct GhafOnboardingView: View {
 
             VStack(spacing: 10) {
                 Button(step == 6 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
-                    advance()
+                    withAnimation(.snappy) { advance() }
                 }
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
 
                 if step > 0 {
-                    Button(localized("Back", "رجوع")) { step -= 1 }
+                    Button(localized("Back", "رجوع")) { withAnimation(.snappy) { step -= 1 } }
                         .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -393,13 +444,14 @@ struct GhafOnboardingView: View {
     }
 
     private var languageSelectionPage: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            Spacer(minLength: 26)
-            Text("GHAF")
-                .font(GhafTypography.number(15, weight: .bold))
-                .tracking(3.5)
-                .foregroundStyle(theme.accent)
+        VStack(spacing: 22) {
+            GhafTreeMark(color: theme.accent)
+                .frame(width: 64, height: 64)
+                .padding(18)
+                .background(theme.accent.opacity(0.1), in: Circle())
+                .padding(.top, 20)
             Text("Choose your language.")
+                .multilineTextAlignment(.center)
                 .font(GhafTypography.display(34, languageCode: "en"))
                 .foregroundStyle(theme.primaryText)
             Text("اختر لغة التطبيق.")
@@ -411,6 +463,7 @@ struct GhafOnboardingView: View {
             ))
             .font(GhafTypography.body(14, languageCode: languageCode))
             .foregroundStyle(theme.secondaryText)
+            .multilineTextAlignment(.center)
             .padding(.bottom, 8)
 
             Button {
@@ -475,43 +528,49 @@ struct GhafOnboardingView: View {
     }
 
     private var privacyPage: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 48, weight: .medium))
-                .foregroundStyle(theme.accent)
-
-            Text(localized("Your money data stays yours.", "بياناتك المالية تبقى ملكاً لك."))
-                .font(GhafTypography.display(32, languageCode: languageCode))
-                .foregroundStyle(theme.primaryText)
-
-            Text(localized("Ghaf is designed to work locally on your iPhone.", "صُمم غاف للعمل محلياً على جهاز iPhone الخاص بك."))
-                .font(GhafTypography.body(16, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
-
-            onboardingPoint(icon: "iphone", title: localized("Stored on your device", "محفوظة على جهازك"), description: localized("Transactions and settings are saved locally.", "تُحفظ العمليات والإعدادات محلياً على جهازك."))
-            onboardingPoint(icon: "server.rack", title: localized("No financial servers", "لا خوادم مالية"), description: localized("No Ghaf account or external banking connection.", "لا يتطلب غاف حساباً خارجياً أو اتصالاً بالبنوك."))
-            onboardingPoint(icon: "chart.bar", title: localized("Understand your habits", "افهم عاداتك المالية"), description: localized("See spending trends and budget progress.", "تابع اتجاهات الإنفاق وتقدم ميزانيتك."))
+        VStack(spacing: 22) {
+            GhafIntroIllustration(symbol: "lock.shield.fill",
+                                  satellites: ["iphone", "eye.slash.fill", "hand.raised.fill"], theme: theme)
+            introHeading(localized("Your money data stays yours.", "بياناتك المالية تبقى ملكاً لك."),
+                         localized("Ghaf is designed to work locally on your iPhone.", "صُمم غاف للعمل محلياً على جهاز iPhone الخاص بك."))
+            VStack(spacing: 0) {
+                onboardingPoint(icon: "iphone", title: localized("Stored on your device", "محفوظة على جهازك"), description: localized("Transactions and settings are saved locally.", "تُحفظ العمليات والإعدادات محلياً على جهازك."))
+                onboardingPoint(icon: "server.rack", title: localized("No financial servers", "لا خوادم مالية"), description: localized("No Ghaf account or external banking connection.", "لا يتطلب غاف حساباً خارجياً أو اتصالاً بالبنوك."))
+                onboardingPoint(icon: "chart.bar.fill", title: localized("Understand your habits", "افهم عاداتك المالية"), description: localized("See spending trends and budget progress.", "تابع اتجاهات الإنفاق وتقدم ميزانيتك."))
+            }
+            .padding(.horizontal, 16).padding(.vertical, 6)
+            .ghafCard(theme: theme)
         }
     }
 
     private var automationIntroPage: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            Image(systemName: "arrow.trianglehead.2.clockwise")
-                .font(.system(size: 48, weight: .medium))
-                .foregroundStyle(theme.accent)
+        VStack(spacing: 22) {
+            GhafIntroIllustration(symbol: "bolt.fill",
+                                  satellites: ["message.fill", "sparkles", "checkmark.circle.fill"], theme: theme)
+            introHeading(localized("Bank SMS, logged automatically.", "رسائل البنك تُسجّل تلقائياً."),
+                         localized("Connect supported bank SMS messages once through Apple Shortcuts. Ghaf can then sort matching transactions automatically.", "اربط رسائل SMS البنكية المدعومة مرة واحدة عبر تطبيق الاختصارات، وبعدها يستطيع غاف تصنيف العمليات المطابقة تلقائياً."))
+            VStack(spacing: 0) {
+                onboardingPoint(icon: "message.fill", title: localized("Supported bank SMS", "رسائل SMS البنكية المدعومة"), description: localized("Choose a bank sender once. Matching transaction messages can be logged without retyping them.", "اختر مُرسل البنك مرة واحدة، وستُسجّل الرسائل المطابقة دون إعادة كتابتها."))
+                onboardingPoint(icon: "banknote.fill", title: localized("Cash stays manual", "النقد يُسجّل يدوياً"), description: localized("Cash purchases and sources that do not send SMS still need a quick manual entry.", "المشتريات النقدية والمصادر التي لا ترسل رسائل SMS تحتاج إلى إدخال يدوي سريع."))
+                onboardingPoint(icon: "iphone.gen3", title: localized("iOS privacy boundary", "حدود الخصوصية في iOS"), description: localized("Ghaf cannot read bank-app push notifications directly. App notifications without SMS cannot be captured automatically by this shortcut.", "لا يستطيع غاف قراءة إشعارات التطبيقات البنكية مباشرة، ولا يمكن التقاطها تلقائياً عبر هذا الاختصار دون رسالة SMS."))
+            }
+            .padding(.horizontal, 16).padding(.vertical, 6)
+            .ghafCard(theme: theme)
+        }
+    }
 
-            Text(localized("Bank SMS, logged automatically.", "رسائل البنك تُسجّل تلقائياً."))
-                .font(GhafTypography.display(32, languageCode: languageCode))
+    private func introHeading(_ title: String, _ subtitle: String) -> some View {
+        VStack(spacing: 10) {
+            Text(title)
+                .font(GhafTypography.display(30, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
-
-            Text(localized("Connect supported bank SMS messages once through Apple Shortcuts. Ghaf can then sort matching transactions automatically.", "اربط رسائل SMS البنكية المدعومة مرة واحدة عبر تطبيق الاختصارات، وبعدها يستطيع غاف تصنيف العمليات المطابقة تلقائياً."))
+            Text(subtitle)
                 .font(GhafTypography.body(16, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
-
-            onboardingPoint(icon: "message", title: localized("Supported bank SMS", "رسائل SMS البنكية المدعومة"), description: localized("Choose a bank sender once. Matching transaction messages can be logged without retyping them.", "اختر مُرسل البنك مرة واحدة، وستُسجّل الرسائل المطابقة دون إعادة كتابتها."))
-            onboardingPoint(icon: "banknote", title: localized("Cash stays manual", "النقد يُسجّل يدوياً"), description: localized("Cash purchases and sources that do not send SMS still need a quick manual entry.", "المشتريات النقدية والمصادر التي لا ترسل رسائل SMS تحتاج إلى إدخال يدوي سريع."))
-            onboardingPoint(icon: "iphone.gen3", title: localized("iOS privacy boundary", "حدود الخصوصية في iOS"), description: localized("Ghaf cannot read bank-app push notifications directly. App notifications without SMS cannot be captured automatically by this shortcut.", "لا يستطيع غاف قراءة إشعارات التطبيقات البنكية مباشرة، ولا يمكن التقاطها تلقائياً عبر هذا الاختصار دون رسالة SMS."))
         }
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
     }
 
     private var setupPage: some View {
@@ -801,21 +860,8 @@ struct GhafOnboardingView: View {
     }
 
     private func onboardingPoint(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 30)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
-                Text(description)
-                    .font(GhafTypography.body(14, languageCode: languageCode))
-                    .foregroundStyle(theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
+        GhafListRow(icon: icon, tint: theme.accent, title: title, subtitle: description,
+                    theme: theme, languageCode: languageCode)
     }
 
     private func localized(_ english: String, _ arabic: String) -> String {

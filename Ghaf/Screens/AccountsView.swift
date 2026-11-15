@@ -24,23 +24,22 @@ struct GhafAccountsView: View {
         accounts.filter { !$0.isArchived }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    private var currencyBalances: [GhafCurrencyBalance] {
-        GhafAccountBalanceCalculator.balancesByCurrency(
-            accounts: activeAccounts,
-            transactions: transactions
-        )
-    }
+    private var lang: String { settings.languageCode }
 
     var body: some View {
+        // One pass over transactions for every account, not one per row.
+        let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                pageHeading
+            VStack(spacing: GhafMetrics.sectionSpacing) {
+                GhafScreenTitle(title: lang == "ar" ? "حساباتك ومحافظك" : "Accounts & wallets",
+                                subtitle: lang == "ar" ? "رصيد كل حساب بعملته" : "Each account in its own currency",
+                                languageCode: lang, theme: theme)
 
                 if activeAccounts.isEmpty {
                     emptyState
                 } else {
-                    totalBalancesCard
-                    accountList
+                    totalBalancesCard(GhafAccountBalanceCalculator.balancesByCurrency(accounts: activeAccounts, balances: balances))
+                    accountList(balances)
                 }
 
                 Button {
@@ -56,10 +55,10 @@ struct GhafAccountsView: View {
                 .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
 
                 if accounts.contains(where: \.isArchived) {
-                    archivedAccounts
+                    archivedAccounts(balances)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, GhafMetrics.gutter)
             .padding(.top, 14)
             .padding(.bottom, 30)
             .frame(maxWidth: 620)
@@ -75,87 +74,60 @@ struct GhafAccountsView: View {
         }
     }
 
-    private var pageHeading: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(settings.languageCode == "ar" ? "مصادر أموالك" : "MONEY SOURCES")
-                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.6)
+    private func totalBalancesCard(_ currencyBalances: [GhafCurrencyBalance]) -> some View {
+        VStack(spacing: 10) {
+            Text(lang == "ar" ? "الإجمالي حسب العملة" : "Total by currency")
+                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
-            Text(settings.languageCode == "ar" ? "حساباتك ومحافظك" : "Accounts & wallets")
-                .font(GhafTypography.display(30, languageCode: settings.languageCode))
-                .foregroundStyle(theme.primaryText)
-            Text(settings.languageCode == "ar"
-                 ? "تابع رصيد كل حساب بعملته."
-                 : "Track each account in its own currency.")
-                .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-        }
-    }
-
-    private var totalBalancesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(settings.languageCode == "ar" ? "إجمالي الأرصدة حسب العملة" : "TOTAL BY CURRENCY")
-                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.1)
-                .foregroundStyle(theme.secondaryText)
-
             ForEach(currencyBalances) { item in
-                HStack {
-                    GhafCurrencyIcon(currency: item.currency, size: 20)
-                    Spacer()
-                    Text(GhafFormat.money(item.amount, currency: item.currency, languageCode: settings.languageCode))
-                        .font(GhafTypography.number(20, weight: .bold))
-                        .foregroundStyle(theme.primaryText)
-                }
+                GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: lang,
+                               size: currencyBalances.count == 1 ? 38 : 26)
+                    .foregroundStyle(theme.primaryText)
             }
-
-            Text(settings.languageCode == "ar"
-                 ? "لا يتم تحويل العملات أو جمعها معاً."
-                 : "Different currencies are never converted or combined.")
-                .font(GhafTypography.body(11, languageCode: settings.languageCode))
+            Text(lang == "ar" ? "لا يتم تحويل العملات أو جمعها معاً." : "Different currencies are never converted or combined.")
+                .font(GhafTypography.body(12, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
         }
-        .padding(18)
-        .ghafCard(theme: theme, radius: 20)
+        .multilineTextAlignment(.center)
+        .padding(.vertical, 22).padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .ghafCard(theme: theme, radius: 28)
     }
 
-    private var accountList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(settings.languageCode == "ar" ? "الحسابات النشطة" : "ACTIVE ACCOUNTS")
-                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.1)
-                .foregroundStyle(theme.secondaryText)
-
-            ForEach(activeAccounts, id: \.id) { account in
-                Button {
-                    selectedAccount = account
-                    showingEditor = true
-                } label: {
-                    accountRow(account)
-                }
-                .buttonStyle(.ghafPress)
-                .contextMenu {
+    private func accountList(_ balances: [UUID: Decimal]) -> some View {
+        VStack(spacing: 10) {
+            GhafSectionHeader(title: lang == "ar" ? "الحسابات النشطة" : "Active accounts", theme: theme, languageCode: lang)
+            VStack(spacing: 0) {
+                ForEach(activeAccounts, id: \.id) { account in
                     Button {
-                        moveAccount(account, by: -1)
+                        selectedAccount = account
+                        showingEditor = true
                     } label: {
-                        Label(
-                            settings.languageCode == "ar" ? "نقل إلى الأعلى" : "Move up",
-                            systemImage: "arrow.up"
-                        )
+                        accountRow(account, balance: balances[account.id] ?? account.openingBalance)
                     }
-                    .disabled(activeAccounts.first?.id == account.id)
+                    .buttonStyle(.ghafPress)
+                    .contextMenu {
+                        Button {
+                            moveAccount(account, by: -1)
+                        } label: {
+                            Label(lang == "ar" ? "نقل إلى الأعلى" : "Move up", systemImage: "arrow.up")
+                        }
+                        .disabled(activeAccounts.first?.id == account.id)
 
-                    Button {
-                        moveAccount(account, by: 1)
-                    } label: {
-                        Label(
-                            settings.languageCode == "ar" ? "نقل إلى الأسفل" : "Move down",
-                            systemImage: "arrow.down"
-                        )
+                        Button {
+                            moveAccount(account, by: 1)
+                        } label: {
+                            Label(lang == "ar" ? "نقل إلى الأسفل" : "Move down", systemImage: "arrow.down")
+                        }
+                        .disabled(activeAccounts.last?.id == account.id)
                     }
-                    .disabled(activeAccounts.last?.id == account.id)
+                    if account.id != activeAccounts.last?.id {
+                        Divider().overlay(theme.outline).padding(.leading, 58)
+                    }
                 }
             }
+            .padding(.horizontal, 16).padding(.vertical, 4)
+            .ghafCard(theme: theme)
         }
     }
 
@@ -172,58 +144,20 @@ struct GhafAccountsView: View {
         try? modelContext.save()
     }
 
-    private func accountRow(_ account: GhafAccount) -> some View {
-        let balance = GhafAccountBalanceCalculator.balance(
-            for: account,
-            transactions: transactions
-        )
-
-        return HStack(spacing: 13) {
-            Image(systemName: account.type.symbol)
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(theme.accent)
-                .frame(width: 46, height: 46)
-                .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(account.name)
-                    .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
-                Text(account.institution ?? account.type.titleKey)
-                    .font(GhafTypography.body(11, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.secondaryText)
-                if let lastFour = account.lastFourDigits, !lastFour.isEmpty {
-                    Text("•••• \(lastFour)")
-                        .font(GhafTypography.number(10))
-                        .foregroundStyle(theme.secondaryText)
-                }
-            }
-
-            Spacer(minLength: 6)
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(GhafFormat.money(balance, currency: account.currency, languageCode: settings.languageCode))
-                    .font(GhafTypography.number(15, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                GhafCurrencyIcon(currency: account.currency, size: 15)
-            }
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(theme.secondaryText)
+    private func accountRow(_ account: GhafAccount, balance: Decimal) -> some View {
+        let detail = [account.institution ?? account.type.titleKey,
+                      account.lastFourDigits.flatMap { $0.isEmpty ? nil : "•••• \($0)" }]
+            .compactMap { $0 }.joined(separator: " · ")
+        return GhafListRow(icon: account.type.symbol, tint: theme.accent, title: account.name, subtitle: detail,
+                           theme: theme, languageCode: lang, chevron: true) {
+            GhafMoneyLabel(amount: balance, currency: account.currency, languageCode: lang, size: 16)
+                .foregroundStyle(theme.primaryText)
         }
-        .padding(15)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafLiquidGlass(theme: theme, radius: 19)
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Image(systemName: "wallet.pass")
-                .font(.system(size: 31, weight: .medium))
-                .foregroundStyle(theme.accent)
+        VStack(spacing: 10) {
+            GhafIconBadge(symbol: "wallet.pass.fill", tint: theme.accent, size: 60)
             Text(settings.languageCode == "ar" ? "ابدأ بإضافة حسابك الأول" : "Add your first account")
                 .font(GhafTypography.heading(18, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
@@ -233,15 +167,16 @@ struct GhafAccountsView: View {
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
-        .padding(20)
-        .ghafCard(theme: theme, radius: 19)
+        .multilineTextAlignment(.center)
+        .padding(22)
+        .frame(maxWidth: .infinity)
+        .ghafCard(theme: theme)
     }
 
-    private var archivedAccounts: some View {
+    private func archivedAccounts(_ balances: [UUID: Decimal]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(settings.languageCode == "ar" ? "حسابات مؤرشفة" : "ARCHIVED")
-                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.1)
+            Text(lang == "ar" ? "حسابات مؤرشفة" : "Archived")
+                .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 .foregroundStyle(theme.secondaryText)
 
             ForEach(accounts.filter(\.isArchived), id: \.id) { account in
@@ -251,7 +186,7 @@ struct GhafAccountsView: View {
                         .foregroundStyle(theme.secondaryText)
                     Spacer()
                     Text(GhafFormat.money(
-                        GhafAccountBalanceCalculator.balance(for: account, transactions: transactions),
+                        balances[account.id] ?? account.openingBalance,
                         currency: account.currency,
                         languageCode: settings.languageCode
                     ))
@@ -261,8 +196,8 @@ struct GhafAccountsView: View {
                 .padding(.vertical, 4)
             }
         }
-        .padding(16)
-        .ghafCard(theme: theme, radius: 18)
+        .padding(18)
+        .ghafCard(theme: theme)
     }
 }
 

@@ -5,6 +5,7 @@ import AppIntents
 
 struct GhafHomeView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(GhafTabRouter.self) private var router
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
@@ -18,9 +19,9 @@ struct GhafHomeView: View {
     @State private var showAccounts = false
     @State private var showInsights = false
     @State private var showReview = false
+    @State private var selectedTransaction: GhafTransaction?
     @AppStorage("ghaf.hideBalances") private var hideBalances = false
     @State private var activityPeriodIndex = 0
-    @State private var tileTaps: [String: Int] = [:]
 
     let settings: GhafSettings
 
@@ -32,58 +33,67 @@ struct GhafHomeView: View {
         )
     }
 
-    private var snapshot: BudgetSnapshot {
-        BudgetCalculator.snapshot(settings: settings, transactions: transactions)
+    /// Everything Home shows, derived in one pass per render instead of once per view.
+    private struct Summary {
+        var accountBalances: [UUID: Decimal] = [:]
+        var balances: [GhafCurrencyBalance] = []
+        var mainCurrency = ""
+        var spent: Decimal = 0
+        var income: Decimal = 0
+        var count = 0
+        var topCategory: (name: String, amount: Decimal)?
+        var reviewCount = 0
     }
 
-    private var activityTransactions: [GhafTransaction] {
+    private func makeSummary() -> Summary {
+        var summary = Summary()
+        summary.accountBalances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
+        summary.balances = GhafAccountBalanceCalculator.balancesByCurrency(accounts: accounts, balances: summary.accountBalances)
+        let main = summary.balances.contains { $0.currency == settings.currency }
+            ? settings.currency : (summary.balances.first?.currency ?? settings.currency)
+        summary.mainCurrency = main
+
         let calendar = Calendar.current
-        let now = Date()
-        switch activityPeriodIndex {
-        case 1:
-            guard let interval = calendar.dateInterval(of: .weekOfYear, for: now) else { return [] }
-            return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
-        case 2:
-            guard let interval = calendar.dateInterval(of: .month, for: now) else { return [] }
-            return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
-        default:
-            return transactions.filter { calendar.isDate($0.date, inSameDayAs: now) }
+        let component: Calendar.Component = [.day, .weekOfYear, .month][activityPeriodIndex]
+        let interval = calendar.dateInterval(of: component, for: .now)
+        var byCategory: [String: Decimal] = [:]
+        for transaction in transactions {
+            if transaction.needsReview { summary.reviewCount += 1 }
+            guard let interval else { continue }
+            let date = transaction.date
+            if date >= interval.end { continue }
+            if date < interval.start { continue }
+            summary.count += 1
+            guard transaction.currency == main, transaction.isSpendingOrIncome else { continue }
+            if transaction.direction == "debit" {
+                summary.spent += transaction.amount
+                byCategory[transaction.category, default: 0] += transaction.amount
+            } else if transaction.direction == "credit" {
+                summary.income += transaction.amount
+            }
         }
-    }
-
-    private var balances: [GhafCurrencyBalance] {
-        GhafAccountBalanceCalculator.balancesByCurrency(accounts: accounts, transactions: transactions)
-    }
-
-    /// The preferred currency when an account uses it, else the first account currency.
-    private var mainCurrency: String {
-        balances.contains { $0.currency == settings.currency } ? settings.currency : (balances.first?.currency ?? settings.currency)
-    }
-
-    /// Period total in the main currency only; other currencies are never added in.
-    private func activityTotal(_ direction: String) -> Decimal {
-        activityTransactions
-            .filter { $0.currency == mainCurrency && $0.direction == direction && $0.isSpendingOrIncome }
-            .reduce(Decimal.zero) { $0 + $1.amount }
-    }
-
-    /// Money text, or stars while balances are hidden. Values themselves are untouched.
-    private func money(_ value: Decimal, _ currency: String) -> String {
-        hideBalances ? GhafMoneyLabel.mask : GhafFormat.money(value, currency: currency, languageCode: settings.languageCode)
+        if let top = byCategory.max(by: { $0.value < $1.value }) { summary.topCategory = (top.key, top.value) }
+        return summary
     }
 
     var body: some View {
+        let summary = makeSummary()
         NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
-                header.ghafEntrance(0)
-                heroCard.ghafEntrance(1)
-                actionGrid.ghafEntrance(2)
+            ScrollView {
+                VStack(spacing: GhafMetrics.sectionSpacing) {
+                    header.ghafEntrance(0)
+                    balanceCard(summary).ghafEntrance(1)
+                    actionRow(summary).ghafEntrance(2)
+                    insightCard(summary).ghafEntrance(3)
+                    recentActivity.ghafEntrance(4)
+                }
+                .padding(.horizontal, GhafMetrics.gutter)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
+                .frame(maxWidth: 560)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 6)
-            .padding(.bottom, 10)
-            .frame(maxWidth: 560)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings) }
@@ -96,6 +106,10 @@ struct GhafHomeView: View {
             }
             .sheet(isPresented: $showReview) {
                 GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible)
+            }
+            .sheet(item: $selectedTransaction) { transaction in
+                GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName, appearanceMode: settings.appearanceMode, languageCode: settings.languageCode, accounts: accounts.filter { !$0.isArchived })
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
@@ -121,147 +135,268 @@ struct GhafHomeView: View {
     }
 
     private var ar: Bool { settings.languageCode == "ar" }
+    private var lang: String { settings.languageCode }
 
-    // MARK: Hero: balance + tap-to-switch Day / Week / Month
+    // MARK: Header: greeting, accounts pill, hide-balances eye
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(greeting)
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
+                Text(settings.userName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.userName)
+                    .font(GhafTypography.heading(24, languageCode: lang))
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 8)
+            Button { showAccounts = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "wallet.bifold.fill").font(.system(size: 13, weight: .bold))
+                    Text(ar ? "الحسابات" : "Accounts")
+                        .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                    Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
+                }
+                .foregroundStyle(theme.primaryText)
+                .padding(.horizontal, 14).frame(height: 40)
+                .background(theme.surface, in: Capsule())
+                .shadow(color: theme.shadow, radius: 8, y: 3)
+            }
+            .buttonStyle(.ghafPress)
+            Button {
+                withAnimation(.snappy(duration: 0.22)) { hideBalances.toggle() }
+            } label: {
+                Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .contentTransition(.symbolEffect(.replace))
+                    .foregroundStyle(theme.primaryText)
+                    .frame(width: 44, height: 44)
+                    .background(theme.surface, in: Circle())
+                    .shadow(color: theme.shadow, radius: 8, y: 3)
+            }
+            .buttonStyle(.ghafPress)
+            .sensoryFeedback(.selection, trigger: hideBalances)
+            .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
+                                   : (hideBalances ? "Show balances" : "Hide balances"))
+        }
+    }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if ar { return hour < 12 ? "صباح الخير" : "مساء الخير" }
+        if hour < 12 { return "Good morning" }
+        if hour < 17 { return "Good afternoon" }
+        return "Good evening"
+    }
+
+    // MARK: Balance card: tap to switch Day / Week / Month
 
     private var periodName: String {
         ar ? ["اليوم", "هذا الأسبوع", "هذا الشهر"][activityPeriodIndex]
            : ["Today", "This week", "This month"][activityPeriodIndex]
     }
 
-    private var heroCard: some View {
-        let main = balances.first { $0.currency == mainCurrency }
+    private func balanceCard(_ summary: Summary) -> some View {
+        let main = summary.balances.first { $0.currency == summary.mainCurrency }
+        let others = summary.balances.filter { $0.currency != summary.mainCurrency }
 
-        return VStack(spacing: 12) {
-            ZStack {
-                Text(ar ? "رصيدك" : "YOUR BALANCE")
-                    .font(GhafTypography.body(ar ? 14 : 11, languageCode: settings.languageCode, weight: .bold))
-                    .tracking(ar ? 0 : 1.6)
-                HStack {
-                    Spacer()
-                    Button {
-                        withAnimation(.snappy(duration: 0.22)) { hideBalances.toggle() }
-                    } label: {
-                        Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
-                            .font(.system(size: 16, weight: .bold))
-                            .contentTransition(.symbolEffect(.replace))
-                            .frame(width: 40, height: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
-                                           : (hideBalances ? "Show balances" : "Hide balances"))
-                }
+        return VStack(spacing: 14) {
+            Text(ar ? "إجمالي الرصيد" : "Total balance")
+                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+
+            GhafMoneyLabel(amount: main?.amount ?? 0, currency: summary.mainCurrency,
+                           languageCode: lang, size: 44, hidden: hideBalances)
+                .foregroundStyle(theme.primaryText)
+
+            // Other currencies are listed, never added to the main total.
+            ForEach(others) { balance in
+                GhafMoneyLabel(amount: balance.amount, currency: balance.currency,
+                               languageCode: lang, size: 16, hidden: hideBalances)
+                    .foregroundStyle(theme.secondaryText)
             }
-            .foregroundStyle(theme.accentContrast.opacity(0.8))
 
-            GhafMoneyLabel(amount: main?.amount ?? 0, currency: mainCurrency,
-                           languageCode: settings.languageCode, size: 40, hidden: hideBalances)
-                .foregroundStyle(theme.accentContrast)
-
-            accountStrip
-
-            // Tapping anywhere else on the card switches the period.
-            VStack(spacing: 8) {
-                HStack(spacing: 0) {
-                    periodMetric(ar ? "صرفت" : "Spent", activityTotal("debit"))
-                    periodMetric(ar ? "دخل" : "Income", activityTotal("credit"))
-                    VStack(spacing: 3) {
-                        Text(ar ? "عمليات" : "Transactions")
-                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                            .opacity(0.75)
-                        Text("\(activityTransactions.count)")
-                            .font(GhafTypography.number(17, weight: .heavy))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                HStack(spacing: 6) {
-                    ForEach(0..<3, id: \.self) { index in
-                        Capsule()
-                            .fill(theme.accentContrast.opacity(index == activityPeriodIndex ? 0.9 : 0.25))
-                            .frame(width: index == activityPeriodIndex ? 18 : 6, height: 6)
-                    }
-                    Text(periodName + " · " + (ar ? "اضغط للتبديل" : "tap to switch"))
-                        .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                        .opacity(0.75)
-                }
+            HStack(spacing: 14) {
+                changeLine(icon: "arrow.down.right", value: summary.spent, color: theme.debit,
+                           label: ar ? "صرفت" : "spent", currency: summary.mainCurrency)
+                changeLine(icon: "arrow.up.right", value: summary.income, color: theme.credit,
+                           label: ar ? "دخل" : "in", currency: summary.mainCurrency)
             }
-            .foregroundStyle(theme.accentContrast)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(theme.accentContrast.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            HStack(spacing: 6) {
+                ForEach(0..<3, id: \.self) { index in
+                    Capsule()
+                        .fill(index == activityPeriodIndex ? theme.accent : theme.secondaryText.opacity(0.25))
+                        .frame(width: index == activityPeriodIndex ? 18 : 6, height: 6)
+                }
+                Text(periodName + " · \(summary.count) " + (ar ? "عملية" : (summary.count == 1 ? "transaction" : "transactions")))
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
+                    .contentTransition(.numericText())
+            }
+
+            accountStrip(summary)
         }
-        .padding(16)
+        .padding(.vertical, 22)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
-        .background(theme.accent, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .ghafCard(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(ar ? "اضغط للتبديل بين اليوم والأسبوع والشهر" : "Tap to switch between day, week and month")
         .sensoryFeedback(.selection, trigger: activityPeriodIndex)
     }
 
-    // MARK: Big action buttons (2 x 3, no scrolling)
-
-    private var actionGrid: some View {
-        let reviewCount = transactions.filter(\.needsReview).count
-        return Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-            GridRow {
-                actionTile(ar ? "إضافة مصروف" : "Add expense", icon: "plus", filled: true) { showQuickAdd = true }
-                actionTile(ar ? "بالصوت" : "Say it", icon: "mic.fill", filled: true) { showVoiceEntry = true }
-            }
-            GridRow {
-                actionTile(ar ? "الحسابات" : "Accounts", icon: "wallet.bifold.fill") { showAccounts = true }
-                actionTile(ar ? "التحليلات" : "Insights", icon: "chart.pie.fill") { showInsights = true }
-            }
-            GridRow {
-                actionTile(ar ? "للمراجعة" : "To review", icon: "tray.full.fill", badge: reviewCount) { showReview = true }
-                actionTile(ar ? "ربط البنك" : "Bank setup", icon: "bolt.fill") { showAutomationGuide = true }
-            }
+    private func changeLine(icon: String, value: Decimal, color: Color, label: String, currency: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 11, weight: .heavy))
+            GhafMoneyLabel(amount: value, currency: currency, languageCode: lang, size: 14, hidden: hideBalances)
+            Text(label).font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
         }
-        .frame(maxHeight: .infinity)
+        .foregroundStyle(color)
     }
 
-    private func actionTile(_ title: String, icon: String, filled: Bool = false, badge: Int = 0,
-                            action: @escaping () -> Void) -> some View {
-        Button {
-            tileTaps[title, default: 0] += 1
-            action()
-        } label: {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 26, weight: .bold))
-                    .symbolEffect(.bounce, value: tileTaps[title, default: 0])
-                Text(title)
-                    .font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .heavy))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+    @ViewBuilder
+    private func accountStrip(_ summary: Summary) -> some View {
+        let open = accounts.filter { !$0.isArchived }
+        if !open.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(open) { account in
+                        Button { showAccounts = true } label: {
+                            VStack(spacing: 2) {
+                                Text(account.name)
+                                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                                    .foregroundStyle(theme.secondaryText)
+                                GhafMoneyLabel(amount: summary.accountBalances[account.id] ?? account.openingBalance,
+                                               currency: account.currency, languageCode: lang,
+                                               size: 14, hidden: hideBalances)
+                                    .foregroundStyle(theme.primaryText)
+                            }
+                            .lineLimit(1)
+                            .fixedSize()
+                            .padding(.horizontal, 14).padding(.vertical, 9)
+                            .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.ghafPress)
+                    }
+                }
+                .padding(.horizontal, 2)
             }
-            .overlay(alignment: .topTrailing) {
-                if badge > 0 {
-                    Text("\(badge)")
-                        .font(GhafTypography.number(13, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color.red, in: Capsule())
-                        .offset(x: 22, y: -10)
+        }
+    }
+
+    // MARK: Big pill actions
+
+    private func actionRow(_ summary: Summary) -> some View {
+        HStack(spacing: 10) {
+            GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
+                           prominent: true) { showQuickAdd = true }
+            GhafPillButton(title: ar ? "بالصوت" : "Say it", icon: "mic.fill", theme: theme,
+                           languageCode: lang) { showVoiceEntry = true }
+            GhafPillButton(title: ar ? "مراجعة" : "Review", icon: "tray.full.fill", theme: theme,
+                           languageCode: lang, badge: summary.reviewCount) { showReview = true }
+        }
+    }
+
+    // MARK: Dark insight card
+
+    private func insightCard(_ summary: Summary) -> some View {
+        Button { showInsights = true } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Label(ar ? "التحليلات" : "Insights", systemImage: "chart.pie.fill")
+                        .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                        .foregroundStyle(theme.inkText.opacity(0.75))
+                    Spacer()
+                    Image(systemName: "arrow.up.forward")
+                        .font(.system(size: 14, weight: .heavy))
+                        .foregroundStyle(theme.inkText)
+                        .frame(width: 34, height: 34)
+                        .background(theme.inkText.opacity(0.12), in: Circle())
+                }
+                Text(insightText(summary))
+                    .font(GhafTypography.heading(19, languageCode: lang))
+                    .foregroundStyle(theme.inkText)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                if summary.spent + summary.income > 0 {
+                    // Share of money in vs out for the selected period.
+                    GeometryReader { proxy in
+                        let total = NSDecimalNumber(decimal: summary.spent + summary.income).doubleValue
+                        let share = NSDecimalNumber(decimal: summary.spent).doubleValue / total
+                        HStack(spacing: 4) {
+                            Capsule().fill(theme.inkDebit).frame(width: max(6, (proxy.size.width - 4) * share))
+                            Capsule().fill(theme.inkCredit)
+                        }
+                    }
+                    .frame(height: 8)
+                    .accessibilityHidden(true)
                 }
             }
-            .foregroundStyle(filled ? theme.accentContrast : theme.primaryText)
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 64, maxHeight: .infinity)
-            .background(filled ? theme.accent : theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(filled ? .clear : theme.outline, lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.ink, in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
         }
         .buttonStyle(.ghafPress)
-        .sensoryFeedback(.impact(weight: .light), trigger: tileTaps[title, default: 0])
-        .accessibilityLabel(badge > 0 ? "\(title), \(badge)" : title)
+    }
+
+    private func insightText(_ summary: Summary) -> String {
+        guard let top = summary.topCategory else {
+            return ar ? "لا مصروفات \(periodName). اضغط لرؤية التحليلات الكاملة."
+                      : "No spending \(periodName.lowercased()). Tap for the full picture."
+        }
+        let category = GhafLocalization.category(top.name, languageCode: lang)
+        let amount = hideBalances ? GhafMoneyLabel.mask : GhafFormat.money(top.amount, currency: summary.mainCurrency, languageCode: lang)
+        return ar ? "أكثر ما صرفت عليه \(periodName): \(category)، \(amount)."
+                  : "\(category) leads your spending \(periodName.lowercased()) at \(amount)."
+    }
+
+    // MARK: Recent activity (a short shortcut; the full list lives in Transactions)
+
+    private var recentActivity: some View {
+        VStack(spacing: 10) {
+            GhafSectionHeader(title: ar ? "النشاط" : "Activity", theme: theme, languageCode: lang,
+                              actionTitle: ar ? "عرض الكل" : "See all") { router.selectedTab = 3 }
+            VStack(spacing: 0) {
+                let recent = Array(transactions.prefix(4))
+                if recent.isEmpty {
+                    GhafListRow(icon: "bolt.fill", tint: theme.accent,
+                                title: ar ? "اربط رسائل البنك" : "Connect your bank messages",
+                                subtitle: ar ? "سجّل العمليات تلقائياً عبر الاختصارات" : "Log transactions automatically with Shortcuts",
+                                theme: theme, languageCode: lang, chevron: true)
+                        .onTapGesture { showAutomationGuide = true }
+                } else {
+                    ForEach(recent) { transaction in
+                        Button { selectedTransaction = transaction } label: {
+                            GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang, hidden: hideBalances)
+                        }
+                        .buttonStyle(.ghafPress)
+                        if transaction.id != recent.last?.id {
+                            Divider().overlay(theme.outline).padding(.leading, 58)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+            .ghafCard(theme: theme)
+
+            Button { showAutomationGuide = true } label: {
+                GhafListRow(icon: "bolt.fill", tint: theme.accent,
+                            title: ar ? "ربط البنك" : "Bank setup",
+                            subtitle: ar ? "التقاط العمليات من رسائل البنك" : "Capture transactions from bank messages",
+                            theme: theme, languageCode: lang, chevron: true)
+                    .padding(.horizontal, 16).padding(.vertical, 4)
+                    .ghafCard(theme: theme)
+            }
+            .buttonStyle(.ghafPress)
+        }
     }
 
     private func checkSalaryDue() {
@@ -279,84 +414,6 @@ struct GhafHomeView: View {
             showSalaryCheckIn = true
         }
     }
-
-    private var header: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 6) {
-                GhafTreeMark(color: theme.accent).frame(width: 16, height: 16).accessibilityHidden(true)
-                Text(settings.languageCode == "ar" ? greeting : greeting.uppercased())
-                    .font(GhafTypography.heading(settings.languageCode == "ar" ? 16 : 11, languageCode: settings.languageCode))
-                    .tracking(settings.languageCode == "ar" ? 0 : 1.8)
-                    .foregroundStyle(theme.secondaryText)
-            }
-            Text(settings.languageCode == "ar"
-                 ? (settings.userName.isEmpty ? "أموالك بوضوح" : "مرحباً، \(settings.userName)")
-                 : (settings.userName.isEmpty ? "Your money, in view." : "Hello, \(settings.userName)."))
-                .font(GhafTypography.display(26, languageCode: settings.languageCode))
-                .foregroundStyle(theme.primaryText)
-                .lineLimit(1).minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        if settings.languageCode == "ar" {
-            return hour < 17 ? "صـبـاح الخـير" : "مسـاء الخـير"
-        }
-        if hour < 12 { return "Good morning" }
-        if hour < 17 { return "Good afternoon" }
-        return "Good evening"
-    }
-
-    // MARK: Each account's own balance, in its own currency
-
-    @ViewBuilder
-    private var accountStrip: some View {
-        let open = accounts.filter { !$0.isArchived }
-        if !open.isEmpty {
-            // Centered when the chips fit, scrollable when there are many accounts.
-            ViewThatFits(in: .horizontal) {
-                accountChips(open)
-                ScrollView(.horizontal, showsIndicators: false) { accountChips(open) }
-            }
-            .foregroundStyle(theme.accentContrast)
-        }
-    }
-
-    private func accountChips(_ open: [GhafAccount]) -> some View {
-        HStack(spacing: 8) {
-            ForEach(open) { account in
-                Button { showAccounts = true } label: {
-                    VStack(spacing: 2) {
-                        Text(account.name)
-                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                            .opacity(0.8)
-                        GhafMoneyLabel(amount: GhafAccountBalanceCalculator.balance(for: account, transactions: transactions),
-                                       currency: account.currency, languageCode: settings.languageCode,
-                                       size: 14, hidden: hideBalances)
-                    }
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 12).padding(.vertical, 7)
-                    .background(theme.accentContrast.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .buttonStyle(.ghafPress)
-            }
-        }
-    }
-
-    private func periodMetric(_ title: String, _ value: Decimal) -> some View {
-        VStack(spacing: 3) {
-            Text(title)
-                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                .opacity(0.75)
-            GhafMoneyLabel(amount: value, currency: mainCurrency, languageCode: settings.languageCode,
-                           size: 17, hidden: hideBalances)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
 }
 
 // MARK: - Transaction Row
@@ -365,14 +422,15 @@ struct GhafTransactionRow: View {
     let transaction: GhafTransaction
     let theme: GhafTheme
     let languageCode: String
+    var hidden = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             GhafCategoryIcon(category: transaction.category, tint: theme.accent)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(merchantTitle)
-                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
 
@@ -384,7 +442,7 @@ struct GhafTransactionRow: View {
                         .dateTime.hour().minute().locale(Locale(identifier: languageCode))
                     ))
                 }
-                .font(GhafTypography.body(11, languageCode: languageCode))
+                .font(GhafTypography.body(13, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
             }
@@ -394,21 +452,21 @@ struct GhafTransactionRow: View {
             VStack(alignment: .trailing, spacing: 5) {
                 HStack(spacing: 2) {
                     Text(transaction.direction == "credit" ? "+" : "−")
-                        .font(GhafTypography.number(15, weight: .bold))
-                    GhafMoneyLabel(amount: transaction.amount, currency: transaction.currency, languageCode: languageCode, size: 15)
+                        .font(GhafTypography.number(16, weight: .bold))
+                    GhafMoneyLabel(amount: transaction.amount, currency: transaction.currency, languageCode: languageCode, size: 16, hidden: hidden)
                 }
                 .foregroundStyle(transaction.direction == "credit" ? theme.credit : theme.primaryText)
                 .environment(\.layoutDirection, .leftToRight)
 
                 if transaction.needsReview {
                     Text(languageCode == "ar" ? "مراجعة" : "REVIEW")
-                        .font(GhafTypography.body(9, languageCode: languageCode, weight: .bold))
+                        .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
                         .tracking(0.8)
                         .foregroundStyle(theme.close)
                 }
             }
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 11)
         .contentShape(Rectangle())
     }
 

@@ -64,14 +64,17 @@ struct GhafInsightsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    pageHeader
+                // Category totals are grouped once per render and shared by the chart and list.
+                let totals = categoryTotals
+                VStack(spacing: GhafMetrics.sectionSpacing) {
+                    GhafScreenTitle(title: settings.languageCode == "ar" ? "التحليلات" : "Insights",
+                                    subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
+                                    languageCode: settings.languageCode, theme: theme)
                     headlineCard
-                    summaryGrid
-                    categoryChart
-                    categoryList
+                    categoryChart(totals)
+                    categoryList(totals)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 12)
                 .padding(.bottom, 30)
                 .frame(maxWidth: 620)
@@ -82,86 +85,39 @@ struct GhafInsightsView: View {
         }
     }
 
-    private var pageHeader: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(settings.languageCode == "ar" ? "ملخص الشهر" : "MONTHLY OVERVIEW")
-                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.8)
-                .foregroundStyle(theme.secondaryText)
-            Text(settings.languageCode == "ar" ? "نظرة عامة" : "Insights")
-                .font(GhafTypography.display(32, languageCode: settings.languageCode))
-                .foregroundStyle(theme.primaryText)
-            Text(Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))))
-                .font(GhafTypography.body(14, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-        }
-    }
-
     private var headlineCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(settings.languageCode == "ar" ? "صافي هذا الشهر" : "NET THIS MONTH")
-                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                .tracking(1.4)
-                .foregroundStyle(theme.accentContrast.opacity(0.72))
-
-            Text(GhafFormat.money(net, currency: settings.currency, languageCode: settings.languageCode))
-                .font(GhafTypography.number(34, weight: .bold))
-                .monospacedDigit()
-                .foregroundStyle(theme.accentContrast)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Text(settings.languageCode == "ar" ? "الدخل المسجل بعد خصم المصروفات." : "Recorded income after expenses.")
-                .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                .foregroundStyle(theme.accentContrast.opacity(0.78))
+        VStack(spacing: 16) {
+            Text(settings.languageCode == "ar" ? "صافي هذا الشهر" : "Net this month")
+                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                .foregroundStyle(theme.inkText.opacity(0.7))
+            GhafMoneyLabel(amount: net, currency: settings.currency, languageCode: settings.languageCode, size: 38)
+                .foregroundStyle(theme.inkText)
+            HStack(spacing: 10) {
+                summaryCard(title: settings.languageCode == "ar" ? "المصروفات" : "Spent",
+                            amount: totalExpenses, color: theme.inkDebit, symbol: "arrow.down.right")
+                summaryCard(title: settings.languageCode == "ar" ? "الدخل" : "Income",
+                            amount: totalIncome, color: theme.inkCredit, symbol: "arrow.up.right")
+            }
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.accent, in: RoundedRectangle(cornerRadius: 23, style: .continuous))
-    }
-
-    private var summaryGrid: some View {
-        HStack(spacing: 10) {
-            summaryCard(
-                title: settings.languageCode == "ar" ? "المصروفات" : "EXPENSES",
-                amount: totalExpenses,
-                color: theme.debit,
-                symbol: "arrow.up.right"
-            )
-            summaryCard(
-                title: settings.languageCode == "ar" ? "الدخل" : "INCOME",
-                amount: totalIncome,
-                color: theme.credit,
-                symbol: "arrow.down.left"
-            )
-        }
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .background(theme.ink, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
     private func summaryCard(title: String, amount: Decimal, color: Color, symbol: String) -> some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 6) {
-                Image(systemName: symbol)
-                    .font(.system(size: 10, weight: .bold))
-                Text(title)
-                    .font(GhafTypography.body(9, languageCode: settings.languageCode, weight: .bold))
-                    .tracking(1)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(theme.secondaryText)
-
-            Text(GhafFormat.money(amount, currency: settings.currency, languageCode: settings.languageCode))
-                .font(GhafTypography.number(18, weight: .bold))
+        VStack(spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .bold))
                 .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: settings.languageCode, size: 17)
+                .foregroundStyle(theme.inkText)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(theme.outline.opacity(0.7), lineWidth: 1))
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity)
+        .background(theme.inkText.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private var categoryChart: some View {
+    private func categoryChart(_ categoryTotals: [GhafCategoryTotal]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionHeading(
                 settings.languageCode == "ar" ? "الصرف حسب الفئة" : "Spending by category",
@@ -181,24 +137,24 @@ struct GhafInsightsView: View {
                         y: .value("Category", GhafLocalization.category(item.category, languageCode: settings.languageCode))
                     )
                     .foregroundStyle(theme.accent.gradient)
-                    .cornerRadius(5)
+                    .cornerRadius(8)
                 }
                 .chartXAxis(.hidden)
                 .chartYAxis {
                     AxisMarks { value in
                         AxisValueLabel()
-                            .font(.custom("IBMPlexSans-Regular", size: 10))
+                            .font(.custom("IBMPlexSans-Regular", size: 12))
                             .foregroundStyle(theme.secondaryText)
                     }
                 }
                 .frame(height: CGFloat(min(categoryTotals.count, 6)) * 37 + 12)
             }
         }
-        .padding(18)
-        .ghafCard(theme: theme, radius: 20)
+        .padding(20)
+        .ghafCard(theme: theme)
     }
 
-    private var categoryList: some View {
+    private func categoryList(_ categoryTotals: [GhafCategoryTotal]) -> some View {
         VStack(alignment: .leading, spacing: 13) {
             sectionHeading(
                 settings.languageCode == "ar" ? "تفصيل الفئات" : "Category breakdown",
@@ -215,21 +171,21 @@ struct GhafInsightsView: View {
                         GhafCategoryIcon(category: item.category, tint: theme.accent)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(GhafLocalization.category(item.category, languageCode: settings.languageCode))
-                                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                                .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
                                 .foregroundStyle(theme.primaryText)
                             GeometryReader { geometry in
                                 ZStack(alignment: .leading) {
-                                    Capsule().fill(theme.outline.opacity(0.6))
+                                    Capsule().fill(theme.elevatedSurface)
                                     Capsule()
                                         .fill(theme.accent.opacity(0.78))
-                                        .frame(width: geometry.size.width * relativeAmount(item.amount))
+                                        .frame(width: geometry.size.width * relativeAmount(item.amount, max: categoryTotals.first?.amount ?? 1))
                                 }
                             }
-                            .frame(height: 4)
+                            .frame(height: 6)
                         }
                         Spacer(minLength: 4)
                         Text(GhafFormat.money(Decimal(item.amount), currency: settings.currency, languageCode: settings.languageCode))
-                            .font(GhafTypography.number(12, weight: .semibold))
+                            .font(GhafTypography.number(14, weight: .bold))
                             .foregroundStyle(theme.primaryText)
                             .lineLimit(1)
                     }
@@ -239,8 +195,8 @@ struct GhafInsightsView: View {
                 }
             }
         }
-        .padding(18)
-        .ghafCard(theme: theme, radius: 20)
+        .padding(20)
+        .ghafCard(theme: theme)
     }
 
     private func sectionHeading(_ title: String, subtitle: String) -> some View {
@@ -249,13 +205,12 @@ struct GhafInsightsView: View {
                 .font(GhafTypography.heading(18, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
             Text(subtitle)
-                .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
     }
 
-    private func relativeAmount(_ amount: Double) -> CGFloat {
-        let maxAmount = categoryTotals.first?.amount ?? 1
+    private func relativeAmount(_ amount: Double, max maxAmount: Double) -> CGFloat {
         guard maxAmount > 0 else { return 0 }
         return CGFloat(min(max(amount / maxAmount, 0), 1))
     }

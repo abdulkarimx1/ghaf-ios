@@ -55,7 +55,7 @@ struct GhafSettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: GhafMetrics.sectionSpacing) {
                     profileHeader
 
                     menuGroup(ar ? "المال" : "Money") {
@@ -81,8 +81,10 @@ struct GhafSettingsView: View {
 
                     Button(role: .destructive) { prompt = .deleteData } label: {
                         Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
-                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                             .foregroundStyle(theme.over)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .background(theme.over.opacity(0.1), in: Capsule())
                     }
                     .buttonStyle(.ghafPress)
 
@@ -93,7 +95,7 @@ struct GhafSettingsView: View {
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 12)
                 .padding(.bottom, 32)
                 .frame(maxWidth: 620)
@@ -179,22 +181,25 @@ struct GhafSettingsView: View {
         NavigationLink {
             subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
         } label: {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Text(initials)
                     .font(GhafTypography.display(30, languageCode: languageCode))
                     .foregroundStyle(theme.accentContrast)
-                    .frame(width: 84, height: 84)
-                    .background(theme.accent, in: Circle())
-                    .overlay(Circle().stroke(theme.accent.opacity(0.35), lineWidth: 6).padding(-6))
+                    .frame(width: 88, height: 88)
+                    .background(theme.accent.gradient, in: Circle())
+                    .shadow(color: theme.accent.opacity(0.35), radius: 14, y: 6)
                 Text(name.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : name)
-                    .font(GhafTypography.display(24, languageCode: languageCode))
+                    .font(GhafTypography.display(26, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
                 HStack(spacing: 6) {
                     Text(ar ? "عرض الملف الشخصي" : "View profile")
-                    Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 10, weight: .bold))
+                    Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
                 }
-                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
-                .foregroundStyle(theme.accent)
+                .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
+                .foregroundStyle(theme.primaryText)
+                .padding(.horizontal, 16).frame(height: 36)
+                .background(theme.surface, in: Capsule())
+                .shadow(color: theme.shadow, radius: 8, y: 3)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
@@ -222,35 +227,22 @@ struct GhafSettingsView: View {
     }
 
     private func menuGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 8) {
-            Text(title.uppercased())
-                .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
-                .tracking(ar ? 0 : 1.4)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.secondaryText)
+                .padding(.horizontal, 8)
             VStack(spacing: 0) { content() }
-                .ghafCard(theme: theme, radius: 20)
+                .padding(.vertical, 4)
+                .ghafCard(theme: theme)
         }
     }
 
     private func menuRow<Destination: View>(_ title: String, icon: String, @ViewBuilder destination: @escaping () -> Destination) -> some View {
         NavigationLink(destination: destination) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 38, height: 38)
-                    .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                Text(title)
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
-                Spacer(minLength: 4)
-                Image(systemName: ar ? "chevron.left" : "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(theme.secondaryText)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            GhafListRow(icon: icon, tint: theme.accent, title: title, theme: theme,
+                        languageCode: languageCode, chevron: true)
+                .padding(.horizontal, 16)
         }
         .buttonStyle(.ghafPress)
     }
@@ -404,23 +396,42 @@ struct GhafSettingsView: View {
     }
 
     private var appearanceCard: some View {
-        settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "ألوان مستوحاة من مدن الإمارات" : "Quiet palettes inspired by the seven UAE cities") {
-            settingsLabel(languageCode == "ar" ? "طابع المدينة" : "Theme")
-            Picker(languageCode == "ar" ? "طابع المدينة" : "City theme", selection: $themeName) {
-                Text(languageCode == "ar" ? "أبوظبي" : "Abu Dhabi").tag("Abu Dhabi")
-                Text(languageCode == "ar" ? "دبي" : "Dubai").tag("Dubai")
-                Text(languageCode == "ar" ? "الشارقة" : "Sharjah").tag("Sharjah")
-                Text(languageCode == "ar" ? "عجمان" : "Ajman").tag("Ajman")
-                Text(languageCode == "ar" ? "أم القيوين" : "Umm Al Quwain").tag("Umm Al Quwain")
-                Text(languageCode == "ar" ? "رأس الخيمة" : "Ras Al Khaimah").tag("Ras Al Khaimah")
-                Text(languageCode == "ar" ? "الفجيرة" : "Fujairah").tag("Fujairah")
-                Section(languageCode == "ar" ? "الأنماط الكلاسيكية" : "Classic themes") {
-                    Text(languageCode == "ar" ? "الفجر" : "Dawn").tag("Dawn")
-                    Text(languageCode == "ar" ? "الغسق" : "Dusk").tag("Dusk")
-                    Text(languageCode == "ar" ? "الواحة" : "Oasis").tag("Oasis")
+        settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "أنماط نظيفة بوضع فاتح وداكن" : "Clean themes, each in light and dark") {
+            settingsLabel(languageCode == "ar" ? "النمط" : "Theme")
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
+                ForEach(GhafTheme.themeNames, id: \.self) { option in
+                    let preview = GhafTheme.resolve(name: option, appearanceMode: appearanceMode,
+                                                    systemIsDark: theme.isDark)
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) { themeName = option }
+                    } label: {
+                        VStack(spacing: 6) {
+                            ZStack {
+                                Circle().fill(preview.accent).frame(width: 34, height: 34)
+                                if themeName == option {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 14, weight: .heavy))
+                                        .foregroundStyle(preview.accentContrast)
+                                }
+                            }
+                            Text(themeTitle(option))
+                                .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
+                                .foregroundStyle(theme.primaryText)
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 78)
+                        .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(themeName == option ? theme.accent : .clear, lineWidth: 2)
+                        }
+                    }
+                    .buttonStyle(.ghafPress)
+                    .sensoryFeedback(.selection, trigger: themeName)
+                    .accessibilityLabel(themeTitle(option))
+                    .accessibilityAddTraits(themeName == option ? .isSelected : [])
                 }
             }
-            .pickerStyle(.menu)
 
             settingsLabel(languageCode == "ar" ? "وضع المظهر" : "Appearance mode")
             Picker(languageCode == "ar" ? "وضع المظهر" : "Appearance mode", selection: $appearanceMode) {
@@ -441,6 +452,13 @@ struct GhafSettingsView: View {
             }
             .padding(.top, 4)
         }
+    }
+
+    private func themeTitle(_ name: String) -> String {
+        guard ar else { return name }
+        return ["Graphite": "جرافيت", "Abu Dhabi": "أبوظبي", "Dubai": "دبي", "Sharjah": "الشارقة", "Ajman": "عجمان",
+                "Umm Al Quwain": "أم القيوين", "Ras Al Khaimah": "رأس الخيمة", "Fujairah": "الفجيرة",
+                "Dawn": "الفجر", "Dusk": "الغسق", "Oasis": "الواحة"][name] ?? name
     }
 
     private var securityCard: some View {
