@@ -84,7 +84,7 @@ struct GhafSettingsView: View {
                             .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
                             .foregroundStyle(theme.over)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.ghafPress)
 
                     Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
                         .font(GhafTypography.body(12, languageCode: languageCode))
@@ -199,7 +199,7 @@ struct GhafSettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ghafPress)
     }
 
     private var profilePage: some View {
@@ -252,7 +252,7 @@ struct GhafSettingsView: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ghafPress)
     }
 
     private func subpage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -285,11 +285,11 @@ struct GhafSettingsView: View {
                 Button { driveBackup() } label: {
                     settingsActionRow(ar ? "نسخ احتياطي الآن" : "Back up now", detail: ar ? "رفع نسخة جديدة إلى Drive" : "Upload a fresh copy to Drive", icon: "icloud.and.arrow.up")
                 }
-                .buttonStyle(.plain).disabled(drive.isBusy)
+                .buttonStyle(.ghafPress).disabled(drive.isBusy)
                 Button { driveRestore() } label: {
                     settingsActionRow(ar ? "استعادة آخر نسخة" : "Restore latest backup", detail: ar ? "تنزيل آخر نسخة من Drive" : "Download the newest copy from Drive", icon: "icloud.and.arrow.down")
                 }
-                .buttonStyle(.plain).disabled(drive.isBusy)
+                .buttonStyle(.ghafPress).disabled(drive.isBusy)
                 Button(ar ? "قطع الاتصال" : "Disconnect", role: .destructive) { drive.signOut() }
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
             } else {
@@ -568,19 +568,19 @@ struct GhafSettingsView: View {
             Button(action: createBackup) {
                 settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير العمليات والإعدادات وقواعد التجار" : "Export transactions, settings and learned merchants", icon: "square.and.arrow.up")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.ghafPress)
 
             if let backupURL {
                 ShareLink(item: backupURL) {
                     settingsActionRow(languageCode == "ar" ? "مشاركة النسخة أو حفظها" : "Share or save backup", detail: languageCode == "ar" ? "احفظها في iCloud Drive أو Google Drive عبر تطبيق الملفات" : "Save to iCloud Drive or Google Drive through the Files app", icon: "square.and.arrow.up.on.square")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ghafPress)
             }
 
             Button { showImporter = true } label: {
                 settingsActionRow(languageCode == "ar" ? "استيراد نسخة احتياطية" : "Import JSON backup", detail: languageCode == "ar" ? "استبدال البيانات المحلية بنسخة احتياطية" : "Replace the current local data with a backup", icon: "square.and.arrow.down")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.ghafPress)
 
             Text(languageCode == "ar"
                  ? "تنبيه: نسخة JSON الحالية غير مشفّرة، وتحتوي على بياناتك المالية. احفظها في مكان خاص."

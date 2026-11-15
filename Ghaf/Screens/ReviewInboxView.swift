@@ -140,7 +140,7 @@ struct GhafReviewInboxView: View {
                         .frame(width: 52, height: 52)
                         .background(theme.credit.opacity(0.10), in: RoundedRectangle(cornerRadius: 15))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ghafPress)
                 .accessibilityLabel(settings.languageCode == "ar" ? "اعتماد الفئة" : "Accept category")
             }
         }

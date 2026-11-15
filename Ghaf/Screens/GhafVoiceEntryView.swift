@@ -72,7 +72,7 @@ struct GhafVoiceEntryView: View {
                     .background(theme.surface, in: RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.outline, lineWidth: 1))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ghafPress)
                 .disabled(isSaving)
 
                 if recorder.isRecording {

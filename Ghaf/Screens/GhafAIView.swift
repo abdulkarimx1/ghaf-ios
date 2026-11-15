@@ -30,6 +30,8 @@ struct GhafAIView: View {
     @AppStorage("ghaf.ai.speakReplies") private var speakReplies = false
     @State private var synthesizer = AVSpeechSynthesizer()
     @FocusState private var inputFocused: Bool
+    @State private var savedCount = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let settings: GhafSettings
     private var ar: Bool { settings.languageCode == "ar" }
@@ -64,6 +66,8 @@ struct GhafAIView: View {
             }
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
+            .sensoryFeedback(.success, trigger: savedCount)
+            .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
             .onChange(of: recorder.transcript) { _, text in
                 if recorder.isRecording { prompt = text }
             }
@@ -92,7 +96,7 @@ struct GhafAIView: View {
                     }
                     .accessibilityLabel(ar ? "قراءة الردود بصوت" : "Read replies aloud")
                 }
-                GhafAIOrb(theme: theme, active: isThinking || recorder.isRecording)
+                GhafAIOrb(theme: theme, active: (isThinking || recorder.isRecording) && !reduceMotion)
                     .frame(width: 54, height: 54)
             }
             Text("Ghaf AI")
@@ -137,7 +141,7 @@ struct GhafAIView: View {
                             .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(theme.outline, lineWidth: 1))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.ghafPress)
                 }
             }
             Label(ar ? "يتعلم غاف من تصحيحاتك: غيّر الفئة مرة وسيتذكرها." : "Ghaf learns from you: change a category once and it remembers.",
@@ -358,6 +362,7 @@ struct GhafAIView: View {
             try GhafDraftSaver.save(message.wrappedValue.drafts, preferredAccountID: nil, accounts: accounts,
                                     context: modelContext, note: ar ? "أضيفت عبر غاف AI" : "Added with Ghaf AI")
             message.wrappedValue.draftState = .saved
+            savedCount += 1
             let learned = message.wrappedValue.drafts.filter { !$0.merchant.isEmpty && $0.category != "Other" }
             let note = learned.isEmpty ? (ar ? "تم الحفظ." : "Saved.") : (ar
                 ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" }.joined(separator: "، ") + "."

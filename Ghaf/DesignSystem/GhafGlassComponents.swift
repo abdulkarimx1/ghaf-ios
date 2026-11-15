@@ -7,10 +7,7 @@ private struct GhafCardSurface: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background {
-                shape.fill(.ultraThinMaterial)
-                    .overlay(shape.fill(theme.surface.opacity(0.48)))
-            }
+            .background(shape.fill(theme.surface))
             .overlay {
                 shape.stroke(theme.outline.opacity(0.52), lineWidth: 0.8)
             }
@@ -18,20 +15,13 @@ private struct GhafCardSurface: ViewModifier {
     }
 }
 
+/// Content cards stay solid; Liquid Glass is reserved for the floating tab bar and toolbars.
 private struct GhafLiquidGlassSurface: ViewModifier {
     let theme: GhafTheme
     let radius: CGFloat
 
-    @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(
-                .regular.tint(theme.accent.opacity(0.09)),
-                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
-            )
-        } else {
-            content.modifier(GhafCardSurface(theme: theme, radius: radius))
-        }
+        content.modifier(GhafCardSurface(theme: theme, radius: radius))
     }
 }
 
@@ -123,30 +113,31 @@ struct GhafCategoryIcon: View {
     let category: String
     let tint: Color
 
-    private var symbol: String {
+    private var style: (symbol: String, color: Color) {
         switch category {
-        case "Groceries": "basket"
-        case "Dining": "fork.knife"
-        case "Transport": "car"
-        case "Fuel": "fuelpump"
-        case "Bills & Utilities": "bolt"
-        case "Shopping": "bag"
-        case "Health": "cross.case"
-        case "Entertainment": "play.rectangle"
-        case "Travel": "airplane"
-        case "Salary": "banknote"
-        case "Transfers": "arrow.left.arrow.right"
-        default: "creditcard"
+        case "Groceries": ("basket.fill", Color(red: 0.20, green: 0.66, blue: 0.42))
+        case "Dining": ("fork.knife", Color(red: 0.95, green: 0.50, blue: 0.20))
+        case "Transport": ("car.fill", Color(red: 0.25, green: 0.52, blue: 0.95))
+        case "Fuel": ("fuelpump.fill", Color(red: 0.90, green: 0.33, blue: 0.30))
+        case "Bills & Utilities": ("bolt.fill", Color(red: 0.96, green: 0.72, blue: 0.10))
+        case "Shopping": ("bag.fill", Color(red: 0.85, green: 0.36, blue: 0.66))
+        case "Health": ("cross.case.fill", Color(red: 0.92, green: 0.30, blue: 0.40))
+        case "Entertainment": ("play.rectangle.fill", Color(red: 0.55, green: 0.40, blue: 0.95))
+        case "Travel": ("airplane", Color(red: 0.15, green: 0.70, blue: 0.80))
+        case "Salary": ("banknote.fill", Color(red: 0.20, green: 0.66, blue: 0.42))
+        case "Transfers": ("arrow.left.arrow.right", Color(red: 0.45, green: 0.52, blue: 0.60))
+        case "Subscriptions": ("repeat", Color(red: 0.55, green: 0.40, blue: 0.95))
+        default: ("creditcard.fill", tint)
         }
     }
 
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: 20, weight: .bold))
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(tint)
-            .frame(width: 48, height: 48)
-            .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        Image(systemName: style.symbol)
+            .font(.system(size: 19, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 46, height: 46)
+            .background(style.color.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 

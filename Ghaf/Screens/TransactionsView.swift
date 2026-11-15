@@ -197,7 +197,7 @@ struct GhafTransactionsView: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(theme.secondaryText)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ghafPress)
             }
         }
         .padding(.horizontal, 15)
@@ -230,7 +230,7 @@ struct GhafTransactionsView: View {
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
                 .overlay(Capsule().stroke(isSelected ? theme.accent : theme.outline, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ghafPress)
     }
 
     @ViewBuilder
@@ -283,7 +283,7 @@ struct GhafTransactionsView: View {
                                 languageCode: settings.languageCode
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.ghafPress)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 transactionToDelete = transaction

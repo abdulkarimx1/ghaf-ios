@@ -17,6 +17,7 @@ struct GhafSubscriptionsView: View {
     private var suggested: [GhafSubscription] { subscriptions.filter(\.needsConfirmation) }
     private var tracked: [GhafSubscription] { subscriptions.filter { !$0.needsConfirmation } }
     private var ar: Bool { settings.languageCode == "ar" }
+    @State private var confirmedCount = 0
     private var monthlyEquivalent: Decimal {
         active.reduce(Decimal.zero) { total, item in
             let factor: Decimal
@@ -85,7 +86,7 @@ struct GhafSubscriptionsView: View {
                             ForEach(tracked) { item in
                                 Button { editing = item; showingEditor = true } label: {
                                     subscriptionRow(item)
-                                }.buttonStyle(.plain)
+                                }.buttonStyle(.ghafPress)
                                 if item.id != tracked.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
                             }
                         }.padding(.horizontal, 14).ghafCard(theme: theme, radius: 18)
@@ -95,6 +96,8 @@ struct GhafSubscriptionsView: View {
             }
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
+            .sensoryFeedback(.success, trigger: confirmedCount)
+            .animation(.snappy, value: subscriptions.count)
             .sheet(isPresented: $showingEditor) {
                 GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: editing)
             }
@@ -128,6 +131,7 @@ struct GhafSubscriptionsView: View {
     private func confirm(_ item: GhafSubscription) {
         item.needsConfirmation = false
         item.isActive = true
+        confirmedCount += 1
         do {
             try context.save()
             Task {

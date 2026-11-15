@@ -20,6 +20,7 @@ struct GhafHomeView: View {
     @State private var showReview = false
     @AppStorage("ghaf.hideBalances") private var hideBalances = false
     @State private var activityPeriodIndex = 0
+    @State private var tileTaps: [String: Int] = [:]
 
     let settings: GhafSettings
 
@@ -74,9 +75,9 @@ struct GhafHomeView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
-                header
-                heroCard
-                actionGrid
+                header.ghafEntrance(0)
+                heroCard.ghafEntrance(1)
+                actionGrid.ghafEntrance(2)
             }
             .padding(.horizontal, 16)
             .padding(.top, 6)
@@ -143,10 +144,11 @@ struct GhafHomeView: View {
                     } label: {
                         Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                             .font(.system(size: 16, weight: .bold))
+                            .contentTransition(.symbolEffect(.replace))
                             .frame(width: 40, height: 32)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.ghafPress)
                     .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
                                            : (hideBalances ? "Show balances" : "Hide balances"))
                 }
@@ -224,10 +226,14 @@ struct GhafHomeView: View {
 
     private func actionTile(_ title: String, icon: String, filled: Bool = false, badge: Int = 0,
                             action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            tileTaps[title, default: 0] += 1
+            action()
+        } label: {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 26, weight: .bold))
+                    .symbolEffect(.bounce, value: tileTaps[title, default: 0])
                 Text(title)
                     .font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .heavy))
                     .lineLimit(1)
@@ -253,7 +259,8 @@ struct GhafHomeView: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ghafPress)
+        .sensoryFeedback(.impact(weight: .light), trigger: tileTaps[title, default: 0])
         .accessibilityLabel(badge > 0 ? "\(title), \(badge)" : title)
     }
 
@@ -334,7 +341,7 @@ struct GhafHomeView: View {
                     .padding(.horizontal, 12).padding(.vertical, 7)
                     .background(theme.accentContrast.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ghafPress)
             }
         }
     }
@@ -384,10 +391,13 @@ struct GhafTransactionRow: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 5) {
-                Text(amountText)
-                    .font(GhafTypography.number(14, weight: .semibold))
-                    .foregroundStyle(transaction.direction == "credit" ? theme.credit : theme.primaryText)
-                    .lineLimit(1)
+                HStack(spacing: 2) {
+                    Text(transaction.direction == "credit" ? "+" : "−")
+                        .font(GhafTypography.number(15, weight: .bold))
+                    GhafMoneyLabel(amount: transaction.amount, currency: transaction.currency, languageCode: languageCode, size: 15)
+                }
+                .foregroundStyle(transaction.direction == "credit" ? theme.credit : theme.primaryText)
+                .environment(\.layoutDirection, .leftToRight)
 
                 if transaction.needsReview {
                     Text(languageCode == "ar" ? "مراجعة" : "REVIEW")
@@ -408,10 +418,6 @@ struct GhafTransactionRow: View {
         return GhafLocalization.category(transaction.category, languageCode: languageCode)
     }
 
-    private var amountText: String {
-        let prefix = transaction.direction == "credit" ? "+" : "−"
-        return prefix + GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
-    }
 }
 
 // MARK: - Manual Transaction Entry
@@ -465,7 +471,7 @@ struct GhafQuickAddView: View {
                         .padding(14)
                         .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.ghafPress)
 
                     VStack(alignment: .leading, spacing: 7) {
                         Text(settings.languageCode == "ar" ? "المبلغ" : "AMOUNT")

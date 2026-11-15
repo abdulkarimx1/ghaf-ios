@@ -133,7 +133,7 @@ struct GhafAccountsView: View {
                 } label: {
                     accountRow(account)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ghafPress)
                 .contextMenu {
                     Button {
                         moveAccount(account, by: -1)

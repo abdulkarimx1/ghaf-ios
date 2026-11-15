@@ -252,6 +252,7 @@ struct GhafTabView: View {
                 .tag(4)
         }
         .tint(theme.accent)
+        .sensoryFeedback(.selection, trigger: selectedTab)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
         .preferredColorScheme(
@@ -434,7 +435,7 @@ struct GhafOnboardingView: View {
                 .padding(16)
                 .ghafLiquidGlass(theme: theme, radius: 20)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.ghafPress)
 
             Button {
                 languageCode = "ar"
@@ -459,7 +460,7 @@ struct GhafOnboardingView: View {
                 .padding(16)
                 .ghafLiquidGlass(theme: theme, radius: 20)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.ghafPress)
             Spacer(minLength: 10)
         }
     }
@@ -592,7 +593,7 @@ struct GhafOnboardingView: View {
                             } label: {
                                 Image(systemName: "minus.circle")
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.ghafPress)
                             .accessibilityLabel(languageCode == "ar" ? "حذف الحساب" : "Remove account")
                         }
 
