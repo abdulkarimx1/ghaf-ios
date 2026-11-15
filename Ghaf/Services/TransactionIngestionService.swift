@@ -51,6 +51,14 @@ final class TransactionIngestionService {
             )
         }
 
+        // An authorization hold is not money that has moved; the posted message records it.
+        if parsed.kind == .pending {
+            return TransactionIngestionResult(
+                status: .ignored,
+                confirmation: "Pending authorization. Ghaf records it once the bank posts it."
+            )
+        }
+
         let fingerprint = makeFingerprint(message)
         let descriptor = FetchDescriptor<GhafTransaction>(
             predicate: #Predicate { $0.fingerprint == fingerprint }
@@ -71,13 +79,18 @@ final class TransactionIngestionService {
             sender: sender,
             accounts: accounts
         )
+        let isReversal = parsed.kind == .refund || parsed.kind == .reversal
+        // A refund offsets its original purchase, so it takes that purchase's category and account.
+        let original = isReversal && parsed.direction == .credit ? try originalPurchase(for: parsed) : nil
+
         let resolvedAccount = matchedAccount
+            ?? original?.accountID.flatMap { id in accounts.first { $0.id == id } }
             ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil)
 
         let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, context: context)
-        let category = try MerchantCategorizer.category(
+        let category = try original?.category ?? MerchantCategorizer.category(
             for: parsed.merchant,
-            direction: parsed.direction,
+            direction: isReversal ? .debit : parsed.direction,
             context: context
         )
 
@@ -87,11 +100,7 @@ final class TransactionIngestionService {
         let needsReview = parser.shouldSendToReview(parsed)
             || (parsed.merchant != nil && category == "Other")
             || accountNeedsReview
-
-        let isReversal = message.range(
-            of: "reversal|reversed|refund",
-            options: [.regularExpression, .caseInsensitive]
-        ) != nil
+            || (isReversal && original == nil)
 
         let transaction = GhafTransaction(
             fingerprint: fingerprint,
@@ -101,17 +110,30 @@ final class TransactionIngestionService {
             isReversal: isReversal,
             accountID: resolvedAccount?.id
         )
-        transaction.subcategory = suggestion?.category == category && suggestion?.isNewSubcategory == false
+        transaction.subcategory = original != nil ? original?.subcategory : suggestion?.category == category && suggestion?.isNewSubcategory == false
             ? suggestion?.subcategory : nil
 
-        let detectedSubscription = parsed.direction == .debit && !isReversal
+        let paidSubscription = parsed.direction == .debit && !isReversal ? try subscriptionPaid(by: parsed) : nil
+        let detectedSubscription = parsed.direction == .debit && !isReversal && paidSubscription == nil
             ? try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)
             : nil
 
+        // The bank charge is the payment: the ledger records it once, here. The subscription only
+        // moves to its next due date; it never deducts money itself.
+        if let paidSubscription {
+            paidSubscription.nextPaymentDate = paidSubscription.cycle.nextDate(after: paidSubscription.nextPaymentDate)
+            if paidSubscription.accountID == nil { paidSubscription.accountID = resolvedAccount?.id }
+        }
+
         context.insert(transaction)
         try context.save()
+        if let paidSubscription {
+            let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
+            GhafSubscriptionReminderService.schedule(paidSubscription, language: language)
+        }
 
-        let subscriptionNote = detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""
+        let subscriptionNote = paidSubscription.map { " Recorded as the \($0.name) payment." }
+            ?? detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""
 
         let amount = NSDecimalNumber(decimal: parsed.amount).stringValue
         if needsReview {
@@ -125,6 +147,21 @@ final class TransactionIngestionService {
             status: .saved,
             confirmation: "Saved \(amount) \(parsed.currency)." + subscriptionNote
         )
+    }
+
+    /// The active subscription this debit pays, if it is due around the charge date.
+    private func subscriptionPaid(by parsed: ParsedTransaction) throws -> GhafSubscription? {
+        let currency = parsed.currency
+        let active = try context.fetch(FetchDescriptor<GhafSubscription>(
+            predicate: #Predicate { $0.isActive && $0.currency == currency }
+        ))
+        return active.first { item in
+            SubscriptionDetector.isPayment(
+                merchant: parsed.merchant, amount: parsed.amount, date: parsed.date,
+                subscriptionName: item.name, subscriptionAmount: item.amount, dueDate: item.nextPaymentDate,
+                toleranceDays: item.cycle == .weekly ? 2 : 5
+            )
+        }
     }
 
     /// Suggests a subscription when this debit looks recurring and the merchant is not tracked yet.
@@ -160,6 +197,29 @@ final class TransactionIngestionService {
         subscription.needsConfirmation = true
         context.insert(subscription)
         return subscription
+    }
+
+    /// Most recent purchase this refund reverses: same amount and currency, within 90 days before it,
+    /// and the same merchant.
+    /// shortcut: does not track which purchases were already refunded; add a link field if partial refunds matter.
+    private func originalPurchase(for parsed: ParsedTransaction) throws -> GhafTransaction? {
+        let amount = parsed.amount, currency = parsed.currency, end = parsed.date
+        let start = end.addingTimeInterval(-90 * 86_400)
+        var descriptor = FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate {
+                $0.direction == "debit" && !$0.isReversal && $0.amount == amount
+                    && $0.currency == currency && $0.date >= start && $0.date <= end
+            },
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = 20
+        let key = parsed.merchant.map(SubscriptionDetector.normalize)
+        return try context.fetch(descriptor).first { candidate in
+            guard candidate.isSpendingOrIncome else { return false }
+            // Without a merchant on both sides the link is a guess; leave it for review.
+            guard let key, let merchant = candidate.merchant else { return false }
+            return SubscriptionDetector.normalize(merchant) == key
+        }
     }
 
     private func makeFingerprint(_ message: String) -> String {

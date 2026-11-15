@@ -61,6 +61,27 @@ public enum SubscriptionDetector {
             .joined(separator: " ")
     }
 
+    /// Same service when the names match after `normalize`, or the charge's merchant starts with the
+    /// subscription name as a whole word ("NETFLIX.COM 8829" pays "Netflix", "Netflixer" does not).
+    public static func sameService(merchant: String, subscriptionName: String) -> Bool {
+        let charge = normalize(merchant), name = normalize(subscriptionName)
+        guard name.count >= 3, charge.hasPrefix(name) else { return false }
+        return charge.dropFirst(name.count).first.map { !$0.isLetter } ?? true
+    }
+
+    /// A charge pays a subscription due on `dueDate` when it is the same service, its amount is
+    /// within 10% and it lands within `toleranceDays` of the due date.
+    public static func isPayment(
+        merchant: String?, amount: Decimal, date: Date,
+        subscriptionName: String, subscriptionAmount: Decimal, dueDate: Date, toleranceDays: Int
+    ) -> Bool {
+        guard let merchant, sameService(merchant: merchant, subscriptionName: subscriptionName),
+              isSimilar(amount, subscriptionAmount) else { return false }
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: dueDate),
+                                                   to: Calendar.current.startOfDay(for: date)).day ?? .max
+        return abs(days) <= toleranceDays
+    }
+
     static func isSimilar(_ a: Decimal, _ b: Decimal) -> Bool {
         let diff = abs(NSDecimalNumber(decimal: a - b).doubleValue)
         return diff <= max(NSDecimalNumber(decimal: b).doubleValue * 0.10, 0.01)

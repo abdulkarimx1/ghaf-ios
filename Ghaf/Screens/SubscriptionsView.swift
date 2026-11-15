@@ -1,13 +1,15 @@
 import SwiftUI
 import SwiftData
+import GhafCore
 
 struct GhafSubscriptionsView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \GhafSubscription.nextPaymentDate) private var subscriptions: [GhafSubscription]
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
-    @State private var showingEditor = false
-    @State private var editing: GhafSubscription?
+    /// One value drives the sheet, so it always opens on the tapped subscription (not a stale or blank one).
+    private struct EditorTarget: Identifiable { let id = UUID(); let subscription: GhafSubscription? }
+    @State private var editorTarget: EditorTarget?
     let settings: GhafSettings
 
     private var theme: GhafTheme {
@@ -48,7 +50,7 @@ struct GhafSubscriptionsView: View {
 
                     VStack(spacing: 10) {
                         GhafSectionHeader(title: ar ? "كل الاشتراكات" : "Your subscriptions", theme: theme, languageCode: lang,
-                                          actionTitle: ar ? "إضافة" : "Add") { editing = nil; showingEditor = true }
+                                          actionTitle: ar ? "إضافة" : "Add") { editorTarget = EditorTarget(subscription: nil) }
                         if tracked.isEmpty {
                             VStack(spacing: 10) {
                                 GhafIconBadge(symbol: "calendar.badge.clock", tint: theme.accent, size: 60)
@@ -56,7 +58,7 @@ struct GhafSubscriptionsView: View {
                                     .font(GhafTypography.heading(19, languageCode: lang)).foregroundStyle(theme.primaryText)
                                 Text(ar ? "أضف خدماتك المتكررة ليذكّرك غاف بموعد التجديد." : "Add recurring services and Ghaf will remind you before renewal.")
                                     .font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                                Button { editing = nil; showingEditor = true } label: {
+                                Button { editorTarget = EditorTarget(subscription: nil) } label: {
                                     Label(ar ? "إضافة اشتراك" : "Add subscription", systemImage: "plus")
                                 }
                                 .ghafProminentButton(theme: theme, languageCode: lang)
@@ -67,7 +69,7 @@ struct GhafSubscriptionsView: View {
                         } else {
                             VStack(spacing: 0) {
                                 ForEach(tracked) { item in
-                                    Button { editing = item; showingEditor = true } label: {
+                                    Button { editorTarget = EditorTarget(subscription: item) } label: {
                                         subscriptionRow(item)
                                     }.buttonStyle(.ghafPress)
                                     if item.id != tracked.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
@@ -84,8 +86,8 @@ struct GhafSubscriptionsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.success, trigger: confirmedCount)
             .animation(.snappy, value: subscriptions.count)
-            .sheet(isPresented: $showingEditor) {
-                GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: editing)
+            .sheet(item: $editorTarget) { target in
+                GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription)
             }
         }
     }
@@ -190,6 +192,7 @@ private struct GhafSubscriptionEditor: View {
     @State private var accountID: UUID?
     @State private var reminderDays = 2
     @State private var active = true
+    @State private var payments: [GhafTransaction] = []
 
     var body: some View {
         NavigationStack {
@@ -220,6 +223,26 @@ private struct GhafSubscriptionEditor: View {
                 }
                 if subscription != nil {
                     Section {
+                        if payments.isEmpty {
+                            Text(settings.languageCode == "ar" ? "لا توجد دفعات مسجلة بعد." : "No recorded payments yet.")
+                                .foregroundStyle(.secondary)
+                        }
+                        ForEach(payments) { payment in
+                            HStack {
+                                Text(payment.date, format: .dateTime.day().month().year())
+                                Spacer()
+                                Text(GhafFormat.money(payment.amount, currency: payment.currency, languageCode: settings.languageCode))
+                                    .monospacedDigit()
+                            }
+                        }
+                    } header: {
+                        Text(settings.languageCode == "ar" ? "سجل الدفعات" : "Payment history")
+                    } footer: {
+                        Text(settings.languageCode == "ar"
+                             ? "من حركات البنك المسجلة لهذه الخدمة. التذكير لا يخصم أي مبلغ."
+                             : "From recorded bank transactions for this service. Reminders never deduct money.")
+                    }
+                    Section {
                         Button(settings.languageCode == "ar" ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
                             if let subscription { GhafSubscriptionReminderService.cancel(subscription); context.delete(subscription); try? context.save() }
                             dismiss()
@@ -243,6 +266,14 @@ private struct GhafSubscriptionEditor: View {
         currency = subscription.currency; cycle = subscription.cycle; nextDate = subscription.nextPaymentDate
         category = subscription.category; accountID = subscription.accountID
         reminderDays = subscription.reminderDays; active = subscription.isActive
+        let currency = subscription.currency, name = subscription.name
+        let debits = (try? context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.direction == "debit" && !$0.isReversal && $0.currency == currency && $0.merchant != nil },
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        ))) ?? []
+        payments = Array(debits.lazy.filter {
+            SubscriptionDetector.sameService(merchant: $0.merchant ?? "", subscriptionName: name)
+        }.prefix(12))
     }
 
     private func save() {

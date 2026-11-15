@@ -28,3 +28,25 @@ final class SubscriptionDetectorTests: XCTestCase {
         XCTAssertEqual(SubscriptionDetector.detect(merchant: "Domain Host", amount: 60, date: now, history: yearly), .yearly)
     }
 }
+
+final class SubscriptionPaymentMatchTests: XCTestCase {
+    private let due = Date(timeIntervalSince1970: 1_800_000_000)
+    private func day(_ offset: Int) -> Date { due.addingTimeInterval(Double(offset) * 86_400) }
+
+    func testChargeNearDueDateWithSameServicePays() {
+        XCTAssertTrue(SubscriptionDetector.isPayment(
+            merchant: "NETFLIX.COM 8829", amount: 56, date: day(2),
+            subscriptionName: "Netflix", subscriptionAmount: 56, dueDate: due, toleranceDays: 5))
+    }
+
+    func testDifferentServiceOrAmountOrDateDoesNotPay() {
+        func pays(_ merchant: String, _ amount: Decimal, _ offset: Int) -> Bool {
+            SubscriptionDetector.isPayment(merchant: merchant, amount: amount, date: day(offset),
+                subscriptionName: "Netflix", subscriptionAmount: 56, dueDate: due, toleranceDays: 5)
+        }
+        XCTAssertFalse(pays("Netflixer Store", 56, 0))
+        XCTAssertFalse(pays("Spotify", 56, 0))
+        XCTAssertFalse(pays("Netflix", 120, 0))
+        XCTAssertFalse(pays("Netflix", 56, 12))
+    }
+}
