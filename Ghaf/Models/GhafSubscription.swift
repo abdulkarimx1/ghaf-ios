@@ -17,9 +17,9 @@ enum GhafBillingCycle: String, CaseIterable, Identifiable {
     }
     func title(language: String) -> String {
         guard language == "ar" else {
-            switch self { case .weekly: "Weekly"; case .monthly: "Monthly"; case .quarterly: "Every 3 months"; case .yearly: "Yearly" }
+            return switch self { case .weekly: "Weekly"; case .monthly: "Monthly"; case .quarterly: "Every 3 months"; case .yearly: "Yearly" }
         }
-        switch self { case .weekly: "أسبوعي"; case .monthly: "شهري"; case .quarterly: "كل ٣ أشهر"; case .yearly: "سنوي" }
+        return switch self { case .weekly: "أسبوعي"; case .monthly: "شهري"; case .quarterly: "كل ٣ أشهر"; case .yearly: "سنوي" }
     }
 }
 
