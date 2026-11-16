@@ -15,6 +15,15 @@ enum GhafBillingCycle: String, CaseIterable, Identifiable {
         }
         return Calendar.current.date(byAdding: component, value: value, to: date) ?? date
     }
+    func previousDate(before date: Date) -> Date {
+        switch self {
+        case .weekly: Calendar.current.date(byAdding: .day, value: -7, to: date) ?? date
+        case .monthly: Calendar.current.date(byAdding: .month, value: -1, to: date) ?? date
+        case .quarterly: Calendar.current.date(byAdding: .month, value: -3, to: date) ?? date
+        case .yearly: Calendar.current.date(byAdding: .year, value: -1, to: date) ?? date
+        }
+    }
+
     /// Multiplier from one charge to an estimated monthly cost (Decimal, no integer division).
     var monthlyFactor: Decimal {
         switch self {

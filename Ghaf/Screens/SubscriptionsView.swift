@@ -37,6 +37,9 @@ struct GhafSubscriptionsView: View {
                                     languageCode: lang, theme: theme)
                         .ghafEntrance(0)
                     costCard.ghafEntrance(1)
+                    if let next = active.filter({ !$0.needsConfirmation }).min(by: { $0.nextPaymentDate < $1.nextPaymentDate }) {
+                        nextUpCard(next).ghafEntrance(2)
+                    }
 
                     if !suggested.isEmpty { suggestionsCard.ghafEntrance(2) }
 
@@ -59,14 +62,20 @@ struct GhafSubscriptionsView: View {
                             .multilineTextAlignment(.center)
                             .padding(22).frame(maxWidth: .infinity).ghafCard(theme: theme)
                         } else {
-                            VStack(spacing: 0) {
-                                ForEach(tracked) { item in
-                                    Button { detail = item } label: {
-                                        subscriptionRow(item)
-                                    }.buttonStyle(.ghafPress)
-                                    if item.id != tracked.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
+                            ForEach(groups, id: \.title) { group in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(group.title)
+                                        .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
+                                        .foregroundStyle(theme.secondaryText)
+                                        .padding(.horizontal, 6)
+                                    VStack(spacing: 0) {
+                                        ForEach(group.items) { item in
+                                            Button { detail = item } label: { subscriptionRow(item) }.buttonStyle(.ghafPress)
+                                            if item.id != group.items.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
+                                        }
+                                    }.padding(.horizontal, 16).padding(.vertical, 4).ghafCard(theme: theme)
                                 }
-                            }.padding(.horizontal, 16).padding(.vertical, 4).ghafCard(theme: theme)
+                            }
                         }
                     }
                     .ghafEntrance(3)
@@ -86,6 +95,70 @@ struct GhafSubscriptionsView: View {
                 GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription)
             }
         }
+    }
+
+    private func daysUntil(_ date: Date) -> Int {
+        Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now),
+                                        to: Calendar.current.startOfDay(for: date)).day ?? 0
+    }
+
+    private func whenText(_ date: Date) -> String {
+        let days = daysUntil(date)
+        if days < 0 { return ar ? "متأخر \(-days) يوم" : "\(-days) days overdue" }
+        if days == 0 { return ar ? "اليوم" : "Today" }
+        if days == 1 { return ar ? "غداً" : "Tomorrow" }
+        return ar ? "بعد \(days) يوم" : "In \(days) days"
+    }
+
+    /// Renewals by how soon they come; paused ones last.
+    private var groups: [(title: String, items: [GhafSubscription])] {
+        let sorted = tracked.sorted { $0.nextPaymentDate < $1.nextPaymentDate }
+        let live = sorted.filter(\.isActive)
+        let result: [(String, [GhafSubscription])] = [
+            (ar ? "هذا الأسبوع" : "This week", live.filter { daysUntil($0.nextPaymentDate) <= 7 }),
+            (ar ? "هذا الشهر" : "This month", live.filter { (8...31).contains(daysUntil($0.nextPaymentDate)) }),
+            (ar ? "لاحقاً" : "Later", live.filter { daysUntil($0.nextPaymentDate) > 31 }),
+            (ar ? "متوقفة" : "Paused", sorted.filter { !$0.isActive })
+        ]
+        return result.filter { !$0.1.isEmpty }.map { (title: $0.0, items: $0.1) }
+    }
+
+    /// The next renewal, with how far through its billing cycle it is.
+    private func nextUpCard(_ item: GhafSubscription) -> some View {
+        let cycleDays = max(1, Calendar.current.dateComponents([.day], from: item.cycle.previousDate(before: item.nextPaymentDate),
+                                                               to: item.nextPaymentDate).day ?? 30)
+        let progress = min(1, max(0, 1 - Double(daysUntil(item.nextPaymentDate)) / Double(cycleDays)))
+        return Button { detail = item } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().stroke(theme.outline, lineWidth: 4)
+                    Circle().trim(from: 0, to: progress)
+                        .stroke(LinearGradient(colors: [theme.accent, theme.glow], startPoint: .top, endPoint: .bottom),
+                                style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    GhafBrandBadge(name: item.name, fallbackTint: theme.accent, size: 46)
+                }
+                .frame(width: 58, height: 58)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(ar ? "التالي" : "Next up")
+                        .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text(item.name)
+                        .font(GhafTypography.heading(18, languageCode: lang))
+                        .foregroundStyle(theme.primaryText)
+                    Text(whenText(item.nextPaymentDate) + " · " + item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))))
+                        .font(GhafTypography.body(13, languageCode: lang))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                Spacer(minLength: 8)
+                GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: lang, size: 18)
+                    .foregroundStyle(theme.primaryText)
+            }
+            .padding(16)
+            .ghafCard(theme: theme)
+        }
+        .buttonStyle(.ghafPress)
+        .accessibilityElement(children: .combine)
     }
 
     /// The dark summary card: estimated monthly and yearly cost.
@@ -169,9 +242,8 @@ struct GhafSubscriptionsView: View {
     }
 
     private func subscriptionRow(_ item: GhafSubscription) -> some View {
-        let date = item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
         return GhafListRow(icon: "repeat", tint: theme.accent, title: item.name,
-                           subtitle: "\(item.cycle.title(language: lang)) · " + (ar ? "التجديد \(date)" : "Renews \(date)"),
+                           subtitle: "\(item.cycle.title(language: lang)) · " + (item.isActive ? whenText(item.nextPaymentDate) : (ar ? "متوقف" : "Paused")),
                            theme: theme, languageCode: lang, brandName: item.name) {
             GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: lang, size: 16)
                 .foregroundStyle(item.isActive ? theme.primaryText : theme.secondaryText)
