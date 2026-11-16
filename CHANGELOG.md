@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.8 (11)
+
+### English
+- Cards for UAE banks: Emirates NBD, FAB, ADCB, DIB, ADIB, Mashreq, RAKBANK, Wio, Liv, Ruya and more. Ghaf recognises your bank and shows your card in its colours.
+- A redesigned account editor with a live card preview.
+- Choose the real place for any purchase from Apple Maps, nearby first. Ghaf remembers it, and every receipt can contact your bank.
+- Pick which day your week starts, so weekly totals match how you count.
+- Subscriptions show what's next up and group renewals by when they're due.
+- The Ghaf AI button now sits exactly in its place on every iPhone.
+
+### العربية
+- بطاقات للبنوك الإماراتية: الإمارات دبي الوطني وأبوظبي الأول وأبوظبي التجاري ودبي الإسلامي وأبوظبي الإسلامي والمشرق وبنك رأس الخيمة وويو وليف ورؤيا وغيرها. يتعرف غاف على بنكك ويعرض بطاقتك بألوانه.
+- محرر حسابات جديد بمعاينة حية للبطاقة.
+- اختر المكان الحقيقي لأي عملية من خرائط Apple، الأقرب أولاً. يتذكره غاف، ويمكنك التواصل مع بنكك من كل إيصال.
+- اختر يوم بداية أسبوعك لتطابق المجاميع الأسبوعية طريقتك في الحساب.
+- تعرض الاشتراكات القادم أولاً وتجمع التجديدات حسب موعدها.
+- زر غاف AI أصبح في مكانه الصحيح على كل أجهزة iPhone.
+
 ## 1.7 (10)
 
 ### English
