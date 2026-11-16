@@ -315,11 +315,11 @@ private struct GhafSubscriptionDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
-                    header
-                    chips
-                    timeline
-                    costCard
-                    reminderRow
+                    header.ghafEntrance(0)
+                    chips.ghafEntrance(1)
+                    timeline.ghafEntrance(2)
+                    costCard.ghafEntrance(3)
+                    reminderRow.ghafEntrance(4)
                 }
                 .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 8).padding(.bottom, 20)

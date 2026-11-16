@@ -71,10 +71,10 @@ struct GhafInsightsView: View {
                     GhafScreenTitle(title: settings.languageCode == "ar" ? "التحليلات" : "Insights",
                                     subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
                                     languageCode: settings.languageCode, theme: theme)
-                    headlineCard
-                    forecastCard
-                    categoryChart(totals)
-                    categoryList(totals)
+                    headlineCard.ghafEntrance(0)
+                    forecastCard.ghafEntrance(1)
+                    categoryChart(totals).ghafEntrance(2)
+                    categoryList(totals).ghafEntrance(3)
                 }
                 .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 12)

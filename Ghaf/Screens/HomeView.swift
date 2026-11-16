@@ -325,7 +325,9 @@ struct GhafHomeView: View {
                         .frame(width: 34, height: 34)
                         .background(theme.inkText.opacity(0.12), in: Circle())
                 }
-                Text(insightText(summary))
+                GhafMoneyText.text(insightText(summary), size: 19)
+                    .id(activityPeriodIndex)
+                    .transition(.opacity.combined(with: .offset(y: 6)))
                     .font(GhafTypography.heading(19, languageCode: lang))
                     .foregroundStyle(theme.inkText)
                     .multilineTextAlignment(.leading)
@@ -352,14 +354,19 @@ struct GhafHomeView: View {
     }
 
     private func insightText(_ summary: Summary) -> String {
-        guard let top = summary.topCategory else {
-            return ar ? "لا مصروفات \(periodName). اضغط لرؤية التحليلات الكاملة."
-                      : "No spending \(periodName.lowercased()). Tap for the full picture."
+        guard let top = summary.topCategory, summary.spent > 0 else {
+            return ar ? "ما صرفت شيئاً \(periodName) بعد. يوم جميل لمحفظتك."
+                      : "Nothing spent \(periodName.lowercased()) yet. A good day for your wallet."
         }
         let category = GhafLocalization.category(top.name, languageCode: lang)
-        let amount = hideBalances ? GhafMoneyLabel.mask : GhafFormat.money(top.amount, currency: summary.mainCurrency, languageCode: lang)
-        return ar ? "أكثر ما صرفت عليه \(periodName): \(category)، \(amount)."
-                  : "\(category) leads your spending \(periodName.lowercased()) at \(amount)."
+        let share = Int((NSDecimalNumber(decimal: top.amount / summary.spent).doubleValue * 100).rounded())
+        guard !hideBalances else {
+            return ar ? "\(category) أكبر مصروفك \(periodName)، \(share)٪ من الإجمالي."
+                      : "\(category) is your biggest spend \(periodName.lowercased()), \(share)% of the total."
+        }
+        let amount = GhafFormat.money(top.amount, currency: summary.mainCurrency, languageCode: lang)
+        return ar ? "\(category) أكبر مصروفك \(periodName): \(amount)، أي \(share)٪ من الإجمالي."
+                  : "\(category) is your biggest spend \(periodName.lowercased()): \(amount), \(share)% of the total."
     }
 
     // MARK: Recent activity (a short shortcut; the full list lives in Transactions)

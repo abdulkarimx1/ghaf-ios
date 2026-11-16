@@ -40,7 +40,7 @@ struct GhafAccountsView: View {
                     emptyState
                 } else {
                     totalBalancesCard(GhafAccountBalanceCalculator.balancesByCurrency(accounts: activeAccounts, balances: balances))
-                    accountList(balances)
+                    accountList(balances).ghafEntrance(1)
                 }
 
                 Button {

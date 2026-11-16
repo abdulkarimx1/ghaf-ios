@@ -45,10 +45,10 @@ struct GhafAboutView: View {
         ScrollView {
             VStack(spacing: 18) {
                 hero
-                featureCarousel
-                story
-                actions
-                socials
+                featureCarousel.ghafEntrance(1)
+                story.ghafEntrance(2)
+                actions.ghafEntrance(3)
+                socials.ghafEntrance(4)
                 footer
             }
             .padding(.horizontal, GhafMetrics.gutter)

@@ -156,10 +156,11 @@ struct GhafAIView: View {
             GhafAIOrb(theme: theme, active: false)
                 .frame(width: 88, height: 88)
                 .padding(.top, 12)
-            Text(ar ? "كيف أساعدك اليوم؟" : "How can I help today?")
+            Text(ar ? "اسألني عن أموالك" : "Ask me about your money")
                 .font(GhafTypography.display(28, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
-            Text(ar ? "اسألني عن أموالك، أو قل ما اشتريت وسأسجله." : "Ask about your money, or just say what you bought and I'll log it.")
+            Text(ar ? "المصروف والميزانية والاشتراكات، أو قل ما اشتريت وأسجّله لك."
+                    : "Spending, budgets, subscriptions. Or just say what you bought and I'll log it.")
                 .font(GhafTypography.body(15, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)

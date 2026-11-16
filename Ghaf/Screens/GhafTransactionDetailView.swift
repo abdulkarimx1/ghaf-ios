@@ -46,8 +46,8 @@ struct GhafTransactionDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
-                    header
-                    receipt
+                    header.ghafEntrance(0)
+                    receipt.ghafEntrance(1)
                     if transaction.needsReview { reviewBanner }
                     GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang)
                 }
