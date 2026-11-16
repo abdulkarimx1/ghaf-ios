@@ -9,7 +9,10 @@ extension View {
     }
 
     func ghafBackground(theme: GhafTheme) -> some View {
-        background(theme.background.ignoresSafeArea())
+        background(ZStack(alignment: .top) {
+            theme.background
+            GhafCityBackdrop(theme: theme).padding(.top, 34)
+        }.ignoresSafeArea())
     }
 
     func ghafLiquidGlass(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {

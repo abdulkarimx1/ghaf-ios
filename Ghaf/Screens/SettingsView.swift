@@ -437,7 +437,7 @@ struct GhafSettingsView: View {
     private var appearanceCard: some View {
         settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "سبع مدن، كلٌّ بوضع فاتح وداكن" : "Seven cities, each in light and dark") {
             settingsLabel(languageCode == "ar" ? "النمط" : "Theme")
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], spacing: 10) {
                 ForEach(GhafTheme.themeNames, id: \.self) { option in
                     let preview = GhafTheme.resolve(name: option, appearanceMode: appearanceMode,
                                                     systemIsDark: theme.isDark)
@@ -445,22 +445,32 @@ struct GhafSettingsView: View {
                         withAnimation(.snappy(duration: 0.2)) { themeName = option }
                     } label: {
                         VStack(spacing: 6) {
-                            ZStack {
-                                Circle().fill(LinearGradient(colors: [preview.accent, preview.glow],
-                                                             startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .frame(width: 34, height: 34)
+                            // The city's own skyline, in its colours; Graphite keeps a plain swatch.
+                            ZStack(alignment: .topTrailing) {
+                                if option == "Graphite" {
+                                    Circle().fill(LinearGradient(colors: [preview.accent, preview.glow],
+                                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+                                        .frame(width: 34, height: 34)
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                } else {
+                                    GhafCitySkyline(city: option)
+                                        .fill(LinearGradient(colors: [preview.accent, preview.glow], startPoint: .top, endPoint: .bottom))
+                                        .frame(height: 44)
+                                }
                                 if themeName == option {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 14, weight: .heavy))
-                                        .foregroundStyle(preview.accentContrast)
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(preview.accent)
+                                        .background(Circle().fill(preview.background))
                                 }
                             }
                             Text(themeTitle(option))
                                 .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
-                                .foregroundStyle(theme.primaryText)
+                                .foregroundStyle(preview.primaryText)
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 78)
+                        .padding(.horizontal, 8).padding(.top, 10).padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, minHeight: 86)
                         .background(preview.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
