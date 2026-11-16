@@ -14,6 +14,8 @@ struct TransactionIngestionResult {
 
     let status: Status
     let confirmation: String
+    /// The record written, when one was (saved or sent to review).
+    var transactionID: UUID? = nil
 }
 
 @MainActor
@@ -164,13 +166,15 @@ final class TransactionIngestionService {
         if needsReview {
             return TransactionIngestionResult(
                 status: .needsReview,
-                confirmation: "Transaction received. Review its category or account." + subscriptionNote
+                confirmation: "Transaction received. Review its category or account." + subscriptionNote,
+                transactionID: transaction.id
             )
         }
 
         return TransactionIngestionResult(
             status: .saved,
-            confirmation: "Saved \(amount) \(parsed.currency)." + subscriptionNote
+            confirmation: "Saved \(amount) \(parsed.currency)." + subscriptionNote,
+            transactionID: transaction.id
         )
     }
 

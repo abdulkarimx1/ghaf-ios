@@ -29,7 +29,7 @@ struct GhafAutomationGuideView: View {
                 instructionCard(
                     number: "2",
                     title: localized("Catch every Apple Pay purchase", "التقط كل مشتريات Apple Pay"),
-                    detail: localized("Shortcuts › Automation › + › Transaction. Select all cards, add Ghaf's “Add Apple Pay purchase”, map Amount, Merchant and Card. One automation covers every bank.", "الاختصارات › الأتمتة › + › معاملة. اختر كل البطاقات، أضف «أضف عملية Apple Pay» من غاف، واربط المبلغ والتاجر والبطاقة. أتمتة واحدة تغطي كل البنوك.")
+                    detail: localized("Shortcuts › Automation › + › Transaction. Select all cards, add Ghaf's “Add Apple Pay purchase”, map Amount, Merchant and Card. One automation covers every bank. For the map, add “Get Current Location” first and pass it as Location.", "الاختصارات › الأتمتة › + › معاملة. اختر كل البطاقات، أضف «أضف عملية Apple Pay» من غاف، واربط المبلغ والتاجر والبطاقة. أتمتة واحدة تغطي كل البنوك. للخريطة، أضف «الحصول على الموقع الحالي» أولاً ومرّره كموقع.")
                 )
 
                 instructionCard(

@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import CoreLocation
 import SwiftData
 
 struct LogBankMessageIntent: AppIntent {
@@ -19,6 +20,9 @@ struct LogBankMessageIntent: AppIntent {
         description: "محتوى إشعار أو رسالة العملية البنكية الواردة."
     )
     var messageText: String
+
+    @Parameter(title: "Location", description: "Optional: Current Location, so Ghaf can pin where you paid.")
+    var location: CLPlacemark?
 
     func perform() async throws
         -> some IntentResult & ReturnsValue<String> {
@@ -40,10 +44,17 @@ struct LogBankMessageIntent: AppIntent {
                 sender: nil
             )
 
-            return result.confirmation
+            return result
+        }
+        if let spot = location?.location, let id = confirmation.transactionID {
+            let context = try await MainActor.run { try GhafPersistence.shared().mainContext }
+            let merchant = await MainActor.run {
+                (try? context.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first?.merchant) ?? nil
+            }
+            if let merchant { await GhafPlaces.rememberPurchaseSpot(spot, merchant: merchant, transactionID: id) }
         }
 
-        return .result(value: confirmation)
+        return .result(value: confirmation.confirmation)
     }
 }
 

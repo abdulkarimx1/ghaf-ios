@@ -56,6 +56,25 @@ enum GhafPlaces {
         cache[SubscriptionDetector.normalize(merchant)] = nil
     }
 
+    /// Where the phone was when the purchase was reported (passed by the Shortcut): the closest branch
+    /// of this merchant within 2 km, else the spot itself. Saved for this transaction only, since chains
+    /// have many branches.
+    static func rememberPurchaseSpot(_ location: CLLocation, merchant: String, transactionID: UUID) async {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = merchant
+        request.resultTypes = .pointOfInterest
+        request.region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 4_000, longitudinalMeters: 4_000)
+        let items = (try? await MKLocalSearch(request: request).start().mapItems) ?? []
+        let nearest = items
+            .filter { ($0.placemark.location?.distance(from: location) ?? .infinity) < 2_000 }
+            .min { ($0.placemark.location?.distance(from: location) ?? .infinity) < ($1.placemark.location?.distance(from: location) ?? .infinity) }
+        let saved = Saved(name: nearest?.name ?? merchant,
+                          latitude: nearest?.placemark.coordinate.latitude ?? location.coordinate.latitude,
+                          longitude: nearest?.placemark.coordinate.longitude ?? location.coordinate.longitude,
+                          address: nearest?.placemark.title, phone: nearest?.phoneNumber)
+        var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
+    }
+
     static func saved(merchant: String, transactionID: UUID) -> MKMapItem? {
         let saved = load(transactionKey)[transactionID.uuidString] ?? load(merchantKey)[SubscriptionDetector.normalize(merchant)]
         guard let saved else { return nil }

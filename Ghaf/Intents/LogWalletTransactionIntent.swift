@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import CoreLocation
 
 /// Receives Apple Pay purchases from the Shortcuts "Transaction" (Wallet) automation. The bank's
 /// message for the same purchase is then recognised as a duplicate, not a second purchase.
@@ -17,6 +18,9 @@ struct LogWalletTransactionIntent: AppIntent {
     @Parameter(title: "Card", description: "The Wallet Card or Pass name, used to pick the account.")
     var card: String?
 
+    @Parameter(title: "Location", description: "Optional: Current Location, so Ghaf can pin where you paid.")
+    var location: CLPlacemark?
+
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let cleanAmount = amount.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanMerchant = merchant.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -24,15 +28,18 @@ struct LogWalletTransactionIntent: AppIntent {
             return .result(value: "Missing amount or merchant. Nothing saved.")
         }
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
-        let confirmation = try await MainActor.run {
+        let result = try await MainActor.run {
             let context = try GhafPersistence.shared().mainContext
             // Phrased like a card message so the same parser and validation apply.
             return try TransactionIngestionService(context: context).ingest(
                 messageText: "Purchase of \(cleanAmount) at \(cleanMerchant).",
                 sender: card,
                 fromWallet: true
-            ).confirmation
+            )
         }
-        return .result(value: confirmation)
+        if let spot = location?.location, let id = result.transactionID {
+            await GhafPlaces.rememberPurchaseSpot(spot, merchant: cleanMerchant, transactionID: id)
+        }
+        return .result(value: result.confirmation)
     }
 }
