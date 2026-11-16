@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.10.4 (19)
+
+### English
+- The UAE dirham sign is now the official artwork, exactly as published, everywhere amounts appear.
+
+### العربية
+- أصبح رمز الدرهم الإماراتي هو التصميم الرسمي كما نُشر تماماً، في كل مكان تظهر فيه المبالغ.
+
 ## 1.10.3 (18)
 
 ### English
