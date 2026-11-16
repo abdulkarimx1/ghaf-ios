@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import PhotosUI
 
 private enum GhafSettingsPrompt: Identifiable {
     case deleteData
@@ -40,6 +41,8 @@ struct GhafSettingsView: View {
     @State private var pendingImportURL: URL?
     @State private var showImporter = false
     @State private var pickedImportURL: URL?
+    @State private var photoItem: PhotosPickerItem?
+    @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var prompt: GhafSettingsPrompt?
     @State private var hasLoadedSettings = false
 
@@ -179,12 +182,7 @@ struct GhafSettingsView: View {
             subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
         } label: {
             VStack(spacing: 10) {
-                Text(initials)
-                    .font(GhafTypography.display(30, languageCode: languageCode))
-                    .foregroundStyle(theme.accentContrast)
-                    .frame(width: 88, height: 88)
-                    .background(theme.accent.gradient, in: Circle())
-                    .shadow(color: theme.accent.opacity(0.35), radius: 14, y: 6)
+                GhafAvatar(initials: initials, theme: theme, languageCode: languageCode)
                 Text(name.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : name)
                     .font(GhafTypography.display(26, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
@@ -209,10 +207,11 @@ struct GhafSettingsView: View {
             profileCard
             languageCard
             VStack(spacing: 6) {
-                Label(ar ? "تسجيل الدخول عبر Apple" : "Sign in with Apple", systemImage: "apple.logo")
+                Label(ar ? "تسجيل الدخول عبر Apple أو Google" : "Sign in with Apple or Google", systemImage: "person.badge.key.fill")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                     .foregroundStyle(theme.secondaryText)
-                Text(ar ? "قريباً — يتطلب حساب مطوّر Apple مدفوع." : "Coming soon. It needs a paid Apple Developer account.")
+                Text(ar ? "قريباً مع المزامنة بين أجهزتك. حتى ذلك الحين تبقى بياناتك على هذا الـ iPhone فقط."
+                        : "Coming with sync across your devices. Until then, your data stays on this iPhone only.")
                     .font(GhafTypography.body(12, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
@@ -327,12 +326,32 @@ struct GhafSettingsView: View {
         let activeAccountCount = accounts.filter { !$0.isArchived }.count
         return VStack(spacing: 16) {
             VStack(spacing: 8) {
-                Text(initials)
-                    .font(GhafTypography.display(36, languageCode: languageCode))
-                    .foregroundStyle(theme.accentContrast)
-                    .frame(width: 96, height: 96)
-                    .background(theme.accent, in: Circle())
-                    .overlay(Circle().stroke(theme.accent.opacity(0.35), lineWidth: 6).padding(-6))
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(theme.accentContrast)
+                                .frame(width: 32, height: 32)
+                                .background(theme.accent, in: Circle())
+                                .overlay(Circle().stroke(theme.surface, lineWidth: 3))
+                        }
+                }
+                .buttonStyle(.ghafPress)
+                .accessibilityLabel(ar ? "اختيار صورة الملف الشخصي" : "Choose profile photo")
+                .onChange(of: photoItem) { _, item in
+                    Task {
+                        guard let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
+                        do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                        catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
+                    }
+                }
+                if hasPhoto {
+                    Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
+                        GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
+                    }
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                }
                 Text(name.isEmpty ? (ar ? "مرحباً بك في غاف" : "Welcome to Ghaf") : name)
                     .font(GhafTypography.display(26, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
