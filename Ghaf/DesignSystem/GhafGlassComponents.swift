@@ -150,17 +150,14 @@ struct GhafListRow<Trailing: View>: View {
     var chevron = false
     /// When set, shows this company's mark (or its initial) instead of `icon`.
     var brandName: String? = nil
-    /// When set, shows this card face (asset name) instead of `icon`.
-    var cardAsset: String? = nil
+    /// When set, shows this card face instead of `icon`.
+    var card: GhafCardFace? = nil
     @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
         HStack(spacing: 14) {
-            if let cardAsset {
-                Image(cardAsset).resizable().aspectRatio(1.6, contentMode: .fill)
-                    .frame(width: 46, height: 29)
-                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                    .accessibilityHidden(true)
+            if let card {
+                card.accessibilityHidden(true)
             } else if let brandName {
                 GhafBrandBadge(name: brandName, fallbackTint: tint)
             } else {

@@ -118,11 +118,7 @@ struct GhafTransactionDetailView: View {
             GhafDetailRow(label: isCredit ? (ar ? "إلى حساب" : "Into") : (ar ? "من حساب" : "From"), theme: theme, languageCode: lang) {
                 HStack(spacing: 8) {
                     Text(accountName)
-                    if let asset = account?.cardDesign.flatMap(GhafCardDesign.init(rawValue:))?.asset {
-                        Image(asset).resizable().aspectRatio(1.6, contentMode: .fill)
-                            .frame(width: 34, height: 21)
-                            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                    }
+                    if let account, let card = GhafCardFace.mini(for: account, width: 34) { card }
                 }
             }
             GhafDetailRow(label: ar ? "الفئة" : "Category",
