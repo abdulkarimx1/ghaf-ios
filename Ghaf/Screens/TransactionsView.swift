@@ -372,9 +372,12 @@ struct GhafTransactionEditor: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 15) {
+                    GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: languageCode)
+
                     Text(languageCode == "ar" ? "تعديل العملية" : "Edit transaction")
-                        .font(GhafTypography.display(29, languageCode: languageCode))
+                        .font(GhafTypography.heading(20, languageCode: languageCode))
                         .foregroundStyle(theme.primaryText)
+                        .padding(.top, 6)
 
                     editorLabel(languageCode == "ar" ? "المبلغ" : "AMOUNT")
                     TextField("0.00", text: $amount)
@@ -428,11 +431,6 @@ struct GhafTransactionEditor: View {
                                 .font(GhafTypography.body(13, languageCode: languageCode))
                                 .foregroundStyle(theme.secondaryText)
                         }
-                        Text(languageCode == "ar"
-                            ? "بيانات موقع المتجر ورقمه غير متاحة في رسالة البنك."
-                            : "The bank message does not include the merchant's location or phone number.")
-                            .font(GhafTypography.body(10, languageCode: languageCode))
-                            .foregroundStyle(theme.secondaryText)
                     }
                     .padding(13)
                     .frame(maxWidth: .infinity, alignment: .leading)
