@@ -14,7 +14,7 @@ enum GhafFinanceFacts {
         subscriptions: [GhafSubscription],
         now: Date = .now
     ) -> String {
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         var lines: [String] = ["Today is \(now.formatted(date: .complete, time: .omitted))."]
 
         let open = accounts.filter { !$0.isArchived }

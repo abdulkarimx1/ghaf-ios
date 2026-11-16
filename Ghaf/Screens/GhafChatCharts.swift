@@ -42,7 +42,7 @@ enum GhafChatChartBuilder {
     static func chart(for question: String, transactions: [GhafTransaction], currency: String, languageCode: String) -> GhafChatChart? {
         let q = question.lowercased()
         let ar = languageCode == "ar"
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         let spending = transactions.filter { $0.currency == currency && $0.isExpense }
         func total(_ interval: DateInterval?) -> Double {
             guard let interval else { return 0 }

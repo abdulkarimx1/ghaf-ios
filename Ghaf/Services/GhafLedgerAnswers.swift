@@ -165,7 +165,7 @@ enum GhafLedgerAnswers {
     static func savingTip(transactions: [GhafTransaction], subscriptions: [GhafSubscription],
                           currency: String, languageCode: String, now: Date) -> String {
         let ar = languageCode == "ar"
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         func money(_ value: Decimal) -> String { GhafFormat.money(value, currency: currency, languageCode: languageCode) }
         func byCategory(_ interval: DateInterval?) -> [String: Decimal] {
             guard let interval else { return [:] }
@@ -199,7 +199,7 @@ enum GhafLedgerAnswers {
 
     /// This month's projected spending in `currency`, using the three complete months before it as history.
     static func monthForecast(transactions: [GhafTransaction], currency: String, now: Date = .now) -> SpendingInsights.Forecast? {
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         guard let month = calendar.dateInterval(of: .month, for: now),
               let days = calendar.range(of: .day, in: .month, for: now)?.count else { return nil }
         let spending = transactions.filter { $0.currency == currency && $0.isExpense }
@@ -217,7 +217,7 @@ enum GhafLedgerAnswers {
     }
 
     static func period(for q: String, now: Date) -> Period {
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         func window(_ component: Calendar.Component, _ offset: Int) -> DateInterval {
             let date = calendar.date(byAdding: component, value: offset, to: now) ?? now
             return calendar.dateInterval(of: component, for: date) ?? DateInterval(start: now, duration: 86_400)

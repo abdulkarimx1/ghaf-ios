@@ -21,6 +21,8 @@ struct GhafHomeView: View {
     @State private var showReview = false
     @State private var selectedTransaction: GhafTransaction?
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
+    /// Observed so the weekly figures redraw as soon as the week start changes.
+    @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage("ghaf.hideBalances") private var hideBalances = false
     @State private var activityPeriodIndex = 0
 
@@ -54,7 +56,7 @@ struct GhafHomeView: View {
             ? settings.currency : (summary.balances.first?.currency ?? settings.currency)
         summary.mainCurrency = main
 
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         let component: Calendar.Component = [.day, .weekOfYear, .month][activityPeriodIndex]
         let interval = calendar.dateInterval(of: component, for: .now)
         var byCategory: [String: Decimal] = [:]

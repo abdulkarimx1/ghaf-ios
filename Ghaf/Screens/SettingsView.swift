@@ -41,6 +41,8 @@ struct GhafSettingsView: View {
     @State private var pendingImportURL: URL?
     @State private var showImporter = false
     @State private var pickedImportURL: URL?
+    /// Weekly totals everywhere follow this; the region's first weekday until the user picks one.
+    @AppStorage(GhafCalendar.weekStartKey) private var weekStart = Calendar.current.firstWeekday
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var prompt: GhafSettingsPrompt?
@@ -407,6 +409,14 @@ struct GhafSettingsView: View {
             Picker(languageCode == "ar" ? "لغة التطبيق" : "App language", selection: $languageCode) {
                 Text("English").tag("en")
                 Text("العربية").tag("ar")
+            }
+            .pickerStyle(.segmented)
+
+            settingsLabel(languageCode == "ar" ? "بداية الأسبوع" : "Week starts on")
+            Picker(languageCode == "ar" ? "بداية الأسبوع" : "Week starts on", selection: $weekStart) {
+                Text(languageCode == "ar" ? "السبت" : "Saturday").tag(7)
+                Text(languageCode == "ar" ? "الأحد" : "Sunday").tag(1)
+                Text(languageCode == "ar" ? "الإثنين" : "Monday").tag(2)
             }
             .pickerStyle(.segmented)
         }
