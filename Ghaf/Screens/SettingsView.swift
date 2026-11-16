@@ -39,6 +39,7 @@ struct GhafSettingsView: View {
     @State private var backupURL: URL?
     @State private var pendingImportURL: URL?
     @State private var showImporter = false
+    @State private var pickedImportURL: URL?
     @State private var prompt: GhafSettingsPrompt?
     @State private var hasLoadedSettings = false
 
@@ -116,32 +117,15 @@ struct GhafSettingsView: View {
             .onChange(of: appearanceMode) { _, _ in persistSettings() }
             .onChange(of: budgetMode) { _, _ in persistSettings() }
             .onChange(of: categoryBudgetTexts) { _, _ in persistSettings() }
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.json],
-                allowsMultipleSelection: false
-            ) { result in
-                switch result {
-                case .success(let urls):
-                    guard let url = urls.first else { return }
-                    Task { @MainActor in
-                        do {
-                            // Coordinated copy downloads iCloud files and keeps working after the picker's access ends.
-                            let local = try Self.localCopy(of: url)
-                            // An alert set while the picker is still closing is dropped on device; wait for it.
-                            try? await Task.sleep(for: .milliseconds(450))
-                            pendingImportURL = local
-                            prompt = GhafExpendImportService.canImport(local) ? .importExpend : .importBackup
-                        } catch {
-                            try? await Task.sleep(for: .milliseconds(450))
-                            prompt = .message(languageCode == "ar"
-                                ? "تعذر قراءة الملف. إذا كان في iCloud Drive فانتظر حتى يكتمل تنزيله ثم حاول مرة أخرى."
-                                : "Couldn't read that file. If it's in iCloud Drive, let it finish downloading and try again.")
-                        }
-                    }
-                case .failure:
-                    prompt = .message(languageCode == "ar" ? "تعذر استيراد النسخة الاحتياطية." : "Could not import the backup.")
+            // UIKit's picker in copy mode: iOS downloads iCloud files and hands over a local copy, and the
+            // confirm alert waits for the sheet to close. Any data file is selectable; contents are validated.
+            // iOS may report the pick before or after the sheet finishes closing; ask in whichever comes last.
+            .sheet(isPresented: $showImporter, onDismiss: askToImportPickedFile) {
+                GhafDocumentPicker { url in
+                    pickedImportURL = url
+                    if !showImporter { askToImportPickedFile() }
                 }
+                .ignoresSafeArea()
             }
             .alert(item: $prompt) { selectedPrompt in
                 switch selectedPrompt {
@@ -784,19 +768,11 @@ struct GhafSettingsView: View {
         }
     }
 
-    /// Copies a picked file into the app's temporary folder through a file coordinator.
-    private static func localCopy(of url: URL) throws -> URL {
-        let granted = url.startAccessingSecurityScopedResource()
-        defer { if granted { url.stopAccessingSecurityScopedResource() } }
-        let destination = FileManager.default.temporaryDirectory
-            .appendingPathComponent("import-\(UUID().uuidString)-\(url.lastPathComponent)")
-        var coordinationError: NSError?
-        var copyError: Error?
-        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readable in
-            do { try FileManager.default.copyItem(at: readable, to: destination) } catch { copyError = error }
-        }
-        if let error = coordinationError ?? copyError { throw error }
-        return destination
+    private func askToImportPickedFile() {
+        guard let url = pickedImportURL else { return }
+        pickedImportURL = nil
+        pendingImportURL = url
+        prompt = GhafExpendImportService.canImport(url) ? .importExpend : .importBackup
     }
 
     private func restoreBackup() {
@@ -977,5 +953,28 @@ struct GhafAboutView: View {
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, Locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, settings.languageCode == "ar" ? .rightToLeft : .leftToRight)
+    }
+}
+
+/// Document picker that imports a copy, so the app never depends on access to the original file.
+private struct GhafDocumentPicker: UIViewControllerRepresentable {
+    let onPick: (URL) -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json, .text, .data], asCopy: true)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ controller: UIDocumentPickerViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPick: (URL) -> Void
+        init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            if let url = urls.first { onPick(url) }
+        }
     }
 }
