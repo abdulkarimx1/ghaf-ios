@@ -416,7 +416,8 @@ struct GhafAIView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 8)
-        .padding(.bottom, 10)
+        // Room for the raised Ghaf AI tab orb, which rises above the tab bar.
+        .padding(.bottom, 34)
     }
 
     // MARK: Actions

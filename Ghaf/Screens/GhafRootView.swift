@@ -220,6 +220,8 @@ struct GhafRootView: View {
 @Observable
 final class GhafTabRouter {
     var selectedTab = 0
+    /// Bumped when Home is tapped while already open; Home cycles Daily, Weekly, Monthly.
+    var homeReselects = 0
 }
 
 struct GhafTabView: View {
@@ -240,7 +242,12 @@ struct GhafTabView: View {
         )
         let reviewCount = reviewItems.count
 
-        TabView(selection: $router.selectedTab) {
+        // Tapping Home again while it's open switches its period instead of doing nothing.
+        let selection = Binding(get: { router.selectedTab }, set: { tab in
+            if tab == 0 && router.selectedTab == 0 { router.homeReselects += 1 }
+            router.selectedTab = tab
+        })
+        TabView(selection: selection) {
             GhafHomeView(settings: settings)
                 .tabItem { Label(settings.languageCode == "ar" ? "الرئيسية" : "Home", systemImage: "house.fill") }
                 .tag(0)
@@ -251,7 +258,8 @@ struct GhafTabView: View {
                 .tag(3)
 
             GhafAIView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI", systemImage: "sparkles") }
+                // The raised orb below draws this tab; the item keeps its place and its label for VoiceOver.
+                .tabItem { Label(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI", systemImage: "circle") }
                 .tag(1)
 
             GhafSubscriptionsView(settings: settings)
@@ -263,6 +271,11 @@ struct GhafTabView: View {
                 .tag(4)
         }
         .tint(theme.accent)
+        .overlay(alignment: .bottom) {
+            GhafAITabButton(theme: theme, selected: router.selectedTab == 1, languageCode: settings.languageCode) {
+                router.selectedTab = 1
+            }
+        }
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         .environment(router)
         .environment(\.ghafCategoryMeta, categoryMeta)
@@ -1103,5 +1116,46 @@ private struct GhafWelcomeLaunchScreen: View {
         }
         .ignoresSafeArea()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+
+/// Ghaf AI's tab: a raised, glowing orb over the centre of the tab bar, unlike any other tab.
+private struct GhafAITabButton: View {
+    let theme: GhafTheme
+    let selected: Bool
+    let languageCode: String
+    let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulse = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(theme.glow.opacity(selected ? 0.55 : 0.35))
+                    .blur(radius: 14)
+                    .scaleEffect(pulse ? 1.18 : 0.95)
+                Circle()
+                    .fill(LinearGradient(colors: [theme.accent, theme.glow], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
+                    .shadow(color: theme.accent.opacity(0.45), radius: 10, y: 4)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(theme.accentContrast)
+                    .symbolEffect(.bounce, value: selected)
+            }
+            .frame(width: 62, height: 62)
+            .scaleEffect(selected ? 1.06 : 1)
+            .animation(.spring(duration: 0.35, bounce: 0.4), value: selected)
+        }
+        .buttonStyle(.ghafPress)
+        .padding(.bottom, 22)
+        .accessibilityLabel(languageCode == "ar" ? "غاف AI" : "Ghaf AI")
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { pulse = true }
+        }
     }
 }
