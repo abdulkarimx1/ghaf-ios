@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.1 (16)
+
+### English
+- A cleaner tab bar: icons only, with VoiceOver still reading each tab's name.
+- Ghaf AI's tab is now a bare golden sparkle that twirls when you open it.
+
+### العربية
+- شريط تبويب أنظف: أيقونات فقط، ويبقى VoiceOver يقرأ اسم كل تبويب.
+- تبويب غاف AI أصبح نجمة ذهبية تدور عند فتحه.
+
 ## 1.10 (15)
 
 ### English

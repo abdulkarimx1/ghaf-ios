@@ -226,7 +226,10 @@ final class GhafTabRouter {
 
 struct GhafTabView: View {
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }) private var reviewItems: [GhafTransaction]
+    /// Current frame of the Ghaf AI icon's tap animation (0 = at rest).
+    @State private var aiFrame = 0
     /// A stable reference in the environment: switching tabs never changes the tabs' inputs.
     @State private var router = GhafTabRouter()
     /// Decoded once, not on every tab switch, so category icons are not invalidated needlessly.
@@ -249,34 +252,43 @@ struct GhafTabView: View {
         })
         TabView(selection: selection) {
             GhafHomeView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "الرئيسية" : "Home", systemImage: "house.fill") }
+                .tabItem { tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home") }
                 .tag(0)
 
             GhafTransactionsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "العمليات" : "Transactions", systemImage: "arrow.left.arrow.right") }
+                .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions") }
                 .badge(reviewCount)
                 .tag(3)
 
             GhafAIView(settings: settings)
-                // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
+                // A full-colour sparkle as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
-                    Label { Text(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI") } icon: {
-                        Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1))
-                    }
+                    tabIcon(Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1, frame: aiFrame)),
+                            settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
                 }
                 .tag(1)
 
             GhafSubscriptionsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "الاشتراكات" : "Subscriptions", systemImage: "repeat") }
+                .tabItem { tabIcon(Image(systemName: "repeat"), settings.languageCode == "ar" ? "الاشتراكات" : "Subscriptions") }
                 .tag(2)
 
             GhafSettingsView(settings: settings)
-                .tabItem { Label(settings.languageCode == "ar" ? "المزيد" : "More", systemImage: "ellipsis") }
+                .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
         }
         .tint(theme.accent)
         .sensoryFeedback(.selection, trigger: router.selectedTab)
+        .task(id: router.selectedTab) {
+            // Opening Ghaf AI plays the sparkle's twirl once, frame by frame (tab icons can't animate otherwise).
+            guard router.selectedTab == 1, !reduceMotion else { return }
+            for frame in 1...GhafAITabIcon.frameCount {
+                aiFrame = frame
+                try? await Task.sleep(for: .milliseconds(28))
+                if Task.isCancelled { break }
+            }
+            aiFrame = 0
+        }
         .environment(router)
         .environment(\.ghafCategoryMeta, categoryMeta)
         .onChange(of: settings.categoryMetaJSON, initial: true) { categoryMeta = settings.categoryMeta }
@@ -286,6 +298,13 @@ struct GhafTabView: View {
             settings.appearanceMode == "Dark" ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+}
+
+extension GhafTabView {
+    /// Tabs show icons only; the title is still what VoiceOver reads.
+    fileprivate func tabIcon(_ image: Image, _ title: String) -> some View {
+        image.accessibilityLabel(title)
     }
 }
 
@@ -1120,26 +1139,29 @@ private struct GhafWelcomeLaunchScreen: View {
 }
 
 
-/// Ghaf AI's tab icon: a gradient orb with a sparkle in the theme's colours, kept in full colour.
+/// Ghaf AI's tab icon: a bare sparkle in the theme's gradient, kept in full colour. `frame` 1...frameCount
+/// draws the twirl played when the tab opens; 0 is at rest.
 @MainActor
 enum GhafAITabIcon {
+    static let frameCount = 16
     private static var cache: [String: UIImage] = [:]
 
-    static func image(theme: GhafTheme, selected: Bool) -> UIImage {
-        let key = "\(theme.name)-\(theme.isDark)-\(selected)"
+    static func image(theme: GhafTheme, selected: Bool, frame: Int = 0) -> UIImage {
+        let key = "\(theme.name)-\(theme.isDark)-\(selected)-\(frame)"
         if let cached = cache[key] { return cached }
-        // Neutral Graphite would make a grey orb, so it keeps Ghaf's signature sand-gold instead.
+        // Neutral Graphite would make a grey sparkle, so it keeps Ghaf's signature sand-gold instead.
         let city = GhafTheme.cities[theme.name == "Graphite" ? "Abu Dhabi" : theme.name] ?? GhafTheme.cities["Abu Dhabi"]!
-        let colors = theme.isDark ? [city.accent.dark, city.glow.dark] : [city.accent.light, city.glow.light]
-        let orb = ZStack {
-            Circle().fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
-            Circle().stroke(.white.opacity(selected ? 0.9 : 0.35), lineWidth: selected ? 2 : 1)
-            Image(systemName: "sparkles")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(theme.isDark ? Color.black : Color.white)
-        }
-        .frame(width: 34, height: 34)
-        let renderer = ImageRenderer(content: orb)
+        let colors = theme.isDark ? [city.glow.dark, city.accent.dark] : [city.accent.light, city.glow.light]
+        let t = Double(frame) / Double(frameCount)          // 0...1 through the twirl
+        let lift = sin(t * .pi)                             // rises then settles
+        let sparkle = Image(systemName: "sparkles")
+            .font(.system(size: 25, weight: selected ? .bold : .semibold))
+            .foregroundStyle(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
+            .scaleEffect(1 + 0.22 * lift)
+            .rotationEffect(.degrees(-18 * sin(t * 2 * .pi)))
+            .opacity(selected || frame > 0 ? 1 : 0.85)
+            .frame(width: 34, height: 34)
+        let renderer = ImageRenderer(content: sparkle)
         renderer.scale = 3
         let image = (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysOriginal)
         cache[key] = image
