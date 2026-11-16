@@ -9,6 +9,7 @@ private enum BankPatterns {
 
     static let merchants = [
         #"(?i)\bat\s+(.+?)(?=\s+(?:available\s+balance|balance|on\s+\d{1,4}[/-]\d)|[.;\n]|$)"#,
+        #"(?:لدى|عند)\s+(.+?)(?=\s+(?:الرصيد|بتاريخ|في\s+\d)|[.،;\n]|$)"#,
         #"(?i)\bmerchant(?:\s+name)?\s*[:\-]\s*(.+?)(?=\s+(?:available\s+balance|balance|on\s+\d{1,4}[/-]\d)|[.;\n]|$)"#
     ]
 
@@ -20,13 +21,15 @@ private enum BankPatterns {
         #"(?i)\bdebit(?:ed)?\b"#, #"(?i)\bpurchase(?:d)?\b"#,
         #"(?i)\bspent\b"#, #"(?i)\bpaid\b"#, #"(?i)\bpayment\b"#,
         #"(?i)\bwithdraw(?:al|n)?\b"#, #"(?i)\bcharged\b"#,
-        #"(?i)\bcard\s+used\b"#
+        #"(?i)\bcard\s+used\b"#,
+        #"خصم|شراء|سحب|دفع|مدين"#
     ]
 
     static let credits = [
         #"(?i)\bcredited\b"#, #"(?i)\breceived\b"#,
         #"(?i)\brefund(?:ed)?\b"#, #"(?i)\bsalary\b"#,
-        #"(?i)\bdeposit(?:ed)?\b"#, #"(?i)\bcashback\b"#
+        #"(?i)\bdeposit(?:ed)?\b"#, #"(?i)\bcashback\b"#,
+        #"إيداع|ايداع|استلام|راتب|دائن|إضافة|اضافة|وارد"#
     ]
 
     static let reversals = [#"(?i)\brevers(?:al|ed)\b"#, #"(?i)تم\s+عكس|عكس\s+(?:عملية|مبلغ)"#]
@@ -261,6 +264,33 @@ enum BankRuleRegistry {
     ]
 }
 
+/// Rewrites Arabic bank text into the forms the rules read: Western digits and ISO currency codes.
+/// A bare "ريال" is left alone because it could be SAR, OMR or QAR; the default currency and review apply.
+enum ArabicMessageNormalizer {
+    private static let currencies: [(String, String)] = [
+        (#"ريال\s+سعودي|ر\.\s?س\.?"#, "SAR"), (#"ريال\s+عماني|ر\.\s?ع\.?"#, "OMR"),
+        (#"ريال\s+قطري|ر\.\s?ق\.?"#, "QAR"), (#"دينار\s+كويتي|د\.\s?ك\.?"#, "KWD"),
+        (#"دينار\s+بحريني|د\.\s?ب\.?"#, "BHD"), (#"دراهم|درهم|د\.\s?إ\.?"#, "AED")
+    ]
+
+    static func normalize(_ text: String) -> String {
+        var result = String(text.map { character -> Character in
+            guard let scalar = character.unicodeScalars.first, character.unicodeScalars.count == 1 else { return character }
+            switch scalar.value {
+            case 0x0660...0x0669: return Character(String(scalar.value - 0x0660))
+            case 0x06F0...0x06F9: return Character(String(scalar.value - 0x06F0))
+            case 0x066B: return "."
+            case 0x066C: return ","
+            default: return character
+            }
+        })
+        for (pattern, code) in currencies {
+            result = result.replacingOccurrences(of: pattern, with: " \(code) ", options: .regularExpression)
+        }
+        return result
+    }
+}
+
 enum MessageNoiseFilter {
     private static let ignored = [
         #"(?i)\bOTP\b"#,
@@ -276,6 +306,8 @@ enum MessageNoiseFilter {
         #"(?i)\bpassword\s+reset\b"#,
         #"(?i)\bdo\s+not\s+share\b"#,
         #"(?i)\bnever\s+share\b"#,
+        #"احصل\s+على|عرض\s+(?:خاص|حصري)|خصم\s+\d+\s*%|\d+\s*%\s*خصم"#,
+        #"رمز\s+(?:التحقق|التفعيل|سري)|كلمة\s+(?:ال)?مرور\s+لمرة\s+واحدة|لا\s+تشارك"#,
         // A transfer request is not proof that funds have moved.
         #"(?i)\brequest\s+received\s+for\s+fund\s+transfer\b"#,
         #"(?i)\btransfer\s+request\s+(?:received|created|submitted)\b"#,

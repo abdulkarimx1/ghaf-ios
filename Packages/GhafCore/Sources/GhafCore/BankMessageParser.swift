@@ -46,7 +46,7 @@ public struct BankMessageParser {
         referenceDate: Date = Date()
     ) -> ParsedTransaction? {
 
-        let message = rawMessage.trimmingCharacters(
+        let message = ArabicMessageNormalizer.normalize(rawMessage).trimmingCharacters(
             in: .whitespacesAndNewlines
         )
 
