@@ -123,9 +123,21 @@ struct GhafSettingsView: View {
             ) { result in
                 switch result {
                 case .success(let urls):
-                    if let url = urls.first {
-                        pendingImportURL = url
-                        prompt = GhafExpendImportService.canImport(url) ? .importExpend : .importBackup
+                    guard let url = urls.first else { return }
+                    Task { @MainActor in
+                        do {
+                            // Coordinated copy downloads iCloud files and keeps working after the picker's access ends.
+                            let local = try Self.localCopy(of: url)
+                            // An alert set while the picker is still closing is dropped on device; wait for it.
+                            try? await Task.sleep(for: .milliseconds(450))
+                            pendingImportURL = local
+                            prompt = GhafExpendImportService.canImport(local) ? .importExpend : .importBackup
+                        } catch {
+                            try? await Task.sleep(for: .milliseconds(450))
+                            prompt = .message(languageCode == "ar"
+                                ? "تعذر قراءة الملف. إذا كان في iCloud Drive فانتظر حتى يكتمل تنزيله ثم حاول مرة أخرى."
+                                : "Couldn't read that file. If it's in iCloud Drive, let it finish downloading and try again.")
+                        }
                     }
                 case .failure:
                     prompt = .message(languageCode == "ar" ? "تعذر استيراد النسخة الاحتياطية." : "Could not import the backup.")
@@ -770,6 +782,21 @@ struct GhafSettingsView: View {
         } catch {
             prompt = .message(languageCode == "ar" ? "تعذر إنشاء النسخة الاحتياطية." : "Could not create the backup.")
         }
+    }
+
+    /// Copies a picked file into the app's temporary folder through a file coordinator.
+    private static func localCopy(of url: URL) throws -> URL {
+        let granted = url.startAccessingSecurityScopedResource()
+        defer { if granted { url.stopAccessingSecurityScopedResource() } }
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("import-\(UUID().uuidString)-\(url.lastPathComponent)")
+        var coordinationError: NSError?
+        var copyError: Error?
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readable in
+            do { try FileManager.default.copyItem(at: readable, to: destination) } catch { copyError = error }
+        }
+        if let error = coordinationError ?? copyError { throw error }
+        return destination
     }
 
     private func restoreBackup() {
