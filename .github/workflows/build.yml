@@ -147,8 +147,9 @@ jobs:
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v7
         with:
-          name: Ghaf-unsigned-ipa
           path: Ghaf.ipa
+          # Upload the .ipa itself, not wrapped in a zip: sideloading apps reject a zip with no Payload/ inside.
+          archive: false
           if-no-files-found: error
           retention-days: 14
 
