@@ -426,7 +426,7 @@ struct GhafOnboardingView: View {
         case 1: StoryCard(eyebrow: localized("Welcome to Ghaf", "أهلاً بك في غاف"),
                           title: localized("Your money,\nclearly.", "أموالك،\nبوضوح."),
                           body: localized("Every account and every dirham in one calm place.", "كل حساباتك وكل درهم في مكان واحد هادئ."),
-                          colors: [Color(red: 0.10, green: 0.17, blue: 0.14), Color(red: 0.55, green: 0.33, blue: 0.18)])
+                          colors: [Color(red: 0.10, green: 0.17, blue: 0.14), Color(red: 0.33, green: 0.20, blue: 0.11)])
         case 2: StoryCard(eyebrow: localized("Private by design", "الخصوصية أولاً"),
                           title: localized("Your data stays\non this iPhone.", "بياناتك تبقى\nعلى جهازك."),
                           body: localized("No Ghaf account, no bank login, no financial servers.", "لا حساب في غاف، ولا تسجيل دخول بنكي، ولا خوادم مالية."),
@@ -448,22 +448,28 @@ struct GhafOnboardingView: View {
 
     private var storyBody: some View {
         let card = storyCard
-        return ZStack(alignment: .bottomLeading) {
-            storyBackground(card)
+        // The artwork is a background so a fill-cropped image can never widen the layout and push text off-screen;
+        // the text scrolls on small screens or large text sizes instead of being cut off.
+        return GeometryReader { geometry in
+            ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Spacer()
+                Spacer(minLength: 0)
                 if step == 4 { permissionList }
+                // The welcome artwork already carries the Ghaf name and caption, so card 1 adds no text over it.
+                if step != 1 {
                 Text(card.eyebrow)
                     .font(GhafTypography.body(15, languageCode: languageCode))
                     .foregroundStyle(storyInk.opacity(0.75))
                 Text(card.title)
                     .font(GhafTypography.display(36, languageCode: languageCode))
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(storyInk)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(card.body)
                     .font(GhafTypography.body(16, languageCode: languageCode))
                     .foregroundStyle(storyInk.opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
+                }
                 HStack(spacing: 5) {
                     ForEach(1...4, id: \.self) { index in
                         Capsule().fill(storyInk.opacity(index == step ? 1 : 0.35))
@@ -477,9 +483,14 @@ struct GhafOnboardingView: View {
             }
             .padding(.horizontal, 26)
             .padding(.bottom, 12)
+            .frame(width: geometry.size.width, alignment: .leading)
+            .frame(minHeight: geometry.size.height, alignment: .bottom)
             .id(step)
             .transition(.opacity.combined(with: .offset(y: 16)))
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
+        .background { storyBackground(card) }
         .animation(.snappy(duration: 0.4), value: step)
     }
 
@@ -488,13 +499,20 @@ struct GhafOnboardingView: View {
         ZStack {
             LinearGradient(colors: card.colors, startPoint: .top, endPoint: .bottom)
             if step == 1 {
-                Image("GhafWelcomeArtwork").resizable().scaledToFill()
-                    .accessibilityLabel(languageCode == "ar" ? "غاف، صنع بحب في الإمارات" : "Ghaf, made with love in the UAE")
+                // Lifted so the artwork's own caption and flag sit above the controls; the gradient fills below.
+                Color.clear.overlay(alignment: .bottom) {
+                    Image("GhafWelcomeArtwork").resizable().scaledToFill()
+                }
+                .clipped()
+                .padding(.bottom, 150)
+                .accessibilityElement()
+                .accessibilityLabel(languageCode == "ar" ? "غاف، صنع بحب في الإمارات" : "Ghaf, made with love in the UAE")
             }
             // A soft light source, then a scrim so the text always reads.
+            if step != 1 {
             RadialGradient(colors: [card.colors[1].opacity(0.55), .clear], center: .init(x: 0.35, y: 0.35),
                            startRadius: 0, endRadius: 360)
-            // The artwork carries its own caption near the bottom; the scrim hides it under the card text.
+            }
             if let symbol = card.symbol {
                 Image(systemName: symbol)
                     .font(.system(size: 190, weight: .ultraLight))
@@ -502,8 +520,7 @@ struct GhafOnboardingView: View {
                     .offset(x: 70, y: -170)
                     .accessibilityHidden(true)
             }
-            LinearGradient(colors: step == 1 ? [.clear, .black.opacity(0.7), .black.opacity(0.96)] : [.clear, .black.opacity(0.35)],
-                           startPoint: UnitPoint(x: 0.5, y: step == 1 ? 0.42 : 0.5), endPoint: .bottom)
+            LinearGradient(colors: [.clear, .black.opacity(0.35)], startPoint: .center, endPoint: .bottom)
         }
         .ignoresSafeArea()
     }
