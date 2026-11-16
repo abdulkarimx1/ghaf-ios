@@ -84,6 +84,7 @@ private struct GhafAccountBackup: Codable {
     var lastFourDigits: String?
     var isArchived: Bool
     var includeInTotal: Bool?
+    var cardDesign: String?
     var isPrimary: Bool
     var sortOrder: Int
     var notes: String?
@@ -177,6 +178,7 @@ enum GhafBackupService {
                 lastFourDigits: account.lastFourDigits,
                 isArchived: account.isArchived,
                 includeInTotal: account.includeInTotal,
+                cardDesign: account.cardDesign,
                 isPrimary: account.isPrimary,
                 sortOrder: account.sortOrder,
                 notes: account.notes,
@@ -292,6 +294,7 @@ enum GhafBackupService {
             )
             account.createdAt = item.createdAt
             account.includeInTotal = item.includeInTotal ?? true
+            account.cardDesign = item.cardDesign
             context.insert(account)
         }
 

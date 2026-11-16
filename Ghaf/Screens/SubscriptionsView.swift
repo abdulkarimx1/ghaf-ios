@@ -170,7 +170,7 @@ struct GhafSubscriptionsView: View {
         let date = item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
         return GhafListRow(icon: "repeat", tint: theme.accent, title: item.name,
                            subtitle: "\(item.cycle.title(language: lang)) · " + (ar ? "التجديد \(date)" : "Renews \(date)"),
-                           theme: theme, languageCode: lang) {
+                           theme: theme, languageCode: lang, brandName: item.name) {
             GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: lang, size: 16)
                 .foregroundStyle(item.isActive ? theme.primaryText : theme.secondaryText)
         }

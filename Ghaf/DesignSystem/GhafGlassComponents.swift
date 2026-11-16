@@ -148,11 +148,24 @@ struct GhafListRow<Trailing: View>: View {
     let theme: GhafTheme
     let languageCode: String
     var chevron = false
+    /// When set, shows this company's mark (or its initial) instead of `icon`.
+    var brandName: String? = nil
+    /// When set, shows this card face (asset name) instead of `icon`.
+    var cardAsset: String? = nil
     @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
         HStack(spacing: 14) {
-            GhafIconBadge(symbol: icon, tint: tint)
+            if let cardAsset {
+                Image(cardAsset).resizable().aspectRatio(1.6, contentMode: .fill)
+                    .frame(width: 46, height: 29)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .accessibilityHidden(true)
+            } else if let brandName {
+                GhafBrandBadge(name: brandName, fallbackTint: tint)
+            } else {
+                GhafIconBadge(symbol: icon, tint: tint)
+            }
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))

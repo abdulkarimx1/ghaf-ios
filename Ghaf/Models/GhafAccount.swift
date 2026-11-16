@@ -55,6 +55,8 @@ final class GhafAccount {
     var notes: String?
     /// Counted in the combined balance (Expend's "show in balance").
     var includeInTotal: Bool = true
+    /// `GhafCardDesign` raw value picked by the user; nil shows the plain account icon.
+    var cardDesign: String? = nil
     var createdAt: Date
 
     init(
@@ -123,4 +125,32 @@ struct GhafAccountDraft: Identifiable {
         self.startingBalance = startingBalance
         self.lastFourDigits = lastFourDigits
     }
+}
+
+/// Bank card faces bundled in Assets.xcassets/Cards (images from mashreq.com product pages).
+/// Shown for illustration only; Ghaf is not connected to or endorsed by any bank.
+enum GhafCardDesign: String, CaseIterable, Identifiable {
+    case neoDebit = "neo-debit", goldDebit = "gold-debit", neoCashback = "neo-cashback", neoSolitaire = "neo-solitaire"
+    case alIslamiNeoDebit = "al-islami-neo-debit", alIslamiPlatinumElite = "al-islami-platinum-elite"
+    case alIslamiSolitaire = "al-islami-solitaire"
+
+    var id: String { rawValue }
+    var asset: String { "Card-\(rawValue)" }
+
+    var title: String {
+        switch self {
+        case .neoDebit: "Mashreq NEO Debit"
+        case .goldDebit: "Mashreq Gold Debit"
+        case .neoCashback: "Mashreq Cashback"
+        case .neoSolitaire: "Mashreq Solitaire"
+        case .alIslamiNeoDebit: "Mashreq Al Islami NEO Debit"
+        case .alIslamiPlatinumElite: "Mashreq Al Islami Platinum Elite"
+        case .alIslamiSolitaire: "Mashreq Al Islami Solitaire"
+        }
+    }
+
+    static let disclaimer = (
+        en: "Card images are for illustration only. Ghaf is not connected to or endorsed by any bank.",
+        ar: "صور البطاقات للتوضيح فقط. غاف غير مرتبط بأي بنك ولا يمثّله."
+    )
 }

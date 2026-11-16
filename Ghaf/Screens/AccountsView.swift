@@ -9,8 +9,9 @@ struct GhafAccountsView: View {
 
     let settings: GhafSettings
 
-    @State private var selectedAccount: GhafAccount?
-    @State private var showingEditor = false
+    /// One value drives the sheet so it always opens on the tapped account.
+    private struct EditorTarget: Identifiable { let id = UUID(); let account: GhafAccount? }
+    @State private var editorTarget: EditorTarget?
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
@@ -43,8 +44,7 @@ struct GhafAccountsView: View {
                 }
 
                 Button {
-                    selectedAccount = nil
-                    showingEditor = true
+                    editorTarget = EditorTarget(account: nil)
                 } label: {
                     Label(
                         settings.languageCode == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet",
@@ -67,9 +67,9 @@ struct GhafAccountsView: View {
         .ghafBackground(theme: theme)
         .navigationTitle(settings.languageCode == "ar" ? "الحسابات" : "Accounts")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingEditor) {
+        .sheet(item: $editorTarget) { target in
             NavigationStack {
-                GhafAccountEditorView(account: selectedAccount, settings: settings)
+                GhafAccountEditorView(account: target.account, settings: settings)
             }
         }
     }
@@ -100,8 +100,7 @@ struct GhafAccountsView: View {
             VStack(spacing: 0) {
                 ForEach(activeAccounts, id: \.id) { account in
                     Button {
-                        selectedAccount = account
-                        showingEditor = true
+                        editorTarget = EditorTarget(account: account)
                     } label: {
                         accountRow(account, balance: balances[account.id] ?? account.openingBalance)
                     }
@@ -149,7 +148,8 @@ struct GhafAccountsView: View {
                       account.lastFourDigits.flatMap { $0.isEmpty ? nil : "•••• \($0)" }]
             .compactMap { $0 }.joined(separator: " · ")
         return GhafListRow(icon: account.type.symbol, tint: theme.accent, title: account.name, subtitle: detail,
-                           theme: theme, languageCode: lang, chevron: true) {
+                           theme: theme, languageCode: lang, chevron: true,
+                           cardAsset: account.cardDesign.flatMap(GhafCardDesign.init(rawValue:))?.asset) {
             GhafMoneyLabel(amount: balance, currency: account.currency, languageCode: lang, size: 16)
                 .foregroundStyle(theme.primaryText)
         }
@@ -221,6 +221,7 @@ struct GhafAccountEditorView: View {
     @State private var isPrimary = false
     @State private var errorMessage = false
     @State private var showArchiveConfirmation = false
+    @State private var cardDesign: GhafCardDesign?
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -280,6 +281,25 @@ struct GhafAccountEditorView: View {
                     settings.languageCode == "ar" ? "الحساب الرئيسي" : "Primary account",
                     isOn: $isPrimary
                 )
+            }
+
+            if accountType.isBankAccount {
+                Section {
+                    Picker(settings.languageCode == "ar" ? "تصميم البطاقة" : "Card design", selection: $cardDesign) {
+                        Text(settings.languageCode == "ar" ? "بدون" : "None").tag(GhafCardDesign?.none)
+                        ForEach(GhafCardDesign.allCases) { Text($0.title).tag(Optional($0)) }
+                    }
+                    if let cardDesign {
+                        Image(cardDesign.asset).resizable().aspectRatio(1.6, contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .frame(maxWidth: 320).frame(maxWidth: .infinity)
+                            .accessibilityLabel(cardDesign.title)
+                    }
+                } header: {
+                    Text(settings.languageCode == "ar" ? "البطاقة" : "CARD")
+                } footer: {
+                    Text(settings.languageCode == "ar" ? GhafCardDesign.disclaimer.ar : GhafCardDesign.disclaimer.en)
+                }
             }
 
             if account != nil {
@@ -369,6 +389,7 @@ struct GhafAccountEditorView: View {
         creditLimitText = account.creditLimit.map(GhafFormat.decimal) ?? ""
         lastFourDigits = account.lastFourDigits ?? ""
         isPrimary = account.isPrimary
+        cardDesign = account.cardDesign.flatMap(GhafCardDesign.init(rawValue:))
     }
 
     private func save() {
@@ -401,6 +422,7 @@ struct GhafAccountEditorView: View {
             target.lastFourDigits = lastFourDigits.isEmpty ? nil : lastFourDigits
             target.isArchived = false
             target.isPrimary = isPrimary
+            target.cardDesign = cardDesign?.rawValue
         } else {
             target = GhafAccount(
                 name: cleanName,
@@ -414,6 +436,7 @@ struct GhafAccountEditorView: View {
                 isPrimary: isPrimary,
                 sortOrder: accounts.count
             )
+            target.cardDesign = cardDesign?.rawValue
             modelContext.insert(target)
         }
 
