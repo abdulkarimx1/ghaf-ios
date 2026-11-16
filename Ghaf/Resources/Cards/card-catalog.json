@@ -813,5 +813,10 @@
   "id": "sc-dxb-010234-scb-uae-website-cards-440x280px-x",
   "bank": "sc",
   "title": "X Card"
+ },
+ {
+  "id": "tabby-card",
+  "bank": "tabby",
+  "title": "Tabby Card"
  }
 ]

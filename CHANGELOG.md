@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.2 (14)
+
+### English
+- Tabby Card design added: Tabby accounts now show the real Tabby Card.
+
+### العربية
+- إضافة تصميم بطاقة تابي: تظهر حسابات تابي الآن ببطاقة تابي الحقيقية.
+
 ## 1.9.1 (13)
 
 ### English
