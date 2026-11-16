@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6 (8)
+
+### English
+- Cloud AI now works for everyone with one switch: turn it on from Ghaf AI and get smarter, more natural answers. No setup needed.
+- The free plan includes 20 Cloud AI questions a day; after that, Ghaf answers on your iPhone.
+- Only your question and a summary of totals are sent, never your transaction list.
+
+### العربية
+- الذكاء السحابي يعمل الآن للجميع بزر واحد: فعّله من غاف واحصل على إجابات أذكى وأكثر طبيعية، دون أي إعداد.
+- تتضمن الخطة المجانية ٢٠ سؤالاً يومياً للذكاء السحابي، وبعدها يجيب غاف من جهازك.
+- يُرسل سؤالك وملخص المجاميع فقط، ولا تُرسل قائمة عملياتك.
+
 ## 1.5 (7)
 
 ### English
