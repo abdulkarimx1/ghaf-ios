@@ -75,6 +75,11 @@ enum GhafLedgerAnswers {
                       : "At this pace you'll spend about \(money(forecast.projected)) by month end. \(money(forecast.spentSoFar)) so far, \(forecast.daysLeft) days left.\(typical)"
         }
 
+        if has(["tip", "advice", "save money", "saving", "cut back", "reduce", "نصيحة", "نصيحه", "أوفر", "اوفر", "توفير", "أقلل"]) {
+            return savingTip(transactions: inCurrencyAll(transactions, currency), subscriptions: subscriptions,
+                             currency: currency, languageCode: languageCode, now: now)
+        }
+
         let period = self.period(for: periodText, now: now)
         let label = ar ? period.ar : period.en
         let inCurrency = transactions.filter { $0.currency == currency }
@@ -151,6 +156,47 @@ enum GhafLedgerAnswers {
         return nil
     }
 
+    private static func inCurrencyAll(_ transactions: [GhafTransaction], _ currency: String) -> [GhafTransaction] {
+        transactions.filter { $0.currency == currency }
+    }
+
+    /// One concrete suggestion from the numbers: the category that grew most against the usual month,
+    /// else the largest category, plus what trimming it would save.
+    static func savingTip(transactions: [GhafTransaction], subscriptions: [GhafSubscription],
+                          currency: String, languageCode: String, now: Date) -> String {
+        let ar = languageCode == "ar"
+        let calendar = Calendar.current
+        func money(_ value: Decimal) -> String { GhafFormat.money(value, currency: currency, languageCode: languageCode) }
+        func byCategory(_ interval: DateInterval?) -> [String: Decimal] {
+            guard let interval else { return [:] }
+            return Dictionary(grouping: transactions.filter { $0.isExpense && interval.contains($0.date) }, by: \.category)
+                .mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
+        }
+        let thisMonth = byCategory(calendar.dateInterval(of: .month, for: now))
+        var usual: [String: Decimal] = [:]
+        for offset in 1...3 {
+            let date = calendar.date(byAdding: .month, value: -offset, to: now) ?? now
+            for (category, value) in byCategory(calendar.dateInterval(of: .month, for: date)) { usual[category, default: 0] += value / 3 }
+        }
+        let grown = thisMonth.compactMap { category, value -> (String, Decimal, Decimal)? in
+            guard let base = usual[category], base > 0, value > base * Decimal(1.25) else { return nil }
+            return (category, value, base)
+        }.max { ($0.1 - $0.2) < ($1.1 - $1.2) }
+        if let (category, value, base) = grown {
+            let name = GhafLocalization.category(category, languageCode: languageCode)
+            return ar ? "\(name) أعلى من المعتاد هذا الشهر: \(money(value)) مقابل \(money(base)) عادةً. لو رجعت لمعدلك المعتاد توفّر \(money(value - base))."
+                      : "\(name) is running high: \(money(value)) this month against a usual \(money(base)). Getting back to normal saves \(money(value - base))."
+        }
+        if let top = thisMonth.filter({ $0.value > 0 }).max(by: { $0.value < $1.value }) {
+            let name = GhafLocalization.category(top.key, languageCode: languageCode)
+            return ar ? "أكبر فئة عندك \(name) بـ \(money(top.value)) هذا الشهر. تقليلها ١٠٪ يوفّر \(money(top.value / 10)) شهرياً."
+                      : "Your biggest category is \(name) at \(money(top.value)) this month. Trimming it by 10% saves \(money(top.value / 10)) a month."
+        }
+        let monthly = subscriptions.filter { $0.isActive && $0.currency == currency }.reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }
+        return ar ? "لا مصاريف كافية هذا الشهر لنصيحة. اشتراكاتك تكلّف \(money(monthly)) شهرياً؛ راجع ما لا تستخدمه."
+                  : "Not enough spending this month for a tip yet. Your subscriptions cost \(money(monthly)) a month; check for any you don't use."
+    }
+
     /// This month's projected spending in `currency`, using the three complete months before it as history.
     static func monthForecast(transactions: [GhafTransaction], currency: String, now: Date = .now) -> SpendingInsights.Forecast? {
         let calendar = Calendar.current
@@ -212,10 +258,11 @@ enum GhafLedgerAnswers {
             let key = SubscriptionDetector.normalize(name)
             if key.count >= 3, seen[key] == nil { seen[key] = name }
         }
-        let text = SubscriptionDetector.normalize(q)
+        // Whole words only, so a merchant called "Tip" doesn't match "tips".
+        let text = " " + SubscriptionDetector.normalize(q) + " "
         // Longest names first so "careem food" wins over "careem".
         return seen.sorted { $0.key.count > $1.key.count }
-            .first { text.contains($0.key) }
+            .first { text.contains(" \($0.key) ") }
             .map { (key: $0.key, name: $0.value) }
     }
 

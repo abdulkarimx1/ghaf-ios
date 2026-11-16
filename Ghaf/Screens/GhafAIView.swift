@@ -484,6 +484,12 @@ struct GhafAIView: View {
         replyTask = Task {
             var index: Int?
             do {
+                GhafLedgerContext.accounts = accounts
+                GhafLedgerContext.transactions = transactions
+                GhafLedgerContext.subscriptions = subscriptions
+                GhafLedgerContext.currency = settings.currency
+                GhafLedgerContext.languageCode = settings.languageCode
+                GhafLedgerContext.requestedChart = nil
                 let direct = GhafLedgerAnswers.answer(to: text, accounts: accounts, transactions: transactions,
                                                       subscriptions: subscriptions, currency: settings.currency,
                                                       languageCode: settings.languageCode)
@@ -500,7 +506,9 @@ struct GhafAIView: View {
             }
             if let index {
                 messages[index].isStreaming = false
-                withAnimation(.snappy) { messages[index].chart = chart(for: text) }
+                // The model's own chart choice wins; otherwise the question decides.
+                let chartQuestion = GhafLedgerContext.requestedChart.map { ["compare": "compare", "week": "week"][$0] ?? "categories" } ?? text
+                withAnimation(.snappy) { messages[index].chart = chart(for: chartQuestion) }
                 speak(messages[index].text, force: isVoice)
             }
             isThinking = false

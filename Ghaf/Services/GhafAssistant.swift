@@ -175,7 +175,9 @@ final class GhafAssistant: ObservableObject {
     ) -> AsyncThrowingStream<String, Error> {
         let instructions = """
         You are Ghaf AI, a warm, concise personal finance assistant inside the Ghaf app (UAE).
-        Answer only from the FACTS below. Quote amounts exactly as written with their currency.
+        Answer only from the FACTS below or from the ledger tool. Quote amounts exactly as written with their currency.
+        For any number the FACTS do not contain (another period, a category, a store), call the ledger tool.
+        Call showChart when a chart makes the answer clearer.
         When a DIRECT ANSWER FROM THE LEDGER is given, answer with it in natural words, keeping every number,
         then add at most one short, useful observation or tip drawn from the facts.
         Never invent transactions, balances or subscriptions, and never add amounts in different currencies.
@@ -195,7 +197,7 @@ final class GhafAssistant: ObservableObject {
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let session = LanguageModelSession(instructions: instructions)
+                    let session = LanguageModelSession(tools: [GhafLedgerTool(), GhafChartTool()], instructions: instructions)
                     for try await snapshot in session.streamResponse(to: prompt) {
                         continuation.yield(snapshot.content)
                     }
