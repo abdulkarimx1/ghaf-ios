@@ -352,6 +352,18 @@ struct GhafAIView: View {
                     .onSubmit { send(prompt) }
                     .padding(.leading, 18).padding(.vertical, 12)
 
+                // A multi-line field turns Return into a new line, so closing the keyboard needs its own button.
+                if inputFocused {
+                    Button { inputFocused = false } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(theme.secondaryText)
+                            .frame(width: 40, height: 46)
+                    }
+                    .accessibilityLabel(ar ? "إخفاء لوحة المفاتيح" : "Hide keyboard")
+                    .transition(.scale.combined(with: .opacity))
+                }
+
                 Button {
                     if recorder.isRecording { finishVoice() }
                     else if hasText { send(prompt) }

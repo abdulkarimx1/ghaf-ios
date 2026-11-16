@@ -234,6 +234,7 @@ private struct GhafSubscriptionEditor: View {
                     }
                 }
             }
+            .ghafKeyboardDone()
             .navigationTitle(settings.languageCode == "ar" ? "الاشتراك" : "Subscription")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

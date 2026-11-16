@@ -8,9 +8,7 @@ struct GhafApp: App {
     private let modelContainer: ModelContainer
 
     init() {
-        UIScrollView.appearance().bounces = false
-        UIScrollView.appearance().alwaysBounceVertical = false
-        UIScrollView.appearance().alwaysBounceHorizontal = false
+        // Native bounce stays on: it is part of iOS's fluid feel.
         UIScrollView.appearance().showsHorizontalScrollIndicator = false
         UIScrollView.appearance().showsVerticalScrollIndicator = false
 
@@ -31,6 +29,7 @@ struct GhafApp: App {
         WindowGroup {
 
             GhafRootView()
+                .onAppear { DispatchQueue.main.async { GhafKeyboardDismisser.shared.install() } }
         }
         .modelContainer(modelContainer)
     }

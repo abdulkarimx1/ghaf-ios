@@ -104,6 +104,7 @@ struct GhafSettingsView: View {
             }
             .ghafBackground(theme: theme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
             .tint(theme.accent)
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
@@ -251,6 +252,7 @@ struct GhafSettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
+        .ghafKeyboardDone()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)

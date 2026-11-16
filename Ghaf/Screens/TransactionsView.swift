@@ -162,6 +162,7 @@ struct GhafTransactionsView: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .ghafBackground(theme: theme)
+            .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
@@ -499,6 +500,7 @@ struct GhafTransactionEditor: View {
                 .frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
+            .ghafKeyboardDone()
             .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

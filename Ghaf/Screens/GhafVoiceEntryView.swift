@@ -203,6 +203,7 @@ struct GhafVoiceEntryView: View {
             .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
+        .ghafKeyboardDone()
         .navigationTitle(isArabic ? "إضافة بالصوت" : "Voice entry")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

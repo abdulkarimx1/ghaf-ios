@@ -345,6 +345,7 @@ struct GhafAccountEditorView: View {
                 Button(settings.languageCode == "ar" ? "إلغاء" : "Cancel") { dismiss() }
             }
         }
+        .ghafKeyboardDone()
         .onAppear(perform: load)
         .confirmationDialog(
             settings.languageCode == "ar" ? "أرشفة هذا الحساب؟" : "Archive this account?",
