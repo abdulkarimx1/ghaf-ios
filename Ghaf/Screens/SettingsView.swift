@@ -47,6 +47,7 @@ struct GhafSettingsView: View {
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var prompt: GhafSettingsPrompt?
     @State private var hasLoadedSettings = false
+    @State private var categoryToRemove: String?
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -66,7 +67,7 @@ struct GhafSettingsView: View {
 
                     menuGroup(ar ? "المال" : "Money") {
                         menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
-                        menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية" : "Budget") { budgetCard; categoriesCard } }
+                        menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { categoriesCard; budgetCard } }
                         menuRow(ar ? "دورة الراتب" : "Salary cycle", icon: "calendar.badge.clock") { GhafSalarySettingsView(settings: settings) }
                         menuRow(ar ? "ربط البنك تلقائياً" : "Bank automation", icon: "bolt.fill") { GhafAutomationGuideView(settings: settings) }
                     }
@@ -588,52 +589,84 @@ struct GhafSettingsView: View {
     }
 
     private var categoriesCard: some View {
-        settingsCard(languageCode == "ar" ? "الفئات" : "Categories", subtitle: languageCode == "ar" ? "خصص طريقة تصنيف مصروفاتك" : "Teach Ghaf how you group your spending") {
-            ForEach(settings.categories, id: \.self) { category in
-                HStack {
-                    GhafCategoryIcon(category: category, tint: theme.accent)
-                        .scaleEffect(0.7)
-                        .frame(width: 34, height: 34)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(GhafLocalization.category(category, languageCode: languageCode))
-                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
-                            .foregroundStyle(theme.primaryText)
-                        let subs = settings.subcategories(of: category)
-                        if !subs.isEmpty {
-                            Text(subs.joined(separator: " · "))
-                                .font(GhafTypography.body(11, languageCode: languageCode))
-                                .foregroundStyle(theme.secondaryText)
-                                .lineLimit(2)
-                        }
-                    }
-                    Spacer()
-                    Button(role: .destructive) {
-                        removeCategory(category)
-                    } label: {
-                        Image(systemName: "minus.circle")
-                            .font(.system(size: 17, weight: .medium))
-                    }
+        let spent = categorySpendThisMonth
+        return settingsCard(ar ? "الفئات" : "Categories",
+                            subtitle: ar ? "اضغط مطولاً على فئة لحذفها" : "Long-press a category to remove it") {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(settings.categories, id: \.self) { category in
+                    categoryTile(category, spent: spent[category] ?? 0)
                 }
-                .padding(.vertical, 3)
             }
-
             HStack(spacing: 8) {
-                TextField(languageCode == "ar" ? "فئة جديدة" : "New category", text: $newCategory)
-                    .font(GhafTypography.body(14, languageCode: languageCode))
-                    .padding(12)
-                    .background(theme.background, in: RoundedRectangle(cornerRadius: 12))
-
+                TextField(ar ? "فئة جديدة" : "New category", text: $newCategory)
+                    .font(GhafTypography.body(15, languageCode: languageCode))
+                    .padding(.horizontal, 14).frame(minHeight: 48)
+                    .background(theme.background, in: Capsule())
+                    .onSubmit(addCategory)
                 Button(action: addCategory) {
                     Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(theme.accentContrast)
-                        .frame(width: 44, height: 44)
-                        .background(theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                        .frame(width: 48, height: 48)
+                        .background(theme.accent, in: Circle())
                 }
+                .accessibilityLabel(ar ? "إضافة فئة" : "Add category")
                 .disabled(newCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .opacity(newCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
             }
         }
+        .confirmationDialog(ar ? "حذف هذه الفئة؟" : "Remove this category?",
+                            isPresented: Binding(get: { categoryToRemove != nil }, set: { if !$0 { categoryToRemove = nil } }),
+                            titleVisibility: .visible) {
+            Button(ar ? "حذف" : "Remove", role: .destructive) {
+                if let category = categoryToRemove { withAnimation(.snappy) { removeCategory(category) } }
+            }
+        } message: {
+            Text(ar ? "تبقى العمليات المسجلة بها كما هي." : "Transactions already in it keep their category.")
+        }
+    }
+
+    /// Spending per category this calendar month, in the main currency only.
+    private var categorySpendThisMonth: [String: Decimal] {
+        guard let month = Calendar.current.dateInterval(of: .month, for: .now) else { return [:] }
+        var totals: [String: Decimal] = [:]
+        for transaction in transactions where month.contains(transaction.date)
+            && transaction.currency == currency && transaction.isSpendingOrIncome && transaction.isExpense {
+            totals[transaction.category, default: 0] += transaction.spendingAmount
+        }
+        return totals
+    }
+
+    private func categoryTile(_ category: String, spent: Decimal) -> some View {
+        let subs = settings.subcategories(of: category)
+        return VStack(alignment: .leading, spacing: 10) {
+            GhafCategoryIcon(category: category, tint: theme.accent)
+            Text(GhafLocalization.category(category, languageCode: languageCode))
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            HStack(spacing: 4) {
+                GhafMoneyLabel(amount: spent, currency: currency, languageCode: languageCode, size: 12)
+                if !subs.isEmpty {
+                    Text("· \(subs.count)")
+                    Image(systemName: "square.stack").font(.system(size: 10, weight: .semibold))
+                }
+            }
+            .font(GhafTypography.body(12, languageCode: languageCode))
+            .foregroundStyle(theme.secondaryText)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .contextMenu {
+            if settings.categories.count > 1 {
+                Button(role: .destructive) { categoryToRemove = category } label: {
+                    Label(ar ? "حذف الفئة" : "Remove category", systemImage: "trash")
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: ar ? "حذف الفئة" : "Remove category") { categoryToRemove = category }
     }
 
     private var backupCard: some View {
