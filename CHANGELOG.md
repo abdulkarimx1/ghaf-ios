@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.1 (13)
+
+### English
+- More real card designs: Al Hilal Bank, National Bank of Fujairah and Standard Chartered.
+- Ghaf now recognises Al Hilal, Bank of Sharjah, NBQ, Al Masraf and Zand accounts and shows them in their own colours.
+
+### العربية
+- تصاميم بطاقات حقيقية إضافية: مصرف الهلال وبنك الفجيرة الوطني وستاندرد تشارترد.
+- يتعرف غاف الآن على حسابات مصرف الهلال وبنك الشارقة وبنك أم القيوين الوطني والمصرف وزاند ويعرضها بألوانها.
+
 ## 1.9 (12)
 
 ### English
