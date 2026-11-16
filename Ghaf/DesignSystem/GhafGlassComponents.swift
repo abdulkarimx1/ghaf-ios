@@ -244,36 +244,66 @@ struct GhafCategoryIcon: View {
     let category: String
     let tint: Color
     @Environment(\.ghafCategoryMeta) private var meta
+    @Environment(\.colorScheme) private var colorScheme
 
-    private static func color(named name: String?) -> Color? {
+    /// Earthy palette drawn from the UAE (saffron, palm, Gulf water, dates, henna), each with a
+    /// lighter shade for dark mode so glyphs stay readable on dark cards.
+    enum Palette: String {
+        case saffron, palm, gulf, ember, date, rose, coral, henna, sea, mint, stone, lavender
+
+        var pair: (light: UInt32, dark: UInt32) {
+            switch self {
+            case .saffron: (0xC4741F, 0xF2A65A)
+            case .palm: (0x3E7B4C, 0x7FC48D)
+            case .gulf: (0x2B68A0, 0x7EB4E8)
+            case .ember: (0xB3452D, 0xF08A70)
+            case .date: (0xA87A22, 0xE6BE66)
+            case .rose: (0xB0517A, 0xEC94B8)
+            case .coral: (0xC0434F, 0xF28A93)
+            case .henna: (0x6A4CAE, 0xB49CF0)
+            case .sea: (0x1D8382, 0x6FD0CC)
+            case .mint: (0x2C8A5A, 0x75D3A2)
+            case .stone: (0x6E737C, 0xB4B8C0)
+            case .lavender: (0x7D58B2, 0xC4A9EE)
+            }
+        }
+    }
+
+    private func color(_ palette: Palette) -> Color {
+        let hex = colorScheme == .dark ? palette.pair.dark : palette.pair.light
+        return Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
+
+    /// Colours a user picked for a custom category, mapped onto the same palette.
+    private func color(named name: String?) -> Color? {
         switch name?.lowercased() {
-        case "orange": Color(red: 0.95, green: 0.50, blue: 0.20)
-        case "green": Color(red: 0.20, green: 0.66, blue: 0.42)
-        case "blue": Color(red: 0.25, green: 0.52, blue: 0.95)
-        case "red": Color(red: 0.92, green: 0.30, blue: 0.40)
-        case "yellow": Color(red: 0.96, green: 0.72, blue: 0.10)
-        case "teal": Color(red: 0.15, green: 0.70, blue: 0.80)
-        case "purple": Color(red: 0.55, green: 0.40, blue: 0.95)
-        case "pink": Color(red: 0.85, green: 0.36, blue: 0.66)
-        case "gray", "grey": Color(red: 0.45, green: 0.52, blue: 0.60)
+        case "orange": color(.saffron)
+        case "green": color(.palm)
+        case "blue": color(.gulf)
+        case "red": color(.coral)
+        case "yellow": color(.date)
+        case "teal": color(.sea)
+        case "purple": color(.henna)
+        case "pink": color(.rose)
+        case "gray", "grey": color(.stone)
         default: nil
         }
     }
 
     private var style: (symbol: String, color: Color) {
         switch category {
-        case "Groceries": ("basket.fill", Color(red: 0.20, green: 0.66, blue: 0.42))
-        case "Dining": ("fork.knife", Color(red: 0.95, green: 0.50, blue: 0.20))
-        case "Transport": ("car.fill", Color(red: 0.25, green: 0.52, blue: 0.95))
-        case "Fuel": ("fuelpump.fill", Color(red: 0.90, green: 0.33, blue: 0.30))
-        case "Bills & Utilities": ("bolt.fill", Color(red: 0.96, green: 0.72, blue: 0.10))
-        case "Shopping": ("bag.fill", Color(red: 0.85, green: 0.36, blue: 0.66))
-        case "Health": ("cross.case.fill", Color(red: 0.92, green: 0.30, blue: 0.40))
-        case "Entertainment": ("play.rectangle.fill", Color(red: 0.55, green: 0.40, blue: 0.95))
-        case "Travel": ("airplane", Color(red: 0.15, green: 0.70, blue: 0.80))
-        case "Salary": ("banknote.fill", Color(red: 0.20, green: 0.66, blue: 0.42))
-        case "Transfers": ("arrow.left.arrow.right", Color(red: 0.45, green: 0.52, blue: 0.60))
-        case "Subscriptions": ("repeat", Color(red: 0.55, green: 0.40, blue: 0.95))
+        case "Groceries": ("basket.fill", color(.palm))
+        case "Dining": ("fork.knife", color(.saffron))
+        case "Transport": ("car.fill", color(.gulf))
+        case "Fuel": ("fuelpump.fill", color(.ember))
+        case "Bills & Utilities": ("bolt.fill", color(.date))
+        case "Shopping": ("bag.fill", color(.rose))
+        case "Health": ("cross.case.fill", color(.coral))
+        case "Entertainment": ("play.rectangle.fill", color(.henna))
+        case "Travel": ("airplane", color(.sea))
+        case "Salary": ("banknote.fill", color(.mint))
+        case "Transfers": ("arrow.left.arrow.right", color(.stone))
+        case "Subscriptions": ("repeat", color(.lavender))
         default: ("creditcard.fill", tint)
         }
     }
@@ -281,6 +311,6 @@ struct GhafCategoryIcon: View {
     var body: some View {
         let custom = meta[category]
         GhafIconBadge(symbol: custom?.icon ?? style.symbol,
-                      tint: Self.color(named: custom?.color) ?? style.color)
+                      tint: color(named: custom?.color) ?? style.color)
     }
 }

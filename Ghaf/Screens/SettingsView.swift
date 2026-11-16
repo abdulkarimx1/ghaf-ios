@@ -392,7 +392,7 @@ struct GhafSettingsView: View {
     }
 
     private var appearanceCard: some View {
-        settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "أنماط نظيفة بوضع فاتح وداكن" : "Clean themes, each in light and dark") {
+        settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "سبع مدن، كلٌّ بوضع فاتح وداكن" : "Seven cities, each in light and dark") {
             settingsLabel(languageCode == "ar" ? "النمط" : "Theme")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
                 ForEach(GhafTheme.themeNames, id: \.self) { option in
@@ -403,7 +403,9 @@ struct GhafSettingsView: View {
                     } label: {
                         VStack(spacing: 6) {
                             ZStack {
-                                Circle().fill(preview.accent).frame(width: 34, height: 34)
+                                Circle().fill(LinearGradient(colors: [preview.accent, preview.glow],
+                                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 34, height: 34)
                                 if themeName == option {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 14, weight: .heavy))
@@ -416,7 +418,7 @@ struct GhafSettingsView: View {
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
                         .frame(maxWidth: .infinity, minHeight: 78)
-                        .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(preview.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .stroke(themeName == option ? theme.accent : .clear, lineWidth: 2)
@@ -439,7 +441,10 @@ struct GhafSettingsView: View {
 
             HStack(spacing: 9) {
                 Circle().fill(theme.accent).frame(width: 16, height: 16)
-                Text("\(themeName) · " + (languageCode == "ar" ? "معاينة" : "Preview"))
+                Text(themeTitle(themeName) + " · " + {
+                    let city = GhafTheme.cities[GhafTheme.canonical(themeName)]
+                    return (languageCode == "ar" ? city?.ar : city?.en) ?? ""
+                }())
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
                     .foregroundStyle(theme.primaryText)
                 Spacer()
@@ -686,7 +691,7 @@ struct GhafSettingsView: View {
         currency = settings.currency
         income = GhafFormat.decimal(settings.monthlyIncome)
         commitments = GhafFormat.decimal(settings.fixedCommitments)
-        themeName = settings.themeName
+        themeName = GhafTheme.canonical(settings.themeName)
         appearanceMode = settings.appearanceMode
         budgetMode = settings.budgetMode
 

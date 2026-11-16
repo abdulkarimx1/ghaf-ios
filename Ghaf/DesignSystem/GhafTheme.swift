@@ -34,23 +34,61 @@ struct GhafTheme {
     let outline: Color
     let shadow: Color
 
-    /// Accent pairs (light mode, dark mode). Light accents keep at least 4.5:1 on white.
-    private static let accents: [String: (light: Color, dark: Color)] = [
-        "Abu Dhabi": (rgb(0x8A5A24), rgb(0xE0B472)),
-        "Dubai": (rgb(0x1F5FAE), rgb(0x7FB2F2)),
-        "Sharjah": (rgb(0x6B3FA0), rgb(0xBC9BEA)),
-        "Ajman": (rgb(0x13704F), rgb(0x5FD3A0)),
-        "Umm Al Quwain": (rgb(0x0F6E7D), rgb(0x62CFDD)),
-        "Ras Al Khaimah": (rgb(0xA4492A), rgb(0xF0956E)),
-        "Fujairah": (rgb(0x2C5C8A), rgb(0x8DBBE6)),
-        "Dawn": (rgb(0x9A5B1E), rgb(0xF0B36A)),
-        "Dusk": (rgb(0x3A4FB0), rgb(0x9DABFF)),
-        "Oasis": (rgb(0x1E6A45), rgb(0x9BE07A)),
-        "Graphite": (rgb(0x111214), rgb(0xF2F2F4))
+    /// A UAE city: accent, a tinted canvas for each mode, and a second colour for glows and gradients.
+    /// Light accents keep at least 4.5:1 on white.
+    struct City {
+        let accent: (light: Color, dark: Color)
+        let glow: (light: Color, dark: Color)
+        let canvas: (light: Color, dark: Color)
+        let card: (light: Color, dark: Color)
+        let en: String
+        let ar: String
+    }
+
+    static let cities: [String: City] = [
+        "Abu Dhabi": City(accent: (rgb(0x8A5A24), rgb(0xE0B472)), glow: (rgb(0xC9A15B), rgb(0xF3D29A)),
+                          canvas: (rgb(0xF5F1EA), rgb(0x0F0D0A)), card: (rgb(0xFFFDF9), rgb(0x1B1814)),
+                          en: "Qasr Al Hosn sand and gold", ar: "رمال قصر الحصن وذهبه"),
+        "Dubai": City(accent: (rgb(0x1F5FAE), rgb(0x7FB2F2)), glow: (rgb(0x5BA8E0), rgb(0xB9DBFF)),
+                      canvas: (rgb(0xEEF2F7), rgb(0x0A0D12)), card: (rgb(0xFCFDFF), rgb(0x161A21)),
+                      en: "Glass towers and Gulf sky", ar: "أبراج الزجاج وسماء الخليج"),
+        "Sharjah": City(accent: (rgb(0x6B3FA0), rgb(0xBC9BEA)), glow: (rgb(0xB07CD8), rgb(0xE3CCFF)),
+                        canvas: (rgb(0xF3F0F7), rgb(0x0E0C12)), card: (rgb(0xFEFCFF), rgb(0x1A1720)),
+                        en: "Arts, heritage and lanterns", ar: "الفنون والتراث والفوانيس"),
+        "Ajman": City(accent: (rgb(0x13704F), rgb(0x5FD3A0)), glow: (rgb(0x3FB283), rgb(0xA8F0CF)),
+                      canvas: (rgb(0xEDF3EF), rgb(0x0A0F0D)), card: (rgb(0xFBFEFC), rgb(0x151C19)),
+                      en: "Mangroves and the corniche", ar: "أشجار القرم والكورنيش"),
+        "Umm Al Quwain": City(accent: (rgb(0x0F6E7D), rgb(0x62CFDD)), glow: (rgb(0x3AB3C2), rgb(0xA6EEF6)),
+                              canvas: (rgb(0xECF4F5), rgb(0x090F10)), card: (rgb(0xFBFEFE), rgb(0x141C1E)),
+                              en: "Lagoons and quiet water", ar: "البحيرات والمياه الهادئة"),
+        "Ras Al Khaimah": City(accent: (rgb(0xA4492A), rgb(0xF0956E)), glow: (rgb(0xE07A4F), rgb(0xFFC3A5)),
+                               canvas: (rgb(0xF6EFEB), rgb(0x110C0A)), card: (rgb(0xFFFCFA), rgb(0x1E1714)),
+                               en: "Jebel Jais at sunset", ar: "جبل جيس عند الغروب"),
+        "Fujairah": City(accent: (rgb(0x55622A), rgb(0xBFD07A)), glow: (rgb(0x8FA34A), rgb(0xE0EDA8)),
+                         canvas: (rgb(0xF1F2EC), rgb(0x0D0E0A)), card: (rgb(0xFDFDF9), rgb(0x191B14)),
+                         en: "Hajar mountains and dates", ar: "جبال الحجر والنخيل"),
+        "Graphite": City(accent: (rgb(0x111214), rgb(0xF2F2F4)), glow: (rgb(0x6B6E76), rgb(0xC8CAD0)),
+                         canvas: (rgb(0xF2F3F5), rgb(0x0B0C0E)), card: (.white, rgb(0x17181B)),
+                         en: "Quiet and neutral", ar: "هادئ ومحايد")
     ]
 
-    static let themeNames = ["Graphite", "Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain",
-                             "Ras Al Khaimah", "Fujairah", "Dawn", "Dusk", "Oasis"]
+    static let themeNames = ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah", "Graphite"]
+
+    /// Themes that were removed map to the closest city, so existing users keep a similar look.
+    static func canonical(_ name: String) -> String {
+        switch name {
+        case "Dawn": "Ras Al Khaimah"
+        case "Dusk": "Sharjah"
+        case "Oasis": "Ajman"
+        default: cities[name] == nil ? "Abu Dhabi" : name
+        }
+    }
+
+    /// Second colour of the theme, for glows and gradients next to the accent.
+    var glow: Color {
+        let city = Self.cities[name] ?? Self.cities["Abu Dhabi"]!
+        return isDark ? city.glow.dark : city.glow.light
+    }
 
     static func resolve(
         name: String,
@@ -63,16 +101,16 @@ struct GhafTheme {
         case "Light": isDark = false
         default: isDark = systemIsDark
         }
-        let resolvedName = accents[name] == nil ? "Oasis" : name
-        let pair = accents[resolvedName]!
-        let accent = isDark ? pair.dark : pair.light
+        let resolvedName = canonical(name)
+        let city = cities[resolvedName]!
+        let accent = isDark ? city.accent.dark : city.accent.light
 
         if isDark {
             return GhafTheme(
                 name: resolvedName, isDark: true,
-                background: rgb(0x0B0C0E),
-                surface: rgb(0x17181B),
-                elevatedSurface: rgb(0x222327),
+                background: city.canvas.dark,
+                surface: city.card.dark,
+                elevatedSurface: city.card.dark.opacity(0.6),
                 primaryText: rgb(0xF4F4F6),
                 secondaryText: rgb(0x9C9EA6),
                 accent: accent,
@@ -90,9 +128,9 @@ struct GhafTheme {
         }
         return GhafTheme(
             name: resolvedName, isDark: false,
-            background: rgb(0xF2F3F5),
-            surface: .white,
-            elevatedSurface: rgb(0xF2F3F5),
+            background: city.canvas.light,
+            surface: city.card.light,
+            elevatedSurface: city.canvas.light,
             primaryText: rgb(0x111214),
             secondaryText: rgb(0x6B6E76),
             accent: accent,
