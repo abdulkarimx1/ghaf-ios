@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5 (7)
+
+### English
+- Ghaf learns from you: a small model on your iPhone studies the transactions you confirm and suggests categories for new stores, even ones it has never seen. Unsure guesses still go to review, and you can turn learning off.
+- Month-end forecast in Insights and in Ghaf AI, based on this month's pace and your usual month.
+- A heads-up when a charge is much higher than you usually pay at that store.
+- Ask Ghaf for a saving tip and get one from your own numbers.
+- With Apple Intelligence, Ghaf AI looks up any period, category or store in your records itself and picks the right chart.
+- Optional Cloud AI: connect your own free server for richer replies. Off unless you turn it on, and only a summary is sent.
+
+### العربية
+- غاف يتعلم منك: نموذج صغير على جهازك يدرس العمليات التي تؤكدها ويقترح الفئة للمتاجر الجديدة، حتى التي لم يرها من قبل. الاقتراحات غير المؤكدة تذهب للمراجعة، ويمكنك إيقاف التعلّم.
+- توقع مصروف نهاية الشهر في التحليلات وفي غاف، حسب وتيرة هذا الشهر وشهرك المعتاد.
+- تنبيه عندما تكون عملية أعلى بكثير مما تدفعه عادةً في نفس المتجر.
+- اطلب من غاف نصيحة للتوفير واحصل عليها من أرقامك.
+- مع ذكاء Apple، يبحث غاف بنفسه في سجلاتك عن أي فترة أو فئة أو متجر ويختار الرسم المناسب.
+- ذكاء سحابي اختياري: اربط خادمك المجاني لإجابات أغنى. متوقف ما لم تفعّله، ويُرسل ملخص فقط.
+
 ## 1.4 (6)
 
 ### English
