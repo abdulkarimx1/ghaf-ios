@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3 (5)
+
+### English
+- Every transaction opens as a clear receipt: what happened, where the money went, when, and where Ghaf got it from. Edit is one tap away.
+- Each subscription has its own page with a billing timeline, monthly and yearly cost, and its reminder, plus pause and resume.
+- Subscription logos now share one clean monochrome style.
+- A new welcome: full-screen cards that introduce Ghaf, then one step that asks for notifications, microphone and speech recognition together.
+- Fixed: the currency mark in the account picker showed far too large.
+
+### العربية
+- تفتح كل عملية كإيصال واضح: ماذا حدث، وإلى أين ذهب المبلغ، ومتى، ومن أين حصل عليه غاف. والتعديل بضغطة واحدة.
+- لكل اشتراك صفحته الخاصة مع جدول الفوترة، والتكلفة الشهرية والسنوية، والتذكير، مع إمكانية الإيقاف المؤقت والاستئناف.
+- شعارات الاشتراكات الآن بأسلوب أحادي اللون موحّد.
+- شاشة ترحيب جديدة: بطاقات بملء الشاشة تعرّفك بغاف، ثم خطوة واحدة تطلب أذونات الإشعارات والميكروفون والتعرّف على الكلام.
+- إصلاح: رمز العملة في قائمة الحسابات كان يظهر بحجم كبير جداً.
+
 ## 1.2 (4)
 
 ### English
