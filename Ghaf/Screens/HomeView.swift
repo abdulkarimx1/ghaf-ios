@@ -630,6 +630,9 @@ struct GhafQuickAddView: View {
     private var lang: String { settings.languageCode }
     @FocusState private var amountFocused: Bool
     @State private var subcategory: String?
+    @State private var toAccountID: UUID?
+    private var isTransfer: Bool { direction == "transfer" }
+    private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
 
     var body: some View {
         NavigationStack {
@@ -637,6 +640,12 @@ struct GhafQuickAddView: View {
                 VStack(spacing: 20) {
                     amountHeader
                     VStack(spacing: 0) {
+                      if isTransfer {
+                        row(ar ? "من" : "From", icon: "arrow.up.forward.circle") { accountPicker($selectedAccountID) }
+                        divider
+                        row(ar ? "إلى" : "To", icon: "arrow.down.forward.circle") { accountPicker($toAccountID) }
+                        divider
+                      } else {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
                             TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
                                 .multilineTextAlignment(.trailing)
@@ -646,15 +655,9 @@ struct GhafQuickAddView: View {
                             GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
                         }
                         divider
-                        row(ar ? "الحساب" : "Account", icon: "wallet.pass") {
-                            Picker(ar ? "الحساب" : "Account", selection: $selectedAccountID) {
-                                ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in
-                                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
-                                }
-                            }
-                            .labelsHidden()
-                        }
+                        row(ar ? "الحساب" : "Account", icon: "wallet.pass") { accountPicker($selectedAccountID) }
                         divider
+                      }
                         row(ar ? "التاريخ" : "Date", icon: "calendar") {
                             DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden()
                         }
@@ -704,6 +707,7 @@ struct GhafQuickAddView: View {
         .onAppear {
             selectedAccountID = accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
                 ?? accounts.first(where: { !$0.isArchived })?.id
+            toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
             amountFocused = true
         }
     }
@@ -715,6 +719,9 @@ struct GhafQuickAddView: View {
             HStack(spacing: 8) {
                 directionChip("debit", ar ? "مصروف" : "Expense", "arrow.down.right")
                 directionChip("credit", ar ? "دخل" : "Income", "arrow.up.right")
+                if activeAccounts.count > 1 {
+                    directionChip("transfer", ar ? "تحويل" : "Transfer", "arrow.left.arrow.right")
+                }
             }
             HStack(alignment: .center, spacing: 8) {
                 GhafCurrencyIcon(currency: currency, size: 28)
@@ -749,6 +756,16 @@ struct GhafQuickAddView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
+    private func accountPicker(_ selection: Binding<UUID?>) -> some View {
+        Picker(ar ? "الحساب" : "Account", selection: selection) {
+            if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
+            ForEach(activeAccounts, id: \.id) { account in
+                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+            }
+        }
+        .labelsHidden()
+    }
+
     private var divider: some View { Divider().overlay(theme.outline).padding(.leading, 38) }
 
     private func row<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
@@ -769,11 +786,46 @@ struct GhafQuickAddView: View {
         .frame(minHeight: 54)
     }
 
+    /// Money moved between the user's own accounts: out of one, into the other, both as Transfers, so
+    /// the total stays the same and it never counts as spending or income.
+    private func saveTransfer(_ value: Decimal) {
+        guard let from = activeAccounts.first(where: { $0.id == selectedAccountID }),
+              let to = activeAccounts.first(where: { $0.id == toAccountID }), from.id != to.id else {
+            errorMessage = ar ? "اختر حسابين مختلفين." : "Choose two different accounts."
+            return
+        }
+        guard from.currency == to.currency else {
+            // shortcut: no exchange rate in Ghaf yet, so cross-currency transfers are refused rather than guessed.
+            errorMessage = ar ? "الحسابان بعملتين مختلفتين. التحويل بين العملات غير مدعوم بعد."
+                              : "These accounts use different currencies. Transfers between currencies aren't supported yet."
+            return
+        }
+        let id = UUID().uuidString
+        let title = ar ? "تحويل إلى \(to.name)" : "Transfer to \(to.name)"
+        for (account, dir, suffix, name) in [(from, TransactionDirection.debit, "out", title),
+                                             (to, .credit, "in", ar ? "تحويل من \(from.name)" : "Transfer from \(from.name)")] {
+            let parsed = ParsedTransaction(amount: value, currency: account.currency, merchant: name, date: date,
+                                           direction: dir, confidence: 1.0, bank: nil)
+            let transaction = GhafTransaction(fingerprint: "transfer-\(id)-\(suffix)", parsed: parsed, category: "Transfers",
+                                              needsReview: false, isReversal: false, accountID: account.id)
+            transaction.note = note
+            modelContext.insert(transaction)
+        }
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            errorMessage = ar ? "تعذر حفظ التحويل." : "Could not save the transfer."
+        }
+    }
+
     private func save() {
         guard let value = Decimal(string: amount), value > 0 else {
             errorMessage = settings.languageCode == "ar" ? "أدخل مبلغاً صحيحاً." : "Enter a valid amount."
             return
         }
+        if isTransfer { saveTransfer(value); return }
 
         let selectedAccount = accounts.first(where: { $0.id == selectedAccountID })
         let transactionDirection = TransactionDirection(rawValue: direction) ?? .debit
