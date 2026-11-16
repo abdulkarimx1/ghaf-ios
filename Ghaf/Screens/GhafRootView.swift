@@ -261,7 +261,7 @@ struct GhafTabView: View {
                 .tag(3)
 
             GhafAIView(settings: settings)
-                // A full-colour sparkle as the tab's own icon: unlike the monochrome tabs, and placed by iOS
+                // A full-colour Ghaf tree as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
                     tabIcon(Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1, frame: aiFrame)),
@@ -280,7 +280,7 @@ struct GhafTabView: View {
         .tint(theme.accent)
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         .task(id: router.selectedTab) {
-            // Opening Ghaf AI plays the sparkle's twirl once, frame by frame (tab icons can't animate otherwise).
+            // Opening Ghaf AI plays the tree's grow-and-sway once, frame by frame (tab icons can't animate otherwise).
             guard router.selectedTab == 1, !reduceMotion else { return }
             for frame in 1...GhafAITabIcon.frameCount {
                 aiFrame = frame
@@ -1139,7 +1139,7 @@ private struct GhafWelcomeLaunchScreen: View {
 }
 
 
-/// Ghaf AI's tab icon: a bare sparkle in the theme's gradient, kept in full colour. `frame` 1...frameCount
+/// Ghaf AI's tab icon: a solid Ghaf tree in the theme's gradient, kept in full colour. `frame` 1...frameCount
 /// draws the twirl played when the tab opens; 0 is at rest.
 @MainActor
 enum GhafAITabIcon {
@@ -1149,19 +1149,20 @@ enum GhafAITabIcon {
     static func image(theme: GhafTheme, selected: Bool, frame: Int = 0) -> UIImage {
         let key = "\(theme.name)-\(theme.isDark)-\(selected)-\(frame)"
         if let cached = cache[key] { return cached }
-        // Neutral Graphite would make a grey sparkle, so it keeps Ghaf's signature sand-gold instead.
+        // Neutral Graphite would make a grey tree, so it keeps Ghaf's signature sand-gold instead.
         let city = GhafTheme.cities[theme.name == "Graphite" ? "Abu Dhabi" : theme.name] ?? GhafTheme.cities["Abu Dhabi"]!
         let colors = theme.isDark ? [city.glow.dark, city.accent.dark] : [city.accent.light, city.glow.light]
         let t = Double(frame) / Double(frameCount)          // 0...1 through the twirl
         let lift = sin(t * .pi)                             // rises then settles
-        let sparkle = Image(systemName: "sparkles")
-            .font(.system(size: 25, weight: selected ? .bold : .semibold))
-            .foregroundStyle(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
-            .scaleEffect(1 + 0.22 * lift)
-            .rotationEffect(.degrees(-18 * sin(t * 2 * .pi)))
+        // On open the tree grows from its roots and sways once, then settles.
+        let mark = GhafTreeShape()
+            .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
+            .frame(width: selected ? 27 : 25, height: selected ? 27 : 25)
+            .scaleEffect(1 + 0.2 * lift, anchor: .bottom)
+            .rotationEffect(.degrees(-7 * sin(t * 2 * .pi)), anchor: .bottom)
             .opacity(selected || frame > 0 ? 1 : 0.85)
             .frame(width: 34, height: 34)
-        let renderer = ImageRenderer(content: sparkle)
+        let renderer = ImageRenderer(content: mark)
         renderer.scale = 3
         let image = (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysOriginal)
         cache[key] = image

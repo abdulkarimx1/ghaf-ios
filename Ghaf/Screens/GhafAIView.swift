@@ -433,7 +433,7 @@ struct GhafAIView: View {
     }
 
     /// Called by the stop button, or automatically after a pause. Clear speech is sent;
-    /// unclear speech stays in the box to fix and send.
+    /// unclear speech is dropped.
     private func finishVoice() {
         recorder.stop()
         let text = (recorder.transcript.isEmpty ? prompt : recorder.transcript).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -445,12 +445,15 @@ struct GhafAIView: View {
         if letters >= 2 && understood {
             send(text, isVoice: true)
         } else {
-            prompt = text
-            withAnimation(.snappy) {
-                messages.append(GhafChatMessage(isUser: false, text: text.isEmpty
-                    ? (ar ? "لم أسمع شيئاً. اضغط الميكروفون وحاول مرة أخرى." : "I didn't hear anything. Tap the mic and try again.")
-                    : (ar ? "لم أفهم كل الكلام. عدّل النص في الأسفل ثم أرسله، أو سجّل مرة أخرى."
-                          : "I didn't catch all of that. Fix the text below and send it, or record again.")))
+            // Nothing usable: clear it and show a short note that removes itself.
+            prompt = ""
+            let note = GhafChatMessage(isUser: false, text: text.isEmpty
+                ? (ar ? "لم أسمع شيئاً. حاول مرة أخرى." : "I didn't hear anything. Try again.")
+                : (ar ? "لم أفهم ذلك. حاول مرة أخرى." : "I didn't catch that. Try again."))
+            withAnimation(.snappy) { messages.append(note) }
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                withAnimation(.snappy) { messages.removeAll { $0.id == note.id } }
             }
         }
     }
@@ -657,7 +660,7 @@ struct GhafAIView: View {
 
 }
 
-/// Ghaf AI's mark: a rotating ring in the city's colours, a breathing glow and twinkling sparkles.
+/// Ghaf AI's mark: a Ghaf tree inside a rotating ring in the city's colours, with a breathing glow.
 /// It speeds up while Ghaf listens or thinks and stays still with Reduce Motion.
 private struct GhafAIOrb: View {
     let theme: GhafTheme
@@ -686,16 +689,17 @@ private struct GhafAIOrb: View {
                                                       center: .center, angle: .degrees(t * 60 * speed)),
                                       lineWidth: max(2.5, size * 0.06))
                     Circle().fill(theme.surface).padding(max(2.5, size * 0.06))
-                    Image(systemName: "sparkle")
-                        .font(.system(size: size * 0.36, weight: .bold))
-                        .foregroundStyle(LinearGradient(colors: [theme.accent, theme.glow], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .scaleEffect(1 + 0.06 * sin(t * speed * 3))
-                    // Sparkles orbiting just outside the ring.
+                    GhafTreeShape()
+                        .fill(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom))
+                        .frame(width: size * 0.5, height: size * 0.5)
+                        .scaleEffect(1 + 0.05 * sin(t * speed * 3), anchor: .bottom)
+                        .rotationEffect(.degrees(3 * sin(t * speed * 1.4)), anchor: .bottom)
+                    // Seeds circling just outside the ring.
                     ForEach(0..<3, id: \.self) { index in
                         let phase = t * speed * 0.8 + Double(index) * 2.1
-                        Image(systemName: "sparkle")
-                            .font(.system(size: size * (index == 0 ? 0.16 : 0.11), weight: .bold))
-                            .foregroundStyle(theme.glow)
+                        Circle()
+                            .fill(theme.glow)
+                            .frame(width: size * (index == 0 ? 0.08 : 0.055))
                             .opacity(0.35 + 0.65 * max(0, sin(phase * 1.7)))
                             .offset(x: cos(phase) * size * 0.62, y: sin(phase) * size * 0.62)
                     }

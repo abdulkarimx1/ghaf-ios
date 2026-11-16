@@ -104,9 +104,42 @@ struct GhafChatChartView: View {
     let theme: GhafTheme
     let languageCode: String
     @State private var drawn = false
+    /// The tapped or dragged-over point; nil shows the total.
+    @State private var selected: String?
+    @State private var selectedAngle: Double?
 
     private var ar: Bool { languageCode == "ar" }
     private var total: Double { chart.points.reduce(0) { $0 + $1.value } }
+    private var maxValue: Double { max(chart.points.map(\.value).max() ?? 1, 1) }
+    private var selectedPoint: GhafChatChart.Point? { chart.points.first { $0.label == selected } }
+    private func isDimmed(_ point: GhafChatChart.Point) -> Bool { selected != nil && selected != point.label }
+
+    private func toggle(_ label: String) {
+        withAnimation(.snappy) { selected = selected == label ? nil : label }
+    }
+
+    /// What the chart is showing right now: the selected point, or the total.
+    private var readout: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(selectedPoint?.label ?? (ar ? "الإجمالي" : "Total"))
+                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+            Spacer(minLength: 6)
+            Text(selectedPoint?.value ?? total, format: .number.precision(.fractionLength(0...2)))
+                .font(GhafTypography.number(20, weight: .heavy))
+                .foregroundStyle(theme.primaryText)
+                .contentTransition(.numericText())
+            Text(chart.currency)
+                .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondaryText)
+            if let point = selectedPoint, total > 0, chart.kind == .categories {
+                Text("\(Int((point.value / total * 100).rounded()))%")
+                    .font(GhafTypography.number(12, weight: .bold))
+                    .foregroundStyle(theme.accent)
+            }
+        }
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
 
     /// Shades of the theme from accent to glow, so every chart belongs to the current city theme.
     private func shade(_ index: Int) -> Color {
@@ -117,30 +150,33 @@ struct GhafChatChartView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(chart.title)
-                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                .foregroundStyle(theme.primaryText)
+            readout
             switch chart.style {
             case .bar: bars
             case .donut: donut
             case .rose: rose
             case .line: line
             }
-            Text(ar ? "من سجلاتك بعملة \(chart.currency)." : "From your records, in \(chart.currency).")
+            Text(ar ? "اضغط أو اسحب على الرسم لرؤية التفاصيل." : "Tap or drag on the chart for details.")
                 .font(GhafTypography.body(10, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
-        .padding(14)
-        .frame(maxWidth: 330, alignment: .leading)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .accessibilityElement(children: .combine)
+        .sensoryFeedback(.selection, trigger: selected)
+        .accessibilityElement(children: .contain)
         .onAppear { withAnimation(.spring(duration: 0.9, bounce: 0.25)) { drawn = true } }
     }
 
     private var bars: some View {
         Chart(chart.points) { point in
             BarMark(x: .value("Label", point.label), y: .value(chart.currency, drawn ? point.value : 0))
-                .foregroundStyle(point.highlight ? AnyShapeStyle(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom))
-                                                 : AnyShapeStyle(theme.accent.opacity(0.3)))
+                .foregroundStyle(point.label == selected || (selected == nil && point.highlight)
+                                 ? AnyShapeStyle(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom))
+                                 : AnyShapeStyle(theme.accent.opacity(isDimmed(point) ? 0.18 : 0.35)))
                 .cornerRadius(7)
                 .annotation(position: .top) {
                     if point.value > 0 {
@@ -150,7 +186,13 @@ struct GhafChatChartView: View {
                 }
         }
         .chartYAxis(.hidden)
-        .frame(height: 160)
+        // Headroom so the value labels above the tallest bar are never cut off.
+        .chartYScale(domain: 0...(maxValue * 1.25))
+        .chartXAxis {
+            AxisMarks { _ in AxisValueLabel(collisionResolution: .greedy).font(.system(size: 10, weight: .medium)) }
+        }
+        .chartXSelection(value: $selected)
+        .frame(height: 190)
     }
 
     private var donut: some View {
@@ -160,10 +202,17 @@ struct GhafChatChartView: View {
                            innerRadius: .ratio(0.62), angularInset: 2)
                     .cornerRadius(5)
                     .foregroundStyle(shade(index))
+                    .opacity(isDimmed(point) ? 0.3 : 1)
+            }
+            .chartAngleSelection(value: $selectedAngle)
+            .onChange(of: selectedAngle) { _, angle in
+                guard let angle else { return }
+                var running = 0.0
+                if let hit = chart.points.first(where: { running += $0.value; return angle <= running }) { toggle(hit.label) }
             }
             .chartBackground { _ in
                 VStack(spacing: 0) {
-                    Text(total, format: .number.precision(.fractionLength(0)))
+                    Text(selectedPoint?.value ?? total, format: .number.precision(.fractionLength(0)))
                         .font(GhafTypography.number(17, weight: .heavy)).foregroundStyle(theme.primaryText)
                     Text(chart.currency).font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.secondaryText)
                 }
@@ -177,21 +226,25 @@ struct GhafChatChartView: View {
     private var rose: some View {
         let maxValue = chart.points.map(\.value).max() ?? 1
         let count = chart.points.count
-        return ZStack {
+        return VStack(spacing: 12) { ZStack {
             ForEach(Array(chart.points.enumerated()), id: \.element.id) { index, point in
                 let ratio = maxValue > 0 ? 0.38 + 0.62 * sqrt(point.value / maxValue) : 0.38
                 GhafPetal(index: index, count: count, ratio: drawn ? ratio : 0.2)
                     .fill(shade(index))
+                    .opacity(isDimmed(point) ? 0.3 : 1)
+                    .contentShape(GhafPetal(index: index, count: count, ratio: ratio))
+                    .onTapGesture { toggle(point.label) }
                 // Labels only where the petal has room; the legend-free small ones stay readable as shape.
                 if point.value >= maxValue * 0.12 {
                     GhafPetalLabel(index: index, count: count, ratio: drawn ? ratio : 0.2,
                                    value: point.value, label: point.label, color: theme.accentContrast)
                 }
             }
-            Circle().fill(theme.surface).frame(width: 26, height: 26)
+            Circle().fill(theme.surface).frame(width: 26, height: 26).allowsHitTesting(false)
         }
         .frame(height: 220)
         .frame(maxWidth: .infinity)
+        legend }
     }
 
     private var line: some View {
@@ -203,7 +256,14 @@ struct GhafChatChartView: View {
                 .foregroundStyle(theme.accent)
                 .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .interpolationMethod(.catmullRom)
-            if point.highlight {
+            if point.label == selected {
+                RuleMark(x: .value("Day", point.label))
+                    .foregroundStyle(theme.secondaryText.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                PointMark(x: .value("Day", point.label), y: .value(chart.currency, point.value))
+                    .foregroundStyle(theme.accent)
+                    .symbolSize(80)
+            } else if selected == nil && point.highlight {
                 PointMark(x: .value("Day", point.label), y: .value(chart.currency, point.value))
                     .foregroundStyle(theme.accent)
                     .annotation(position: .top) {
@@ -214,20 +274,28 @@ struct GhafChatChartView: View {
         }
         .chartXAxis { AxisMarks(values: .stride(by: 5)) }
         .chartYAxis(.hidden)
-        .frame(height: 160)
+        .chartYScale(domain: 0...(maxValue * 1.2))
+        .chartXSelection(value: $selected)
+        .frame(height: 180)
     }
 
     private var legend: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(Array(chart.points.enumerated()), id: \.element.id) { index, point in
-                HStack(spacing: 6) {
-                    Circle().fill(shade(index)).frame(width: 8, height: 8)
-                    Text(point.label).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(total > 0 ? "\(Int((point.value / total * 100).rounded()))%" : "–").monospacedDigit()
+                Button { toggle(point.label) } label: {
+                    HStack(spacing: 6) {
+                        Circle().fill(shade(index)).frame(width: 9, height: 9)
+                        Text(point.label).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(total > 0 ? "\(Int((point.value / total * 100).rounded()))%" : "–").monospacedDigit()
+                    }
+                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                    .opacity(isDimmed(point) ? 0.45 : 1)
+                    .frame(minHeight: 28)
+                    .contentShape(Rectangle())
                 }
-                .font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold))
-                .foregroundStyle(theme.primaryText)
+                .buttonStyle(.plain)
             }
         }
     }
