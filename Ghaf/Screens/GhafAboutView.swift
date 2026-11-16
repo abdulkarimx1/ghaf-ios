@@ -80,9 +80,10 @@ struct GhafAboutView: View {
             Text((ar ? "الإصدار " : "Version ") + version)
                 .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                 .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(.white.opacity(0.18), in: Capsule())
+                .background(theme.accentContrast.opacity(0.15), in: Capsule())
         }
-        .foregroundStyle(.white)
+        // Text follows the accent's own contrast colour, so light accents (Graphite, dark mode) get dark text.
+        .foregroundStyle(theme.accentContrast)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 30)
         .background {
@@ -90,7 +91,7 @@ struct GhafAboutView: View {
                 LinearGradient(colors: [theme.accent, theme.glow], startPoint: .topLeading, endPoint: .bottomTrailing)
                 Image(systemName: "leaf.fill")
                     .font(.system(size: 220))
-                    .foregroundStyle(.white.opacity(0.08))
+                    .foregroundStyle(theme.accentContrast.opacity(0.08))
                     .rotationEffect(.degrees(-20))
                     .offset(x: 110, y: 40)
             }

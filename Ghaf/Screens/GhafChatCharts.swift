@@ -86,7 +86,7 @@ enum GhafChatChartBuilder {
             guard let month = calendar.dateInterval(of: .month, for: .now) else { return nil }
             let byCategory = Dictionary(grouping: spending.filter { month.contains($0.date) }, by: \.category)
                 .mapValues { NSDecimalNumber(decimal: $0.reduce(0) { $0 + $1.spendingAmount }).doubleValue }
-                .filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(6)
+                .filter { $0.value >= 1 }.sorted { $0.value > $1.value }.prefix(6)
             guard !byCategory.isEmpty else { return nil }
             return GhafChatChart(kind: .categories, style: requested ?? .bar,
                                  title: ar ? "أعلى الفئات هذا الشهر" : "Top categories this month", currency: currency,
@@ -182,8 +182,11 @@ struct GhafChatChartView: View {
                 let ratio = maxValue > 0 ? 0.38 + 0.62 * sqrt(point.value / maxValue) : 0.38
                 GhafPetal(index: index, count: count, ratio: drawn ? ratio : 0.2)
                     .fill(shade(index))
-                GhafPetalLabel(index: index, count: count, ratio: drawn ? ratio : 0.2,
-                               value: point.value, label: point.label, color: theme.accentContrast)
+                // Labels only where the petal has room; the legend-free small ones stay readable as shape.
+                if point.value >= maxValue * 0.12 {
+                    GhafPetalLabel(index: index, count: count, ratio: drawn ? ratio : 0.2,
+                                   value: point.value, label: point.label, color: theme.accentContrast)
+                }
             }
             Circle().fill(theme.surface).frame(width: 26, height: 26)
         }
