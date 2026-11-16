@@ -24,26 +24,26 @@ struct GhafAutomationGuideView: View {
 
                 instructionCard(
                     number: "01",
-                    title: localized("Choose the notification trigger", "اختر محفّز الإشعارات"),
-                    detail: localized("In Apple Shortcuts, open Automation, create a Personal Automation, and choose “When I receive a notification”. Select the bank app (for example Mashreq or Mbank). If you also want bank SMS alerts, create a separate automation for Messages.", "افتح تطبيق الاختصارات من Apple، ثم الأتمتة، وأنشئ أتمتة شخصية واختر «عند استلام إشعار». حدّد تطبيق البنك مثل Mashreq أو Mbank. وإذا أردت التقاط رسائل البنك النصية أيضاً، أنشئ أتمتة منفصلة لتطبيق الرسائل.")
+                    title: localized("Install Ghaf's automation", "ثبّت أتمتة غاف"),
+                    detail: localized("Tap Install automation above and choose Shortcuts, then Add Shortcut. It comes with notification automations for Messages, Mashreq and Mbank that pass each alert to Ghaf.", "اضغط «تثبيت الأتمتة» في الأعلى واختر الاختصارات ثم «إضافة اختصار». يأتي مع أتمتة إشعارات للرسائل وMashreq وMbank تمرّر كل تنبيه إلى غاف.")
                 )
 
                 instructionCard(
                     number: "02",
-                    title: localized("Add Ghaf's action", "أضف إجراء غاف"),
-                    detail: localized("Add an action, search for Ghaf, then choose “أضف عملية من رسالة بنكية”. This is Ghaf's own App Shortcut action; you do not need to create a separate shortcut.", "أضف إجراءً وابحث عن غاف، ثم اختر «أضف عملية من رسالة بنكية». هذا هو إجراء غاف نفسه، ولا تحتاج إلى إنشاء اختصار منفصل.")
+                    title: localized("Turn on Run Immediately", "فعّل «التشغيل فوراً»"),
+                    detail: localized("In Shortcuts, open Automation, tap each Ghaf automation and choose Run Immediately, so no tap is needed per transaction. iOS asks for this approval once; Ghaf cannot do it for you.", "في الاختصارات افتح «الأتمتة»، واضغط على كل أتمتة لغاف واختر «التشغيل فوراً» حتى لا تحتاج للضغط مع كل عملية. يطلب iOS هذه الموافقة مرة واحدة ولا يستطيع غاف تفعيلها عنك.")
                 )
 
                 instructionCard(
                     number: "03",
-                    title: localized("Pass the notification content", "مرّر محتوى الإشعار"),
-                    detail: localized("Set “نص الرسالة” to Shortcut Input (the notification content). Ghaf accepts one text input; no sender field is required.", "اربط حقل «نص الرسالة» بمتغير Shortcut Input (محتوى الإشعار). يستقبل غاف حقلاً نصياً واحداً فقط، ولا يحتاج إلى حقل منفصل لاسم البنك.")
+                    title: localized("Add your other banks", "أضف بنوكك الأخرى"),
+                    detail: localized("iOS does not let apps see which apps you have installed, so other banks are added by hand: new Personal Automation, “When I receive a notification”, pick the bank app, add Ghaf's “أضف عملية من رسالة بنكية” and set its text to Shortcut Input.", "لا يسمح iOS للتطبيقات بمعرفة التطبيقات المثبتة، لذا تُضاف البنوك الأخرى يدوياً: أتمتة شخصية جديدة، «عند استلام إشعار»، اختر تطبيق البنك، أضف إجراء غاف «أضف عملية من رسالة بنكية» واربط النص بـ Shortcut Input.")
                 )
 
                 instructionCard(
                     number: "04",
-                    title: localized("Repeat for each bank and test", "كرّر لكل بنك ثم اختبر"),
-                    detail: localized("Create one automation per bank app, connect each one to the same Ghaf action, and choose Run Immediately if available. Test with a real notification. If iOS or the bank hides the transaction text, Ghaf cannot extract details from that notification.", "أنشئ أتمتة مستقلة لكل تطبيق بنك، واربطها جميعاً بإجراء غاف نفسه، واختر التشغيل فوراً إذا كان متاحاً. اختبر بإشعار حقيقي. إذا أخفى iOS أو البنك نص العملية، فلن يتمكن غاف من استخراج تفاصيلها.")
+                    title: localized("Optional: Apple Pay purchases", "اختياري: مشتريات Apple Pay"),
+                    detail: localized("Create a “Transaction” (Wallet) automation, add Ghaf's “Add Apple Pay purchase” and map Amount, Merchant and Card. When the bank's message for the same purchase arrives, Ghaf keeps one record instead of two.", "أنشئ أتمتة «معاملة» من المحفظة، وأضف إجراء غاف «أضف عملية Apple Pay» واربط المبلغ والتاجر والبطاقة. عندما تصل رسالة البنك لنفس العملية، يحتفظ غاف بسجل واحد بدلاً من اثنين.")
                 )
 
                 privacyCard
@@ -95,7 +95,15 @@ struct GhafAutomationGuideView: View {
                 }
             }
 
-            Text(localized("Find Ghaf's bank-message action in the Shortcuts action search.", "ابحث عن إجراء غاف للرسائل البنكية في قائمة إجراءات تطبيق الاختصارات."))
+            if let automation = Bundle.main.url(forResource: "Ghaf Bank Automation", withExtension: "shortcut") {
+                ShareLink(item: automation) {
+                    Label(localized("Install automation", "تثبيت الأتمتة"), systemImage: "square.and.arrow.down.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
+            }
+
+            Text(localized("Signed shortcut with Ghaf's action and bank notification triggers. Choose Shortcuts in the share sheet.", "اختصار موقّع يحتوي إجراء غاف ومحفّزات إشعارات البنك. اختر «الاختصارات» من قائمة المشاركة."))
                 .font(GhafTypography.body(12, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
 

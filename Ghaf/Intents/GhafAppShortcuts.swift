@@ -15,5 +15,15 @@ struct GhafAppShortcuts: AppShortcutsProvider {
             shortTitle: "أضف عملية بنكية",
             systemImageName: "arrow.down.circle"
         )
+
+        AppShortcut(
+            intent: LogWalletTransactionIntent(),
+            phrases: [
+                "Add an Apple Pay purchase in \(.applicationName)",
+                "أضف عملية Apple Pay في \(.applicationName)"
+            ],
+            shortTitle: "Add Apple Pay purchase",
+            systemImageName: "wallet.pass"
+        )
     }
 }

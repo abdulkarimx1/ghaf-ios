@@ -28,9 +28,12 @@ final class TransactionIngestionService {
         self.parser = parser
     }
 
+    /// `fromWallet` marks input from the Wallet transaction automation, so the bank's own message
+    /// for the same purchase is recognised as a duplicate instead of a second purchase.
     func ingest(
         messageText: String,
-        sender: String? = nil
+        sender: String? = nil,
+        fromWallet: Bool = false
     ) throws -> TransactionIngestionResult {
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else {
@@ -59,7 +62,11 @@ final class TransactionIngestionService {
             )
         }
 
-        let fingerprint = makeFingerprint(message)
+        // A Wallet run carries no reference number, so the minute keeps two identical purchases apart
+        // while a repeated run of the same automation is still caught.
+        let fingerprint = fromWallet
+            ? "wallet-" + makeFingerprint(message + Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)).dropLast(3))
+            : makeFingerprint(message)
         let descriptor = FetchDescriptor<GhafTransaction>(
             predicate: #Predicate { $0.fingerprint == fingerprint }
         )
@@ -67,6 +74,17 @@ final class TransactionIngestionService {
             return TransactionIngestionResult(
                 status: .duplicate,
                 confirmation: "Transaction already recorded."
+            )
+        }
+
+        if let existing = try samePurchaseFromOtherSource(parsed, fromWallet: fromWallet) {
+            // Keep one record and fill in whatever the first source was missing.
+            if existing.merchant == nil { existing.merchant = parsed.merchant }
+            if existing.bank == nil { existing.bank = parsed.bank }
+            try context.save()
+            return TransactionIngestionResult(
+                status: .duplicate,
+                confirmation: fromWallet ? "Already recorded from the bank message." : "Already recorded from Apple Wallet."
             )
         }
 
@@ -197,6 +215,24 @@ final class TransactionIngestionService {
         subscription.needsConfirmation = true
         context.insert(subscription)
         return subscription
+    }
+
+    private func samePurchaseFromOtherSource(_ parsed: ParsedTransaction, fromWallet: Bool) throws -> GhafTransaction? {
+        let since = Date.now.addingTimeInterval(-CrossSourceDuplicate.window)
+        let amount = parsed.amount
+        let recent = try context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.createdAt >= since && $0.amount == amount }
+        ))
+        let incoming = CrossSourceDuplicate.Record(
+            amount: parsed.amount, currency: parsed.currency, isDebit: parsed.direction == .debit,
+            merchant: parsed.merchant, arrivedAt: .now, isWallet: fromWallet
+        )
+        return recent.first { item in
+            CrossSourceDuplicate.isSamePurchase(incoming, .init(
+                amount: item.amount, currency: item.currency, isDebit: item.direction == "debit",
+                merchant: item.merchant, arrivedAt: item.createdAt, isWallet: item.fingerprint.hasPrefix("wallet-")
+            ))
+        }
     }
 
     /// Most recent purchase this refund reverses: same amount and currency, within 90 days before it,
