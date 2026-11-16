@@ -124,11 +124,19 @@ struct GhafMoneyLabel: View {
                 Text(currency.uppercased())
                     .font(GhafTypography.number(size * 0.55, weight: .heavy))
             }
-            Text(hidden ? Self.mask : number)
-                .font(GhafTypography.number(hidden ? size * 0.7 : size, weight: .heavy))
-                .tracking(hidden ? size * 0.08 : 0)
-                .monospacedDigit()
-                .contentTransition(.numericText())
+            // Hiding blurs the digits into stars (and back); a value change still rolls its digits.
+            if hidden {
+                Text(Self.mask)
+                    .font(GhafTypography.number(size * 0.7, weight: .heavy))
+                    .tracking(size * 0.08)
+                    .transition(.blurReplace.combined(with: .scale(0.6)))
+            } else {
+                Text(number)
+                    .font(GhafTypography.number(size, weight: .heavy))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .transition(.blurReplace.combined(with: .scale(1.15)))
+            }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)

@@ -1161,14 +1161,25 @@ enum GhafAITabIcon {
         let colors = theme.isDark ? [city.glow.dark, city.accent.dark] : [city.accent.light, city.glow.light]
         let t = Double(frame) / Double(frameCount)          // 0...1 through the twirl
         let lift = sin(t * .pi)                             // rises then settles
-        // On open the tree grows from its roots and sways once, then settles.
-        let mark = GhafTreeShape()
-            .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
-            .frame(width: selected ? 27 : 25, height: selected ? 27 : 25)
-            .scaleEffect(1 + 0.2 * lift, anchor: .bottom)
-            .rotationEffect(.degrees(-7 * sin(t * 2 * .pi)), anchor: .bottom)
-            .opacity(selected || frame > 0 ? 1 : 0.85)
-            .frame(width: 34, height: 34)
+        // A filled tile in the city's gradient with a white Ghaf tree: the one tab that is a button,
+        // not a glyph. On open the tree grows from its roots and sways once, then settles.
+        let side: CGFloat = selected ? 34 : 31
+        let mark = ZStack {
+            RoundedRectangle(cornerRadius: side * 0.32, style: .continuous)
+                .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                .shadow(color: colors[0].opacity(selected ? 0.55 : 0.25), radius: selected ? 5 : 2, y: 1)
+            RoundedRectangle(cornerRadius: side * 0.32, style: .continuous)
+                .strokeBorder(.white.opacity(0.35), lineWidth: 0.8)
+            GhafTreeShape()
+                .fill(.white)
+                .frame(width: side * 0.66, height: side * 0.66)
+                .scaleEffect(1 + 0.22 * lift, anchor: .bottom)
+                .rotationEffect(.degrees(-8 * sin(t * 2 * .pi)), anchor: .bottom)
+                .offset(y: -side * 0.02)
+        }
+        .frame(width: side, height: side)
+        .scaleEffect(1 + 0.08 * lift)
+        .frame(width: 40, height: 40)
         let renderer = ImageRenderer(content: mark)
         renderer.scale = 3
         let image = (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysOriginal)

@@ -42,6 +42,7 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
             .padding(.horizontal, 18)
             .background(prominent ? theme.accent : theme.elevatedSurface, in: Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+            .sensoryFeedback(.impact(weight: prominent ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }

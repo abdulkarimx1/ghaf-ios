@@ -201,7 +201,7 @@ struct GhafHomeView: View {
             }
             .buttonStyle(.ghafPress)
             Button {
-                withAnimation(.snappy(duration: 0.22)) { hideBalances.toggle() }
+                withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
             } label: {
                 Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 15, weight: .bold))
@@ -212,7 +212,7 @@ struct GhafHomeView: View {
                     .shadow(color: theme.shadow, radius: 8, y: 3)
             }
             .buttonStyle(.ghafPress)
-            .sensoryFeedback(.selection, trigger: hideBalances)
+            .sensoryFeedback(.impact(weight: .medium), trigger: hideBalances)
             .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
                                    : (hideBalances ? "Show balances" : "Hide balances"))
         }
@@ -383,7 +383,10 @@ struct GhafHomeView: View {
         Button { showInsights = true } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Label(ar ? "التحليلات" : "Insights", systemImage: "chart.pie.fill")
+                    Label((ar ? "التحليلات · " : "Insights · ")
+                          + (ar ? ["يومي", "أسبوعي", "شهري"] : ["Daily", "Weekly", "Monthly"])[activityPeriodIndex],
+                          systemImage: "chart.pie.fill")
+                        .contentTransition(.opacity)
                         .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                         .foregroundStyle(theme.inkText.opacity(0.75))
                     Spacer()
