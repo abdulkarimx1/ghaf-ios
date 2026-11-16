@@ -950,13 +950,38 @@
   "title": "Night"
  },
  {
+  "id": "sarwa-light",
+  "bank": "sarwa",
+  "title": "Light"
+ },
+ {
   "id": "baraka-black",
   "bank": "baraka",
   "title": "Black"
  },
  {
-  "id": "baraka-green",
+  "id": "baraka-graphite",
   "bank": "baraka",
-  "title": "Green"
+  "title": "Graphite"
+ },
+ {
+  "id": "mbank-titanium-debit",
+  "bank": "mbank",
+  "title": "Titanium Debit"
+ },
+ {
+  "id": "ruya-mastercard-wallet",
+  "bank": "ruya",
+  "title": "Debit Mastercard"
+ },
+ {
+  "id": "ivestor-visa-white",
+  "bank": "ivestor",
+  "title": "iVESTOR Visa"
+ },
+ {
+  "id": "ivestor-dfm-visa",
+  "bank": "ivestor",
+  "title": "iVESTOR DFM Visa"
  }
 ]

@@ -43,11 +43,12 @@ struct GhafUAEBank: Identifiable {
         .init(id: "zand", en: "Zand", ar: "زاند", aliases: ["zand"], colors: (0x101010, 0x8A6BFF)),
         .init(id: "tabby", en: "Tabby", ar: "تابي", aliases: ["tabby"], colors: (0x2E2E2E, 0x3BFFC1)),
         .init(id: "tamara", en: "Tamara", ar: "تمارا", aliases: ["tamara"], colors: (0x2A1B4E, 0xE08A5A)),
+        .init(id: "ivestor", en: "iVESTOR", ar: "آيفستر", aliases: ["ivestor", "آيفستر", "dfm ivestor"], colors: (0x5A3A9A, 0x6AA8B8)),
         // Investment and savings apps with no card: faces drawn in each brand's colours.
         .init(id: "thndr", en: "Thndr", ar: "ثندر", aliases: ["thndr", "ثندر"], colors: (0x0A0A0A, 0xFFE500)),
         .init(id: "nbonds", en: "National Bonds", ar: "الصكوك الوطنية", aliases: ["national bonds", "الصكوك الوطنية"], colors: (0x8A6A1E, 0xC9A24A)),
         .init(id: "sarwa", en: "Sarwa", ar: "ثروة", aliases: ["sarwa", "ثروة"], colors: (0x07351A, 0x106E37)),
-        .init(id: "baraka", en: "Baraka", ar: "بركة", aliases: ["baraka", "بركة"], colors: (0x0A0A0A, 0x0DDD00))
+        .init(id: "baraka", en: "Baraka", ar: "بركة", aliases: ["baraka", "بركة"], colors: (0x000000, 0x3A3A3C))
     ]
 
     /// The bank named in an account's institution or name. Longest aliases first, whole words for short ones.
