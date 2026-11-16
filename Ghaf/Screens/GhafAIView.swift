@@ -36,6 +36,9 @@ struct GhafAIView: View {
     @State private var replyTask: Task<Void, Never>?
     @AppStorage("ghaf.ai.speakReplies") private var speakReplies = false
     @State private var synthesizer = AVSpeechSynthesizer()
+    @State private var speechDone = GhafSpeechDone()
+    /// Set when Ghaf asked something out loud: it listens for the answer once it stops speaking.
+    @State private var listenAfterSpeaking = false
     @FocusState private var inputFocused: Bool
     @State private var savedCount = 0
     /// Model availability is costly to query; read it when the tab appears, not on every render.
@@ -442,7 +445,8 @@ struct GhafAIView: View {
         let understood = GhafMessageIntent.isQuestion(text)
             || !GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).isEmpty
             || ChatCorrection.parse(text, recent: recentDraftRefs().map(\.name)) != nil
-        if letters >= 2 && understood {
+            || ChatEdit.parse(text, recent: recentDraftRefs().map(\.name)) != nil
+        if (letters >= 2 || ChatEdit.parse(text, recent: []) == .confirm) && understood {
             send(text, isVoice: true)
         } else {
             // Nothing usable: clear it and show a short note that removes itself.
@@ -456,6 +460,65 @@ struct GhafAIView: View {
                 withAnimation(.snappy) { messages.removeAll { $0.id == note.id } }
             }
         }
+    }
+
+    /// "4 dirhams at Karak, under Food. Should I save it?" — how a person would read the entries back.
+    private func spokenSummary(_ drafts: [GhafVoiceTransactionDraft]) -> String {
+        let parts = drafts.map { draft -> String in
+            let money = "\(draft.currency) \(draft.amountText)"
+            let category = GhafLocalization.category(draft.category, languageCode: settings.languageCode)
+            let place = draft.merchant.isEmpty ? "" : (ar ? " في \(draft.merchant)" : " at \(draft.merchant)")
+            return ar ? "\(money)\(place)، ضمن \(category)" : "\(money)\(place), under \(category)"
+        }
+        let list = parts.joined(separator: ar ? "، و" : "; and ")
+        return drafts.count == 1
+            ? (ar ? "\(list). أحفظها؟" : "\(list). Should I save it?")
+            : (ar ? "سجلت \(drafts.count): \(list). أحفظها كلها؟" : "I have \(drafts.count): \(list). Save them all?")
+    }
+
+    /// "yes", "cancel", "remove the lunch", "rename karak to tea": acts on the latest drafts.
+    private func applyEdit(_ text: String, isVoice: Bool) -> Bool {
+        guard let m = messages.indices.last(where: { !messages[$0].drafts.isEmpty && messages[$0].draftState != .discarded }) else { return false }
+        let names = messages[m].drafts.indices.reversed().map { messages[m].drafts[$0].merchant }
+        guard let edit = ChatEdit.parse(text, recent: names) else { return false }
+        let pending = messages[m].draftState == .pending
+        var reply: String
+        switch edit {
+        case .confirm:
+            guard pending else { return false }
+            saveDrafts($messages[m])
+            return true
+        case .cancel:
+            guard pending else { return false }
+            messages[m].draftState = .discarded
+            reply = ar ? "تمام، ما حفظت شيئاً." : "Okay, nothing saved."
+        case .remove(let index):
+            let draftIndex = messages[m].drafts.count - 1 - index
+            guard pending else {
+                reply = ar ? "هذه محفوظة. احذفها من العمليات." : "That one's already saved. Delete it from Transactions."
+                break
+            }
+            let removed = messages[m].drafts.remove(at: draftIndex).merchant
+            if messages[m].drafts.isEmpty { messages[m].draftState = .discarded }
+            reply = ar ? "حذفت \(removed)." : "Removed \(removed)."
+            if !messages[m].drafts.isEmpty { reply += ar ? " أحفظ الباقي؟" : " Save the rest?"; listenAfterSpeaking = isVoice }
+        case .rename(let index, let name):
+            let draftIndex = messages[m].drafts.count - 1 - index
+            let title = Self.tidyTitle(name)
+            messages[m].drafts[draftIndex].merchant = title
+            if !pending, draftIndex < messages[m].savedIDs.count {
+                let id = messages[m].savedIDs[draftIndex]
+                if let transaction = try? modelContext.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first {
+                    transaction.merchant = title
+                    try? modelContext.save()
+                }
+            }
+            reply = ar ? "تم، صار اسمها \(title)." : "Done, it's now \(title)."
+            if pending { reply += ar ? " أحفظها؟" : " Save it?"; listenAfterSpeaking = isVoice }
+        }
+        withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: reply)) }
+        speak(reply, force: isVoice)
+        return true
     }
 
     /// Latest draft entries first: (message index, draft index, name).
@@ -493,6 +556,7 @@ struct GhafAIView: View {
         guard !text.isEmpty, !isThinking else { return }
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
+        if applyEdit(text, isVoice: isVoice) { return }
         if applyCorrection(text) { return }
 
         // A purchase ("35 AED lunch") becomes a draft card; anything else goes to the assistant.
@@ -526,7 +590,13 @@ struct GhafAIView: View {
                            : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category."
             }
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro + hint, drafts: drafts)) }
-            speak(intro, force: isVoice)
+            if isVoice {
+                // Read back what was heard and ask, then listen for "yes", "remove the coffee", "make it 5"…
+                listenAfterSpeaking = true
+                speak(spokenSummary(drafts), force: true)
+            } else {
+                speak(intro)
+            }
             return
         }
 
@@ -634,6 +704,7 @@ struct GhafAIView: View {
                 ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" }.joined(separator: "، ") + "."
                 : "Saved. I'll remember " + learned.map { "\($0.merchant) → \($0.category)" }.joined(separator: ", ") + ".")
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: note)) }
+            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?")
         } catch {
             withAnimation(.snappy) {
                 messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."))
@@ -650,11 +721,21 @@ struct GhafAIView: View {
         try? session.setActive(true)
         let language = ar ? "ar" : "en"
         let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(language) }
-        let utterance = AVSpeechUtterance(string: text)
+        let utterance = AVSpeechUtterance(string: SpokenMoney.speakable(text, arabic: ar))
+        // A touch slower with a small lead-in reads as conversation rather than a readout.
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.96
+        utterance.preUtteranceDelay = 0.05
+        utterance.postUtteranceDelay = 0.1
         // Best installed voice (premium/enhanced when the user downloaded one), Gulf Arabic first.
         utterance.voice = voices.max { ($0.quality.rawValue, $0.language == "ar-AE" ? 1 : 0) < ($1.quality.rawValue, $1.language == "ar-AE" ? 1 : 0) }
             ?? AVSpeechSynthesisVoice(language: ar ? "ar-SA" : "en-US")
         synthesizer.stopSpeaking(at: .immediate)
+        synthesizer.delegate = speechDone
+        speechDone.onFinish = {
+            guard listenAfterSpeaking else { return }
+            listenAfterSpeaking = false
+            startVoice()
+        }
         synthesizer.speak(utterance)
     }
 
@@ -729,5 +810,13 @@ private struct GhafLevelBars: View {
         .frame(height: 20)
         .animation(.easeOut(duration: 0.12), value: level)
         .accessibilityHidden(true)
+    }
+}
+
+/// Tells the chat when Ghaf has finished speaking, so it can listen for the answer.
+final class GhafSpeechDone: NSObject, AVSpeechSynthesizerDelegate {
+    var onFinish: (@MainActor () -> Void)?
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in self.onFinish?() }
     }
 }

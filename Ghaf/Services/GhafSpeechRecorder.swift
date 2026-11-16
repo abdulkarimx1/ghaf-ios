@@ -13,8 +13,15 @@ final class GhafSpeechRecorder: ObservableObject {
     /// Bumped when the speaker goes quiet after saying something; the view decides what to do.
     @Published private(set) var finishedSpeakingCount = 0
 
-    /// Seconds of no new words after speech before recording ends by itself.
-    var silenceTimeout: TimeInterval = 1.6
+    /// Seconds of no new words after speech before recording ends by itself. Learned from how long
+    /// this person pauses mid-sentence (1.8–4 s), so slow speakers aren't cut off.
+    private static let pauseKey = "ghaf.voice.learnedPause"
+    var silenceTimeout: TimeInterval {
+        let learned = UserDefaults.standard.double(forKey: Self.pauseKey)
+        return learned > 0 ? learned : 2.2
+    }
+    /// Longest gap between words in the current recording.
+    private var longestGap: TimeInterval = 0
     private var lastSpeechAt: Date?
     private var silenceTask: Task<Void, Never>?
     private var contextualStrings: [String] = []
@@ -31,6 +38,7 @@ final class GhafSpeechRecorder: ObservableObject {
         guard !isRecording else { return }
         contextualStrings = Array(hints.prefix(100))
         lastSpeechAt = nil
+        longestGap = 0
         errorMessage = nil
         transcript = ""
         activeLanguageCode = languageCode
@@ -141,7 +149,10 @@ final class GhafSpeechRecorder: ObservableObject {
                         )
                         let before = self.transcript
                         self.updateChosenTranscript()
-                        if self.transcript != before { self.lastSpeechAt = .now }
+                        if self.transcript != before {
+                            if let last = self.lastSpeechAt { self.longestGap = max(self.longestGap, Date.now.timeIntervalSince(last)) }
+                            self.lastSpeechAt = .now
+                        }
                     }
                     if error != nil {
                         self.recognitionTasks[language] = nil
@@ -211,12 +222,20 @@ final class GhafSpeechRecorder: ObservableObject {
             while let self, !Task.isCancelled, self.isRecording {
                 try? await Task.sleep(for: .milliseconds(250))
                 if let last = self.lastSpeechAt, Date.now.timeIntervalSince(last) >= self.silenceTimeout {
+                    self.learnPause()
                     self.stop()
                     self.finishedSpeakingCount += 1
                     return
                 }
             }
         }
+    }
+
+    /// Moves the timeout towards 1.6× this person's longest mid-sentence pause.
+    private func learnPause() {
+        guard longestGap > 0.3 else { return }
+        let target = min(max(longestGap * 1.6, 1.8), 4.0)
+        UserDefaults.standard.set(silenceTimeout * 0.7 + target * 0.3, forKey: Self.pauseKey)
     }
 
     nonisolated private static func rms(_ buffer: AVAudioPCMBuffer) -> Float {
