@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4 (6)
+
+### English
+- Ghaf AI answers in plain sentences with exact numbers: spending by period, a category or a store, this month against last, your biggest purchase, income and what's left, and upcoming renewals.
+- Fixed: picking a JSON or Expend file sometimes did nothing. Files from iCloud Drive now download first, and Ghaf always asks before importing.
+- Fixed: welcome cards no longer get cut off on smaller screens or with larger text.
+
+### العربية
+- يجيب غاف بجمل واضحة وأرقام دقيقة: مصروفك حسب الفترة أو الفئة أو المتجر، ومقارنة هذا الشهر بالماضي، وأكبر عملية، ودخلك وما تبقى، والتجديدات القادمة.
+- إصلاح: اختيار ملف JSON أو ملف Expend لم يكن يفعل شيئاً أحياناً. تُنزَّل ملفات iCloud Drive أولاً، ويطلب غاف التأكيد دائماً قبل الاستيراد.
+- إصلاح: بطاقات الترحيب لم تعد تُقصّ على الشاشات الصغيرة أو مع الخط الكبير.
+
 ## 1.3 (5)
 
 ### English
