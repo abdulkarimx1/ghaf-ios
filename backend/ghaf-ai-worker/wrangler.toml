@@ -1,6 +1,21 @@
 name = "ghaf-ai"
 main = "worker.js"
 compatibility_date = "2025-06-01"
+workers_dev = true
+preview_urls = false
 
 [vars]
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-flash-latest"
+# Free plan: questions per device per day, and a cap across all devices to protect the free Gemini quota.
+FREE_DAILY_LIMIT = "20"
+GLOBAL_DAILY_LIMIT = "1000"
+# Used when Gemini refuses the request (unsupported region, quota or busy).
+FALLBACK_MODEL = "@cf/google/gemma-4-26b-a4b-it"
+
+[ai]
+binding = "AI"
+
+# Daily usage counters (keys expire after two days).
+[[kv_namespaces]]
+binding = "USAGE"
+id = "b36119d2f2974be9a8dda42ee9b712b5"

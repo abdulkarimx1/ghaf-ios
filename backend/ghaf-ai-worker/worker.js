@@ -1,9 +1,10 @@
 // Ghaf AI cloud proxy for Cloudflare Workers (free plan).
-// Holds the Gemini API key server-side so it is never in the app. The app must send the access
-// token you chose (APP_TOKEN) in the X-Ghaf-Token header. Nothing is stored: each request is
-// forwarded to Gemini and the reply is returned.
+// Holds the Gemini API key server-side so it is never in the app. Every Ghaf install sends a random
+// device ID (X-Ghaf-Device); the Worker allows FREE_DAILY_LIMIT questions per device per day and
+// GLOBAL_DAILY_LIMIT across all devices, counted in KV. Only those daily counters are stored;
+// questions and replies are not. The developer's APP_TOKEN (X-Ghaf-Token) skips the limits.
 //
-// Secrets (wrangler secret put): GEMINI_API_KEY, APP_TOKEN. Optional var: GEMINI_MODEL.
+// Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, GLOBAL_DAILY_LIMIT.
 
 const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary, never full history
 
@@ -12,9 +13,10 @@ export default {
     if (request.method !== "POST" || new URL(request.url).pathname !== "/chat") {
       return json({ error: "not_found" }, 404);
     }
-    if (!env.APP_TOKEN || request.headers.get("X-Ghaf-Token") !== env.APP_TOKEN) {
-      return json({ error: "unauthorized" }, 401);
-    }
+    const developer = env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN;
+    const device = request.headers.get("X-Ghaf-Device") || "";
+    if (!developer && !/^[0-9A-F-]{36}$/i.test(device)) return json({ error: "unauthorized" }, 401);
+
     const raw = await request.text();
     if (raw.length > MAX_BODY) return json({ error: "too_large" }, 413);
 
@@ -40,26 +42,73 @@ export default {
       { role: "user", parts: [{ text: question.slice(0, 600) }] }
     ];
 
-    const model = env.GEMINI_MODEL || "gemini-2.5-flash";
-    const upstream = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
+    if (!developer) {
+      const limited = await overLimit(env, device);
+      if (limited) return json({ error: "limit", scope: limited }, 429);
+    }
+
+    const request_ = JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: { temperature: 0.4, maxOutputTokens: 400 }
+    });
+    // Busy (429/503) on the main model: try the lighter one before giving up.
+    const models = [env.GEMINI_MODEL || "gemini-flash-latest", "gemini-flash-lite-latest"];
+    let upstream, detail = "";
+    for (const model of models) {
+      upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents,
-          generationConfig: { temperature: 0.4, maxOutputTokens: 400 }
-        })
+        body: request_
+      });
+      if (upstream.ok || ![429, 503].includes(upstream.status)) break;
+    }
+    if (upstream.ok) {
+      const data = await upstream.json();
+      const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ?? "";
+      if (text) return json({ reply: text, engine: "gemini" });
+    } else {
+      // Google's own message (e.g. location not supported); it never contains the key itself.
+      detail = (await upstream.json().catch(() => null))?.error?.message ?? "";
+    }
+
+    // Gemini refused (region, quota, busy): Cloudflare Workers AI, free daily allowance, no key.
+    if (env.AI) {
+      try {
+        const result = await env.AI.run(env.FALLBACK_MODEL || "@cf/google/gemma-4-26b-a4b-it", {
+          messages: [
+            { role: "system", content: system },
+            ...contents.map(c => ({ role: c.role === "model" ? "assistant" : "user", content: c.parts[0].text }))
+          ],
+          // Gemma 4 reasons before answering; switch that off for short replies, with headroom if it ignores it.
+          chat_template_kwargs: { enable_thinking: false },
+          max_tokens: 1200,
+          temperature: 0.4
+        });
+        const text = result?.response ?? result?.choices?.[0]?.message?.content ?? "";
+        if (text) return json({ reply: String(text).trim(), engine: "workers-ai" });
+        detail = `${detail} | workers-ai returned no text`;
+      } catch (error) {
+        detail = `${detail} | workers-ai: ${String(error).slice(0, 120)}`;
       }
-    );
-    if (!upstream.ok) return json({ error: "upstream", status: upstream.status }, 502);
-    const data = await upstream.json();
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ?? "";
-    if (!text) return json({ error: "empty" }, 502);
-    return json({ reply: text });
+    }
+    return json({ error: "upstream", status: upstream.status, detail: String(detail).slice(0, 240) }, 502);
   }
 };
+
+// Counts this request and reports which daily limit, if any, it would exceed.
+// KV is eventually consistent, so a burst can overshoot slightly; good enough for a free-quota guard.
+async function overLimit(env, device) {
+  const day = new Date().toISOString().slice(0, 10);
+  const deviceKey = `d:${day}:${device}`, globalKey = `g:${day}`;
+  const [used, all] = await Promise.all([env.USAGE.get(deviceKey), env.USAGE.get(globalKey)]);
+  const deviceCount = Number(used || 0), globalCount = Number(all || 0);
+  if (deviceCount >= Number(env.FREE_DAILY_LIMIT || 20)) return "device";
+  if (globalCount >= Number(env.GLOBAL_DAILY_LIMIT || 1000)) return "global";
+  const ttl = { expirationTtl: 172800 };
+  await Promise.all([env.USAGE.put(deviceKey, String(deviceCount + 1), ttl), env.USAGE.put(globalKey, String(globalCount + 1), ttl)]);
+  return null;
+}
 
 function json(value, status = 200) {
   return new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
