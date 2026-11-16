@@ -258,8 +258,13 @@ struct GhafTabView: View {
                 .tag(3)
 
             GhafAIView(settings: settings)
-                // The raised orb below draws this tab; the item keeps its place and its label for VoiceOver.
-                .tabItem { Label(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI", systemImage: "circle") }
+                // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
+                // exactly where the tab is on every iPhone and tab bar layout.
+                .tabItem {
+                    Label { Text(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI") } icon: {
+                        Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1))
+                    }
+                }
                 .tag(1)
 
             GhafSubscriptionsView(settings: settings)
@@ -271,11 +276,6 @@ struct GhafTabView: View {
                 .tag(4)
         }
         .tint(theme.accent)
-        .overlay(alignment: .bottom) {
-            GhafAITabButton(theme: theme, selected: router.selectedTab == 1, languageCode: settings.languageCode) {
-                router.selectedTab = 1
-            }
-        }
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         .environment(router)
         .environment(\.ghafCategoryMeta, categoryMeta)
@@ -1120,42 +1120,29 @@ private struct GhafWelcomeLaunchScreen: View {
 }
 
 
-/// Ghaf AI's tab: a raised, glowing orb over the centre of the tab bar, unlike any other tab.
-private struct GhafAITabButton: View {
-    let theme: GhafTheme
-    let selected: Bool
-    let languageCode: String
-    let action: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulse = false
+/// Ghaf AI's tab icon: a gradient orb with a sparkle in the theme's colours, kept in full colour.
+@MainActor
+enum GhafAITabIcon {
+    private static var cache: [String: UIImage] = [:]
 
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(theme.glow.opacity(selected ? 0.55 : 0.35))
-                    .blur(radius: 14)
-                    .scaleEffect(pulse ? 1.18 : 0.95)
-                Circle()
-                    .fill(LinearGradient(colors: [theme.accent, theme.glow], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
-                    .shadow(color: theme.accent.opacity(0.45), radius: 10, y: 4)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(theme.accentContrast)
-                    .symbolEffect(.bounce, value: selected)
-            }
-            .frame(width: 62, height: 62)
-            .scaleEffect(selected ? 1.06 : 1)
-            .animation(.spring(duration: 0.35, bounce: 0.4), value: selected)
+    static func image(theme: GhafTheme, selected: Bool) -> UIImage {
+        let key = "\(theme.name)-\(theme.isDark)-\(selected)"
+        if let cached = cache[key] { return cached }
+        // Neutral Graphite would make a grey orb, so it keeps Ghaf's signature sand-gold instead.
+        let city = GhafTheme.cities[theme.name == "Graphite" ? "Abu Dhabi" : theme.name] ?? GhafTheme.cities["Abu Dhabi"]!
+        let colors = theme.isDark ? [city.accent.dark, city.glow.dark] : [city.accent.light, city.glow.light]
+        let orb = ZStack {
+            Circle().fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle().stroke(.white.opacity(selected ? 0.9 : 0.35), lineWidth: selected ? 2 : 1)
+            Image(systemName: "sparkles")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(theme.isDark ? Color.black : Color.white)
         }
-        .buttonStyle(.ghafPress)
-        .padding(.bottom, 22)
-        .accessibilityLabel(languageCode == "ar" ? "غاف AI" : "Ghaf AI")
-        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { pulse = true }
-        }
+        .frame(width: 34, height: 34)
+        let renderer = ImageRenderer(content: orb)
+        renderer.scale = 3
+        let image = (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysOriginal)
+        cache[key] = image
+        return image
     }
 }
