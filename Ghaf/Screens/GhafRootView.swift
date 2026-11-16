@@ -11,6 +11,7 @@ struct GhafRootView: View {
     @Query private var settings: [GhafSettings]
 
     @State private var showAutomationIntro = false
+    @State private var appliedLanguage = ""
     @State private var showLaunch = true
     @State private var launchHasStarted = false
     @State private var isUnlocked = true
@@ -29,7 +30,7 @@ struct GhafRootView: View {
     var body: some View {
         ZStack {
             rootContent
-                .id(languageCode)
+                .id(appliedLanguage)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear.ignoresSafeArea())
 
@@ -50,6 +51,12 @@ struct GhafRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
         .scrollBounceBehavior(.basedOnSize)
+        // UIKit parts (navigation bars, back arrows, swipe-back, menus, pickers) ignore SwiftUI's
+        // direction; set theirs first, then rebuild the screens so they pick it up.
+        .onChange(of: languageCode, initial: true) { _, code in
+            UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
+            appliedLanguage = code
+        }
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
         .onChange(of: scenePhase) { _, phase in
