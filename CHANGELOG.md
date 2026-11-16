@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.11 (20)
+
+### English
+- Bank automation is simpler to set up: four short steps, and one Wallet automation covers Apple Pay purchases on every card. The included automation now listens to Messages only and no longer carries a filter that could stop it running.
+- Ghaf can pin where you paid: add "Get Current Location" to your automation and pass it as Location.
+- Subscriptions wait for you: a renewal moves to its next date only after you confirm it was deducted. The subscription page is shorter.
+- The salary check-in appears once, on salary day only.
+- Home insights are now a bar of your top categories with their share, instead of a long sentence.
+- Ghaf AI has a new Ghaf tree icon that grows when you open it. Charts respond to taps and drags and are no longer cut off.
+- Speech Ghaf can't understand is cleared instead of left in the message box.
+- Add transaction and Categories have been redesigned.
+- Currency and language have moved to More › Customization.
+- New card designs: Al Maryah Jaywan and Diamond, Thndr, National Bonds, Sarwa, Baraka, and AED notes for cash wallets.
+- In Arabic, navigation bars, back buttons and menus now follow right-to-left.
+
+### العربية
+- أصبح إعداد أتمتة البنك أسهل: أربع خطوات قصيرة، وأتمتة محفظة واحدة تغطي مشتريات Apple Pay بكل البطاقات. الأتمتة المرفقة تستمع للرسائل فقط ولم تعد تحتوي فلتراً قد يمنع تشغيلها.
+- يستطيع غاف تحديد مكان الدفع: أضف «الحصول على الموقع الحالي» إلى الأتمتة ومرّره كموقع.
+- تنتظرك الاشتراكات: لا ينتقل التجديد لموعده التالي إلا بعد تأكيدك أن المبلغ خُصم. وصفحة الاشتراك أقصر.
+- يظهر سؤال الراتب مرة واحدة، في يوم الراتب فقط.
+- تحليلات الرئيسية أصبحت شريطاً لأهم فئاتك ونسبها بدلاً من جملة طويلة.
+- لغاف AI أيقونة جديدة على شكل شجرة الغاف تنمو عند فتحها. والرسوم تستجيب للمس والسحب ولم تعد مقصوصة.
+- الكلام الذي لا يفهمه غاف يُحذف بدلاً من بقائه في مربع الرسالة.
+- أُعيد تصميم صفحتي إضافة عملية والفئات.
+- انتقلت العملة واللغة إلى المزيد › التخصيص.
+- تصاميم بطاقات جديدة: جيوان وDiamond من المارية، وثندر، والصكوك الوطنية، وثروة، وبركة، وأوراق نقدية بالدرهم للمحافظ النقدية.
+- في العربية، أصبحت أشرطة التنقل وأزرار الرجوع والقوائم من اليمين إلى اليسار.
+
 ## 1.10.4 (19)
 
 ### English
