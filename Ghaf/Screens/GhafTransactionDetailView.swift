@@ -50,6 +50,7 @@ struct GhafTransactionDetailView: View {
                     receipt.ghafEntrance(1)
                     if transaction.needsReview { reviewBanner }
                     GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang)
+                    bankContact
                 }
                 .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 8)
@@ -137,6 +138,30 @@ struct GhafTransactionDetailView: View {
                           theme: theme, languageCode: lang, divider: transaction.note?.isEmpty == false)
             if let note = transaction.note, !note.isEmpty {
                 GhafDetailRow(label: ar ? "ملاحظة" : "Note", text: note, theme: theme, languageCode: lang, divider: false)
+            }
+        }
+    }
+
+    /// Like Wallet's "Contact your bank": the issuer's support line for charges you don't recognise.
+    @ViewBuilder
+    private var bankContact: some View {
+        if let contact = GhafBankSupportDirectory.contact(for: [transaction.bank, account?.institution, account?.name]),
+           let url = URL(string: "tel:\(contact.localDialString)") {
+            VStack(alignment: .leading, spacing: 8) {
+                Link(destination: url) {
+                    Label((ar ? "تواصل مع " : "Contact ") + (ar ? contact.nameArabic : contact.name), systemImage: "phone.fill")
+                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .ghafCard(theme: theme)
+                }
+                .buttonStyle(.ghafPress)
+                Text(ar ? "لعملية لا تعرفها أو للاعتراض عليها، تواصل مع البنك مباشرة."
+                        : "For a charge you don't recognise, or to dispute one, contact your bank.")
+                    .font(GhafTypography.body(12, languageCode: lang))
+                    .foregroundStyle(theme.secondaryText)
+                    .padding(.horizontal, 6)
             }
         }
     }

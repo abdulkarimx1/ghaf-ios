@@ -13,6 +13,7 @@ struct GhafMerchantDetailView: View {
 
     @State private var place: MKMapItem?
     @State private var lookupDone = false
+    @State private var choosingPlace = false
     @State private var history: [GhafTransaction] = []
 
     private var ar: Bool { languageCode == "ar" }
@@ -26,10 +27,27 @@ struct GhafMerchantDetailView: View {
             if let place { placeCard(place) }
             else if merchant != nil && transaction.isSpendingOrIncome && !lookupDone {
                 ProgressView().frame(maxWidth: .infinity).padding(8)
+            } else if canHavePlace {
+                Button { choosingPlace = true } label: {
+                    Label(ar ? "حدّد المكان" : "Choose place", systemImage: "mappin.and.ellipse")
+                        .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(14)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.ghafPress)
             }
             if history.count > 1 { historyCard }
         }
         .task(id: transaction.id) { await load() }
+        .sheet(isPresented: $choosingPlace) {
+            GhafPlacePicker(initialQuery: GhafPlaces.isGeneric(merchant ?? "") ? "" : (merchant ?? ""),
+                            theme: theme, languageCode: languageCode) { item in
+                GhafPlaces.remember(item, merchant: merchant ?? "", transactionID: transaction.id)
+                place = item
+            }
+        }
     }
 
     private func placeCard(_ item: MKMapItem) -> some View {
@@ -58,10 +76,16 @@ struct GhafMerchantDetailView: View {
                 }
                 .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                 .buttonStyle(.bordered).tint(theme.accent)
-                Text(ar ? "تطابق محتمل من خرائط Apple حسب اسم المتجر، وقد لا يكون الفرع نفسه."
-                        : "Likely match from Apple Maps by merchant name. It may not be the exact branch.")
-                    .font(GhafTypography.body(10, languageCode: languageCode))
-                    .foregroundStyle(theme.secondaryText)
+                HStack {
+                    Text(ar ? "رسائل البنك لا تتضمن الموقع، فهذا تطابق من خرائط Apple أو اختيارك."
+                            : "Bank messages don't include a location, so this is an Apple Maps match or your choice.")
+                        .font(GhafTypography.body(10, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                    Spacer(minLength: 8)
+                    Button(ar ? "مكان خاطئ؟" : "Wrong place?") { choosingPlace = true }
+                        .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                }
             }
             .padding(13)
         }
@@ -105,6 +129,11 @@ struct GhafMerchantDetailView: View {
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    /// Spending at a physical place; online services and subscriptions have no shop to show.
+    private var canHavePlace: Bool {
+        transaction.isSpendingOrIncome && transaction.category != "Subscriptions" && GhafBrand.match(merchant) == nil
+    }
+
     private func load() async {
         guard let merchant else { lookupDone = true; return }
         let name = merchant
@@ -112,33 +141,69 @@ struct GhafMerchantDetailView: View {
             predicate: #Predicate { $0.merchant == name },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         ))) ?? []
-        // Online services (known brands, subscriptions) have no shop to show.
-        guard transaction.isSpendingOrIncome, GhafBrand.match(merchant) == nil,
-              transaction.category != "Subscriptions" else { lookupDone = true; return }
-        place = await Self.lookup(merchant)
+        guard canHavePlace else { lookupDone = true; return }
+        place = await GhafPlaces.place(for: merchant, transactionID: transaction.id)
         lookupDone = true
     }
+}
 
-    /// One Apple Maps query per merchant name per launch.
-    private static var cache: [String: MKMapItem?] = [:]
+/// Search Apple Maps for the real place, nearby first; the choice is remembered.
+struct GhafPlacePicker: View {
+    @Environment(\.dismiss) private var dismiss
+    let initialQuery: String
+    let theme: GhafTheme
+    let languageCode: String
+    let onPick: (MKMapItem) -> Void
 
-    @MainActor
-    private static func lookup(_ merchant: String) async -> MKMapItem? {
-        let key = SubscriptionDetector.normalize(merchant)
-        if let cached = cache[key] { return cached }
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = merchant
-        request.resultTypes = .pointOfInterest
-        // UAE and the wider Gulf, where Ghaf's banks operate; no device location is used.
-        request.region = MKCoordinateRegion(center: .init(latitude: 24.6, longitude: 54.8),
-                                            span: .init(latitudeDelta: 8, longitudeDelta: 10))
-        // A place counts only when its name starts like the merchant's ("Samuel Claude" is not "Claude").
-        let first = key.split(separator: " ").first.map(String.init) ?? key
-        let item = try? await MKLocalSearch(request: request).start().mapItems.first { candidate in
-            let name = SubscriptionDetector.normalize(candidate.name ?? "")
-            return !first.isEmpty && (name.hasPrefix(first) || key.hasPrefix(name.split(separator: " ").first.map(String.init) ?? "\u{0}"))
+    @State private var query = ""
+    @State private var results: [MKMapItem] = []
+    @State private var searching = false
+
+    private var ar: Bool { languageCode == "ar" }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if results.isEmpty && !searching {
+                    Text(query.isEmpty ? (ar ? "اكتب اسم المتجر أو المطعم." : "Type the shop or restaurant name.")
+                                       : (ar ? "لا نتائج قريبة." : "No nearby results."))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                ForEach(results, id: \.self) { item in
+                    Button {
+                        onPick(item)
+                        dismiss()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.name ?? "").font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                                .foregroundStyle(theme.primaryText)
+                            if let address = item.placemark.title {
+                                Text(address).font(GhafTypography.body(12, languageCode: languageCode))
+                                    .foregroundStyle(theme.secondaryText).lineLimit(2)
+                            }
+                        }
+                    }
+                }
+            }
+            .overlay { if searching { ProgressView() } }
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
+                        prompt: ar ? "ابحث في خرائط Apple" : "Search Apple Maps")
+            .navigationTitle(ar ? "حدّد المكان" : "Choose place")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(ar ? "إلغاء" : "Cancel") { dismiss() } } }
+            .task(id: query) {
+                guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { results = []; return }
+                try? await Task.sleep(for: .milliseconds(350))   // wait for typing to pause
+                guard !Task.isCancelled else { return }
+                searching = true
+                results = (try? await GhafPlaces.search(query)) ?? []
+                searching = false
+            }
+            .onAppear {
+                query = initialQuery
+                // Asked here, where the reason is obvious: nearby places for this purchase.
+                GhafPlaces.requestLocationIfUndecided()
+            }
         }
-        cache[key] = item
-        return item
     }
 }
