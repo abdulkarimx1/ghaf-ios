@@ -1,0 +1,204 @@
+import Foundation
+import GhafCore
+
+/// Direct, worded answers to money questions, computed from the ledger. The language model may
+/// rephrase them, but every number comes from here. Amounts stay in one currency at a time.
+enum GhafLedgerAnswers {
+
+    struct Period {
+        let interval: DateInterval
+        let previous: DateInterval?
+        let en: String
+        let ar: String
+        let previousEn: String
+        let previousAr: String
+    }
+
+    static func answer(
+        to question: String,
+        accounts: [GhafAccount],
+        transactions: [GhafTransaction],
+        subscriptions: [GhafSubscription],
+        currency: String,
+        languageCode: String,
+        now: Date = .now
+    ) -> String? {
+        let q = question.lowercased()
+        let ar = languageCode == "ar"
+        func has(_ words: [String]) -> Bool { words.contains { q.contains($0) } }
+        func money(_ value: Decimal, _ code: String = currency) -> String { GhafFormat.money(value, currency: code, languageCode: languageCode) }
+
+        // Balances: one line per account, totals only within a currency.
+        if has(["balance", "do i have", "how much money", "رصيد", "عندي", "كم معي", "فلوسي"]) {
+            let open = accounts.filter { !$0.isArchived }
+            guard !open.isEmpty else { return ar ? "ما عندك حسابات بعد. أضف حساباً من «الحسابات»." : "You have no accounts yet. Add one under Accounts." }
+            let balances = GhafAccountBalanceCalculator.balances(accounts: open, transactions: transactions)
+            let byCurrency = Dictionary(grouping: open.filter(\.includeInTotal), by: \.currency)
+                .mapValues { $0.reduce(Decimal.zero) { $0 + (balances[$1.id] ?? $1.openingBalance) } }
+            let totals = byCurrency.sorted { $0.key < $1.key }.map { money($0.value, $0.key) }.joined(separator: ar ? " و" : " and ")
+            let top = open.sorted { (balances[$0.id] ?? 0) > (balances[$1.id] ?? 0) }.prefix(3)
+                .map { "\($0.name) \(money(balances[$0.id] ?? $0.openingBalance, $0.currency))" }
+                .joined(separator: ar ? "، " : ", ")
+            return ar ? "إجمالي رصيدك \(totals). أكبر حساباتك: \(top)."
+                      : "You have \(totals) in total. Largest accounts: \(top)."
+        }
+
+        // Subscriptions due soon.
+        if has(["subscri", "renew", "اشتراك", "تجديد"]) {
+            let soon = now.addingTimeInterval(30 * 86_400)
+            let due = subscriptions.filter { $0.isActive && $0.nextPaymentDate <= soon }.sorted { $0.nextPaymentDate < $1.nextPaymentDate }
+            let monthly = subscriptions.filter { $0.isActive && $0.currency == currency }
+                .reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }
+            guard !due.isEmpty else {
+                return ar ? "لا تجديدات خلال ٣٠ يوماً. اشتراكاتك تكلّف تقريباً \(money(monthly)) شهرياً."
+                          : "Nothing renews in the next 30 days. Your subscriptions cost about \(money(monthly)) a month."
+            }
+            let list = due.prefix(4).map {
+                "\($0.name) \(money($0.amount, $0.currency)) " + (ar ? "في " : "on ")
+                    + $0.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: languageCode)))
+            }.joined(separator: ar ? "، " : ", ")
+            return ar ? "القادم خلال ٣٠ يوماً: \(list). المجموع الشهري التقريبي \(money(monthly))."
+                      : "Coming up in the next 30 days: \(list). All subscriptions come to about \(money(monthly)) a month."
+        }
+
+        let comparing = has(["compare", " vs", "versus", "more than", "less than", "than last", "قارن", "مقارنة", "أكثر من", "اكثر من", "أقل من"])
+        // "more than last month" compares this month with last month, so the period is the current one.
+        let periodText = comparing
+            ? q.replacingOccurrences(of: "last ", with: "").replacingOccurrences(of: "الماضي", with: "")
+            : q
+        let period = self.period(for: periodText, now: now)
+        let label = ar ? period.ar : period.en
+        let inCurrency = transactions.filter { $0.currency == currency }
+        let spending = inCurrency.filter { $0.isExpense && period.interval.contains($0.date) }
+        let spent = spending.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+
+        // A named merchant or category narrows the question.
+        if let category = matchedCategory(in: q, transactions: inCurrency, languageCode: languageCode) {
+            let items = spending.filter { $0.category == category }
+            let total = items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+            let share = spent > 0 ? Int((NSDecimalNumber(decimal: total / spent).doubleValue * 100).rounded()) : 0
+            let name = GhafLocalization.category(category, languageCode: languageCode)
+            return ar ? "صرفت \(money(total)) على \(name) \(label) (\(items.count) عمليات، \(share)٪ من مصروفك)."
+                      : "You spent \(money(total)) on \(name) \(label): \(items.count) transactions, \(share)% of your spending."
+        }
+
+        if let merchant = matchedMerchant(in: q, transactions: inCurrency) {
+            let items = spending.filter { SubscriptionDetector.normalize($0.merchant ?? "") == merchant.key }
+            let total = items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+            return ar ? "صرفت \(money(total)) عند \(merchant.name) \(label) في \(items.count) عملية."
+                      : "You spent \(money(total)) at \(merchant.name) \(label), across \(items.count) transactions."
+        }
+        // This period against the one before it.
+        if comparing, let previous = period.previous {
+            let before = inCurrency.filter { $0.isExpense && previous.contains($0.date) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+            guard before > 0 else {
+                return ar ? "صرفت \(money(spent)) \(label)، ولا يوجد مصروف مسجل \(period.previousAr) للمقارنة."
+                          : "You spent \(money(spent)) \(label), and nothing is recorded for \(period.previousEn) to compare."
+            }
+            let change = Int((NSDecimalNumber(decimal: (spent - before) / before).doubleValue * 100).rounded())
+            let direction = change >= 0 ? (ar ? "أكثر" : "more") : (ar ? "أقل" : "less")
+            return ar ? "صرفت \(money(spent)) \(label) مقابل \(money(before)) \(period.previousAr)، أي \(abs(change))٪ \(direction)."
+                      : "You spent \(money(spent)) \(label) versus \(money(before)) \(period.previousEn): \(abs(change))% \(direction)."
+        }
+
+        if has(["biggest", "largest", "most expensive", "أكبر", "أغلى", "اغلى"]) {
+            guard let top = spending.max(by: { $0.spendingAmount < $1.spendingAmount }) else {
+                return ar ? "لا مصاريف \(label)." : "No spending \(label)."
+            }
+            let date = top.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: languageCode)))
+            return ar ? "أكبر عملية \(label): \(top.merchant ?? GhafLocalization.category(top.category, languageCode: languageCode)) بمبلغ \(money(top.amount)) في \(date)."
+                      : "Your biggest purchase \(label) was \(top.merchant ?? top.category) for \(money(top.amount)) on \(date)."
+        }
+
+        if has(["income", "earn", "salary", "received", "دخل", "راتب", "استلمت"]) {
+            let income = inCurrency.filter { $0.isIncome && period.interval.contains($0.date) }.reduce(Decimal.zero) { $0 + $1.amount }
+            let net = income - spent
+            return ar ? "دخلك \(label) \(money(income))، ومصروفك \(money(spent))، والصافي \(money(net))."
+                      : "Income \(label) is \(money(income)) against \(money(spent)) spent, a net of \(money(net))."
+        }
+
+        if has(["where", "most", "top", "categor", "breakdown", "chart", "graph", "وين", "أكثر", "اكثر", "فئة", "فئات", "رسم"]) {
+            let byCategory = Dictionary(grouping: spending, by: \.category)
+                .mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
+                .filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(3)
+            guard spent > 0, !byCategory.isEmpty else { return ar ? "لا مصاريف \(label) بعد." : "No spending \(label) yet." }
+            let parts = byCategory.map { item -> String in
+                let share = Int((NSDecimalNumber(decimal: item.value / spent).doubleValue * 100).rounded())
+                return "\(GhafLocalization.category(item.key, languageCode: languageCode)) \(money(item.value)) (\(share)%)"
+            }.joined(separator: ar ? "، " : ", ")
+            return ar ? "من أصل \(money(spent)) \(label)، ذهب أغلبها إلى: \(parts)."
+                      : "Of the \(money(spent)) you spent \(label), most went to \(parts)."
+        }
+
+        if has(["spen", "spent", "cost", "صرف", "مصروف", "دفعت", "كم"]) {
+            guard spent > 0 else { return ar ? "ما سجلت أي مصروف \(label)." : "You haven't spent anything \(label)." }
+            let days = max(1, Calendar.current.dateComponents([.day], from: period.interval.start, to: min(now, period.interval.end)).day ?? 1)
+            let top = Dictionary(grouping: spending, by: \.category).mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
+                .max { $0.value < $1.value }
+            let topName = top.map { GhafLocalization.category($0.key, languageCode: languageCode) } ?? ""
+            return ar ? "صرفت \(money(spent)) \(label) في \(spending.count) عملية، بمعدل \(money(spent / Decimal(days))) يومياً. أكثر فئة: \(topName)."
+                      : "You spent \(money(spent)) \(label) over \(spending.count) transactions, about \(money(spent / Decimal(days))) a day. Top category: \(topName)."
+        }
+        return nil
+    }
+
+    static func period(for q: String, now: Date) -> Period {
+        let calendar = Calendar.current
+        func window(_ component: Calendar.Component, _ offset: Int) -> DateInterval {
+            let date = calendar.date(byAdding: component, value: offset, to: now) ?? now
+            return calendar.dateInterval(of: component, for: date) ?? DateInterval(start: now, duration: 86_400)
+        }
+        if q.contains("yesterday") || q.contains("أمس") || q.contains("امس") {
+            return Period(interval: window(.day, -1), previous: window(.day, -2), en: "yesterday", ar: "أمس",
+                          previousEn: "the day before", previousAr: "اليوم الذي قبله")
+        }
+        if q.contains("today") || q.contains("اليوم") {
+            return Period(interval: window(.day, 0), previous: window(.day, -1), en: "today", ar: "اليوم",
+                          previousEn: "yesterday", previousAr: "أمس")
+        }
+        if q.contains("last week") || q.contains("الأسبوع الماضي") || q.contains("الاسبوع الماضي") {
+            return Period(interval: window(.weekOfYear, -1), previous: window(.weekOfYear, -2), en: "last week", ar: "الأسبوع الماضي",
+                          previousEn: "the week before", previousAr: "الأسبوع الذي قبله")
+        }
+        if q.contains("week") || q.contains("أسبوع") || q.contains("اسبوع") {
+            return Period(interval: window(.weekOfYear, 0), previous: window(.weekOfYear, -1), en: "this week", ar: "هذا الأسبوع",
+                          previousEn: "last week", previousAr: "الأسبوع الماضي")
+        }
+        if q.contains("last month") || q.contains("الشهر الماضي") {
+            return Period(interval: window(.month, -1), previous: window(.month, -2), en: "last month", ar: "الشهر الماضي",
+                          previousEn: "the month before", previousAr: "الشهر الذي قبله")
+        }
+        if q.contains("year") || q.contains("سنة") || q.contains("السنه") {
+            return Period(interval: window(.year, 0), previous: window(.year, -1), en: "this year", ar: "هذه السنة",
+                          previousEn: "last year", previousAr: "السنة الماضية")
+        }
+        return Period(interval: window(.month, 0), previous: window(.month, -1), en: "this month", ar: "هذا الشهر",
+                      previousEn: "last month", previousAr: "الشهر الماضي")
+    }
+
+    /// A merchant the user has paid before whose name appears in the question.
+    static func matchedMerchant(in q: String, transactions: [GhafTransaction]) -> (key: String, name: String)? {
+        var seen: [String: String] = [:]
+        for item in transactions where item.isExpense {
+            guard let name = item.merchant else { continue }
+            let key = SubscriptionDetector.normalize(name)
+            if key.count >= 3, seen[key] == nil { seen[key] = name }
+        }
+        let text = SubscriptionDetector.normalize(q)
+        // Longest names first so "careem food" wins over "careem".
+        return seen.sorted { $0.key.count > $1.key.count }
+            .first { text.contains($0.key) }
+            .map { (key: $0.key, name: $0.value) }
+    }
+
+    static func matchedCategory(in q: String, transactions: [GhafTransaction], languageCode: String) -> String? {
+        let categories = Set(transactions.filter(\.isExpense).map(\.category))
+        return categories.sorted { $0.count > $1.count }.first { category in
+            let names = [category.lowercased(), GhafLocalization.category(category, languageCode: "ar")]
+            // "restaurants" also matches "restaurant".
+            return names.contains { name in
+                name.count >= 3 && (q.contains(name) || (name.count >= 5 && q.contains(String(name.dropLast()))))
+            }
+        }
+    }
+}

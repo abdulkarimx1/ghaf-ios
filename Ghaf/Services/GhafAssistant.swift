@@ -141,19 +141,23 @@ final class GhafAssistant: ObservableObject {
     }
 
     /// Streams the reply text. `history` is the recent conversation, oldest first.
+    /// `direct` is the ledger's own worded answer when the question is about money; it is what the
+    /// basic engine says, and the on-device model must keep its numbers.
     func reply(
         to question: String,
         facts: String,
+        direct: String? = nil,
         history: [(isUser: Bool, text: String)],
         languageCode: String
     ) -> AsyncThrowingStream<String, Error> {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), engine == .onDevice {
-            return onDeviceReply(to: question, facts: facts, history: history, languageCode: languageCode)
+            let grounded = direct.map { facts + "\nDIRECT ANSWER FROM THE LEDGER (keep these exact numbers): \($0)" } ?? facts
+            return onDeviceReply(to: question, facts: grounded, direct: direct, history: history, languageCode: languageCode)
         }
         #endif
-        let answer = Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
-                                      avoiding: Set(history.filter { !$0.isUser }.map(\.text)))
+        let answer = direct ?? Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
+                                                avoiding: Set(history.filter { !$0.isUser }.map(\.text)))
         return AsyncThrowingStream { continuation in
             continuation.yield(answer)
             continuation.finish()
@@ -165,12 +169,15 @@ final class GhafAssistant: ObservableObject {
     private func onDeviceReply(
         to question: String,
         facts: String,
+        direct: String?,
         history: [(isUser: Bool, text: String)],
         languageCode: String
     ) -> AsyncThrowingStream<String, Error> {
         let instructions = """
         You are Ghaf AI, a warm, concise personal finance assistant inside the Ghaf app (UAE).
         Answer only from the FACTS below. Quote amounts exactly as written with their currency.
+        When a DIRECT ANSWER FROM THE LEDGER is given, answer with it in natural words, keeping every number,
+        then add at most one short, useful observation or tip drawn from the facts.
         Never invent transactions, balances or subscriptions, and never add amounts in different currencies.
         If the facts do not contain the answer, say so briefly and suggest what the user can record.
         If the message is not about money (weather, jokes, sports, small talk), reply in one short, warm line with a
@@ -196,8 +203,8 @@ final class GhafAssistant: ObservableObject {
                 } catch {
                     // Context too long, unsupported language, guardrails: fall back to grounded answers.
                     Logger(subsystem: "com.ghaf.app", category: "ai").error("On-device model failed: \(String(describing: error), privacy: .public)")
-                    continuation.yield(Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
-                                                        avoiding: Set(history.filter { !$0.isUser }.map(\.text))))
+                    continuation.yield(direct ?? Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
+                                                                  avoiding: Set(history.filter { !$0.isUser }.map(\.text))))
                     continuation.finish()
                 }
             }

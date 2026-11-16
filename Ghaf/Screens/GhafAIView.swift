@@ -484,7 +484,10 @@ struct GhafAIView: View {
         replyTask = Task {
             var index: Int?
             do {
-                for try await partial in assistant.reply(to: text, facts: facts, history: Array(history), languageCode: settings.languageCode) {
+                let direct = GhafLedgerAnswers.answer(to: text, accounts: accounts, transactions: transactions,
+                                                      subscriptions: subscriptions, currency: settings.currency,
+                                                      languageCode: settings.languageCode)
+                for try await partial in assistant.reply(to: text, facts: facts, direct: direct, history: Array(history), languageCode: settings.languageCode) {
                     if let index {
                         messages[index].text = partial
                     } else {
