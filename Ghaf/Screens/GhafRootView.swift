@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import LocalAuthentication
+import UserNotifications
+import AVFoundation
+import Speech
 
 struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -277,45 +280,6 @@ struct GhafTabView: View {
 
 /// Intro illustration built from shapes and SF Symbols: a glowing disc, a hero glyph,
 /// and three orbiting badges that drift gently (still under Reduce Motion).
-struct GhafIntroIllustration: View {
-    let symbol: String
-    let satellites: [String]
-    let theme: GhafTheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var floating = false
-
-    var body: some View {
-        ZStack {
-            Circle().fill(theme.accent.opacity(0.08)).frame(width: 230, height: 230)
-            Circle().stroke(theme.accent.opacity(0.15), style: StrokeStyle(lineWidth: 1.5, dash: [4, 7]))
-                .frame(width: 190, height: 190)
-            Circle().fill(theme.accent.gradient).frame(width: 116, height: 116)
-                .shadow(color: theme.accent.opacity(0.4), radius: 22, y: 10)
-            Image(systemName: symbol)
-                .font(.system(size: 50, weight: .bold))
-                .foregroundStyle(theme.accentContrast)
-                .symbolEffect(.bounce, value: floating)
-            ForEach(Array(satellites.prefix(3).enumerated()), id: \.offset) { index, name in
-                let angle = Angle.degrees([-140, -30, 95][index])
-                Image(systemName: name)
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 50, height: 50)
-                    .background(theme.surface, in: Circle())
-                    .shadow(color: .black.opacity(theme.isDark ? 0 : 0.08), radius: 10, y: 4)
-                    .offset(x: cos(angle.radians) * 98, y: sin(angle.radians) * 98 + (floating ? -5 : 5) * (index.isMultiple(of: 2) ? 1 : -1))
-            }
-        }
-        .frame(width: 260, height: 250)
-        .frame(maxWidth: .infinity)
-        .accessibilityHidden(true)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { floating = true }
-        }
-    }
-}
-
 struct GhafOnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
@@ -362,11 +326,38 @@ struct GhafOnboardingView: View {
         _salaryAmountText = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
     }
 
+    private let stepCount = 8
+    /// Steps 1-4 are full-bleed story cards; the rest are forms.
+    private var isStory: Bool { (1...4).contains(step) }
+
     var body: some View {
+        Group {
+            if isStory { storyBody } else { formBody }
+        }
+        .onChange(of: languageCode) { _, newValue in
+            settings.languageCode = newValue
+            try? modelContext.save()
+        }
+        .sheet(isPresented: $showAutomationGuide, onDismiss: {
+            settings.hasSeenAutomationIntro = true
+            try? modelContext.save()
+        }) {
+            NavigationStack {
+                GhafAutomationGuideView(settings: settings)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(localized("Done", "تم")) { showAutomationGuide = false }
+                        }
+                    }
+            }
+        }
+    }
+
+    private var formBody: some View {
         VStack(spacing: 0) {
             // Progress: one capsule per step, the current one stretched.
             HStack(spacing: 6) {
-                ForEach(0..<7, id: \.self) { index in
+                ForEach(0..<stepCount, id: \.self) { index in
                     Capsule()
                         .fill(index <= step ? theme.accent : theme.secondaryText.opacity(0.2))
                         .frame(width: index == step ? 26 : 8, height: 8)
@@ -376,22 +367,16 @@ struct GhafOnboardingView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 18)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(localized("Step \(step + 1) of 7", "الخطوة \(step + 1) من 7"))
+            .accessibilityLabel(localized("Step \(step + 1) of \(stepCount)", "الخطوة \(step + 1) من \(stepCount)"))
 
             GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 25) {
                         if step == 0 {
                             languageSelectionPage
-                        } else if step == 1 {
-                            welcomePage
-                        } else if step == 2 {
-                            privacyPage
-                        } else if step == 3 {
-                            automationIntroPage
-                        } else if step == 4 {
-                            setupPage
                         } else if step == 5 {
+                            setupPage
+                        } else if step == 6 {
                             accountsAndSalaryPage
                         } else {
                             connectionPage
@@ -406,7 +391,7 @@ struct GhafOnboardingView: View {
             }
 
             VStack(spacing: 10) {
-                Button(step == 6 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
+                Button(step == 7 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
                     withAnimation(.snappy) { advance() }
                 }
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
@@ -424,22 +409,179 @@ struct GhafOnboardingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
-        .onChange(of: languageCode) { _, newValue in
-            settings.languageCode = newValue
-            try? modelContext.save()
+    }
+
+    // MARK: Story cards
+
+    private struct StoryCard {
+        let eyebrow: String
+        let title: String
+        let body: String
+        let colors: [Color]
+        var symbol: String? = nil
+    }
+
+    private var storyCard: StoryCard {
+        switch step {
+        case 1: StoryCard(eyebrow: localized("Welcome to Ghaf", "أهلاً بك في غاف"),
+                          title: localized("Your money,\nclearly.", "أموالك،\nبوضوح."),
+                          body: localized("Every account and every dirham in one calm place.", "كل حساباتك وكل درهم في مكان واحد هادئ."),
+                          colors: [Color(red: 0.10, green: 0.17, blue: 0.14), Color(red: 0.55, green: 0.33, blue: 0.18)])
+        case 2: StoryCard(eyebrow: localized("Private by design", "الخصوصية أولاً"),
+                          title: localized("Your data stays\non this iPhone.", "بياناتك تبقى\nعلى جهازك."),
+                          body: localized("No Ghaf account, no bank login, no financial servers.", "لا حساب في غاف، ولا تسجيل دخول بنكي، ولا خوادم مالية."),
+                          colors: [Color(red: 0.06, green: 0.24, blue: 0.18), Color(red: 0.20, green: 0.45, blue: 0.33)],
+                          symbol: "lock.shield")
+        case 3: StoryCard(eyebrow: localized("Automatic", "تلقائي"),
+                          title: localized("Bank alerts\nlog themselves.", "تنبيهات البنك\nتُسجَّل وحدها."),
+                          body: localized("Install Ghaf's shortcut once and supported bank messages are recorded for you. Cash stays a quick manual entry.", "ثبّت اختصار غاف مرة واحدة وتُسجَّل رسائل البنوك المدعومة تلقائياً. النقد يبقى إدخالاً يدوياً سريعاً."),
+                          colors: [Color(red: 0.42, green: 0.20, blue: 0.12), Color(red: 0.72, green: 0.42, blue: 0.22)],
+                          symbol: "bolt")
+        default: StoryCard(eyebrow: localized("Before we start", "قبل أن نبدأ"),
+                           title: localized("A few permissions.", "بعض الأذونات."),
+                           body: localized("iOS will ask for each one next. You can change them anytime in Settings.", "سيطلب iOS كل إذن تالياً، ويمكنك تغييرها في أي وقت من الإعدادات."),
+                           colors: [Color(red: 0.12, green: 0.14, blue: 0.24), Color(red: 0.36, green: 0.30, blue: 0.48)])
         }
-        .sheet(isPresented: $showAutomationGuide, onDismiss: {
-            settings.hasSeenAutomationIntro = true
-            try? modelContext.save()
-        }) {
-            NavigationStack {
-                GhafAutomationGuideView(settings: settings)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(localized("Done", "تم")) { showAutomationGuide = false }
-                        }
+    }
+
+    private let storyInk = Color(red: 0.97, green: 0.94, blue: 0.89)
+
+    private var storyBody: some View {
+        let card = storyCard
+        return ZStack(alignment: .bottomLeading) {
+            storyBackground(card)
+            VStack(alignment: .leading, spacing: 14) {
+                Spacer()
+                if step == 4 { permissionList }
+                Text(card.eyebrow)
+                    .font(GhafTypography.body(15, languageCode: languageCode))
+                    .foregroundStyle(storyInk.opacity(0.75))
+                Text(card.title)
+                    .font(GhafTypography.display(36, languageCode: languageCode))
+                    .foregroundStyle(storyInk)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(card.body)
+                    .font(GhafTypography.body(16, languageCode: languageCode))
+                    .foregroundStyle(storyInk.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 5) {
+                    ForEach(1...4, id: \.self) { index in
+                        Capsule().fill(storyInk.opacity(index == step ? 1 : 0.35))
+                            .frame(width: index == step ? 24 : 10, height: 3)
                     }
+                }
+                .padding(.top, 6)
+                .accessibilityHidden(true)
+                storyControls
+                    .padding(.top, 18)
             }
+            .padding(.horizontal, 26)
+            .padding(.bottom, 12)
+            .id(step)
+            .transition(.opacity.combined(with: .offset(y: 16)))
+        }
+        .animation(.snappy(duration: 0.4), value: step)
+    }
+
+    @ViewBuilder
+    private func storyBackground(_ card: StoryCard) -> some View {
+        ZStack {
+            LinearGradient(colors: card.colors, startPoint: .top, endPoint: .bottom)
+            if step == 1 {
+                Image("GhafWelcomeArtwork").resizable().scaledToFill()
+                    .accessibilityLabel(languageCode == "ar" ? "غاف، صنع بحب في الإمارات" : "Ghaf, made with love in the UAE")
+            }
+            // A soft light source, then a scrim so the text always reads.
+            RadialGradient(colors: [card.colors[1].opacity(0.55), .clear], center: .init(x: 0.35, y: 0.35),
+                           startRadius: 0, endRadius: 360)
+            // The artwork carries its own caption near the bottom; the scrim hides it under the card text.
+            if let symbol = card.symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 190, weight: .ultraLight))
+                    .foregroundStyle(storyInk.opacity(0.1))
+                    .offset(x: 70, y: -170)
+                    .accessibilityHidden(true)
+            }
+            LinearGradient(colors: step == 1 ? [.clear, .black.opacity(0.7), .black.opacity(0.96)] : [.clear, .black.opacity(0.35)],
+                           startPoint: UnitPoint(x: 0.5, y: step == 1 ? 0.42 : 0.5), endPoint: .bottom)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var storyControls: some View {
+        HStack(spacing: 12) {
+            // The permission card offers only the button that opens the system alerts (HIG privacy, pre-alert screens).
+            if step != 4 {
+                Button { withAnimation(.snappy) { step -= 1 } } label: {
+                    Image(systemName: languageCode == "ar" ? "arrow.right" : "arrow.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 56, height: 56)
+                        .overlay(Circle().stroke(storyInk.opacity(0.45), lineWidth: 1))
+                }
+                .foregroundStyle(storyInk)
+                .accessibilityLabel(localized("Back", "رجوع"))
+            }
+            Button {
+                if step == 4 {
+                    Task {
+                        await requestPermissions()
+                        withAnimation(.snappy) { step = 5 }
+                    }
+                } else {
+                    withAnimation(.snappy) { advance() }
+                }
+            } label: {
+                HStack {
+                    Text(step == 1 ? localized("Start", "ابدأ") : localized("Continue", "متابعة"))
+                        .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
+                    Spacer()
+                    Image(systemName: languageCode == "ar" ? "arrow.left" : "arrow.right")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .background(storyInk, in: Capsule())
+                .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
+            }
+            .buttonStyle(.ghafPress)
+        }
+    }
+
+    private var permissionList: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            permissionRow("bell.badge.fill", localized("Notifications", "الإشعارات"),
+                          localized("Subscription reminders and transactions to review.", "تذكير الاشتراكات والعمليات التي تحتاج مراجعة."))
+            permissionRow("mic.fill", localized("Microphone", "الميكروفون"),
+                          localized("Say a purchase instead of typing it.", "قل عمليتك بدلاً من كتابتها."))
+            permissionRow("waveform", localized("Speech recognition", "التعرّف على الكلام"),
+                          localized("Turns your voice into text for Ghaf.", "يحوّل صوتك إلى نص لغاف."))
+        }
+        .padding(18)
+        .background(storyInk.opacity(0.1), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(.bottom, 10)
+    }
+
+    private func permissionRow(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 40, height: 40)
+                .background(storyInk.opacity(0.14), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                Text(detail).font(GhafTypography.body(13, languageCode: languageCode)).opacity(0.75)
+            }
+        }
+        .foregroundStyle(storyInk)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Asked once, in order, after the explanation card. Each call shows the system alert only the first time.
+    private func requestPermissions() async {
+        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+        _ = await AVAudioApplication.requestRecordPermission()
+        _ = await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
         }
     }
 
@@ -517,60 +659,6 @@ struct GhafOnboardingView: View {
             .buttonStyle(.ghafPress)
             Spacer(minLength: 10)
         }
-    }
-
-    private var welcomePage: some View {
-        Image("GhafWelcomeArtwork")
-            .resizable()
-            .scaledToFit()
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel(languageCode == "ar" ? "غاف، صنع بحب في الإمارات" : "Ghaf, made with love in the UAE")
-    }
-
-    private var privacyPage: some View {
-        VStack(spacing: 22) {
-            GhafIntroIllustration(symbol: "lock.shield.fill",
-                                  satellites: ["iphone", "eye.slash.fill", "hand.raised.fill"], theme: theme)
-            introHeading(localized("Your money data stays yours.", "بياناتك المالية تبقى ملكاً لك."),
-                         localized("Ghaf is designed to work locally on your iPhone.", "صُمم غاف للعمل محلياً على جهاز iPhone الخاص بك."))
-            VStack(spacing: 0) {
-                onboardingPoint(icon: "iphone", title: localized("Stored on your device", "محفوظة على جهازك"), description: localized("Transactions and settings are saved locally.", "تُحفظ العمليات والإعدادات محلياً على جهازك."))
-                onboardingPoint(icon: "server.rack", title: localized("No financial servers", "لا خوادم مالية"), description: localized("No Ghaf account or external banking connection.", "لا يتطلب غاف حساباً خارجياً أو اتصالاً بالبنوك."))
-                onboardingPoint(icon: "chart.bar.fill", title: localized("Understand your habits", "افهم عاداتك المالية"), description: localized("See spending trends and budget progress.", "تابع اتجاهات الإنفاق وتقدم ميزانيتك."))
-            }
-            .padding(.horizontal, 16).padding(.vertical, 6)
-            .ghafCard(theme: theme)
-        }
-    }
-
-    private var automationIntroPage: some View {
-        VStack(spacing: 22) {
-            GhafIntroIllustration(symbol: "bolt.fill",
-                                  satellites: ["message.fill", "sparkles", "checkmark.circle.fill"], theme: theme)
-            introHeading(localized("Bank SMS, logged automatically.", "رسائل البنك تُسجّل تلقائياً."),
-                         localized("Connect supported bank SMS messages once through Apple Shortcuts. Ghaf can then sort matching transactions automatically.", "اربط رسائل SMS البنكية المدعومة مرة واحدة عبر تطبيق الاختصارات، وبعدها يستطيع غاف تصنيف العمليات المطابقة تلقائياً."))
-            VStack(spacing: 0) {
-                onboardingPoint(icon: "message.fill", title: localized("Supported bank SMS", "رسائل SMS البنكية المدعومة"), description: localized("Choose a bank sender once. Matching transaction messages can be logged without retyping them.", "اختر مُرسل البنك مرة واحدة، وستُسجّل الرسائل المطابقة دون إعادة كتابتها."))
-                onboardingPoint(icon: "banknote.fill", title: localized("Cash stays manual", "النقد يُسجّل يدوياً"), description: localized("Cash purchases and sources that do not send SMS still need a quick manual entry.", "المشتريات النقدية والمصادر التي لا ترسل رسائل SMS تحتاج إلى إدخال يدوي سريع."))
-                onboardingPoint(icon: "iphone.gen3", title: localized("iOS privacy boundary", "حدود الخصوصية في iOS"), description: localized("Ghaf cannot read bank-app push notifications directly. App notifications without SMS cannot be captured automatically by this shortcut.", "لا يستطيع غاف قراءة إشعارات التطبيقات البنكية مباشرة، ولا يمكن التقاطها تلقائياً عبر هذا الاختصار دون رسالة SMS."))
-            }
-            .padding(.horizontal, 16).padding(.vertical, 6)
-            .ghafCard(theme: theme)
-        }
-    }
-
-    private func introHeading(_ title: String, _ subtitle: String) -> some View {
-        VStack(spacing: 10) {
-            Text(title)
-                .font(GhafTypography.display(30, languageCode: languageCode))
-                .foregroundStyle(theme.primaryText)
-            Text(subtitle)
-                .font(GhafTypography.body(16, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
-        }
-        .multilineTextAlignment(.center)
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity)
     }
 
     private var setupPage: some View {
@@ -885,21 +973,21 @@ struct GhafOnboardingView: View {
     }
 
     private func advance() {
-        if step < 4 {
+        if step < 5 {
             step += 1
             return
         }
 
-        if step == 4 {
+        if step == 5 {
             settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
             settings.currency = currency
             settings.monthlyIncome = Decimal(string: income) ?? 0
             settings.fixedCommitments = Decimal(string: commitments) ?? 0
-            step = 5
+            step = 6
             return
         }
 
-        if step == 5 {
+        if step == 6 {
             guard !accountDrafts.isEmpty else {
                 accountSetupError = true
                 return
@@ -952,7 +1040,7 @@ struct GhafOnboardingView: View {
             settings.salaryReminderEnabled = salaryEnabled && salaryReminderEnabled
             do {
                 try modelContext.save()
-                step = 6
+                step = 7
                 accountSetupError = false
                 if salaryEnabled && salaryReminderEnabled {
                     Task {
