@@ -72,6 +72,7 @@ struct GhafInsightsView: View {
                                     subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
                                     languageCode: settings.languageCode, theme: theme)
                     headlineCard
+                    forecastCard
                     categoryChart(totals)
                     categoryList(totals)
                 }
@@ -83,6 +84,40 @@ struct GhafInsightsView: View {
             }
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    /// Month-end projection from this month's pace and the usual month (statistics, not a promise).
+    @ViewBuilder
+    private var forecastCard: some View {
+        let ar = settings.languageCode == "ar"
+        if let forecast = GhafLedgerAnswers.monthForecast(transactions: transactions, currency: settings.currency),
+           forecast.spentSoFar > 0 {
+            let ratio = forecast.typicalMonth.map { NSDecimalNumber(decimal: forecast.projected / max($0, 1)).doubleValue }
+            VStack(alignment: .leading, spacing: 10) {
+                Label(ar ? "توقع نهاية الشهر" : "Month-end forecast", systemImage: "chart.line.uptrend.xyaxis")
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
+                GhafMoneyLabel(amount: forecast.projected, currency: settings.currency, languageCode: settings.languageCode, size: 28)
+                    .foregroundStyle(theme.primaryText)
+                if let typical = forecast.typicalMonth, let ratio {
+                    ProgressView(value: min(ratio, 1.5), total: 1.5)
+                        .tint(ratio > 1.1 ? theme.over : theme.accent)
+                    Text(ratio > 1.1
+                         ? (ar ? "أعلى من شهرك المعتاد (\(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode)))."
+                               : "Above your usual month of \(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode)).")
+                         : (ar ? "ضمن شهرك المعتاد (\(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode)))."
+                               : "In line with your usual month of \(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode))."))
+                        .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                Text(ar ? "تقدير من وتيرة هذا الشهر وآخر ٣ أشهر." : "Estimate from this month's pace and your last 3 months.")
+                    .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .ghafCard(theme: theme)
         }
     }
 

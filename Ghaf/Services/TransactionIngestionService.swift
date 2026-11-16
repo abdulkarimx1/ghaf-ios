@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import SwiftData
+import UserNotifications
 import GhafCore
 
 struct TransactionIngestionResult {
@@ -148,8 +149,14 @@ final class TransactionIngestionService {
             if paidSubscription.accountID == nil { paidSubscription.accountID = resolvedAccount?.id }
         }
 
+        let unusual = parsed.direction == .debit && !isReversal && paidSubscription == nil
+            ? try unusualCharge(parsed) : nil
+
         context.insert(transaction)
         try context.save()
+        if let unusual, let merchant = parsed.merchant {
+            notifyUnusual(merchant: merchant, parsed: parsed, typical: unusual.typical)
+        }
         if let paidSubscription {
             let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
             GhafSubscriptionReminderService.schedule(paidSubscription, language: language)
@@ -238,6 +245,31 @@ final class TransactionIngestionService {
                 merchant: item.merchant, arrivedAt: item.createdAt, isWallet: item.fingerprint.hasPrefix("wallet-")
             ))
         }
+    }
+
+    /// Compared with earlier charges at the same merchant, in the same currency.
+    private func unusualCharge(_ parsed: ParsedTransaction) throws -> SpendingInsights.Unusual? {
+        guard let merchant = parsed.merchant else { return nil }
+        let currency = parsed.currency
+        let key = SubscriptionDetector.normalize(merchant)
+        let earlier = try context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.direction == "debit" && !$0.isReversal && $0.currency == currency && $0.merchant != nil }
+        )).filter { SubscriptionDetector.normalize($0.merchant ?? "") == key }.map(\.amount)
+        return SpendingInsights.unusual(amount: parsed.amount, previous: earlier)
+    }
+
+    /// A heads-up only; nothing about the transaction changes. Silent when notifications are off.
+    private func notifyUnusual(merchant: String, parsed: ParsedTransaction, typical: Decimal) {
+        let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
+        let amount = GhafFormat.money(parsed.amount, currency: parsed.currency, languageCode: language)
+        let usual = GhafFormat.money(typical, currency: parsed.currency, languageCode: language)
+        let content = UNMutableNotificationContent()
+        content.title = language == "ar" ? "عملية أعلى من المعتاد" : "Higher than usual"
+        content.body = language == "ar"
+            ? "\(amount) عند \(merchant). عادةً تدفع هناك حوالي \(usual)."
+            : "\(amount) at \(merchant). You usually spend about \(usual) there."
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "ghaf.unusual.\(UUID().uuidString)",
+                                                                     content: content, trigger: nil))
     }
 
     /// Most recent purchase this refund reverses: same amount and currency, within 90 days before it,

@@ -66,6 +66,15 @@ enum GhafLedgerAnswers {
         let periodText = comparing
             ? q.replacingOccurrences(of: "last ", with: "").replacingOccurrences(of: "الماضي", with: "")
             : q
+        if has(["forecast", "predict", "expect", "end of the month", "end of month", "on track", "will i spend", "توقع", "متوقع", "نهاية الشهر"]),
+           let forecast = monthForecast(transactions: transactions, currency: currency, now: now) {
+            let typical = forecast.typicalMonth.map {
+                ar ? " عادةً تصرف \(money($0)) في الشهر." : " You usually spend \(money($0)) a month."
+            } ?? ""
+            return ar ? "بهذا المعدل ستصرف تقريباً \(money(forecast.projected)) بنهاية الشهر. صرفت \(money(forecast.spentSoFar)) حتى الآن وباقي \(forecast.daysLeft) يوم.\(typical)"
+                      : "At this pace you'll spend about \(money(forecast.projected)) by month end. \(money(forecast.spentSoFar)) so far, \(forecast.daysLeft) days left.\(typical)"
+        }
+
         let period = self.period(for: periodText, now: now)
         let label = ar ? period.ar : period.en
         let inCurrency = transactions.filter { $0.currency == currency }
@@ -140,6 +149,25 @@ enum GhafLedgerAnswers {
                       : "You spent \(money(spent)) \(label) over \(spending.count) transactions, about \(money(spent / Decimal(days))) a day. Top category: \(topName)."
         }
         return nil
+    }
+
+    /// This month's projected spending in `currency`, using the three complete months before it as history.
+    static func monthForecast(transactions: [GhafTransaction], currency: String, now: Date = .now) -> SpendingInsights.Forecast? {
+        let calendar = Calendar.current
+        guard let month = calendar.dateInterval(of: .month, for: now),
+              let days = calendar.range(of: .day, in: .month, for: now)?.count else { return nil }
+        let spending = transactions.filter { $0.currency == currency && $0.isExpense }
+        func total(_ interval: DateInterval) -> Decimal {
+            spending.filter { interval.contains($0.date) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+        }
+        let past = (1...3).compactMap { offset -> Decimal? in
+            guard let date = calendar.date(byAdding: .month, value: -offset, to: now),
+                  let interval = calendar.dateInterval(of: .month, for: date) else { return nil }
+            return total(interval)
+        }
+        let spent = total(DateInterval(start: month.start, end: now))
+        return SpendingInsights.forecast(spentSoFar: spent, day: calendar.component(.day, from: now),
+                                         daysInMonth: days, pastMonthTotals: past)
     }
 
     static func period(for q: String, now: Date) -> Period {
