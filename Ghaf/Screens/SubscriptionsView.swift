@@ -42,6 +42,7 @@ struct GhafSubscriptionsView: View {
                     }
 
                     if !suggested.isEmpty { suggestionsCard.ghafEntrance(2) }
+                    if !due.isEmpty { dueCard.ghafEntrance(2) }
 
                     VStack(spacing: 10) {
                         GhafSectionHeader(title: ar ? "كل الاشتراكات" : "Your subscriptions", theme: theme, languageCode: lang,
@@ -236,6 +237,48 @@ struct GhafSubscriptionsView: View {
         } catch { context.rollback() }
     }
 
+    /// Renewals whose date has come. They move on only when the user says the money was deducted.
+    private var due: [GhafSubscription] {
+        let today = Calendar.current.startOfDay(for: .now)
+        return active.filter { !$0.needsConfirmation && Calendar.current.startOfDay(for: $0.nextPaymentDate) <= today }
+    }
+
+    private var dueCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(ar ? "هل تم الخصم؟" : "Was it deducted?", systemImage: "questionmark.circle.fill")
+                .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
+                .foregroundStyle(theme.accent)
+            ForEach(due) { item in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name).font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                        Text(item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))))
+                            .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                    }
+                    Spacer()
+                    GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: lang, size: 15)
+                        .foregroundStyle(theme.primaryText)
+                    Button(ar ? "تم الخصم" : "Paid") { markPaid(item) }
+                        .ghafProminentButton(theme: theme, languageCode: lang)
+                }
+            }
+            Text(ar ? "لا ينتقل الاشتراك للموعد التالي حتى تؤكد الخصم. المبلغ نفسه يُسجَّل من رسالة البنك."
+                    : "Ghaf waits for you before moving to the next renewal. The charge itself comes from your bank message.")
+                .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+        }
+        .padding(16).ghafCard(theme: theme)
+    }
+
+    private func markPaid(_ item: GhafSubscription) {
+        item.nextPaymentDate = item.cycle.nextDate(after: item.nextPaymentDate)
+        confirmedCount += 1
+        do {
+            try context.save()
+            GhafSubscriptionReminderService.schedule(item, language: lang)
+        } catch { context.rollback() }
+    }
+
     private func dismissSuggestion(_ item: GhafSubscription) {
         context.delete(item)
         do { try context.save() } catch { context.rollback() }
@@ -386,12 +429,11 @@ private struct GhafSubscriptionDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 14) {
                     header.ghafEntrance(0)
-                    chips.ghafEntrance(1)
+                    costCard.ghafEntrance(1)
                     timeline.ghafEntrance(2)
-                    costCard.ghafEntrance(3)
-                    reminderRow.ghafEntrance(4)
+                    reminderRow.ghafEntrance(3)
                 }
                 .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 8).padding(.bottom, 20)
@@ -427,37 +469,19 @@ private struct GhafSubscriptionDetailView: View {
     private var header: some View {
         VStack(spacing: 8) {
             GhafStatusMark(tint: theme.primaryText) {
-                GhafBrandBadge(name: subscription.name, fallbackTint: theme.accent, size: 80)
+                GhafBrandBadge(name: subscription.name, fallbackTint: theme.accent, size: 60)
             }
             Text(subscription.name)
                 .font(GhafTypography.heading(24, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
             let account = accounts.first { $0.id == subscription.accountID }?.name
-            Text([subscription.cycle.title(language: lang), account].compactMap { $0 }.joined(separator: " · "))
+            let status = subscription.isActive ? nil : (ar ? "متوقف" : "Paused")
+            Text([subscription.cycle.title(language: lang), account, status].compactMap { $0 }.joined(separator: " · "))
                 .font(GhafTypography.body(14, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-    }
-
-    private var chips: some View {
-        HStack(spacing: 10) {
-            chip(subscription.isActive ? (ar ? "نشط" : "Active") : (ar ? "متوقف" : "Paused"),
-                 symbol: subscription.isActive ? "checkmark.seal.fill" : "pause.circle.fill",
-                 tint: subscription.isActive ? theme.credit : theme.secondaryText)
-            chip(subscription.reminderDays == 0 ? (ar ? "تذكير في نفس اليوم" : "Reminder same day")
-                    : (ar ? "تذكير قبل \(subscription.reminderDays) يوم" : "Reminder \(subscription.reminderDays)d before"),
-                 symbol: "bell.fill", tint: theme.accent)
-        }
-    }
-
-    private func chip(_ title: String, symbol: String, tint: Color) -> some View {
-        Label(title, systemImage: symbol)
-            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 14).padding(.vertical, 9)
-            .background(tint.opacity(0.12), in: Capsule())
     }
 
     // MARK: Timeline
@@ -477,16 +501,13 @@ private struct GhafSubscriptionDetailView: View {
         let next = subscription.nextPaymentDate
         let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now),
                                                    to: Calendar.current.startOfDay(for: next)).day ?? 0
-        var result = payments.prefix(2).reversed().map {
+        var result = payments.prefix(1).map {
             Stop(title: ar ? "مدفوع" : "Paid", date: $0.date, amount: $0.amount, currency: $0.currency, kind: .paid)
         }
         let when = days == 0 ? (ar ? "اليوم" : "today") : days > 0 ? (ar ? "بعد \(days) يوم" : "in \(days) days")
                                                             : (ar ? "متأخر \(-days) يوم" : "\(-days) days overdue")
         result.append(Stop(title: ar ? "التجديد القادم" : "Next renewal", date: next, amount: subscription.amount,
                            currency: subscription.currency, note: when, kind: .next))
-        result.append(Stop(title: ar ? "بعده" : "Then", date: subscription.cycle.nextDate(after: next), amount: subscription.amount,
-                           currency: subscription.currency,
-                           note: ar ? "متوقع" : "Estimated", kind: .later))
         return result
     }
 
@@ -561,7 +582,7 @@ private struct GhafSubscriptionDetailView: View {
                 .font(GhafTypography.body(14, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                GhafMoneyLabel(amount: monthly, currency: subscription.currency, languageCode: lang, size: 36)
+                GhafMoneyLabel(amount: monthly, currency: subscription.currency, languageCode: lang, size: 30)
                 Text(ar ? "/شهر" : "/month")
                     .font(GhafTypography.body(17, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
@@ -578,7 +599,7 @@ private struct GhafSubscriptionDetailView: View {
                 .background(theme.primaryText.opacity(0.07), in: Capsule())
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
+        .padding(.vertical, 16)
         .background(
             LinearGradient(colors: [theme.accent.opacity(0.16), theme.surface], startPoint: .top, endPoint: .bottom),
             in: RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -591,8 +612,8 @@ private struct GhafSubscriptionDetailView: View {
                 Text(ar ? "التذكير" : "Reminder")
                     .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
-                Text(ar ? "تنبيه قبل التجديد حتى لا تتفاجأ. التذكير لا يخصم أي مبلغ."
-                        : "A heads-up before it renews. Reminders never deduct money.")
+                Text(subscription.reminderDays == 0 ? (ar ? "في يوم التجديد · لا يخصم أي مبلغ" : "On renewal day · never deducts money")
+                        : (ar ? "قبل \(subscription.reminderDays) يوم · لا يخصم أي مبلغ" : "\(subscription.reminderDays) days before · never deducts money"))
                     .font(GhafTypography.body(13, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
             }

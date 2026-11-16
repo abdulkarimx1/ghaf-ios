@@ -142,11 +142,10 @@ final class TransactionIngestionService {
             ? try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)
             : nil
 
-        // The bank charge is the payment: the ledger records it once, here. The subscription only
-        // moves to its next due date; it never deducts money itself.
-        if let paidSubscription {
-            paidSubscription.nextPaymentDate = paidSubscription.cycle.nextDate(after: paidSubscription.nextPaymentDate)
-            if paidSubscription.accountID == nil { paidSubscription.accountID = resolvedAccount?.id }
+        // The bank charge is recorded once, here. The subscription stays on its due date until the
+        // user confirms the deduction in Subscriptions; it never deducts money itself.
+        if let paidSubscription, paidSubscription.accountID == nil {
+            paidSubscription.accountID = resolvedAccount?.id
         }
 
         let unusual = parsed.direction == .debit && !isReversal && paidSubscription == nil
@@ -157,12 +156,8 @@ final class TransactionIngestionService {
         if let unusual, let merchant = parsed.merchant {
             notifyUnusual(merchant: merchant, parsed: parsed, typical: unusual.typical)
         }
-        if let paidSubscription {
-            let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
-            GhafSubscriptionReminderService.schedule(paidSubscription, language: language)
-        }
 
-        let subscriptionNote = paidSubscription.map { " Recorded as the \($0.name) payment." }
+        let subscriptionNote = paidSubscription.map { " Looks like the \($0.name) payment. Confirm it in Subscriptions." }
             ?? detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""
 
         let amount = NSDecimalNumber(decimal: parsed.amount).stringValue

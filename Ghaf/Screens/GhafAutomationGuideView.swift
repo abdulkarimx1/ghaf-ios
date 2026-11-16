@@ -13,7 +13,6 @@ struct GhafAutomationGuideView: View {
         )
     }
 
-    private let bankApps = ["Mashreq", "Mbank", "iVESTOR", "ruya"]
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
 
     var body: some View {
@@ -21,30 +20,28 @@ struct GhafAutomationGuideView: View {
             VStack(alignment: .leading, spacing: 18) {
                 heading
                 shortcutReadyCard
-                supportedBanksCard
-
                 instructionCard(
-                    number: "01",
-                    title: localized("Install Ghaf's automation", "ثبّت أتمتة غاف"),
-                    detail: localized("Tap Install automation above and choose Shortcuts, then Add Shortcut. It comes with notification automations for Messages, Mashreq and Mbank that pass each alert to Ghaf.", "اضغط «تثبيت الأتمتة» في الأعلى واختر الاختصارات ثم «إضافة اختصار». يأتي مع أتمتة إشعارات للرسائل وMashreq وMbank تمرّر كل تنبيه إلى غاف.")
+                    number: "1",
+                    title: localized("Install the automation", "ثبّت الأتمتة"),
+                    detail: localized("Tap Install automation, choose Shortcuts, then Add. It already listens to Messages.", "اضغط «تثبيت الأتمتة»، اختر الاختصارات ثم «إضافة». هي تستمع للرسائل مسبقاً.")
                 )
 
                 instructionCard(
-                    number: "02",
+                    number: "2",
+                    title: localized("Catch every Apple Pay purchase", "التقط كل مشتريات Apple Pay"),
+                    detail: localized("Shortcuts › Automation › + › Transaction. Select all cards, add Ghaf's “Add Apple Pay purchase”, map Amount, Merchant and Card. One automation covers every bank.", "الاختصارات › الأتمتة › + › معاملة. اختر كل البطاقات، أضف «أضف عملية Apple Pay» من غاف، واربط المبلغ والتاجر والبطاقة. أتمتة واحدة تغطي كل البنوك.")
+                )
+
+                instructionCard(
+                    number: "3",
+                    title: localized("Add your bank apps", "أضف تطبيقات بنوكك"),
+                    detail: localized("Shortcuts › Automation › + › Notification. Pick a bank app, add Ghaf's “أضف عملية من رسالة بنكية” and set its text to Shortcut Input. Don't add a title filter. Repeat for each bank app.", "الاختصارات › الأتمتة › + › إشعار. اختر تطبيق البنك، أضف «أضف عملية من رسالة بنكية» من غاف واربط النص بـ Shortcut Input. لا تضف فلتر عنوان. كرّر لكل تطبيق بنك.")
+                )
+
+                instructionCard(
+                    number: "4",
                     title: localized("Turn on Run Immediately", "فعّل «التشغيل فوراً»"),
-                    detail: localized("In Shortcuts, open Automation, tap each Ghaf automation and choose Run Immediately, so no tap is needed per transaction. iOS asks for this approval once; Ghaf cannot do it for you.", "في الاختصارات افتح «الأتمتة»، واضغط على كل أتمتة لغاف واختر «التشغيل فوراً» حتى لا تحتاج للضغط مع كل عملية. يطلب iOS هذه الموافقة مرة واحدة ولا يستطيع غاف تفعيلها عنك.")
-                )
-
-                instructionCard(
-                    number: "03",
-                    title: localized("Add your other banks", "أضف بنوكك الأخرى"),
-                    detail: localized("iOS does not let apps see which apps you have installed, so other banks are added by hand: new Personal Automation, “When I receive a notification”, pick the bank app, add Ghaf's “أضف عملية من رسالة بنكية” and set its text to Shortcut Input.", "لا يسمح iOS للتطبيقات بمعرفة التطبيقات المثبتة، لذا تُضاف البنوك الأخرى يدوياً: أتمتة شخصية جديدة، «عند استلام إشعار»، اختر تطبيق البنك، أضف إجراء غاف «أضف عملية من رسالة بنكية» واربط النص بـ Shortcut Input.")
-                )
-
-                instructionCard(
-                    number: "04",
-                    title: localized("Optional: Apple Pay purchases", "اختياري: مشتريات Apple Pay"),
-                    detail: localized("Create a “Transaction” (Wallet) automation, add Ghaf's “Add Apple Pay purchase” and map Amount, Merchant and Card. When the bank's message for the same purchase arrives, Ghaf keeps one record instead of two.", "أنشئ أتمتة «معاملة» من المحفظة، وأضف إجراء غاف «أضف عملية Apple Pay» واربط المبلغ والتاجر والبطاقة. عندما تصل رسالة البنك لنفس العملية، يحتفظ غاف بسجل واحد بدلاً من اثنين.")
+                    detail: localized("Open each Ghaf automation and choose Run Immediately. iOS only lets you do this yourself.", "افتح كل أتمتة لغاف واختر «التشغيل فوراً». iOS يسمح لك وحدك بذلك.")
                 )
 
                 privacyCard
@@ -73,8 +70,8 @@ struct GhafAutomationGuideView: View {
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
             Text(settings.languageCode == "ar"
-                 ? "الإجراء موجود داخل غاف. بعد إعداد أتمتة الإشعارات لكل تطبيق بنك مرة واحدة، يمكن معالجة تنبيهات العمليات المدعومة دون إدخال كل عملية يدوياً."
-                 : "The Ghaf action is included. After a one-time notification automation setup for each bank app, supported transaction alerts can be processed without manually entering each transaction.")
+                 ? "إعداد لمرة واحدة، وبعدها تُسجَّل مشترياتك تلقائياً."
+                 : "Set it up once. After that, purchases log themselves.")
                 .font(GhafTypography.body(14, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -112,10 +109,6 @@ struct GhafAutomationGuideView: View {
                 .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
             }
 
-            Text(localized("Signed shortcut with Ghaf's action and bank notification triggers. Choose Shortcuts in the share sheet.", "اختصار موقّع يحتوي إجراء غاف ومحفّزات إشعارات البنك. اختر «الاختصارات» من قائمة المشاركة."))
-                .font(GhafTypography.body(12, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-
             ShortcutsLink(action: {})
                 .shortcutsLinkStyle(.automatic)
                 .frame(maxWidth: .infinity)
@@ -125,37 +118,12 @@ struct GhafAutomationGuideView: View {
         .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.outline, lineWidth: 1))
     }
 
-    private var supportedBanksCard: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            Text(localized("Parser examples", "أمثلة على البنوك المدعومة"))
-                .font(GhafTypography.heading(17, languageCode: settings.languageCode))
-                .foregroundStyle(theme.primaryText)
-
-            HStack(spacing: 8) {
-                ForEach(bankApps, id: \.self) { app in
-                    Text(app)
-                        .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
-                        .foregroundStyle(theme.primaryText)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(theme.background, in: Capsule())
-                }
-            }
-
-            Text(localized("These banks have parser rules in Ghaf. Only set up automations for apps or message senders that actually deliver alerts to your iPhone.", "تتضمن غاف قواعد لتحليل رسائل هذه البنوك. أنشئ الأتمتة فقط للتطبيقات أو مُرسلي الرسائل الذين يرسلون إشعارات فعلية إلى iPhone."))
-                .font(GhafTypography.body(12, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-        }
-        .padding(18)
-        .ghafCard(theme: theme, radius: 20)
-    }
-
     private func instructionCard(number: String, title: String, detail: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Text(number)
                 .font(GhafTypography.number(13, weight: .bold))
                 .foregroundStyle(theme.accentContrast)
-                .frame(width: 34, height: 34)
+                .frame(width: 30, height: 30)
                 .background(theme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
             VStack(alignment: .leading, spacing: 6) {
@@ -179,7 +147,7 @@ struct GhafAutomationGuideView: View {
                 .font(GhafTypography.heading(16, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
 
-            Text(localized("iOS does not allow Ghaf to create personal automations without your approval. You choose the notification trigger and bank app in Shortcuts, then connect Shortcut Input to Ghaf's “نص الرسالة” field. The notification text available to Shortcuts depends on what the bank includes and what iOS exposes.", "لا يسمح iOS لغاف بإنشاء أتمتة شخصية دون موافقتك. اختر محفّز الإشعارات وتطبيق البنك في الاختصارات، ثم اربط Shortcut Input بحقل «نص الرسالة» في غاف. يعتمد النص المتاح على محتوى الإشعار الذي يرسله البنك وما يتيحه iOS."))
+            Text(localized("Ghaf only reads the alert text the automation hands it. iOS needs your approval for every automation, so Ghaf can't switch them on for you.", "يقرأ غاف نص التنبيه الذي تمرّره الأتمتة فقط. يحتاج iOS موافقتك على كل أتمتة، لذا لا يستطيع غاف تفعيلها عنك."))
                 .font(GhafTypography.body(12, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }

@@ -6,6 +6,7 @@ import AppIntents
 struct GhafHomeView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(GhafTabRouter.self) private var router
+    @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
@@ -47,6 +48,8 @@ struct GhafHomeView: View {
         var income: Decimal = 0
         var count = 0
         var topCategory: (name: String, amount: Decimal)?
+        /// Spending by category, largest first.
+        var categories: [(name: String, amount: Decimal)] = []
         var reviewCount = 0
         /// The selected period, and spending in the one before it (same currency rules).
         var interval: DateInterval?
@@ -100,7 +103,8 @@ struct GhafHomeView: View {
                 summary.income += transaction.amount
             }
         }
-        if let top = byCategory.max(by: { $0.value < $1.value }), top.value > 0 { summary.topCategory = (top.key, top.value) }
+        summary.categories = byCategory.filter { $0.value > 0 }.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
+        summary.topCategory = summary.categories.first
         return summary
     }
 
@@ -389,25 +393,16 @@ struct GhafHomeView: View {
                         .frame(width: 34, height: 34)
                         .background(theme.inkText.opacity(0.12), in: Circle())
                 }
-                GhafMoneyText.text(insightText(summary), size: 19)
-                    .id(activityPeriodIndex)
-                    .transition(.opacity.combined(with: .offset(y: 6)))
-                    .font(GhafTypography.heading(19, languageCode: lang))
-                    .foregroundStyle(theme.inkText)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                if summary.spent + summary.income > 0 {
-                    // Share of money in vs out for the selected period.
-                    GeometryReader { proxy in
-                        let total = NSDecimalNumber(decimal: summary.spent + summary.income).doubleValue
-                        let share = NSDecimalNumber(decimal: summary.spent).doubleValue / total
-                        HStack(spacing: 4) {
-                            Capsule().fill(theme.inkDebit).frame(width: max(6, (proxy.size.width - 4) * share))
-                            Capsule().fill(theme.inkCredit)
-                        }
-                    }
-                    .frame(height: 8)
-                    .accessibilityHidden(true)
+                if summary.spent > 0 {
+                    categoryBar(summary)
+                        .id(activityPeriodIndex)
+                        .transition(.opacity)
+                } else {
+                    GhafMoneyText.text(emptyInsight(summary), size: 17)
+                        .font(GhafTypography.heading(17, languageCode: lang))
+                        .foregroundStyle(theme.inkText)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(20)
@@ -417,17 +412,46 @@ struct GhafHomeView: View {
         .buttonStyle(.ghafPress)
     }
 
-    private func insightText(_ summary: Summary) -> String {
-        guard let top = summary.topCategory, summary.spent > 0 else { return emptyInsight(summary) }
-        let category = GhafLocalization.category(top.name, languageCode: lang)
-        let share = Int((NSDecimalNumber(decimal: top.amount / summary.spent).doubleValue * 100).rounded())
-        guard !hideBalances else {
-            return ar ? "\(category) أكبر مصروفك \(periodPhrase)، \(share)٪ من الإجمالي."
-                      : "\(category) is your biggest spend \(periodPhrase), \(share)% of the total."
+    /// Where the money went, as one bar with the categories named under it.
+    private func categoryBar(_ summary: Summary) -> some View {
+        let total = NSDecimalNumber(decimal: summary.spent).doubleValue
+        var slices = Array(summary.categories.prefix(3))
+        let rest = summary.categories.dropFirst(3).reduce(Decimal.zero) { $0 + $1.amount }
+        if rest > 0 { slices.append((ar ? "أخرى" : "Other", rest)) }
+        let shades: [Double] = [0.95, 0.62, 0.4, 0.22]
+        func share(_ amount: Decimal) -> Double { NSDecimalNumber(decimal: amount).doubleValue / total }
+        return VStack(alignment: .leading, spacing: 12) {
+            GeometryReader { proxy in
+                HStack(spacing: 3) {
+                    ForEach(Array(slices.enumerated()), id: \.offset) { index, slice in
+                        Capsule().fill(theme.inkText.opacity(shades[index]))
+                            .frame(width: max(6, (proxy.size.width - CGFloat(slices.count - 1) * 3) * share(slice.amount)))
+                    }
+                }
+            }
+            .frame(height: 10)
+            .accessibilityHidden(true)
+            VStack(spacing: 7) {
+                ForEach(Array(slices.enumerated()), id: \.offset) { index, slice in
+                    HStack(spacing: 8) {
+                        Circle().fill(theme.inkText.opacity(shades[index])).frame(width: 8, height: 8)
+                        Text(index == 3 && rest > 0 ? slice.name : GhafLocalization.category(slice.name, languageCode: lang))
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.inkText)
+                            .lineLimit(1)
+                        Spacer()
+                        GhafMoneyLabel(amount: slice.amount, currency: summary.mainCurrency, languageCode: lang,
+                                       size: 13, hidden: hideBalances)
+                            .foregroundStyle(theme.inkText.opacity(0.7))
+                        Text("\(Int((share(slice.amount) * 100).rounded()))%")
+                            .font(GhafTypography.number(13, weight: .bold))
+                            .foregroundStyle(theme.inkText)
+                            .frame(minWidth: 38, alignment: .trailing)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
         }
-        let amount = GhafFormat.money(top.amount, currency: summary.mainCurrency, languageCode: lang)
-        return ar ? "\(category) أكبر مصروفك \(periodPhrase): \(amount)، أي \(share)٪ من الإجمالي."
-                  : "\(category) is your biggest spend \(periodPhrase): \(amount), \(share)% of the total."
     }
 
     /// Nothing spent yet: say what the period before cost.
@@ -500,7 +524,10 @@ struct GhafHomeView: View {
         let currentDay = Calendar.current.component(.day, from: .now)
         let key = GhafSalaryCycle.periodKey(for: .now, salaryDay: salaryDay)
 
-        if currentDay >= effectiveDay && settings.lastSalaryDecisionKey != key {
+        // Ask once, on salary day only: a missed day is not asked about later.
+        if currentDay == effectiveDay && settings.lastSalaryDecisionKey != key {
+            settings.lastSalaryDecisionKey = key
+            try? modelContext.save()
             showSalaryCheckIn = true
         }
     }
