@@ -623,127 +623,147 @@ struct GhafQuickAddView: View {
         )
     }
 
+    private var ar: Bool { settings.languageCode == "ar" }
+    private var lang: String { settings.languageCode }
+    @FocusState private var amountFocused: Bool
+    @State private var subcategory: String?
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(settings.languageCode == "ar" ? "عملية جديدة" : "New transaction")
-                        .font(GhafTypography.display(30, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.primaryText)
-
-                    NavigationLink {
-                        GhafVoiceEntryView(settings: settings)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 15, weight: .semibold))
-                            Text(settings.languageCode == "ar" ? "أضف بالصوت" : "Add with voice")
-                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                            Spacer()
-                            Image(systemName: settings.languageCode == "ar" ? "arrow.up.left" : "arrow.up.right")
-                                .font(.system(size: 11, weight: .bold))
+                VStack(spacing: 20) {
+                    amountHeader
+                    VStack(spacing: 0) {
+                        row(ar ? "المتجر" : "Merchant", icon: "storefront") {
+                            TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
+                                .multilineTextAlignment(.trailing)
                         }
-                        .foregroundStyle(theme.accent)
-                        .padding(14)
-                        .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                        divider
+                        row(ar ? "الفئة" : "Category", icon: "square.grid.2x2") {
+                            GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
+                        }
+                        divider
+                        row(ar ? "الحساب" : "Account", icon: "wallet.pass") {
+                            Picker(ar ? "الحساب" : "Account", selection: $selectedAccountID) {
+                                ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in
+                                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                                }
+                            }
+                            .labelsHidden()
+                        }
+                        divider
+                        row(ar ? "التاريخ" : "Date", icon: "calendar") {
+                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden()
+                        }
+                        divider
+                        row(ar ? "ملاحظة" : "Note", icon: "text.alignleft") {
+                            TextField(ar ? "اختياري" : "Optional", text: $note).multilineTextAlignment(.trailing)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .ghafCard(theme: theme)
+
+                    NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
+                        Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.ghafPress)
 
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(settings.languageCode == "ar" ? "المبلغ" : "AMOUNT")
-                            .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-                            .tracking(1.5)
-                            .foregroundStyle(theme.secondaryText)
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(GhafFormat.symbol(for: settings.currency, languageCode: settings.languageCode))
-                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                                .foregroundStyle(theme.secondaryText)
-                            TextField("0.00", text: $amount)
-                                .font(GhafTypography.number(34, weight: .bold))
-                                .keyboardType(.decimalPad)
-                                .foregroundStyle(theme.primaryText)
-                        }
-                        .padding(16)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    }
-
-                    fieldLabel(settings.languageCode == "ar" ? "المتجر" : "Merchant")
-                    styledField(settings.languageCode == "ar" ? "اسم المتجر أو الجهة" : "Merchant or store", text: $merchant)
-
-                    fieldLabel(settings.languageCode == "ar" ? "النوع" : "Type")
-                    Picker(settings.languageCode == "ar" ? "النوع" : "Type", selection: $direction) {
-                        Text(settings.languageCode == "ar" ? "مصروف" : "Expense").tag("debit")
-                        Text(settings.languageCode == "ar" ? "دخل" : "Income").tag("credit")
-                    }
-                    .pickerStyle(.segmented)
-
-                    fieldLabel(settings.languageCode == "ar" ? "الفئة" : "Category")
-                    Picker(settings.languageCode == "ar" ? "الفئة" : "Category", selection: $category) {
-                        ForEach(settings.categories, id: \.self) { Text(GhafLocalization.category($0, languageCode: settings.languageCode)).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(theme.accent)
-
-                    fieldLabel(settings.languageCode == "ar" ? "الحساب" : "Account")
-                    Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
-                        ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in
-                            Text(account.name).tag(Optional(account.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(theme.accent)
-
-                    fieldLabel(settings.languageCode == "ar" ? "التاريخ" : "Date")
-                    DatePicker(settings.languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                        .datePickerStyle(.compact)
-                        .tint(theme.accent)
-
-                    fieldLabel(settings.languageCode == "ar" ? "ملاحظة" : "Note")
-                    styledField(settings.languageCode == "ar" ? "ملاحظة اختيارية" : "Optional note", text: $note)
-
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
-                            .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                            .font(GhafTypography.body(13, languageCode: lang))
                             .foregroundStyle(theme.over)
                     }
-
-                    Button(settings.languageCode == "ar" ? "حفظ العملية" : "Save transaction", action: save)
-                        .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
-                .padding(22)
+                .padding(.horizontal, GhafMetrics.gutter)
+                .padding(.top, 8).padding(.bottom, 20)
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
-            .navigationTitle(settings.languageCode == "ar" ? "إضافة" : "Add")
+            .safeAreaInset(edge: .bottom) {
+                GhafDetailActionBar(theme: theme, languageCode: lang,
+                                    primaryTitle: ar ? "حفظ العملية" : "Save transaction", primaryAction: save)
+            }
+            .navigationTitle(ar ? "عملية جديدة" : "New transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(settings.languageCode == "ar" ? "إلغاء" : "Cancel") { dismiss() }
+                    Button(ar ? "إلغاء" : "Cancel") { dismiss() }
                 }
             }
         }
         .tint(theme.accent)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .onAppear {
             selectedAccountID = accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
                 ?? accounts.first(where: { !$0.isArchived })?.id
+            amountFocused = true
         }
     }
 
-    private func fieldLabel(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
-            .tracking(1.2)
-            .foregroundStyle(theme.secondaryText)
+    /// Expense or income, then the amount, large and centred like the rest of Ghaf's money.
+    private var amountHeader: some View {
+        let currency = accounts.first { $0.id == selectedAccountID }?.currency ?? settings.currency
+        return VStack(spacing: 14) {
+            HStack(spacing: 8) {
+                directionChip("debit", ar ? "مصروف" : "Expense", "arrow.down.right")
+                directionChip("credit", ar ? "دخل" : "Income", "arrow.up.right")
+            }
+            HStack(alignment: .center, spacing: 8) {
+                GhafCurrencyIcon(currency: currency, size: 28)
+                    .foregroundStyle(theme.secondaryText)
+                TextField("0", text: $amount)
+                    .font(GhafTypography.number(52, weight: .heavy))
+                    .keyboardType(.decimalPad)
+                    .focused($amountFocused)
+                    .fixedSize()
+                    .foregroundStyle(direction == "credit" ? theme.credit : theme.primaryText)
+            }
+            .environment(\.layoutDirection, .leftToRight)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { amountFocused = true }
+        }
+        .padding(.vertical, 22)
+        .frame(maxWidth: .infinity)
+        .ghafCard(theme: theme)
     }
 
-    private func styledField(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .font(GhafTypography.body(15, languageCode: settings.languageCode))
-            .padding(14)
-            .background(theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.outline, lineWidth: 1))
+    private func directionChip(_ value: String, _ title: String, _ icon: String) -> some View {
+        let selected = direction == value
+        return Button { withAnimation(.snappy) { direction = value } } label: {
+            Label(title, systemImage: icon)
+                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
+                .padding(.horizontal, 16).frame(minHeight: 38)
+                .background(selected ? theme.accent : theme.primaryText.opacity(0.06), in: Capsule())
+        }
+        .buttonStyle(.ghafPress)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var divider: some View { Divider().overlay(theme.outline).padding(.leading, 38) }
+
+    private func row<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 26)
+            Text(title)
+                .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .fixedSize()
+            Spacer(minLength: 12)
+            content()
+                .font(GhafTypography.body(15, languageCode: lang))
+                .tint(theme.accent)
+        }
+        .frame(minHeight: 54)
     }
 
     private func save() {
@@ -780,6 +800,7 @@ struct GhafQuickAddView: View {
             accountID: selectedAccountID
         )
         transaction.note = note
+        transaction.subcategory = category == finalCategory ? subcategory : nil
         modelContext.insert(transaction)
 
         do {
