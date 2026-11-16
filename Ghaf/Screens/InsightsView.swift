@@ -103,11 +103,11 @@ struct GhafInsightsView: View {
                 if let typical = forecast.typicalMonth, let ratio {
                     ProgressView(value: min(ratio, 1.5), total: 1.5)
                         .tint(ratio > 1.1 ? theme.over : theme.accent)
-                    Text(ratio > 1.1
+                    GhafMoneyText.text(ratio > 1.1
                          ? (ar ? "أعلى من شهرك المعتاد (\(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode)))."
                                : "Above your usual month of \(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode)).")
                          : (ar ? "ضمن شهرك المعتاد (\(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode)))."
-                               : "In line with your usual month of \(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode))."))
+                               : "In line with your usual month of \(GhafFormat.money(typical, currency: settings.currency, languageCode: settings.languageCode))."), size: 13)
                         .font(GhafTypography.body(13, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -220,10 +220,9 @@ struct GhafInsightsView: View {
                             .frame(height: 6)
                         }
                         Spacer(minLength: 4)
-                        Text(GhafFormat.money(Decimal(item.amount), currency: settings.currency, languageCode: settings.languageCode))
-                            .font(GhafTypography.number(14, weight: .bold))
+                        GhafMoneyLabel(amount: Decimal(item.amount), currency: settings.currency,
+                                       languageCode: settings.languageCode, size: 14)
                             .foregroundStyle(theme.primaryText)
-                            .lineLimit(1)
                     }
                     if index < categoryTotals.count - 1 {
                         Divider().overlay(theme.outline.opacity(0.8))

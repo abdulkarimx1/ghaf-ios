@@ -138,3 +138,47 @@ struct GhafMoneyLabel: View {
                                    : "\(number) \(GhafCurrencyIcon.name(currency, languageCode: languageCode))")
     }
 }
+
+/// Text with the currency mark in place of "AED", "SAR" or "OMR" next to an amount, sized to the
+/// text, so sentences ("You spent AED 3,582.50") show the same mark as every other amount.
+enum GhafMoneyText {
+    private static let codes = #"AED|SAR|OMR|د\.إ\.?|ر\.س\.?|ر\.ع\.?"#
+    private static let pattern = try! NSRegularExpression(
+        pattern: #"(\#(codes))[\s\x{200F}\x{00A0}]?(?=[0-9٠-٩])|(?<=[0-9٠-٩])[\s\x{200F}\x{00A0}]?(\#(codes))"#)
+    private static func code(_ text: String) -> String {
+        if text.hasPrefix("د") { return "AED" }
+        if text.hasPrefix("ر.س") { return "SAR" }
+        if text.hasPrefix("ر.ع") { return "OMR" }
+        return text
+    }
+    private static var cache: [String: UIImage] = [:]
+
+    static func text(_ string: String, size: CGFloat) -> Text {
+        let ns = string as NSString
+        var result = Text("")
+        var cursor = 0
+        for match in pattern.matches(in: string, range: NSRange(location: 0, length: ns.length)) {
+            let codeRange = match.range(at: 1).location != NSNotFound ? match.range(at: 1) : match.range(at: 2)
+            guard let mark = image(for: code(ns.substring(with: codeRange)), size: size) else { continue }
+            result = result + Text(ns.substring(with: NSRange(location: cursor, length: match.range.location - cursor)))
+            // A thin space keeps the mark off the digits on either side.
+            result = result + Text(Image(uiImage: mark)).baselineOffset(-size * 0.08) + Text("\u{2009}")
+            cursor = match.range.location + match.range.length
+        }
+        return result + Text(ns.substring(from: cursor))
+    }
+
+    /// The asset redrawn at the text's cap height, as a template so it takes the text colour.
+    private static func image(for code: String, size: CGFloat) -> UIImage? {
+        let key = "\(code)-\(size)"
+        if let cached = cache[key] { return cached }
+        guard let name = GhafCurrencyIcon.assetName(code), let source = UIImage(named: name) else { return nil }
+        let height = size * 0.78
+        let width = height * source.size.width / max(source.size.height, 1)
+        let image = UIGraphicsImageRenderer(size: CGSize(width: width, height: height)).image { _ in
+            source.draw(in: CGRect(x: 0, y: 0, width: width, height: height))
+        }.withRenderingMode(.alwaysTemplate)
+        cache[key] = image
+        return image
+    }
+}

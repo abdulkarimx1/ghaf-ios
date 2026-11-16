@@ -185,12 +185,8 @@ struct GhafAccountsView: View {
                         .font(GhafTypography.body(13, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                     Spacer()
-                    Text(GhafFormat.money(
-                        balances[account.id] ?? account.openingBalance,
-                        currency: account.currency,
-                        languageCode: settings.languageCode
-                    ))
-                    .font(GhafTypography.number(12))
+                    GhafMoneyLabel(amount: balances[account.id] ?? account.openingBalance,
+                                   currency: account.currency, languageCode: settings.languageCode, size: 12)
                     .foregroundStyle(theme.secondaryText)
                 }
                 .padding(.vertical, 4)

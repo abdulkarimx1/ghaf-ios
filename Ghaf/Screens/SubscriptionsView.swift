@@ -98,8 +98,14 @@ struct GhafSubscriptionsView: View {
             GhafMoneyLabel(amount: monthlyEquivalent, currency: settings.currency, languageCode: lang, size: 38)
                 .foregroundStyle(theme.inkText)
             HStack(spacing: 0) {
-                costMetric(ar ? "سنوياً" : "Per year",
-                           GhafFormat.money(monthlyEquivalent * 12, currency: settings.currency, languageCode: lang))
+                VStack(spacing: 4) {
+                    Text(ar ? "سنوياً" : "Per year")
+                        .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.inkText.opacity(0.6))
+                    GhafMoneyLabel(amount: monthlyEquivalent * 12, currency: settings.currency, languageCode: lang, size: 15)
+                        .foregroundStyle(theme.inkText)
+                }
+                .frame(maxWidth: .infinity)
                 costMetric(ar ? "نشطة" : "Active", "\(active.count)")
                 costMetric(ar ? "التالي" : "Next",
                            next.map { $0.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))) } ?? "—")
@@ -388,7 +394,8 @@ private struct GhafSubscriptionDetailView: View {
         let id = UUID()
         let title: String
         let date: Date
-        let trailing: String
+        let amount: Decimal
+        let currency: String
         var note: String? = nil
         let kind: Kind
         enum Kind { case paid, next, later }
@@ -398,15 +405,15 @@ private struct GhafSubscriptionDetailView: View {
         let next = subscription.nextPaymentDate
         let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now),
                                                    to: Calendar.current.startOfDay(for: next)).day ?? 0
-        let amount = GhafFormat.money(subscription.amount, currency: subscription.currency, languageCode: lang)
         var result = payments.prefix(2).reversed().map {
-            Stop(title: ar ? "مدفوع" : "Paid", date: $0.date,
-                 trailing: GhafFormat.money($0.amount, currency: $0.currency, languageCode: lang), kind: .paid)
+            Stop(title: ar ? "مدفوع" : "Paid", date: $0.date, amount: $0.amount, currency: $0.currency, kind: .paid)
         }
         let when = days == 0 ? (ar ? "اليوم" : "today") : days > 0 ? (ar ? "بعد \(days) يوم" : "in \(days) days")
                                                             : (ar ? "متأخر \(-days) يوم" : "\(-days) days overdue")
-        result.append(Stop(title: ar ? "التجديد القادم" : "Next renewal", date: next, trailing: amount, note: when, kind: .next))
-        result.append(Stop(title: ar ? "بعده" : "Then", date: subscription.cycle.nextDate(after: next), trailing: amount,
+        result.append(Stop(title: ar ? "التجديد القادم" : "Next renewal", date: next, amount: subscription.amount,
+                           currency: subscription.currency, note: when, kind: .next))
+        result.append(Stop(title: ar ? "بعده" : "Then", date: subscription.cycle.nextDate(after: next), amount: subscription.amount,
+                           currency: subscription.currency,
                            note: ar ? "متوقع" : "Estimated", kind: .later))
         return result
     }
@@ -439,8 +446,7 @@ private struct GhafSubscriptionDetailView: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(stop.trailing)
-                            .font(GhafTypography.number(16, weight: stop.kind == .next ? .bold : .semibold))
+                        GhafMoneyLabel(amount: stop.amount, currency: stop.currency, languageCode: lang, size: 16)
                             .foregroundStyle(stop.kind == .later ? theme.secondaryText : theme.primaryText)
                         if let note = stop.note {
                             Text(note).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
@@ -490,7 +496,10 @@ private struct GhafSubscriptionDetailView: View {
             }
             .foregroundStyle(theme.primaryText)
             .environment(\.layoutDirection, .leftToRight)
-            Text((ar ? "سنوياً " : "Per year ") + GhafFormat.money(monthly * 12, currency: subscription.currency, languageCode: lang))
+            HStack(spacing: 5) {
+                Text(ar ? "سنوياً" : "Per year")
+                GhafMoneyLabel(amount: monthly * 12, currency: subscription.currency, languageCode: lang, size: 13)
+            }
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .padding(.horizontal, 12).padding(.vertical, 5)

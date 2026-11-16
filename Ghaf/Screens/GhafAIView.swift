@@ -222,7 +222,7 @@ struct GhafAIView: View {
             if !item.text.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
                     if item.isVoice { Image(systemName: "waveform").font(.system(size: 13, weight: .bold)) }
-                    Text(item.text)
+                    GhafMoneyText.text(item.text, size: 15)
                         .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: item.isUser ? .semibold : .regular))
                         .textSelection(.enabled)
                 }
