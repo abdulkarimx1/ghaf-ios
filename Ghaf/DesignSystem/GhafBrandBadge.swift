@@ -35,7 +35,7 @@ struct GhafBrand {
     }
 }
 
-/// Same circle as `GhafIconBadge`, holding a company mark, or the name's first letter when no mark is known.
+/// Same circle as `GhafIconBadge`, holding a monochrome company mark, or the name's first letter when no mark is known.
 struct GhafBrandBadge: View {
     let name: String
     let fallbackTint: Color
@@ -44,8 +44,8 @@ struct GhafBrandBadge: View {
 
     var body: some View {
         let brand = GhafBrand.match(name)
-        // Dark marks (Apple, Notion, OpenAI) would vanish on dark backgrounds.
-        let tint = brand.map { colorScheme == .dark && isDark($0.color) ? Color.primary : $0.color } ?? fallbackTint
+        // Every mark is monochrome in the text colour, like the rest of Ghaf's icons.
+        let tint = Color.primary
         Group {
             if let brand {
                 Image(brand.asset).resizable().scaledToFit().frame(width: size * 0.44, height: size * 0.44)
@@ -56,13 +56,8 @@ struct GhafBrandBadge: View {
         }
         .foregroundStyle(tint)
         .frame(width: size, height: size)
-        .background(tint.opacity(colorScheme == .dark ? 0.18 : 0.12), in: Circle())
+        .background(tint.opacity(colorScheme == .dark ? 0.12 : 0.07), in: Circle())
         .accessibilityHidden(true)
     }
 
-    private func isDark(_ color: Color) -> Bool {
-        let c = UIColor(color).cgColor.components ?? [1, 1, 1]
-        guard c.count >= 3 else { return (c.first ?? 1) < 0.25 }
-        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] < 0.25
-    }
 }
