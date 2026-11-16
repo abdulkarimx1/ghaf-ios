@@ -23,6 +23,7 @@ struct LogWalletTransactionIntent: AppIntent {
         guard !cleanAmount.isEmpty, !cleanMerchant.isEmpty else {
             return .result(value: "Missing amount or merchant. Nothing saved.")
         }
+        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
         let confirmation = try await MainActor.run {
             let context = try GhafPersistence.shared().mainContext
             // Phrased like a card message so the same parser and validation apply.

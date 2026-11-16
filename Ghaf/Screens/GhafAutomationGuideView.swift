@@ -14,6 +14,7 @@ struct GhafAutomationGuideView: View {
     }
 
     private let bankApps = ["Mashreq", "Mbank", "iVESTOR", "ruya"]
+    @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
 
     var body: some View {
         ScrollView {
@@ -95,6 +96,14 @@ struct GhafAutomationGuideView: View {
                 }
             }
 
+            if automationLastRun > 0 {
+                Label(localized("Working · last message ", "تعمل · آخر رسالة ")
+                      + Date(timeIntervalSince1970: automationLastRun).formatted(.relative(presentation: .named)
+                        .locale(Locale(identifier: settings.languageCode))),
+                      systemImage: "checkmark.seal.fill")
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.credit)
+            }
             if let automation = Bundle.main.url(forResource: "Ghaf Bank Automation", withExtension: "shortcut") {
                 ShareLink(item: automation) {
                     Label(localized("Install automation", "تثبيت الأتمتة"), systemImage: "square.and.arrow.down.fill")

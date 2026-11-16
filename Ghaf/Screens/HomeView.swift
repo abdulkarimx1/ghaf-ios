@@ -20,6 +20,7 @@ struct GhafHomeView: View {
     @State private var showInsights = false
     @State private var showReview = false
     @State private var selectedTransaction: GhafTransaction?
+    @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
     @AppStorage("ghaf.hideBalances") private var hideBalances = false
     @State private var activityPeriodIndex = 0
 
@@ -365,7 +366,7 @@ struct GhafHomeView: View {
                               actionTitle: ar ? "عرض الكل" : "See all") { router.selectedTab = 3 }
             VStack(spacing: 0) {
                 let recent = Array(transactions.prefix(4))
-                if recent.isEmpty {
+                if recent.isEmpty && automationLastRun == 0 {
                     GhafListRow(icon: "bolt.fill", tint: theme.accent,
                                 title: ar ? "اربط رسائل البنك" : "Connect your bank messages",
                                 subtitle: ar ? "سجّل العمليات تلقائياً عبر الاختصارات" : "Log transactions automatically with Shortcuts",
@@ -387,6 +388,7 @@ struct GhafHomeView: View {
             .padding(.vertical, 4)
             .ghafCard(theme: theme)
 
+            if automationLastRun == 0 {
             Button { showAutomationGuide = true } label: {
                 GhafListRow(icon: "bolt.fill", tint: theme.accent,
                             title: ar ? "ربط البنك" : "Bank setup",
@@ -396,6 +398,7 @@ struct GhafHomeView: View {
                     .ghafCard(theme: theme)
             }
             .buttonStyle(.ghafPress)
+            }
         }
     }
 
@@ -598,6 +601,7 @@ struct GhafQuickAddView: View {
                 .frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
+            .ghafKeyboardDone()
             .navigationTitle(settings.languageCode == "ar" ? "إضافة" : "Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

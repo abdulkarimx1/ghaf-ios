@@ -23,6 +23,8 @@ struct LogBankMessageIntent: AppIntent {
     func perform() async throws
         -> some IntentResult & ReturnsValue<String> {
 
+        // Reaching this line proves the user's automation runs; Home hides its setup card from now on.
+        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
         let confirmation = try await MainActor.run {
 
             let container = try GhafPersistence.shared()
@@ -43,4 +45,9 @@ struct LogBankMessageIntent: AppIntent {
 
         return .result(value: confirmation)
     }
+}
+
+/// When an automation last delivered a message to Ghaf (0 = never), so the app knows setup worked.
+enum GhafAutomationStatus {
+    static let lastRunKey = "ghaf.automation.lastRun"
 }
