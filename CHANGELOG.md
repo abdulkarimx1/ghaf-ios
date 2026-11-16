@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9 (12)
+
+### English
+- Real card designs from UAE banks: over 150 cards from Emirates NBD, ADIB, FAB, ADCB, Emirates Islamic, Mashreq, DIB, HSBC and Commercial Bank of Dubai.
+- Each account offers only its own bank's cards, so a Mashreq card never appears on another bank's account.
+- Banks without published card designs show a card in their own colours.
+
+### العربية
+- تصاميم بطاقات حقيقية من البنوك الإماراتية: أكثر من ١٥٠ بطاقة من الإمارات دبي الوطني وأبوظبي الإسلامي وأبوظبي الأول وأبوظبي التجاري والإمارات الإسلامي والمشرق ودبي الإسلامي وإتش إس بي سي وبنك دبي التجاري.
+- يعرض كل حساب بطاقات بنكه فقط، فلا تظهر بطاقة المشرق على حساب بنك آخر.
+- البنوك التي لا تنشر تصاميم بطاقاتها تظهر ببطاقة بألوانها.
+
 ## 1.8 (11)
 
 ### English
