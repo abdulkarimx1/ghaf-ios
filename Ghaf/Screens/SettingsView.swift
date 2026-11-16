@@ -76,7 +76,9 @@ struct GhafSettingsView: View {
                     }
 
                     menuGroup(ar ? "التطبيق" : "App") {
-                        menuRow(ar ? "المظهر" : "Appearance", icon: "paintpalette.fill") { subpage(ar ? "المظهر" : "Appearance") { appearanceCard } }
+                        menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; appearanceCard }
+                        }
                         menuRow(ar ? "الأمان والخصوصية" : "Security & privacy", icon: "lock.fill") { subpage(ar ? "الأمان" : "Security") { securityCard } }
                     }
 
@@ -207,7 +209,6 @@ struct GhafSettingsView: View {
     private var profilePage: some View {
         VStack(spacing: 16) {
             profileCard
-            languageCard
             VStack(spacing: 6) {
                 Label(ar ? "تسجيل الدخول عبر Apple أو Google" : "Sign in with Apple or Google", systemImage: "person.badge.key.fill")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
@@ -371,11 +372,6 @@ struct GhafSettingsView: View {
             settingsCard(ar ? "بياناتك" : "Your details", subtitle: ar ? "تُستخدم لتخصيص غاف" : "Used to personalise Ghaf") {
                 settingsLabel(ar ? "اسمك" : "Your name")
                 settingsField(ar ? "الاسم" : "Name", text: $name)
-                HStack {
-                    settingsLabel(ar ? "العملة الرئيسية" : "Main currency")
-                    Spacer()
-                    GhafCurrencyPicker(selection: $currency, currencies: currencies, languageCode: languageCode, tint: theme.accent)
-                }
             }
         }
     }
@@ -402,6 +398,17 @@ struct GhafSettingsView: View {
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var currencyCard: some View {
+        settingsCard(ar ? "العملة الرئيسية" : "Main currency",
+                     subtitle: ar ? "للإجماليات والميزانية. لا تتغير عملة عملياتك السابقة." : "Used for totals and budgets. Past transactions keep their own currency.") {
+            HStack {
+                settingsLabel(ar ? "العملة" : "Currency")
+                Spacer()
+                GhafCurrencyPicker(selection: $currency, currencies: currencies, languageCode: languageCode, tint: theme.accent)
+            }
+        }
     }
 
     private var languageCard: some View {
