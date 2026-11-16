@@ -12,7 +12,7 @@ enum GhafLedgerContext {
     static var currency = "AED"
     static var languageCode = "en"
     /// Set by the chart tool when the model decides a chart helps; read once by the chat.
-    static var requestedChart: String?
+    static var requestedChart: (kind: String, style: String)?
 }
 
 #if canImport(FoundationModels)
@@ -54,14 +54,17 @@ struct GhafChartTool: Tool {
 
     @Generable
     struct Arguments {
-        @Guide(description: "categories: spending by category this month; week: the last 7 days; compare: this month vs last month",
-               .anyOf(["categories", "week", "compare"]))
+        @Guide(description: "categories: spending by category this month; week: the last 7 days; compare: this month vs last month; trend: this month day by day",
+               .anyOf(["categories", "week", "compare", "trend"]))
         var kind: String
+        @Guide(description: "bar for comparing amounts, donut for shares of a whole, rose for a petal-style breakdown, line for change over time",
+               .anyOf(["bar", "donut", "rose", "line"]))
+        var style: String
     }
 
     func call(arguments: Arguments) async throws -> String {
-        await MainActor.run { GhafLedgerContext.requestedChart = arguments.kind }
-        return "A \(arguments.kind) chart will be shown under your reply."
+        await MainActor.run { GhafLedgerContext.requestedChart = (arguments.kind, arguments.style) }
+        return "A \(arguments.style) \(arguments.kind) chart will be shown under your reply."
     }
 }
 #endif
