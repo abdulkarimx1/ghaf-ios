@@ -26,8 +26,8 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.6.1"
-        CFBundleVersion: "9"
+        CFBundleShortVersionString: "1.7"
+        CFBundleVersion: "10"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en

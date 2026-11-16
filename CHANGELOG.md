@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.7 (10)
+
+### English
+
+**Ghaf AI, front and centre**
+- Ghaf AI now has its own glowing button in the middle of the tab bar.
+- Ask for any chart: bars, a donut, a petal chart, or a line over the month. Say "show it as a donut" to redraw the last one.
+- Follow-up questions just work: ask "how much this week?", then "and last month?".
+- Tap a suggested next question under every answer.
+- A new animated orb with gentle sparkles in your theme's colours.
+
+**Seven cities**
+- Seven themes inspired by the UAE: Abu Dhabi, Dubai, Sharjah, Ajman, Umm Al Quwain, Ras Al Khaimah and Fujairah, each with its own colours in light and dark, plus neutral Graphite.
+- Fresh category colours drawn from saffron, palm, Gulf blue, dates and henna.
+
+**Everyday polish**
+- Tap Home again to switch between today, this week and this month.
+- The currency mark now appears on every amount, even inside sentences.
+- Add a profile photo.
+- A new About Ghaf page.
+- Close the keyboard from any field, or tap outside it.
+- Bank setup disappears from Home once your automation is working.
+- Smoother scrolling and gentler entrances on every screen.
+
+### العربية
+
+**غاف AI في الواجهة**
+- لغاف AI الآن زر متوهج خاص في منتصف شريط التبويبات.
+- اطلب أي رسم: أعمدة أو دائري أو بتلات أو خط على مدار الشهر. قل «اعرضها كرسم دائري» لإعادة رسم آخر رسم.
+- الأسئلة المتتابعة تعمل: اسأل «كم صرفت هالأسبوع؟» ثم «والشهر الماضي؟».
+- اضغط على سؤال مقترح تحت كل إجابة.
+- كرة متحركة جديدة بلمعات هادئة بألوان نمطك.
+
+**سبع مدن**
+- سبعة أنماط مستوحاة من الإمارات: أبوظبي ودبي والشارقة وعجمان وأم القيوين ورأس الخيمة والفجيرة، لكلٍّ ألوانه في الوضعين الفاتح والداكن، إضافة إلى نمط جرافيت المحايد.
+- ألوان فئات جديدة مستوحاة من الزعفران والنخيل وزرقة الخليج والتمر والحناء.
+
+**لمسات يومية**
+- اضغط على الرئيسية مرة أخرى للتنقل بين اليوم وهذا الأسبوع وهذا الشهر.
+- رمز العملة يظهر الآن مع كل مبلغ، حتى داخل الجمل.
+- أضف صورة لملفك الشخصي.
+- صفحة جديدة «عن غاف».
+- أغلق لوحة المفاتيح من أي حقل، أو بالضغط خارجه.
+- يختفي إعداد البنك من الرئيسية بمجرد أن تعمل الأتمتة.
+- تمرير أنعم وظهور أهدأ في كل الشاشات.
+
 ## 1.6.1 (9)
 
 ### English
