@@ -15,6 +15,16 @@ enum GhafBillingCycle: String, CaseIterable, Identifiable {
         }
         return Calendar.current.date(byAdding: component, value: value, to: date) ?? date
     }
+    /// Multiplier from one charge to an estimated monthly cost (Decimal, no integer division).
+    var monthlyFactor: Decimal {
+        switch self {
+        case .weekly: Decimal(52) / Decimal(12)
+        case .monthly: 1
+        case .quarterly: Decimal(1) / Decimal(3)
+        case .yearly: Decimal(1) / Decimal(12)
+        }
+    }
+
     func title(language: String) -> String {
         guard language == "ar" else {
             return switch self { case .weekly: "Weekly"; case .monthly: "Monthly"; case .quarterly: "Every 3 months"; case .yearly: "Yearly" }

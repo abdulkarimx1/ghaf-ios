@@ -3,8 +3,8 @@ import SwiftData
 import MapKit
 import GhafCore
 
-/// Wallet-style top of a transaction: merchant mark, amount, date, the likely place from Apple Maps
-/// and this merchant's recent history. Only the merchant name is sent to Apple Maps.
+/// The likely place from Apple Maps and this merchant's recent history, shown under a transaction's
+/// receipt. Only the merchant name is sent to Apple Maps.
 struct GhafMerchantDetailView: View {
     @Environment(\.modelContext) private var context
     let transaction: GhafTransaction
@@ -23,7 +23,6 @@ struct GhafMerchantDetailView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            header
             if let place { placeCard(place) }
             else if merchant != nil && transaction.isSpendingOrIncome && !lookupDone {
                 ProgressView().frame(maxWidth: .infinity).padding(8)
@@ -31,38 +30,6 @@ struct GhafMerchantDetailView: View {
             if history.count > 1 { historyCard }
         }
         .task(id: transaction.id) { await load() }
-    }
-
-    private var header: some View {
-        VStack(spacing: 10) {
-            if let merchant {
-                GhafBrandBadge(name: merchant, fallbackTint: theme.accent, size: 64)
-            } else {
-                GhafCategoryIcon(category: transaction.category, tint: theme.accent)
-            }
-            Text(merchant ?? GhafLocalization.category(transaction.category, languageCode: languageCode))
-                .font(GhafTypography.heading(22, languageCode: languageCode))
-                .foregroundStyle(theme.primaryText)
-                .multilineTextAlignment(.center)
-            HStack(spacing: 2) {
-                Text(transaction.direction == "credit" ? "+" : "−").font(GhafTypography.number(30, weight: .bold))
-                GhafMoneyLabel(amount: transaction.amount, currency: transaction.currency, languageCode: languageCode, size: 30)
-            }
-            .foregroundStyle(transaction.direction == "credit" ? theme.credit : theme.primaryText)
-            .environment(\.layoutDirection, .leftToRight)
-            Text(transaction.date.formatted(.dateTime.weekday(.wide).day().month().year().hour().minute()
-                .locale(Locale(identifier: languageCode))))
-                .font(GhafTypography.body(13, languageCode: languageCode))
-                .foregroundStyle(theme.secondaryText)
-            if transaction.isReversal {
-                Text(ar ? "استرداد · يُخصم من المصروفات" : "Refund · reduces spending")
-                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
-                    .foregroundStyle(theme.credit)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private func placeCard(_ item: MKMapItem) -> some View {

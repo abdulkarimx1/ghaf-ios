@@ -108,7 +108,7 @@ struct GhafHomeView: View {
                 GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(item: $selectedTransaction) { transaction in
-                GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName, appearanceMode: settings.appearanceMode, languageCode: settings.languageCode, accounts: accounts.filter { !$0.isArchived })
+                GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showAutomationGuide) {

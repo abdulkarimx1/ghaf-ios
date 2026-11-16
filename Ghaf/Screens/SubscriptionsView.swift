@@ -10,6 +10,7 @@ struct GhafSubscriptionsView: View {
     /// One value drives the sheet, so it always opens on the tapped subscription (not a stale or blank one).
     private struct EditorTarget: Identifiable { let id = UUID(); let subscription: GhafSubscription? }
     @State private var editorTarget: EditorTarget?
+    @State private var detail: GhafSubscription?
     let settings: GhafSettings
 
     private var theme: GhafTheme {
@@ -22,16 +23,7 @@ struct GhafSubscriptionsView: View {
     @State private var confirmedCount = 0
     /// Estimated monthly cost in the preferred currency; other currencies are never added in.
     private var monthlyEquivalent: Decimal {
-        active.filter { $0.currency == settings.currency }.reduce(Decimal.zero) { total, item in
-            let factor: Decimal
-            switch item.cycle {
-            case .weekly: factor = Decimal(52) / Decimal(12)
-            case .monthly: factor = 1
-            case .quarterly: factor = Decimal(1) / Decimal(3)
-            case .yearly: factor = Decimal(1) / Decimal(12)
-            }
-            return total + item.amount * factor
-        }
+        active.filter { $0.currency == settings.currency }.reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }
     }
 
     private var lang: String { settings.languageCode }
@@ -69,7 +61,7 @@ struct GhafSubscriptionsView: View {
                         } else {
                             VStack(spacing: 0) {
                                 ForEach(tracked) { item in
-                                    Button { editorTarget = EditorTarget(subscription: item) } label: {
+                                    Button { detail = item } label: {
                                         subscriptionRow(item)
                                     }.buttonStyle(.ghafPress)
                                     if item.id != tracked.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
@@ -86,6 +78,10 @@ struct GhafSubscriptionsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.success, trigger: confirmedCount)
             .animation(.snappy, value: subscriptions.count)
+            .sheet(item: $detail) { item in
+                GhafSubscriptionDetailView(subscription: item, settings: settings, accounts: accounts.filter { !$0.isArchived })
+                    .presentationDragIndicator(.visible)
+            }
             .sheet(item: $editorTarget) { target in
                 GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription)
             }
@@ -192,7 +188,6 @@ private struct GhafSubscriptionEditor: View {
     @State private var accountID: UUID?
     @State private var reminderDays = 2
     @State private var active = true
-    @State private var payments: [GhafTransaction] = []
     @State private var saveFailed = false
 
     var body: some View {
@@ -223,26 +218,6 @@ private struct GhafSubscriptionEditor: View {
                     Toggle(settings.languageCode == "ar" ? "نشط" : "Active", isOn: $active)
                 }
                 if subscription != nil {
-                    Section {
-                        if payments.isEmpty {
-                            Text(settings.languageCode == "ar" ? "لا توجد دفعات مسجلة بعد." : "No recorded payments yet.")
-                                .foregroundStyle(.secondary)
-                        }
-                        ForEach(payments) { payment in
-                            HStack {
-                                Text(payment.date, format: .dateTime.day().month().year())
-                                Spacer()
-                                Text(GhafFormat.money(payment.amount, currency: payment.currency, languageCode: settings.languageCode))
-                                    .monospacedDigit()
-                            }
-                        }
-                    } header: {
-                        Text(settings.languageCode == "ar" ? "سجل الدفعات" : "Payment history")
-                    } footer: {
-                        Text(settings.languageCode == "ar"
-                             ? "من حركات البنك المسجلة لهذه الخدمة. التذكير لا يخصم أي مبلغ."
-                             : "From recorded bank transactions for this service. Reminders never deduct money.")
-                    }
                     Section {
                         Button(settings.languageCode == "ar" ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
                             guard let subscription else { return dismiss() }
@@ -281,14 +256,6 @@ private struct GhafSubscriptionEditor: View {
         currency = subscription.currency; cycle = subscription.cycle; nextDate = subscription.nextPaymentDate
         category = subscription.category; accountID = subscription.accountID
         reminderDays = subscription.reminderDays; active = subscription.isActive
-        let currency = subscription.currency, name = subscription.name
-        let debits = (try? context.fetch(FetchDescriptor<GhafTransaction>(
-            predicate: #Predicate { $0.direction == "debit" && !$0.isReversal && $0.currency == currency && $0.merchant != nil },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        ))) ?? []
-        payments = Array(debits.lazy.filter {
-            SubscriptionDetector.sameService(merchant: $0.merchant ?? "", subscriptionName: name)
-        }.prefix(12))
     }
 
     private func save() {
@@ -313,5 +280,275 @@ private struct GhafSubscriptionEditor: View {
             context.rollback()
             saveFailed = true
         }
+    }
+}
+
+/// One subscription at a glance: what it is, its billing timeline, what it costs, and its reminder.
+private struct GhafSubscriptionDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Environment(\.colorScheme) private var colorScheme
+    let subscription: GhafSubscription
+    let settings: GhafSettings
+    let accounts: [GhafAccount]
+
+    @State private var payments: [GhafTransaction] = []
+    @State private var editing = false
+
+    private var lang: String { settings.languageCode }
+    private var ar: Bool { lang == "ar" }
+    private var theme: GhafTheme {
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    }
+    private func date(_ value: Date) -> String {
+        value.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: lang)))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    header
+                    chips
+                    timeline
+                    costCard
+                    reminderRow
+                }
+                .padding(.horizontal, GhafMetrics.gutter)
+                .padding(.top, 8).padding(.bottom, 20)
+                .frame(maxWidth: 620).frame(maxWidth: .infinity)
+            }
+            .ghafBackground(theme: theme)
+            .safeAreaInset(edge: .bottom) {
+                GhafDetailActionBar(theme: theme, languageCode: lang,
+                                    secondarySymbol: subscription.isActive ? "pause.fill" : "play.fill",
+                                    secondaryLabel: subscription.isActive ? (ar ? "إيقاف مؤقت" : "Pause") : (ar ? "استئناف" : "Resume"),
+                                    secondaryAction: toggleActive,
+                                    primaryTitle: ar ? "تعديل الاشتراك" : "Edit subscription",
+                                    primaryAction: { editing = true })
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel(ar ? "إغلاق" : "Close")
+                }
+            }
+            .sheet(isPresented: $editing, onDismiss: {
+                // Deleted from the editor: close this page instead of showing a removed record.
+                if subscription.isDeleted || subscription.modelContext == nil { dismiss() } else { load() }
+            }) {
+                GhafSubscriptionEditor(settings: settings, accounts: accounts, subscription: subscription)
+            }
+            .onAppear(perform: load)
+        }
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+
+    private var header: some View {
+        VStack(spacing: 8) {
+            GhafStatusMark(tint: theme.primaryText) {
+                GhafBrandBadge(name: subscription.name, fallbackTint: theme.accent, size: 80)
+            }
+            Text(subscription.name)
+                .font(GhafTypography.heading(24, languageCode: lang))
+                .foregroundStyle(theme.primaryText)
+            let account = accounts.first { $0.id == subscription.accountID }?.name
+            Text([subscription.cycle.title(language: lang), account].compactMap { $0 }.joined(separator: " · "))
+                .font(GhafTypography.body(14, languageCode: lang))
+                .foregroundStyle(theme.secondaryText)
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var chips: some View {
+        HStack(spacing: 10) {
+            chip(subscription.isActive ? (ar ? "نشط" : "Active") : (ar ? "متوقف" : "Paused"),
+                 symbol: subscription.isActive ? "checkmark.seal.fill" : "pause.circle.fill",
+                 tint: subscription.isActive ? theme.credit : theme.secondaryText)
+            chip(subscription.reminderDays == 0 ? (ar ? "تذكير في نفس اليوم" : "Reminder same day")
+                    : (ar ? "تذكير قبل \(subscription.reminderDays) يوم" : "Reminder \(subscription.reminderDays)d before"),
+                 symbol: "bell.fill", tint: theme.accent)
+        }
+    }
+
+    private func chip(_ title: String, symbol: String, tint: Color) -> some View {
+        Label(title, systemImage: symbol)
+            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 14).padding(.vertical, 9)
+            .background(tint.opacity(0.12), in: Capsule())
+    }
+
+    // MARK: Timeline
+
+    private struct Stop: Identifiable {
+        let id = UUID()
+        let title: String
+        let date: Date
+        let trailing: String
+        var note: String? = nil
+        let kind: Kind
+        enum Kind { case paid, next, later }
+    }
+
+    private var stops: [Stop] {
+        let next = subscription.nextPaymentDate
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now),
+                                                   to: Calendar.current.startOfDay(for: next)).day ?? 0
+        let amount = GhafFormat.money(subscription.amount, currency: subscription.currency, languageCode: lang)
+        var result = payments.prefix(2).reversed().map {
+            Stop(title: ar ? "مدفوع" : "Paid", date: $0.date,
+                 trailing: GhafFormat.money($0.amount, currency: $0.currency, languageCode: lang), kind: .paid)
+        }
+        let when = days == 0 ? (ar ? "اليوم" : "today") : days > 0 ? (ar ? "بعد \(days) يوم" : "in \(days) days")
+                                                            : (ar ? "متأخر \(-days) يوم" : "\(-days) days overdue")
+        result.append(Stop(title: ar ? "التجديد القادم" : "Next renewal", date: next, trailing: amount, note: when, kind: .next))
+        result.append(Stop(title: ar ? "بعده" : "Then", date: subscription.cycle.nextDate(after: next), trailing: amount,
+                           note: ar ? "متوقع" : "Estimated", kind: .later))
+        return result
+    }
+
+    private var timeline: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(ar ? "مواعيد الفوترة" : "Billing timeline")
+                .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .padding(.bottom, 12)
+            let items = stops
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, stop in
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(spacing: 0) {
+                        dot(stop.kind)
+                        if index < items.count - 1 {
+                            Rectangle()
+                                .fill(stop.kind == .paid ? theme.accent.opacity(0.6) : theme.outline)
+                                .frame(width: 2)
+                                .frame(minHeight: 34)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stop.title)
+                            .font(GhafTypography.body(13, languageCode: lang))
+                            .foregroundStyle(theme.secondaryText)
+                        Text(date(stop.date))
+                            .font(GhafTypography.body(16, languageCode: lang, weight: stop.kind == .next ? .bold : .medium))
+                            .foregroundStyle(stop.kind == .later ? theme.secondaryText : theme.primaryText)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(stop.trailing)
+                            .font(GhafTypography.number(16, weight: stop.kind == .next ? .bold : .semibold))
+                            .foregroundStyle(stop.kind == .later ? theme.secondaryText : theme.primaryText)
+                        if let note = stop.note {
+                            Text(note).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+            if payments.isEmpty {
+                Text(ar ? "لا توجد دفعات مسجلة بعد. تظهر هنا عندما تصل رسالة البنك." : "No payments recorded yet. They appear here when the bank message arrives.")
+                    .font(GhafTypography.body(12, languageCode: lang))
+                    .foregroundStyle(theme.secondaryText)
+                    .padding(.top, 10)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ghafCard(theme: theme)
+    }
+
+    private func dot(_ kind: Stop.Kind) -> some View {
+        ZStack {
+            Circle().fill(kind == .later ? theme.outline : theme.accent.opacity(kind == .next ? 0.2 : 1))
+                .frame(width: 22, height: 22)
+            if kind == .paid {
+                Image(systemName: "checkmark").font(.system(size: 10, weight: .heavy)).foregroundStyle(theme.accentContrast)
+            } else if kind == .next {
+                Circle().stroke(theme.accent, lineWidth: 3).frame(width: 14, height: 14)
+            }
+        }
+        .frame(width: 22, height: 22)
+    }
+
+    // MARK: Cost and reminder
+
+    private var costCard: some View {
+        let monthly = subscription.amount * subscription.cycle.monthlyFactor
+        return VStack(spacing: 8) {
+            Text(subscription.cycle == .monthly ? (ar ? "التكلفة الشهرية" : "Monthly cost") : (ar ? "التكلفة الشهرية التقديرية" : "Estimated monthly cost"))
+                .font(GhafTypography.body(14, languageCode: lang))
+                .foregroundStyle(theme.secondaryText)
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                GhafMoneyLabel(amount: monthly, currency: subscription.currency, languageCode: lang, size: 36)
+                Text(ar ? "/شهر" : "/month")
+                    .font(GhafTypography.body(17, languageCode: lang))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            .foregroundStyle(theme.primaryText)
+            .environment(\.layoutDirection, .leftToRight)
+            Text((ar ? "سنوياً " : "Per year ") + GhafFormat.money(monthly * 12, currency: subscription.currency, languageCode: lang))
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+                .padding(.horizontal, 12).padding(.vertical, 5)
+                .background(theme.primaryText.opacity(0.07), in: Capsule())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+        .background(
+            LinearGradient(colors: [theme.accent.opacity(0.16), theme.surface], startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+    }
+
+    private var reminderRow: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ar ? "التذكير" : "Reminder")
+                    .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                Text(ar ? "تنبيه قبل التجديد حتى لا تتفاجأ. التذكير لا يخصم أي مبلغ."
+                        : "A heads-up before it renews. Reminders never deduct money.")
+                    .font(GhafTypography.body(13, languageCode: lang))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            Spacer()
+            Button(ar ? "تغيير" : "Change") { editing = true }
+                .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .background(theme.surface, in: Capsule())
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func toggleActive() {
+        subscription.isActive.toggle()
+        do {
+            try context.save()
+            if subscription.isActive {
+                Task {
+                    _ = await GhafSubscriptionReminderService.requestPermission()
+                    GhafSubscriptionReminderService.schedule(subscription, language: lang)
+                }
+            } else {
+                GhafSubscriptionReminderService.cancel(subscription)
+            }
+        } catch {
+            context.rollback()
+        }
+    }
+
+    private func load() {
+        let currency = subscription.currency, name = subscription.name
+        let debits = (try? context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.direction == "debit" && !$0.isReversal && $0.currency == currency && $0.merchant != nil },
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        ))) ?? []
+        payments = Array(debits.lazy.filter {
+            SubscriptionDetector.sameService(merchant: $0.merchant ?? "", subscriptionName: name)
+        }.prefix(12))
     }
 }

@@ -164,7 +164,7 @@ struct GhafTransactionsView: View {
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $selectedTransaction) { transaction in
-                GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName, appearanceMode: settings.appearanceMode, languageCode: lang, accounts: accounts.filter { !$0.isArchived })
+                GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
@@ -372,12 +372,9 @@ struct GhafTransactionEditor: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 15) {
-                    GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: languageCode)
-
                     Text(languageCode == "ar" ? "تعديل العملية" : "Edit transaction")
-                        .font(GhafTypography.heading(20, languageCode: languageCode))
+                        .font(GhafTypography.display(29, languageCode: languageCode))
                         .foregroundStyle(theme.primaryText)
-                        .padding(.top, 6)
 
                     editorLabel(languageCode == "ar" ? "المبلغ" : "AMOUNT")
                     TextField("0.00", text: $amount)
@@ -407,12 +404,9 @@ struct GhafTransactionEditor: View {
                         editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
                         Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
                             Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
+                            // Menu pickers draw images at their full asset size, so the currency stays text.
                             ForEach(accounts, id: \.id) { account in
-                                HStack(spacing: 7) {
-                                Text(account.name)
-                                GhafCurrencyIcon(currency: account.currency, size: 15)
-                            }
-                            .tag(Optional(account.id))
+                                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                             }
                         }
                         .pickerStyle(.menu)
