@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1 (3)
+
+### English
+- Arabic bank messages are now understood: Arabic digits, dirham and other Gulf currency names, deposits, purchases and refunds.
+- Arabic verification codes and discount offers never create transactions.
+- If saving or deleting a subscription fails, Ghaf tells you instead of silently discarding the change.
+
+### العربية
+- أصبح غاف يفهم رسائل البنوك بالعربية: الأرقام العربية، والدرهم وعملات الخليج الأخرى، والإيداع والشراء والاسترداد.
+- رموز التحقق وعروض الخصم بالعربية لا تُنشئ أي عملية.
+- إذا تعذر حفظ اشتراك أو حذفه، يُعلمك غاف بذلك بدلاً من تجاهل التغيير.
+
 ## 1.1 (2)
 
 ### English
