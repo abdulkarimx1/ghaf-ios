@@ -36,6 +36,11 @@ struct GhafUAEBank: Identifiable {
         .init(id: "arab", en: "Arab Bank", ar: "البنك العربي", aliases: ["arab bank", "البنك العربي"], colors: (0x0B4A3A, 0x2E8F6A)),
         .init(id: "invest", en: "InvestBank", ar: "بنك الاستثمار", aliases: ["investbank", "invest bank"], colors: (0x2A2A2E, 0x8A6A2E)),
         .init(id: "eib", en: "Emirates Investment Bank", ar: "بنك الإمارات للاستثمار", aliases: ["emirates investment bank", "eibank"], colors: (0x1A1A1E, 0x6A5A3A)),
+        .init(id: "alhilal", en: "Al Hilal Bank", ar: "مصرف الهلال", aliases: ["al hilal", "alhilal", "الهلال"], colors: (0x1B1F4A, 0x4A4F8E)),
+        .init(id: "bos", en: "Bank of Sharjah", ar: "بنك الشارقة", aliases: ["bank of sharjah", "بنك الشارقة"], colors: (0x0E3A6B, 0x2E7CC0)),
+        .init(id: "nbq", en: "National Bank of Umm Al Qaiwain", ar: "بنك أم القيوين الوطني", aliases: ["nbq", "umm al qaiwain", "أم القيوين"], colors: (0x5A1E24, 0xA8424C)),
+        .init(id: "almasraf", en: "Al Masraf", ar: "المصرف", aliases: ["al masraf", "almasraf", "arab bank for investment"], colors: (0x0B4B6E, 0x2E8FB8)),
+        .init(id: "zand", en: "Zand", ar: "زاند", aliases: ["zand"], colors: (0x101010, 0x8A6BFF)),
         .init(id: "tabby", en: "Tabby", ar: "تابي", aliases: ["tabby"], colors: (0x2E2E2E, 0x3BFFC1)),
         .init(id: "tamara", en: "Tamara", ar: "تمارا", aliases: ["tamara"], colors: (0x2A1B4E, 0xE08A5A))
     ]

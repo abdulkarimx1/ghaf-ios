@@ -783,5 +783,35 @@
   "id": "mashreq-platinum-plus-card-360x220",
   "bank": "mashreq",
   "title": "Platinum Plus"
+ },
+ {
+  "id": "alhilal-cashback-new-card-733x542-tcm50-594525",
+  "bank": "alhilal",
+  "title": "Cashback"
+ },
+ {
+  "id": "alhilal-debit-card-new-733x542-tcm50-594526",
+  "bank": "alhilal",
+  "title": "Mastercard Debit"
+ },
+ {
+  "id": "alhilal-world-card-master-new-733x542-tcm50-594527",
+  "bank": "alhilal",
+  "title": "World"
+ },
+ {
+  "id": "nbf-platinum-priority",
+  "bank": "nbf",
+  "title": "Platinum Priority"
+ },
+ {
+  "id": "sc-ae-nav-440x-280y-sc-card-on-journey",
+  "bank": "sc",
+  "title": "Journey"
+ },
+ {
+  "id": "sc-dxb-010234-scb-uae-website-cards-440x280px-x",
+  "bank": "sc",
+  "title": "X Card"
  }
 ]
