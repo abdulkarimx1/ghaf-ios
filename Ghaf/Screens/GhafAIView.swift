@@ -137,7 +137,7 @@ struct GhafAIView: View {
                         .foregroundStyle(theme.primaryText)
                 }
             }
-            Label(engineLabel, systemImage: engine == .onDevice ? "lock.shield.fill" : "bolt.horizontal.fill")
+            Label(engineLabel, systemImage: engine == .onDevice ? "lock.shield.fill" : engine == .cloud ? "cloud.fill" : "bolt.horizontal.fill")
                 .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -148,6 +148,7 @@ struct GhafAIView: View {
 
     private var engineLabel: String {
         switch engine {
+        case .cloud: ar ? "الذكاء السحابي · يُرسل الملخص فقط" : "Cloud AI · only a summary is sent"
         case .onDevice: ar ? "ذكاء Apple على جهازك · خاص" : "Apple Intelligence on this iPhone · private"
         case .basic: ar ? "الوضع الأساسي · فعّل Apple Intelligence لمحادثة كاملة" : "Basic mode · turn on Apple Intelligence for full chat"
         }

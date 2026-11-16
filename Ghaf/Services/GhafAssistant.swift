@@ -131,9 +131,11 @@ enum GhafMessageIntent {
 /// Chat brain: Apple's on-device model when available, otherwise grounded rule-based answers.
 @MainActor
 final class GhafAssistant: ObservableObject {
-    enum Engine { case onDevice, basic }
+    enum Engine { case cloud, onDevice, basic }
 
+    /// The user's opt-in cloud Worker first, then Apple's on-device model, then grounded basic answers.
     var engine: Engine {
+        if GhafCloudAI.isConfigured { return .cloud }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), case .available = SystemLanguageModel.default.availability { return .onDevice }
         #endif
@@ -150,16 +152,32 @@ final class GhafAssistant: ObservableObject {
         history: [(isUser: Bool, text: String)],
         languageCode: String
     ) -> AsyncThrowingStream<String, Error> {
+        let fallback = direct ?? Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
+                                                  avoiding: Set(history.filter { !$0.isUser }.map(\.text)))
+        if engine == .cloud {
+            return AsyncThrowingStream { continuation in
+                let task = Task {
+                    do {
+                        continuation.yield(try await GhafCloudAI.reply(question: question, facts: facts, direct: direct,
+                                                                       history: history, languageCode: languageCode))
+                    } catch {
+                        // Offline or the Worker failed: the ledger's answer still comes from the device.
+                        Logger(subsystem: "com.ghaf.app", category: "ai").error("Cloud AI failed: \(String(describing: error), privacy: .public)")
+                        continuation.yield(fallback)
+                    }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
+        }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), engine == .onDevice {
             let grounded = direct.map { facts + "\nDIRECT ANSWER FROM THE LEDGER (keep these exact numbers): \($0)" } ?? facts
             return onDeviceReply(to: question, facts: grounded, direct: direct, history: history, languageCode: languageCode)
         }
         #endif
-        let answer = direct ?? Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
-                                                avoiding: Set(history.filter { !$0.isUser }.map(\.text)))
         return AsyncThrowingStream { continuation in
-            continuation.yield(answer)
+            continuation.yield(fallback)
             continuation.finish()
         }
     }

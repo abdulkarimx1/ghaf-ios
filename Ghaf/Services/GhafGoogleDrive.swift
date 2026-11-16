@@ -211,7 +211,8 @@ final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPres
     }
 }
 
-private enum Keychain {
+/// Small generic-password store; also holds the optional cloud AI access token.
+enum Keychain {
     static func save(_ value: String, for key: String) {
         delete(key)
         SecItemAdd([kSecClass: kSecClassGenericPassword, kSecAttrAccount: key,

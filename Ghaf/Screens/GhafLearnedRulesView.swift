@@ -8,6 +8,9 @@ struct GhafLearnedRulesView: View {
     @Query(sort: \MerchantCategoryRule.updatedAt, order: .reverse) private var rules: [MerchantCategoryRule]
     @State private var confirmReset = false
     @AppStorage(MerchantCategorizer.modelLearningKey) private var modelLearning = true
+    @AppStorage(GhafCloudAI.enabledKey) private var cloudEnabled = false
+    @AppStorage(GhafCloudAI.urlKey) private var cloudURL = ""
+    @State private var cloudToken = Keychain.read(GhafCloudAI.tokenKey) ?? ""
     let settings: GhafSettings
 
     private var ar: Bool { settings.languageCode == "ar" }
@@ -29,6 +32,26 @@ struct GhafLearnedRulesView: View {
             } footer: {
                 Text(ar ? "يدرّب غاف نموذجاً صغيراً على جهازك من العمليات التي أكدتها (اسم التاجر، المبلغ، الوقت) ليقترح الفئة للتجار الجدد. يُعاد بناؤه من سجلاتك فقط، ولا يغادر جهازك، والاقتراحات غير المؤكدة تذهب للمراجعة."
                         : "Ghaf trains a small model on this iPhone from transactions you've confirmed (merchant, amount, time) to suggest categories for new merchants. It's rebuilt only from your records, never leaves the device, and unsure guesses go to review.")
+            }
+            Section {
+                Toggle(ar ? "الذكاء السحابي" : "Cloud AI", isOn: $cloudEnabled)
+                if cloudEnabled {
+                    TextField(ar ? "رابط الخادم (https://…)" : "Server URL (https://…)", text: $cloudURL)
+                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    SecureField(ar ? "رمز الوصول" : "Access token", text: $cloudToken)
+                        .onChange(of: cloudToken) { _, value in
+                            value.isEmpty ? Keychain.delete(GhafCloudAI.tokenKey) : Keychain.save(value, for: GhafCloudAI.tokenKey)
+                        }
+                    if !cloudURL.isEmpty && GhafCloudAI.endpoint == nil {
+                        Text(ar ? "يجب أن يبدأ الرابط بـ https://" : "The URL must start with https://")
+                            .foregroundStyle(theme.over)
+                    }
+                }
+            } header: {
+                Text(ar ? "اختياري" : "Optional")
+            } footer: {
+                Text(ar ? "يستخدم خادمك الخاص (Cloudflare Worker مجاني) مع Gemini لإجابات أذكى. يُرسل سؤالك وملخص المجاميع وإجابة سجلك فقط، ولا تُرسل قائمة عملياتك. تطبّق شروط Google على الطلب. عند أي خطأ يجيب غاف من جهازك."
+                        : "Uses your own server (a free Cloudflare Worker) with Gemini for richer replies. Sends your question, a summary of totals and the ledger's answer, never your transaction list. Google's terms apply to the request. If anything fails, Ghaf answers on the device.")
             }
             if rules.isEmpty {
                 Text(ar ? "لم يتعلم غاف شيئاً بعد." : "Ghaf hasn't learned anything yet.")
