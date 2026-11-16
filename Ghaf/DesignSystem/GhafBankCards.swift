@@ -42,7 +42,12 @@ struct GhafUAEBank: Identifiable {
         .init(id: "almasraf", en: "Al Masraf", ar: "المصرف", aliases: ["al masraf", "almasraf", "arab bank for investment"], colors: (0x0B4B6E, 0x2E8FB8)),
         .init(id: "zand", en: "Zand", ar: "زاند", aliases: ["zand"], colors: (0x101010, 0x8A6BFF)),
         .init(id: "tabby", en: "Tabby", ar: "تابي", aliases: ["tabby"], colors: (0x2E2E2E, 0x3BFFC1)),
-        .init(id: "tamara", en: "Tamara", ar: "تمارا", aliases: ["tamara"], colors: (0x2A1B4E, 0xE08A5A))
+        .init(id: "tamara", en: "Tamara", ar: "تمارا", aliases: ["tamara"], colors: (0x2A1B4E, 0xE08A5A)),
+        // Investment and savings apps with no card: faces drawn in each brand's colours.
+        .init(id: "thndr", en: "Thndr", ar: "ثندر", aliases: ["thndr", "ثندر"], colors: (0x0A0A0A, 0xFFE500)),
+        .init(id: "nbonds", en: "National Bonds", ar: "الصكوك الوطنية", aliases: ["national bonds", "الصكوك الوطنية"], colors: (0x8A6A1E, 0xC9A24A)),
+        .init(id: "sarwa", en: "Sarwa", ar: "ثروة", aliases: ["sarwa", "ثروة"], colors: (0x07351A, 0x106E37)),
+        .init(id: "baraka", en: "Baraka", ar: "بركة", aliases: ["baraka", "بركة"], colors: (0x0A0A0A, 0x0DDD00))
     ]
 
     /// The bank named in an account's institution or name. Longest aliases first, whole words for short ones.
@@ -123,8 +128,8 @@ extension GhafCardFace {
     /// A small card for list rows: only for bank accounts with a chosen image or a recognised bank.
     static func mini(for account: GhafAccount, width: CGFloat = 46) -> GhafCardFace? {
         let design = account.cardDesign.flatMap(GhafCardDesign.init(rawValue:))
-        guard account.type.isBankAccount,
-              design != nil || GhafUAEBank.match([account.institution, account.name]) != nil else { return nil }
+        guard design != nil || (account.type.isBankAccount && GhafUAEBank.match([account.institution, account.name]) != nil)
+        else { return nil }
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: design, width: width)
     }

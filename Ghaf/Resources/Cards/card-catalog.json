@@ -868,5 +868,95 @@
   "id": "arab-visa-credit",
   "bank": "arab",
   "title": "Visa Credit"
+ },
+ {
+  "id": "mbank-world-debit-diamond",
+  "bank": "mbank",
+  "title": "World Debit · Diamond"
+ },
+ {
+  "id": "mbank-jaywan-debit",
+  "bank": "mbank",
+  "title": "Jaywan Debit"
+ },
+ {
+  "id": "cash-aed-5",
+  "bank": "cash",
+  "title": "AED 5 note"
+ },
+ {
+  "id": "cash-aed-10",
+  "bank": "cash",
+  "title": "AED 10 note"
+ },
+ {
+  "id": "cash-aed-20",
+  "bank": "cash",
+  "title": "AED 20 note"
+ },
+ {
+  "id": "cash-aed-50",
+  "bank": "cash",
+  "title": "AED 50 note"
+ },
+ {
+  "id": "cash-aed-100",
+  "bank": "cash",
+  "title": "AED 100 note"
+ },
+ {
+  "id": "cash-aed-200",
+  "bank": "cash",
+  "title": "AED 200 note"
+ },
+ {
+  "id": "cash-aed-500",
+  "bank": "cash",
+  "title": "AED 500 note"
+ },
+ {
+  "id": "cash-aed-1000",
+  "bank": "cash",
+  "title": "AED 1000 note"
+ },
+ {
+  "id": "thndr-black",
+  "bank": "thndr",
+  "title": "Black"
+ },
+ {
+  "id": "thndr-yellow",
+  "bank": "thndr",
+  "title": "Yellow"
+ },
+ {
+  "id": "nbonds-gold",
+  "bank": "nbonds",
+  "title": "Gold"
+ },
+ {
+  "id": "nbonds-charcoal",
+  "bank": "nbonds",
+  "title": "Charcoal"
+ },
+ {
+  "id": "sarwa-green",
+  "bank": "sarwa",
+  "title": "Green"
+ },
+ {
+  "id": "sarwa-night",
+  "bank": "sarwa",
+  "title": "Night"
+ },
+ {
+  "id": "baraka-black",
+  "bank": "baraka",
+  "title": "Black"
+ },
+ {
+  "id": "baraka-green",
+  "bank": "baraka",
+  "title": "Green"
  }
 ]

@@ -236,18 +236,13 @@ struct GhafAccountEditorView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                if accountType.isBankAccount {
-                    GhafCardFace(account: account, name: name, institution: institution, lastFour: lastFourDigits,
-                                 design: cardDesign, width: 300)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 6)
-                        .animation(.spring(duration: 0.4), value: cardDesign)
-                        .ghafEntrance(0)
-                    designStrip.ghafEntrance(1)
-                } else {
-                    GhafIconBadge(symbol: accountType.symbol, tint: theme.accent, size: 76)
-                        .padding(.top, 10)
-                }
+                GhafCardFace(account: account, name: name, institution: institution, lastFour: lastFourDigits,
+                             design: cardDesign, width: 300)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 6)
+                    .animation(.spring(duration: 0.4), value: cardDesign)
+                    .ghafEntrance(0)
+                designStrip.ghafEntrance(1)
 
                 group(ar ? "الحساب" : "Account") {
                     fieldRow(ar ? "الاسم" : "Name") {
@@ -346,7 +341,11 @@ struct GhafAccountEditorView: View {
         .onAppear(perform: load)
         // A card belongs to its bank: changing the bank drops a card from the old one.
         .onChange(of: GhafUAEBank.match([institution, name])?.id) { _, bank in
-            if let design = cardDesign, design.bank != bank { cardDesign = nil }
+            if let design = cardDesign, design.bank != "cash", design.bank != bank { cardDesign = nil }
+        }
+        // Banknotes are for cash wallets only, and cards for the others.
+        .onChange(of: accountType) { _, type in
+            if let design = cardDesign, (design.bank == "cash") != (type == .cash) { cardDesign = nil }
         }
         .sheet(isPresented: $showCardRequest) {
             GhafCardRequestView(settings: settings,
@@ -365,12 +364,13 @@ struct GhafAccountEditorView: View {
     private var designStrip: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
-                designOption(nil, label: ar ? "ألوان البنك" : "Bank colours")
-                // Only this account's bank's real cards; no bank recognised yet means bank colours only.
-                ForEach(GhafCardDesign.cards(for: GhafUAEBank.match([institution, name]))) { design in
+                designOption(nil, label: accountType == .cash ? (ar ? "بسيط" : "Plain") : (ar ? "ألوان البنك" : "Bank colours"))
+                // Cash wallets get banknotes; others only their own bank's cards (none recognised: bank colours only).
+                ForEach(accountType == .cash ? GhafCardDesign.all.filter { $0.bank == "cash" }
+                                             : GhafCardDesign.cards(for: GhafUAEBank.match([institution, name]))) { design in
                     designOption(design, label: design.title)
                 }
-                cardRequestTile
+                if accountType != .cash { cardRequestTile }
             }
             .padding(.horizontal, 2)
         }
