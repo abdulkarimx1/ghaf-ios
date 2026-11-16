@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10 (15)
+
+### English
+- Real card designs from Sharjah Islamic Bank, Arab Bank, Ajman Bank and Ruya, and the true Tabby Card face.
+- Card not found? Ask for your card from the account editor: name it and describe how it looks, and we'll add it in an update.
+
+### العربية
+- تصاميم بطاقات حقيقية من مصرف الشارقة الإسلامي والبنك العربي ومصرف عجمان ورؤيا، وواجهة بطاقة تابي الحقيقية.
+- بطاقتك غير موجودة؟ اطلبها من شاشة تعديل الحساب: اكتب اسمها وصف شكلها، وسنضيفها في تحديث قادم.
+
 ## 1.9.2 (14)
 
 ### English

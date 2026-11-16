@@ -218,6 +218,7 @@ struct GhafAccountEditorView: View {
     @State private var errorMessage = false
     @State private var showArchiveConfirmation = false
     @State private var cardDesign: GhafCardDesign?
+    @State private var showCardRequest = false
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -347,6 +348,10 @@ struct GhafAccountEditorView: View {
         .onChange(of: GhafUAEBank.match([institution, name])?.id) { _, bank in
             if let design = cardDesign, design.bank != bank { cardDesign = nil }
         }
+        .sheet(isPresented: $showCardRequest) {
+            GhafCardRequestView(settings: settings,
+                                bank: GhafUAEBank.match([institution, name]).map { ar ? $0.ar : $0.en } ?? institution)
+        }
         .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
                             titleVisibility: .visible) {
             Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
@@ -365,10 +370,30 @@ struct GhafAccountEditorView: View {
                 ForEach(GhafCardDesign.cards(for: GhafUAEBank.match([institution, name]))) { design in
                     designOption(design, label: design.title)
                 }
+                cardRequestTile
             }
             .padding(.horizontal, 2)
         }
         .scrollIndicators(.hidden)
+    }
+
+    /// Last tile: the user's card isn't in the catalog yet, so they can ask for it.
+    private var cardRequestTile: some View {
+        Button { showCardRequest = true } label: {
+            VStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(theme.secondaryText.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    .frame(width: 92, height: 58)
+                    .overlay { Image(systemName: "plus").font(.system(size: 18, weight: .semibold)).foregroundStyle(theme.accent) }
+                Text(ar ? "بطاقتك غير موجودة؟" : "Card not found?")
+                    .font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(2).multilineTextAlignment(.center)
+                    .frame(width: 92)
+            }
+        }
+        .buttonStyle(.ghafPress)
+        .accessibilityHint(ar ? "اطلب إضافة تصميم بطاقتك" : "Ask for your card design to be added")
     }
 
     private func designOption(_ design: GhafCardDesign?, label: String) -> some View {
@@ -534,5 +559,126 @@ struct GhafAccountEditorView: View {
         }
         try? modelContext.save()
         dismiss()
+    }
+}
+
+/// Asks for a missing card design. The request goes out as an email the user sends themselves:
+/// nothing is uploaded and no card number is asked for.
+struct GhafCardRequestView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var systemColorScheme
+    let settings: GhafSettings
+    @State var bank: String
+    @State private var cardName = ""
+    @State private var looks = ""
+    @State private var link = ""
+    @State private var copied = false
+
+    init(settings: GhafSettings, bank: String) {
+        self.settings = settings
+        _bank = State(initialValue: bank)
+    }
+
+    private var theme: GhafTheme {
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode,
+                          systemIsDark: systemColorScheme == .dark)
+    }
+    private var ar: Bool { settings.languageCode == "ar" }
+    private var lang: String { settings.languageCode }
+    private var canSend: Bool { !bank.trimmingCharacters(in: .whitespaces).isEmpty && !cardName.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    Text(ar ? "أخبرنا عن بطاقتك وسنضيف تصميمها في تحديث قادم."
+                            : "Tell us about your card and we'll add its design in an update.")
+                        .font(GhafTypography.body(15, languageCode: lang))
+                        .foregroundStyle(theme.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 6)
+                    VStack(spacing: 0) {
+                        field(ar ? "البنك" : "Bank", text: $bank, prompt: ar ? "مثال: مصرف عجمان" : "e.g. Ajman Bank")
+                        field(ar ? "اسم البطاقة" : "Card name", text: $cardName, prompt: ar ? "مثال: بلاتينيوم" : "e.g. Platinum")
+                        field(ar ? "رابط (اختياري)" : "Link (optional)", text: $link, prompt: ar ? "صفحة البطاقة على موقع البنك" : "Card page on the bank's site", divider: false)
+                            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 4)
+                    .ghafCard(theme: theme)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(ar ? "كيف تبدو" : "How it looks")
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                            .foregroundStyle(theme.secondaryText)
+                            .padding(.horizontal, 6)
+                        TextField(ar ? "الألوان والشعار والنقوش…" : "Colours, logo, pattern…", text: $looks, axis: .vertical)
+                            .lineLimit(3...6)
+                            .font(GhafTypography.body(16, languageCode: lang))
+                            .foregroundStyle(theme.primaryText)
+                            .padding(16)
+                            .ghafCard(theme: theme)
+                    }
+                    Label(ar ? "لا تكتب رقم بطاقتك أو أي بيانات خاصة." : "Don't include your card number or other private details.",
+                          systemImage: "lock.fill")
+                        .font(GhafTypography.body(12, languageCode: lang))
+                        .foregroundStyle(theme.secondaryText)
+                    if copied {
+                        Text(ar ? "لا يوجد تطبيق بريد. نسخنا التفاصيل لترسلها بالطريقة التي تفضلها."
+                                : "No mail app is set up. The details were copied so you can send them another way.")
+                            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.horizontal, GhafMetrics.gutter)
+                .padding(.bottom, 20)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .ghafBackground(theme: theme)
+            .tint(theme.accent)
+            .safeAreaInset(edge: .bottom) {
+                GhafDetailActionBar(theme: theme, languageCode: lang,
+                                    primaryTitle: ar ? "أرسل الطلب" : "Send request", primaryAction: send)
+                    .disabled(!canSend).opacity(canSend ? 1 : 0.5)
+            }
+            .navigationTitle(ar ? "طلب بطاقة" : "Request a card")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(ar ? "إلغاء" : "Cancel") { dismiss() } }
+            }
+            .ghafKeyboardDone()
+        }
+    }
+
+    private func field(_ label: String, text: Binding<String>, prompt: String, divider: Bool = true) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(GhafTypography.body(15, languageCode: lang))
+                .foregroundStyle(theme.secondaryText)
+                .frame(minWidth: 96, alignment: .leading)
+            TextField(prompt, text: text)
+                .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.trailing)
+        }
+        .frame(minHeight: 50)
+        .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
+    }
+
+    private var details: String {
+        ["Bank: \(bank)", "Card: \(cardName)", looks.isEmpty ? nil : "Looks: \(looks)", link.isEmpty ? nil : "Link: \(link)"]
+            .compactMap { $0 }.joined(separator: "\n")
+    }
+
+    private func send() {
+        var mail = URLComponents()
+        mail.scheme = "mailto"
+        // shortcut: no recipient until Ghaf has a support address; the user fills it in Mail (same as Send feedback).
+        mail.queryItems = [URLQueryItem(name: "subject", value: "Ghaf card request: \(bank) \(cardName)"),
+                           URLQueryItem(name: "body", value: details)]
+        guard let url = mail.url else { return }
+        openURL(url) { accepted in
+            if accepted { dismiss() } else { UIPasteboard.general.string = details; copied = true }
+        }
     }
 }

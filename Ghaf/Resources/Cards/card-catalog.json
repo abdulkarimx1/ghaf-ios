@@ -818,5 +818,55 @@
   "id": "tabby-card",
   "bank": "tabby",
   "title": "Tabby Card"
+ },
+ {
+  "id": "ruya-mastercard",
+  "bank": "ruya",
+  "title": "Mastercard"
+ },
+ {
+  "id": "sib-platinum",
+  "bank": "sib",
+  "title": "Platinum"
+ },
+ {
+  "id": "sib-massarrah",
+  "bank": "sib",
+  "title": "Massarrah"
+ },
+ {
+  "id": "sib-coop",
+  "bank": "sib",
+  "title": "Sharjah Co-op"
+ },
+ {
+  "id": "ajman-ultracash",
+  "bank": "ajman",
+  "title": "Ultracash"
+ },
+ {
+  "id": "arab-travel-mate",
+  "bank": "arab",
+  "title": "Travel Mate"
+ },
+ {
+  "id": "arab-visa-debit",
+  "bank": "arab",
+  "title": "Visa Debit"
+ },
+ {
+  "id": "arab-platinum",
+  "bank": "arab",
+  "title": "Platinum"
+ },
+ {
+  "id": "arab-world-elite",
+  "bank": "arab",
+  "title": "World Elite"
+ },
+ {
+  "id": "arab-visa-credit",
+  "bank": "arab",
+  "title": "Visa Credit"
  }
 ]
