@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.12 (21)
+
+### English
+- Ghaf AI talks more naturally: it says "4 dirhams", reads your purchase back, asks if it should save it, and listens for your answer.
+- Say "yes", "cancel", "remove the lunch", "rename karak to tea" or "make it 5" to fix entries by voice.
+- Ghaf learns how long you pause, so it no longer stops listening mid-sentence.
+- The Ghaf AI button in the middle of the tab bar is now a bold tile that's easy to spot.
+- Every city theme has its own skyline across the app: Qasr Al Hosn, Burj Khalifa, Jebel Jais and more.
+- Add transfers between your own accounts; your total stays the same.
+- Hiding balances now animates, and buttons give gentle haptic feedback.
+- Insights show whether you're looking at Daily, Weekly or Monthly.
+- More card designs: Al Maryah Titanium, Ruya, iVESTOR and iVESTOR DFM, with real Sarwa, Thndr and Baraka logos, and AED notes in their true colours.
+
+### العربية
+- يتحدث غاف AI بشكل أطبع: يقول «٤ دراهم»، ويعيد عليك العملية ويسألك إن كان يحفظها، ثم يسمع ردك.
+- قل «نعم» أو «الغِ» أو «شيل الغداء» أو «سمّ الكرك شاي» أو «خلها ٥» لتعديل العمليات بصوتك.
+- يتعلم غاف طول وقفاتك، فلا يتوقف عن الاستماع في منتصف كلامك.
+- زر غاف AI في منتصف الشريط أصبح بارزاً وسهل الملاحظة.
+- لكل مدينة أفقها الخاص في التطبيق: قصر الحصن وبرج خليفة وجبل جيس وغيرها.
+- أضف تحويلات بين حساباتك؛ يبقى إجماليك كما هو.
+- إخفاء الأرصدة أصبح متحركاً، والأزرار تعطي اهتزازاً خفيفاً.
+- تُظهر التحليلات إن كنت ترى اليومي أو الأسبوعي أو الشهري.
+- تصاميم بطاقات أكثر: تيتانيوم المارية، ورؤيا، وآيفستر وآيفستر سوق دبي المالي، مع شعارات ثروة وثندر وبركة الحقيقية، وأوراق الدرهم بألوانها الحقيقية.
+
 ## 1.11 (20)
 
 ### English
