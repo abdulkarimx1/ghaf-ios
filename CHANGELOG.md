@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.2 (17)
+
+### English
+- Home shows the dates of this week and this month, so a week that started today no longer looks empty by mistake.
+- When nothing is spent yet, Home tells you what yesterday, last week or last month cost.
+
+### العربية
+- تعرض الرئيسية تواريخ هذا الأسبوع وهذا الشهر، فلا يبدو الأسبوع الذي بدأ اليوم فارغاً بالخطأ.
+- عندما لا تصرف شيئاً بعد، تخبرك الرئيسية بما صرفته أمس أو الأسبوع الماضي أو الشهر الماضي.
+
 ## 1.10.1 (16)
 
 ### English

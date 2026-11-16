@@ -46,6 +46,9 @@ struct GhafHomeView: View {
         var count = 0
         var topCategory: (name: String, amount: Decimal)?
         var reviewCount = 0
+        /// The selected period, and spending in the one before it (same currency rules).
+        var interval: DateInterval?
+        var previousSpent: Decimal = 0
     }
 
     private func makeSummary() -> Summary {
@@ -59,13 +62,22 @@ struct GhafHomeView: View {
         let calendar = GhafCalendar.current
         let component: Calendar.Component = [.day, .weekOfYear, .month][activityPeriodIndex]
         let interval = calendar.dateInterval(of: component, for: .now)
+        let previous = interval.flatMap { calendar.date(byAdding: component, value: -1, to: $0.start) }
+            .flatMap { calendar.dateInterval(of: component, for: $0) }
+        summary.interval = interval
         var byCategory: [String: Decimal] = [:]
         for transaction in transactions {
             if transaction.needsReview { summary.reviewCount += 1 }
             guard let interval else { continue }
             let date = transaction.date
             if date >= interval.end { continue }
-            if date < interval.start { continue }
+            if date < interval.start {
+                if let previous, date >= previous.start, date < previous.end,
+                   transaction.currency == main, transaction.isSpendingOrIncome, transaction.isExpense {
+                    summary.previousSpent += transaction.spendingAmount
+                }
+                continue
+            }
             summary.count += 1
             guard transaction.currency == main, transaction.isSpendingOrIncome else { continue }
             if transaction.isExpense {
@@ -204,6 +216,15 @@ struct GhafHomeView: View {
            : ["Today", "This week", "This month"][activityPeriodIndex]
     }
 
+    /// " · 16–22 Nov" for a week or month, so it's clear where the period starts; nothing for a day.
+    private func periodRange(_ summary: Summary) -> String {
+        guard activityPeriodIndex > 0, let interval = summary.interval else { return "" }
+        let formatter = DateIntervalFormatter()
+        formatter.locale = Locale(identifier: ar ? "ar_AE" : "en_AE")
+        formatter.dateTemplate = "dMMM"
+        return " · " + formatter.string(from: interval.start, to: interval.end.addingTimeInterval(-1))
+    }
+
     private func balanceCard(_ summary: Summary) -> some View {
         let main = summary.balances.first { $0.currency == summary.mainCurrency }
         let others = summary.balances.filter { $0.currency != summary.mainCurrency }
@@ -237,7 +258,7 @@ struct GhafHomeView: View {
                         .fill(index == activityPeriodIndex ? theme.accent : theme.secondaryText.opacity(0.25))
                         .frame(width: index == activityPeriodIndex ? 18 : 6, height: 6)
                 }
-                Text(periodName + " · \(summary.count) " + (ar ? "عملية" : (summary.count == 1 ? "transaction" : "transactions")))
+                Text(periodName + periodRange(summary) + " · \(summary.count) " + (ar ? "عملية" : (summary.count == 1 ? "transaction" : "transactions")))
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                     .contentTransition(.numericText())
@@ -356,10 +377,7 @@ struct GhafHomeView: View {
     }
 
     private func insightText(_ summary: Summary) -> String {
-        guard let top = summary.topCategory, summary.spent > 0 else {
-            return ar ? "ما صرفت شيئاً \(periodName) بعد. يوم جميل لمحفظتك."
-                      : "Nothing spent \(periodName.lowercased()) yet. A good day for your wallet."
-        }
+        guard let top = summary.topCategory, summary.spent > 0 else { return emptyInsight(summary) }
         let category = GhafLocalization.category(top.name, languageCode: lang)
         let share = Int((NSDecimalNumber(decimal: top.amount / summary.spent).doubleValue * 100).rounded())
         guard !hideBalances else {
@@ -369,6 +387,23 @@ struct GhafHomeView: View {
         let amount = GhafFormat.money(top.amount, currency: summary.mainCurrency, languageCode: lang)
         return ar ? "\(category) أكبر مصروفك \(periodName): \(amount)، أي \(share)٪ من الإجمالي."
                   : "\(category) is your biggest spend \(periodName.lowercased()): \(amount), \(share)% of the total."
+    }
+
+    /// Nothing spent yet: say when the period began (a new week can start today) and what the last one cost.
+    private func emptyInsight(_ summary: Summary) -> String {
+        var text = ar ? "ما صرفت شيئاً \(periodName) بعد." : "Nothing spent \(periodName.lowercased()) yet."
+        if activityPeriodIndex == 1, let start = summary.interval?.start {
+            let weekday = start.formatted(Date.FormatStyle(locale: Locale(identifier: ar ? "ar_AE" : "en_AE")).weekday(.wide))
+            text += ar ? " بدأ الأسبوع يوم \(weekday)." : " The week started \(weekday)."
+        }
+        guard summary.previousSpent > 0 else {
+            return text + (ar ? " يوم جميل لمحفظتك." : " A good day for your wallet.")
+        }
+        let previousName = ar ? ["أمس", "الأسبوع الماضي", "الشهر الماضي"][activityPeriodIndex]
+                              : ["Yesterday", "Last week", "Last month"][activityPeriodIndex]
+        guard !hideBalances else { return text }
+        let amount = GhafFormat.money(summary.previousSpent, currency: summary.mainCurrency, languageCode: lang)
+        return text + (ar ? " \(previousName) صرفت \(amount)." : " \(previousName) you spent \(amount).")
     }
 
     // MARK: Recent activity (a short shortcut; the full list lives in Transactions)
