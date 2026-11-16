@@ -105,10 +105,13 @@ final class TransactionIngestionService {
             ?? original?.accountID.flatMap { id in accounts.first { $0.id == id } }
             ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil)
 
-        let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, context: context)
+        let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, amount: parsed.amount, date: parsed.date,
+                                                        direction: isReversal ? .debit : parsed.direction, context: context)
         let category = try original?.category ?? MerchantCategorizer.category(
             for: parsed.merchant,
             direction: isReversal ? .debit : parsed.direction,
+            amount: parsed.amount,
+            date: parsed.date,
             context: context
         )
 
@@ -119,6 +122,8 @@ final class TransactionIngestionService {
             || (parsed.merchant != nil && category == "Other")
             || accountNeedsReview
             || (isReversal && original == nil)
+            // A guess from the learned model is shown, but stays in review until it is confident.
+            || (original == nil && suggestion?.source == .model && (suggestion?.confidence ?? 0) < 0.8)
 
         let transaction = GhafTransaction(
             fingerprint: fingerprint,

@@ -143,8 +143,44 @@ enum MerchantCategorizer {
         CategoryMatcher.normalize(merchant)
     }
 
+    // MARK: Learned model
+
+    /// Trained from confirmed transactions, one model per direction; rebuilt after a correction or new data.
+    private static var learners: [String: (count: Int, model: CategoryLearner)] = [:]
+
+    static func invalidateLearner() { learners = [:] }
+
+    /// UserDefaults switch (More › What Ghaf learned); on by default.
+    static let modelLearningKey = "ghaf.ai.modelLearning"
+
+    private static func learner(direction: TransactionDirection, context: ModelContext) -> CategoryLearner? {
+        guard UserDefaults.standard.object(forKey: modelLearningKey) as? Bool ?? true else { return nil }
+        let raw = direction.rawValue
+        let count = (try? context.fetchCount(FetchDescriptor<GhafTransaction>())) ?? 0
+        if let cached = learners[raw], cached.count == count { return cached.model }
+        let confirmed = (try? context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { !$0.needsReview && !$0.isReversal && $0.direction == raw && $0.merchant != nil }
+        ))) ?? []
+        let samples = confirmed.compactMap { item -> CategoryLearner.Sample? in
+            guard item.isSpendingOrIncome, item.category != "Other", item.category != "Other Income",
+                  let merchant = item.merchant else { return nil }
+            return .init(merchant: merchant, amount: item.amount, date: item.date, category: item.category, subcategory: item.subcategory)
+        }
+        let model = CategoryLearner(samples: samples)
+        learners[raw] = (count, model)
+        return model
+    }
+
     /// Best category and subcategory for a merchant or spoken description, or nil when nothing fits.
-    static func suggestion(for merchant: String?, context: ModelContext) -> CategoryMatcher.Match? {
+    /// Rules and names come first; the learned model only fills in when they find nothing.
+    static func suggestion(for merchant: String?, amount: Decimal = 0, date: Date = .now,
+                           direction: TransactionDirection = .debit, context: ModelContext) -> CategoryMatcher.Match? {
+        if let match = ruleSuggestion(for: merchant, context: context) { return match }
+        guard let merchant, !merchant.isEmpty else { return nil }
+        return learner(direction: direction, context: context)?.match(merchant: merchant, amount: amount, date: date)
+    }
+
+    private static func ruleSuggestion(for merchant: String?, context: ModelContext) -> CategoryMatcher.Match? {
         guard let merchant, !merchant.isEmpty else { return nil }
         let catalog = (try? context.fetch(FetchDescriptor<GhafSettings>()).first)?.catalog
             ?? Dictionary(uniqueKeysWithValues: GhafDefaults.defaultCategories.map { ($0, [String]()) })
@@ -162,9 +198,12 @@ enum MerchantCategorizer {
     static func category(
         for merchant: String?,
         direction: TransactionDirection,
+        amount: Decimal = 0,
+        date: Date = .now,
         context: ModelContext
     ) throws -> String {
-        if let match = suggestion(for: merchant, context: context), !match.isNewCategory { return match.category }
+        if let match = suggestion(for: merchant, amount: amount, date: date, direction: direction, context: context),
+           !match.isNewCategory { return match.category }
         if merchant.map(normalize)?.contains("salary") == true { return "Salary" }
         return direction == .credit ? "Other Income" : "Other"
     }
@@ -177,6 +216,7 @@ enum MerchantCategorizer {
         context: ModelContext,
         saveImmediately: Bool = true
     ) throws {
+        invalidateLearner()
         let key = normalize(merchant)
         guard !key.isEmpty, category != "Other" else { return }
 

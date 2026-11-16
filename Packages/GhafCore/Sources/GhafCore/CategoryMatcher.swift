@@ -27,7 +27,7 @@ public enum CategoryMatcher {
         }
     }
 
-    public enum Source: Equatable { case learned, name, synonym }
+    public enum Source: Equatable { case learned, name, synonym, model }
 
     public struct Match: Equatable {
         public let category: String

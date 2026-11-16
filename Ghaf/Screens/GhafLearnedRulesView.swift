@@ -7,6 +7,7 @@ struct GhafLearnedRulesView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \MerchantCategoryRule.updatedAt, order: .reverse) private var rules: [MerchantCategoryRule]
     @State private var confirmReset = false
+    @AppStorage(MerchantCategorizer.modelLearningKey) private var modelLearning = true
     let settings: GhafSettings
 
     private var ar: Bool { settings.languageCode == "ar" }
@@ -21,6 +22,13 @@ struct GhafLearnedRulesView: View {
                         : "When you pick a category for a merchant, Ghaf saves it on this iPhone and uses it next time. Nothing is sent to a server.")
                     .font(GhafTypography.body(13, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
+            }
+            Section {
+                Toggle(ar ? "التعلّم من عملياتي" : "Learn from my transactions", isOn: $modelLearning)
+                    .onChange(of: modelLearning) { _, _ in MerchantCategorizer.invalidateLearner() }
+            } footer: {
+                Text(ar ? "يدرّب غاف نموذجاً صغيراً على جهازك من العمليات التي أكدتها (اسم التاجر، المبلغ، الوقت) ليقترح الفئة للتجار الجدد. يُعاد بناؤه من سجلاتك فقط، ولا يغادر جهازك، والاقتراحات غير المؤكدة تذهب للمراجعة."
+                        : "Ghaf trains a small model on this iPhone from transactions you've confirmed (merchant, amount, time) to suggest categories for new merchants. It's rebuilt only from your records, never leaves the device, and unsure guesses go to review.")
             }
             if rules.isEmpty {
                 Text(ar ? "لم يتعلم غاف شيئاً بعد." : "Ghaf hasn't learned anything yet.")
