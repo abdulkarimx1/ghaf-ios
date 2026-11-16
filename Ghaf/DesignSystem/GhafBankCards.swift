@@ -72,7 +72,7 @@ struct GhafCardFace: View {
     var body: some View {
         Group {
             if let design {
-                Image(design.asset).resizable().aspectRatio(1.586, contentMode: .fill)
+                design.image.resizable().aspectRatio(1.586, contentMode: .fill)
             } else {
                 drawn
             }

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import SwiftData
 
 enum GhafAccountType: String, CaseIterable, Identifiable {
@@ -127,26 +128,47 @@ struct GhafAccountDraft: Identifiable {
     }
 }
 
-/// Bank card faces bundled in Assets.xcassets/Cards (images from mashreq.com product pages).
-/// Shown for illustration only; Ghaf is not connected to or endorsed by any bank.
-enum GhafCardDesign: String, CaseIterable, Identifiable {
-    case neoDebit = "neo-debit", goldDebit = "gold-debit", neoCashback = "neo-cashback", neoSolitaire = "neo-solitaire"
-    case alIslamiNeoDebit = "al-islami-neo-debit", alIslamiPlatinumElite = "al-islami-platinum-elite"
-    case alIslamiSolitaire = "al-islami-solitaire"
+/// Real card images from UAE banks' own websites (collected and straightened from each bank's card
+/// pages), listed in Resources/Cards/card-catalog.json and bundled as Resources/Cards/<bank>-<card>.jpg. Each card belongs to one bank (GhafUAEBank.id), so an
+/// account only offers its own bank's cards. Shown for illustration only; Ghaf is not connected to or
+/// endorsed by any bank.
+struct GhafCardDesign: Identifiable, Hashable, Decodable {
+    let id: String
+    let bank: String
+    let title: String
 
-    var id: String { rawValue }
-    var asset: String { "Card-\(rawValue)" }
+    var rawValue: String { id }
 
-    var title: String {
-        switch self {
-        case .neoDebit: "Mashreq NEO Debit"
-        case .goldDebit: "Mashreq Gold Debit"
-        case .neoCashback: "Mashreq Cashback"
-        case .neoSolitaire: "Mashreq Solitaire"
-        case .alIslamiNeoDebit: "Mashreq Al Islami NEO Debit"
-        case .alIslamiPlatinumElite: "Mashreq Al Islami Platinum Elite"
-        case .alIslamiSolitaire: "Mashreq Al Islami Solitaire"
-        }
+    var image: Image {
+        Image(uiImage: Bundle.main.path(forResource: id, ofType: "jpg").flatMap(UIImage.init(contentsOfFile:)) ?? UIImage())
+    }
+
+    static let all: [GhafCardDesign] = {
+        guard let url = Bundle.main.url(forResource: "card-catalog", withExtension: "json"),
+              let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([GhafCardDesign].self, from: data)) ?? []
+    }()
+
+    /// Designs saved before the bank catalog existed (all Mashreq) map to their catalog entries.
+    private static let legacy = [
+        "neo-debit": "mashreq-neo-debit-product-card-310x200",
+        "gold-debit": "mashreq-gold-debit-product-card-360x220",
+        "neo-cashback": "mashreq-neo-cashback-card-product-card-360x220",
+        "neo-solitaire": "mashreq-neo-solitaire-product-card-360x220",
+        "al-islami-neo-debit": "mashreq-mai-neo-debit-product-card-360x220",
+        "al-islami-platinum-elite": "mashreq-mai-neo-platinum-elite-product-card-360x220",
+        "al-islami-solitaire": "mashreq-mai-solitaire-card"
+    ]
+
+    init?(rawValue: String) {
+        let id = Self.legacy[rawValue] ?? rawValue
+        guard let found = Self.all.first(where: { $0.id == id }) else { return nil }
+        self = found
+    }
+
+    static func cards(for bank: GhafUAEBank?) -> [GhafCardDesign] {
+        guard let bank else { return [] }
+        return all.filter { $0.bank == bank.id }
     }
 
     static let disclaimer = (

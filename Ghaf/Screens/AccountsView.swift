@@ -343,6 +343,10 @@ struct GhafAccountEditorView: View {
         }
         .ghafKeyboardDone()
         .onAppear(perform: load)
+        // A card belongs to its bank: changing the bank drops a card from the old one.
+        .onChange(of: GhafUAEBank.match([institution, name])?.id) { _, bank in
+            if let design = cardDesign, design.bank != bank { cardDesign = nil }
+        }
         .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
                             titleVisibility: .visible) {
             Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
@@ -357,7 +361,10 @@ struct GhafAccountEditorView: View {
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
                 designOption(nil, label: ar ? "ألوان البنك" : "Bank colours")
-                ForEach(GhafCardDesign.allCases) { design in designOption(design, label: design.title) }
+                // Only this account's bank's real cards; no bank recognised yet means bank colours only.
+                ForEach(GhafCardDesign.cards(for: GhafUAEBank.match([institution, name]))) { design in
+                    designOption(design, label: design.title)
+                }
             }
             .padding(.horizontal, 2)
         }
