@@ -1,7 +1,16 @@
 import SwiftUI
 import SwiftData
 import AVFoundation
+import Charts
 import GhafCore
+
+/// A small chart Ghaf attaches to an answer. Values come from the ledger, never from the language model.
+struct GhafChatChart {
+    struct Point: Identifiable { let id = UUID(); let label: String; let value: Double; var highlight = false }
+    let title: String
+    let currency: String
+    let points: [Point]
+}
 
 private struct GhafChatMessage: Identifiable {
     enum DraftState { case pending, saved, discarded }
@@ -12,6 +21,7 @@ private struct GhafChatMessage: Identifiable {
     var isStreaming = false
     var drafts: [GhafVoiceTransactionDraft] = []
     var draftState: DraftState = .pending
+    var chart: GhafChatChart?
     /// Transactions created when the drafts were saved, so later corrections can update them.
     var savedIDs: [UUID] = []
 }
@@ -70,6 +80,17 @@ struct GhafAIView: View {
                 inputBar
             }
             .ghafBackground(theme: theme)
+            .overlay(alignment: .top) {
+                // A faint aurora behind the header gives the assistant its own light.
+                Ellipse()
+                    .fill(RadialGradient(colors: [theme.accent.opacity(0.22), theme.credit.opacity(0.08), .clear],
+                                         center: .center, startRadius: 0, endRadius: 220))
+                    .frame(width: 520, height: 300)
+                    .offset(y: -150)
+                    .blur(radius: 30)
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea()
+            }
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.success, trigger: savedCount)
             .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
@@ -147,8 +168,8 @@ struct GhafAIView: View {
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
             let chips = ar
-                ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "كم رصيدي؟", "ما الاشتراكات القادمة؟", "٣٥ درهم غداء", "قارن هذا الشهر بالماضي"]
-                : ["How much did I spend this week?", "Where did most of my money go?", "What's my balance?", "Which subscriptions are due?", "35 AED lunch", "Compare this month to last month"]
+                ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "كم رصيدي؟", "ما الاشتراكات القادمة؟", "٣٥ درهم غداء", "قارن هذا الشهر بالماضي", "ارسم مصروفي حسب الفئة"]
+                : ["How much did I spend this week?", "Where did most of my money go?", "What's my balance?", "Which subscriptions are due?", "35 AED lunch", "Compare this month to last month", "Chart my spending by category"]
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(chips, id: \.self) { chip in
                     Button { send(chip) } label: {
@@ -201,6 +222,7 @@ struct GhafAIView: View {
                     ShareLink(item: item.text) { Label(ar ? "مشاركة" : "Share", systemImage: "square.and.arrow.up") }
                 }
             }
+            if let chart = item.chart { chartCard(chart) }
             if !item.drafts.isEmpty { draftCard(message) }
         }
         .frame(maxWidth: .infinity, alignment: item.isUser ? .trailing : .leading)
@@ -330,6 +352,17 @@ struct GhafAIView: View {
             }
             .padding(5)
             .background(theme.surface, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+            .overlay {
+                // Gradient rim that glows while Ghaf listens, thinks or the field is focused.
+                let lit = recorder.isRecording || isThinking || inputFocused
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .strokeBorder(AngularGradient(colors: [theme.accent, theme.credit, theme.accent.opacity(0.4), theme.accent],
+                                                  center: .center), lineWidth: lit ? 1.5 : 0.8)
+                    .opacity(lit ? 1 : 0.45)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: theme.accent.opacity(recorder.isRecording || isThinking ? 0.35 : 0.14), radius: 14)
+            .animation(.easeInOut(duration: 0.35), value: recorder.isRecording || isThinking || inputFocused)
             .shadow(color: theme.shadow, radius: 12, y: 4)
             .overlay { if theme.isDark { RoundedRectangle(cornerRadius: 27, style: .continuous).stroke(theme.outline) } }
         }
@@ -441,7 +474,7 @@ struct GhafAIView: View {
                            : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category."
             }
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro + hint, drafts: drafts)) }
-            speak(intro)
+            speak(intro, force: isVoice)
             return
         }
 
@@ -464,7 +497,8 @@ struct GhafAIView: View {
             }
             if let index {
                 messages[index].isStreaming = false
-                speak(messages[index].text)
+                withAnimation(.snappy) { messages[index].chart = chart(for: text) }
+                speak(messages[index].text, force: isVoice)
             }
             isThinking = false
         }
@@ -505,11 +539,94 @@ struct GhafAIView: View {
         }
     }
 
-    private func speak(_ text: String) {
-        guard speakReplies, !text.isEmpty else { return }
+    /// Replies to voice input are always spoken; typed messages only when "read replies aloud" is on.
+    private func speak(_ text: String, force: Bool = false) {
+        guard speakReplies || force, !text.isEmpty else { return }
+        // The microphone leaves the session in .record, where speech is silent.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? session.setActive(true)
+        let language = ar ? "ar" : "en"
+        let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(language) }
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: ar ? "ar-SA" : "en-US")
+        // Best installed voice (premium/enhanced when the user downloaded one), Gulf Arabic first.
+        utterance.voice = voices.max { ($0.quality.rawValue, $0.language == "ar-AE" ? 1 : 0) < ($1.quality.rawValue, $1.language == "ar-AE" ? 1 : 0) }
+            ?? AVSpeechSynthesisVoice(language: ar ? "ar-SA" : "en-US")
+        synthesizer.stopSpeaking(at: .immediate)
         synthesizer.speak(utterance)
+    }
+
+    // MARK: Charts
+
+    /// Which chart fits the question, built from the user's own transactions in the main currency.
+    private func chart(for question: String) -> GhafChatChart? {
+        let q = question.lowercased()
+        func has(_ words: [String]) -> Bool { words.contains { q.contains($0) } }
+        let currency = settings.currency
+        let calendar = Calendar.current
+        let spending = transactions.filter { $0.currency == currency && $0.isExpense }
+        func total(_ interval: DateInterval?) -> Double {
+            guard let interval else { return 0 }
+            return NSDecimalNumber(decimal: spending.filter { interval.contains($0.date) }.reduce(0) { $0 + $1.spendingAmount }).doubleValue
+        }
+
+        if has(["compare", " vs", "last month", "more than", "قارن", "الشهر الماضي", "أكثر من"]) {
+            let this = calendar.dateInterval(of: .month, for: .now)
+            let last = calendar.date(byAdding: .month, value: -1, to: .now).flatMap { calendar.dateInterval(of: .month, for: $0) }
+            return GhafChatChart(title: ar ? "هذا الشهر مقابل الماضي" : "This month vs last month", currency: currency, points: [
+                .init(label: ar ? "الماضي" : "Last", value: total(last)),
+                .init(label: ar ? "هذا" : "This", value: total(this), highlight: true)
+            ])
+        }
+        if has(["week", "daily", "per day", "trend", "أسبوع", "اسبوع", "يومي", "يوم"]) {
+            let points = (0..<7).reversed().compactMap { offset -> GhafChatChart.Point? in
+                guard let day = calendar.date(byAdding: .day, value: -offset, to: .now) else { return nil }
+                return .init(label: day.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: settings.languageCode))),
+                             value: total(calendar.dateInterval(of: .day, for: day)), highlight: offset == 0)
+            }
+            return GhafChatChart(title: ar ? "آخر ٧ أيام" : "Last 7 days", currency: currency, points: points)
+        }
+        if has(["categor", "where", "most", "chart", "graph", "breakdown", "stats", "spend", "فئة", "وين", "أكثر", "رسم", "مخطط", "إحصا", "احصا", "صرف"]) {
+            guard let month = calendar.dateInterval(of: .month, for: .now) else { return nil }
+            let byCategory = Dictionary(grouping: spending.filter { month.contains($0.date) }, by: \.category)
+                .mapValues { NSDecimalNumber(decimal: $0.reduce(0) { $0 + $1.spendingAmount }).doubleValue }
+                .filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(5)
+            guard !byCategory.isEmpty else { return nil }
+            return GhafChatChart(title: ar ? "أعلى الفئات هذا الشهر" : "Top categories this month", currency: currency,
+                                 points: byCategory.enumerated().map { index, item in
+                                     .init(label: GhafLocalization.category(item.key, languageCode: settings.languageCode),
+                                           value: item.value, highlight: index == 0)
+                                 })
+        }
+        return nil
+    }
+
+    private func chartCard(_ chart: GhafChatChart) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(chart.title)
+                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+            Chart(chart.points) { point in
+                BarMark(x: .value("Label", point.label), y: .value(chart.currency, point.value))
+                    .foregroundStyle(point.highlight ? theme.accent : theme.accent.opacity(0.35))
+                    .cornerRadius(6)
+                    .annotation(position: .top) {
+                        if point.value > 0 {
+                            Text(point.value, format: .number.precision(.fractionLength(0)))
+                                .font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                        }
+                    }
+            }
+            .chartYAxis(.hidden)
+            .frame(height: 150)
+            Text(ar ? "من سجلاتك بعملة \(chart.currency)." : "From your records, in \(chart.currency).")
+                .font(GhafTypography.body(10, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+        }
+        .padding(14)
+        .frame(maxWidth: 320, alignment: .leading)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -520,6 +637,13 @@ private struct GhafAIOrb: View {
 
     var body: some View {
         ZStack {
+            // Soft halo so Ghaf AI glows a little, stronger while it listens or thinks.
+            Circle()
+                .fill(RadialGradient(colors: [theme.accent.opacity(active ? 0.55 : 0.32), .clear], center: .center,
+                                     startRadius: 0, endRadius: 60))
+                .scaleEffect(active ? 1.9 : 1.6)
+                .blur(radius: 10)
+                .allowsHitTesting(false)
             Circle()
                 .fill(AngularGradient(colors: [theme.accent, theme.credit, theme.accent.opacity(0.6), theme.accent], center: .center))
                 .blur(radius: active ? 6 : 3)

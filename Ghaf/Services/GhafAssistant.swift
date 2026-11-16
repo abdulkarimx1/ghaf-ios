@@ -152,7 +152,8 @@ final class GhafAssistant: ObservableObject {
             return onDeviceReply(to: question, facts: facts, history: history, languageCode: languageCode)
         }
         #endif
-        let answer = Self.basicAnswer(to: question, facts: facts, languageCode: languageCode)
+        let answer = Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
+                                      avoiding: Set(history.filter { !$0.isUser }.map(\.text)))
         return AsyncThrowingStream { continuation in
             continuation.yield(answer)
             continuation.finish()
@@ -172,6 +173,9 @@ final class GhafAssistant: ObservableObject {
         Answer only from the FACTS below. Quote amounts exactly as written with their currency.
         Never invent transactions, balances or subscriptions, and never add amounts in different currencies.
         If the facts do not contain the answer, say so briefly and suggest what the user can record.
+        If the message is not about money (weather, jokes, sports, small talk), reply in one short, warm line with a
+        light touch of humour, stay professional, then offer one thing you can do with their finances.
+        Never repeat a sentence you already said in this conversation; vary your wording.
         Reply in \(languageCode == "ar" ? "Arabic (Gulf-friendly Modern Standard Arabic)" : "English"), in 1-4 short sentences or a short list.
         Users can add a purchase by just typing or saying it, e.g. "35 AED lunch".
 
@@ -192,7 +196,8 @@ final class GhafAssistant: ObservableObject {
                 } catch {
                     // Context too long, unsupported language, guardrails: fall back to grounded answers.
                     Logger(subsystem: "com.ghaf.app", category: "ai").error("On-device model failed: \(String(describing: error), privacy: .public)")
-                    continuation.yield(Self.basicAnswer(to: question, facts: facts, languageCode: languageCode))
+                    continuation.yield(Self.basicAnswer(to: question, facts: facts, languageCode: languageCode,
+                                                        avoiding: Set(history.filter { !$0.isUser }.map(\.text))))
                     continuation.finish()
                 }
             }
@@ -202,7 +207,7 @@ final class GhafAssistant: ObservableObject {
     #endif
 
     /// Keyword answers built only from the facts text, used without Apple Intelligence.
-    static func basicAnswer(to question: String, facts: String, languageCode: String) -> String {
+    static func basicAnswer(to question: String, facts: String, languageCode: String, avoiding: Set<String> = []) -> String {
         let q = question.lowercased()
         let ar = languageCode == "ar"
         let lines = facts.components(separatedBy: "\n")
@@ -212,7 +217,7 @@ final class GhafAssistant: ObservableObject {
             let due = pick("Subscriptions due")
             return due.first ?? (ar ? "لا توجد اشتراكات مستحقة خلال ٣٠ يوماً." : "No subscriptions are due in the next 30 days.")
         }
-        if q.contains("balance") || q.contains("have") || q.contains("رصيد") || q.contains("عندي") {
+        if q.contains("balance") || q.contains("do i have") || q.contains("رصيد") || q.contains("عندي") {
             let start = lines.firstIndex { $0.hasPrefix("Accounts") }
             guard let start else { return ar ? "لا توجد حسابات بعد." : "You have no accounts yet." }
             return lines[start...].prefix { $0.hasPrefix("Accounts") || $0.hasPrefix("- ") }.joined(separator: "\n")
@@ -230,9 +235,9 @@ final class GhafAssistant: ObservableObject {
             return pick("Spent \(period)").joined(separator: "\n").nilIfEmpty
                 ?? (ar ? "لا توجد عمليات مسجلة لهذه الفترة." : "Nothing recorded for \(period) yet.")
         }
-        return ar
-            ? "أستطيع الإجابة عن رصيدك، مصروف اليوم أو الأسبوع أو الشهر، أكثر فئة، والاشتراكات القادمة. ويمكنك كتابة أو قول مشترياتك مثل «٣٥ درهم غداء» لأسجلها."
-            : "Ask me about your balance, spending today, this week or this month, your top category, or upcoming subscriptions. You can also type or say a purchase like \"35 AED lunch\" and I'll log it."
+        // Money questions are handled above; only then is it small talk or something Ghaf did not understand.
+        return GhafSmallTalk.reply(to: question, languageCode: languageCode, avoiding: avoiding)
+            ?? GhafSmallTalk.notUnderstood(question, languageCode: languageCode, avoiding: avoiding)
     }
 }
 
