@@ -24,6 +24,8 @@ struct GhafHomeView: View {
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage("ghaf.hideBalances") private var hideBalances = false
+    /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
+    @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
     @State private var activityPeriodIndex = 0
 
     let settings: GhafSettings
@@ -60,10 +62,21 @@ struct GhafHomeView: View {
         summary.mainCurrency = main
 
         let calendar = GhafCalendar.current
-        let component: Calendar.Component = [.day, .weekOfYear, .month][activityPeriodIndex]
-        let interval = calendar.dateInterval(of: component, for: .now)
-        let previous = interval.flatMap { calendar.date(byAdding: component, value: -1, to: $0.start) }
-            .flatMap { calendar.dateInterval(of: component, for: $0) }
+        // Day and month are calendar periods. Week is the last 7 days including today, so it never
+        // looks empty just because a new calendar week began this morning.
+        let interval: DateInterval?
+        let previous: DateInterval?
+        if activityPeriodIndex == 1 {
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
+            let start = calendar.date(byAdding: .day, value: -7, to: tomorrow)!
+            interval = DateInterval(start: start, end: tomorrow)
+            previous = DateInterval(start: calendar.date(byAdding: .day, value: -7, to: start)!, end: start)
+        } else {
+            let component: Calendar.Component = activityPeriodIndex == 0 ? .day : .month
+            interval = calendar.dateInterval(of: component, for: .now)
+            previous = interval.flatMap { calendar.date(byAdding: component, value: -1, to: $0.start) }
+                .flatMap { calendar.dateInterval(of: component, for: $0) }
+        }
         summary.interval = interval
         var byCategory: [String: Decimal] = [:]
         for transaction in transactions {
@@ -212,8 +225,14 @@ struct GhafHomeView: View {
     // MARK: Balance card: tap to switch Day / Week / Month
 
     private var periodName: String {
-        ar ? ["اليوم", "هذا الأسبوع", "هذا الشهر"][activityPeriodIndex]
-           : ["Today", "This week", "This month"][activityPeriodIndex]
+        ar ? ["اليوم", "آخر ٧ أيام", "هذا الشهر"][activityPeriodIndex]
+           : ["Today", "Last 7 days", "This month"][activityPeriodIndex]
+    }
+
+    /// The period inside a sentence: "your biggest spend in the last 7 days".
+    private var periodPhrase: String {
+        ar ? ["اليوم", "في آخر ٧ أيام", "هذا الشهر"][activityPeriodIndex]
+           : ["today", "in the last 7 days", "this month"][activityPeriodIndex]
     }
 
     /// " · 16–22 Nov" for a week or month, so it's clear where the period starts; nothing for a day.
@@ -223,6 +242,26 @@ struct GhafHomeView: View {
         formatter.locale = Locale(identifier: ar ? "ar_AE" : "en_AE")
         formatter.dateTemplate = "dMMM"
         return " · " + formatter.string(from: interval.start, to: interval.end.addingTimeInterval(-1))
+    }
+
+    private var rollingWeekNote: some View {
+        Button { withAnimation(.snappy) { seenRollingWeekNote = true } } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                Text(ar ? "تغيّر الأسبوعي: يعرض الآن آخر ٧ أيام بدلاً من أسبوع التقويم."
+                        : "Weekly has changed: it now shows the last 7 days instead of the calendar week.")
+                    .multilineTextAlignment(.leading)
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+            }
+            .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+            .foregroundStyle(theme.primaryText)
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(theme.accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(ar ? "اضغط للإخفاء" : "Tap to dismiss")
+        .transition(.opacity)
     }
 
     private func balanceCard(_ summary: Summary) -> some View {
@@ -263,6 +302,8 @@ struct GhafHomeView: View {
                     .foregroundStyle(theme.secondaryText)
                     .contentTransition(.numericText())
             }
+
+            if activityPeriodIndex == 1 && !seenRollingWeekNote { rollingWeekNote }
 
             accountStrip(summary)
         }
@@ -381,26 +422,24 @@ struct GhafHomeView: View {
         let category = GhafLocalization.category(top.name, languageCode: lang)
         let share = Int((NSDecimalNumber(decimal: top.amount / summary.spent).doubleValue * 100).rounded())
         guard !hideBalances else {
-            return ar ? "\(category) أكبر مصروفك \(periodName)، \(share)٪ من الإجمالي."
-                      : "\(category) is your biggest spend \(periodName.lowercased()), \(share)% of the total."
+            return ar ? "\(category) أكبر مصروفك \(periodPhrase)، \(share)٪ من الإجمالي."
+                      : "\(category) is your biggest spend \(periodPhrase), \(share)% of the total."
         }
         let amount = GhafFormat.money(top.amount, currency: summary.mainCurrency, languageCode: lang)
-        return ar ? "\(category) أكبر مصروفك \(periodName): \(amount)، أي \(share)٪ من الإجمالي."
-                  : "\(category) is your biggest spend \(periodName.lowercased()): \(amount), \(share)% of the total."
+        return ar ? "\(category) أكبر مصروفك \(periodPhrase): \(amount)، أي \(share)٪ من الإجمالي."
+                  : "\(category) is your biggest spend \(periodPhrase): \(amount), \(share)% of the total."
     }
 
-    /// Nothing spent yet: say when the period began (a new week can start today) and what the last one cost.
+    /// Nothing spent yet: say what the period before cost.
     private func emptyInsight(_ summary: Summary) -> String {
-        var text = ar ? "ما صرفت شيئاً \(periodName) بعد." : "Nothing spent \(periodName.lowercased()) yet."
-        if activityPeriodIndex == 1, let start = summary.interval?.start {
-            let weekday = start.formatted(Date.FormatStyle(locale: Locale(identifier: ar ? "ar_AE" : "en_AE")).weekday(.wide))
-            text += ar ? " بدأ الأسبوع يوم \(weekday)." : " The week started \(weekday)."
-        }
+        let text = activityPeriodIndex == 1
+            ? (ar ? "ما صرفت شيئاً في آخر ٧ أيام." : "Nothing spent in the last 7 days.")
+            : (ar ? "ما صرفت شيئاً \(periodName) بعد." : "Nothing spent \(periodPhrase) yet.")
         guard summary.previousSpent > 0 else {
             return text + (ar ? " يوم جميل لمحفظتك." : " A good day for your wallet.")
         }
-        let previousName = ar ? ["أمس", "الأسبوع الماضي", "الشهر الماضي"][activityPeriodIndex]
-                              : ["Yesterday", "Last week", "Last month"][activityPeriodIndex]
+        let previousName = ar ? ["أمس", "في الأيام السبعة التي قبلها", "الشهر الماضي"][activityPeriodIndex]
+                              : ["Yesterday", "In the 7 days before", "Last month"][activityPeriodIndex]
         guard !hideBalances else { return text }
         let amount = GhafFormat.money(summary.previousSpent, currency: summary.mainCurrency, languageCode: lang)
         return text + (ar ? " \(previousName) صرفت \(amount)." : " \(previousName) you spent \(amount).")

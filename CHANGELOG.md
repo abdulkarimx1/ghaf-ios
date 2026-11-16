@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.3 (18)
+
+### English
+- Weekly on Home now shows the last 7 days, so it's never empty just because a new week began. A one-time note on Home explains the change.
+- The week-start setting still applies to "this week" in Ghaf AI and charts.
+
+### العربية
+- يعرض الأسبوعي في الرئيسية الآن آخر ٧ أيام، فلا يبدو فارغاً لمجرد بداية أسبوع جديد. تشرح ملاحظة تظهر مرة واحدة هذا التغيير.
+- يبقى إعداد بداية الأسبوع مستخدماً لـ«هذا الأسبوع» في غاف AI والرسوم.
+
 ## 1.10.2 (17)
 
 ### English

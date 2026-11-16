@@ -419,6 +419,10 @@ struct GhafSettingsView: View {
                 Text(languageCode == "ar" ? "الإثنين" : "Monday").tag(2)
             }
             .pickerStyle(.segmented)
+            Text(languageCode == "ar" ? "يُستخدم لـ«هذا الأسبوع» في غاف AI والرسوم. الرئيسية تعرض آخر ٧ أيام."
+                                      : "Used for \"this week\" in Ghaf AI and charts. Home shows the last 7 days.")
+                .font(GhafTypography.body(12, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
         }
     }
 
