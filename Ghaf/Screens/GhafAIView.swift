@@ -46,6 +46,7 @@ struct GhafAIView: View {
     @State private var savedCount = 0
     /// Model availability is costly to query; read it when the tab appears, not on every render.
     @State private var engine: GhafAssistant.Engine = .basic
+    @State private var offerCloud = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let settings: GhafSettings
@@ -183,6 +184,24 @@ struct GhafAIView: View {
                             .ghafCard(theme: theme, radius: 20)
                     }
                     .buttonStyle(.ghafPress)
+                }
+            }
+            if engine != .cloud {
+                Button { offerCloud = true } label: {
+                    Label(ar ? "فعّل الذكاء السحابي لإجابات أذكى" : "Turn on Cloud AI for smarter answers", systemImage: "cloud.fill")
+                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(theme.accent.opacity(0.12), in: Capsule())
+                        .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.ghafPress)
+                .confirmationDialog(ar ? "الذكاء السحابي" : "Cloud AI", isPresented: $offerCloud, titleVisibility: .visible) {
+                    Button(ar ? "تفعيل" : "Turn On") {
+                        UserDefaults.standard.set(true, forKey: GhafCloudAI.enabledKey)
+                        engine = assistant.engine
+                    }
+                } message: {
+                    Text(GhafCloudAI.disclosure(ar: ar) + (ar ? " يمكنك إيقافه من «ما تعلّمه غاف»." : " Turn it off anytime in What Ghaf learned."))
                 }
             }
             Label(ar ? "يتعلم غاف من تصحيحاتك: غيّر الفئة مرة وسيتذكرها." : "Ghaf learns from you: change a category once and it remembers.",

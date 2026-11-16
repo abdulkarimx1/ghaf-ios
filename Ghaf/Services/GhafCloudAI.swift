@@ -1,21 +1,30 @@
 import Foundation
 
-/// Optional cloud replies through the user's own Ghaf AI Worker (backend/ghaf-ai-worker), which holds
-/// the Gemini key. Off by default. Sends the question, totals-only facts and the ledger's answer;
-/// never the transaction list. Any failure falls back to the on-device answer.
+/// Optional cloud replies through Ghaf's own server (backend/ghaf-ai-worker), which holds the model
+/// keys. Off until the user turns it on. Sends the question, totals-only facts and the ledger's answer,
+/// never the transaction list, with a random per-install ID used only for the free daily limit.
+/// Any failure falls back to the on-device answer.
 enum GhafCloudAI {
     static let enabledKey = "ghaf.ai.cloudEnabled"
-    static let urlKey = "ghaf.ai.cloudURL"
-    static let tokenKey = "ghaf.ai.cloudToken"   // Keychain
+    private static let deviceKey = "ghaf.ai.deviceID"   // Keychain
+    static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/chat")!
 
-    static var endpoint: URL? {
-        guard let text = UserDefaults.standard.string(forKey: urlKey)?.trimmingCharacters(in: .whitespaces),
-              let url = URL(string: text), url.scheme == "https", url.host != nil else { return nil }
-        return url.appendingPathComponent("chat")
+    enum Failure: Error { case dailyLimit, unavailable }
+
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
+
+    /// What turning it on means, shown wherever it can be switched on.
+    static func disclosure(ar: Bool) -> String {
+        ar ? "إجابات أذكى عبر خادم غاف باستخدام Gemini من Google أو Gemma على Cloudflare. يُرسل سؤالك وملخص مجاميعك وإجابة سجلك فقط، وليس قائمة عملياتك أو أرقام حساباتك. لا تُحفظ أسئلتك؛ يُحفظ فقط عدد الأسئلة اليومي لمدة يومين. الخطة المجانية: ٢٠ سؤالاً يومياً، وبعدها يجيب غاف من جهازك."
+           : "Smarter replies through Ghaf's server, using Google Gemini or Gemma on Cloudflare. Sends your question, a summary of your totals and the ledger's answer, never your transaction list or account numbers. Questions aren't stored; only a daily question count is kept, for two days. Free plan: 20 questions a day, then Ghaf answers on your iPhone."
     }
 
-    static var isConfigured: Bool {
-        UserDefaults.standard.bool(forKey: enabledKey) && endpoint != nil && Keychain.read(tokenKey)?.isEmpty == false
+    /// Random, not tied to the user or the device hardware; survives reinstall so the daily limit holds.
+    static var deviceID: String {
+        if let existing = Keychain.read(deviceKey) { return existing }
+        let id = UUID().uuidString
+        Keychain.save(id, for: deviceKey)
+        return id
     }
 
     /// Facts without the per-transaction lines, so only totals leave the device.
@@ -25,11 +34,10 @@ enum GhafCloudAI {
 
     static func reply(question: String, facts: String, direct: String?, history: [(isUser: Bool, text: String)],
                       languageCode: String) async throws -> String {
-        guard let endpoint, let token = Keychain.read(tokenKey) else { throw URLError(.userAuthenticationRequired) }
-        var request = URLRequest(url: endpoint, timeoutInterval: 20)
+        var request = URLRequest(url: endpoint, timeoutInterval: 25)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(token, forHTTPHeaderField: "X-Ghaf-Token")
+        request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         let body: [String: Any] = [
             "question": question,
             "facts": minimized(facts),
@@ -39,10 +47,12 @@ enum GhafCloudAI {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200,
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 429 { throw Failure.dailyLimit }
+        guard status == 200,
               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let reply = (json["reply"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !reply.isEmpty
-        else { throw URLError(.badServerResponse) }
+        else { throw Failure.unavailable }
         return reply
     }
 }

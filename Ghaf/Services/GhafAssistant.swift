@@ -135,7 +135,7 @@ final class GhafAssistant: ObservableObject {
 
     /// The user's opt-in cloud Worker first, then Apple's on-device model, then grounded basic answers.
     var engine: Engine {
-        if GhafCloudAI.isConfigured { return .cloud }
+        if GhafCloudAI.isEnabled { return .cloud }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), case .available = SystemLanguageModel.default.availability { return .onDevice }
         #endif
@@ -160,8 +160,12 @@ final class GhafAssistant: ObservableObject {
                     do {
                         continuation.yield(try await GhafCloudAI.reply(question: question, facts: facts, direct: direct,
                                                                        history: history, languageCode: languageCode))
+                    } catch GhafCloudAI.Failure.dailyLimit {
+                        continuation.yield(fallback + (languageCode == "ar"
+                            ? "\n\n(وصلت للحد اليومي للذكاء السحابي؛ أجبتك من جهازك.)"
+                            : "\n\n(Daily Cloud AI limit reached, so this answer came from your iPhone.)"))
                     } catch {
-                        // Offline or the Worker failed: the ledger's answer still comes from the device.
+                        // Offline or the server failed: the ledger's answer still comes from the device.
                         Logger(subsystem: "com.ghaf.app", category: "ai").error("Cloud AI failed: \(String(describing: error), privacy: .public)")
                         continuation.yield(fallback)
                     }
