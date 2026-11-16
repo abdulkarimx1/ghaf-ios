@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.1 (9)
+
+### English
+- Fixed: importing a JSON or Expend backup did nothing after picking the file. Any backup file can now be picked, and Ghaf always asks before importing or explains why a file can't be used.
+
+### العربية
+- إصلاح: استيراد نسخة JSON أو Expend لم يكن يفعل شيئاً بعد اختيار الملف. يمكن الآن اختيار أي ملف نسخة احتياطية، ويطلب غاف التأكيد دائماً قبل الاستيراد أو يوضح سبب عدم قبول الملف.
+
 ## 1.6 (8)
 
 ### English
