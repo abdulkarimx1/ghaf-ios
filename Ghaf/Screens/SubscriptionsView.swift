@@ -193,6 +193,7 @@ private struct GhafSubscriptionEditor: View {
     @State private var reminderDays = 2
     @State private var active = true
     @State private var payments: [GhafTransaction] = []
+    @State private var saveFailed = false
 
     var body: some View {
         NavigationStack {
@@ -244,8 +245,16 @@ private struct GhafSubscriptionEditor: View {
                     }
                     Section {
                         Button(settings.languageCode == "ar" ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
-                            if let subscription { GhafSubscriptionReminderService.cancel(subscription); context.delete(subscription); try? context.save() }
-                            dismiss()
+                            guard let subscription else { return dismiss() }
+                            context.delete(subscription)
+                            do {
+                                try context.save()
+                                GhafSubscriptionReminderService.cancel(subscription)
+                                dismiss()
+                            } catch {
+                                context.rollback()
+                                saveFailed = true
+                            }
                         }
                     }
                 }
@@ -257,6 +266,12 @@ private struct GhafSubscriptionEditor: View {
                 ToolbarItem(placement: .confirmationAction) { Button(settings.languageCode == "ar" ? "حفظ" : "Save") { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || Decimal(string: amount) == nil) }
             }
             .onAppear(perform: load)
+            .alert(settings.languageCode == "ar" ? "تعذر حفظ التغيير" : "Couldn't save the change",
+                   isPresented: $saveFailed) {
+                Button(settings.languageCode == "ar" ? "حسناً" : "OK", role: .cancel) {}
+            } message: {
+                Text(settings.languageCode == "ar" ? "لم يتغير شيء. حاول مرة أخرى." : "Nothing was changed. Please try again.")
+            }
         }
     }
 
@@ -294,6 +309,9 @@ private struct GhafSubscriptionEditor: View {
                 GhafSubscriptionReminderService.schedule(item, language: settings.languageCode)
             }
             dismiss()
-        } catch { context.rollback() }
+        } catch {
+            context.rollback()
+            saveFailed = true
+        }
     }
 }
