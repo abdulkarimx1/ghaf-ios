@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.2 (4)
+
+### English
+
+**A livelier Ghaf AI**
+- Speak to Ghaf and it speaks back.
+- Ask about categories, your week or this month versus last, and get a chart built from your own records.
+- Ask about the weather or a joke and Ghaf answers with a smile, then gets back to your money. It no longer repeats itself.
+- A soft glow shows when Ghaf is listening or thinking.
+
+**Richer details**
+- Transactions open like a wallet receipt: merchant, amount, the likely store on Apple Maps with address and phone, and your history with that merchant.
+- Subscriptions show each company's logo in one consistent style.
+- Bank accounts can show their real card design. Card images are for illustration only; Ghaf is not connected to any bank.
+
+**Easier automation**
+- Install Ghaf's bank automation in one tap. It covers Messages, Mashreq and Mbank.
+- Apple Pay purchases can be added from the Wallet automation. When the bank's message for the same purchase arrives, Ghaf keeps one record.
+
+### العربية
+
+**غاف أكثر حيوية**
+- تكلّم مع غاف ويرد عليك بصوته.
+- اسأل عن الفئات أو أسبوعك أو مقارنة هذا الشهر بالماضي، وتحصل على رسم بياني من سجلاتك.
+- اسأل عن الطقس أو اطلب نكتة، ويرد غاف بابتسامة ثم يعود لأموالك، ولم يعد يكرر نفس الرد.
+- توهّج خفيف يظهر عندما يستمع غاف أو يفكّر.
+
+**تفاصيل أغنى**
+- تفتح العملية مثل إيصال المحفظة: التاجر، المبلغ، المتجر المحتمل في خرائط Apple مع العنوان والهاتف، وسجلك مع هذا التاجر.
+- تعرض الاشتراكات شعار كل شركة بأسلوب موحّد.
+- يمكن عرض تصميم البطاقة الحقيقي لحساباتك البنكية. صور البطاقات للتوضيح فقط وغاف غير مرتبط بأي بنك.
+
+**أتمتة أسهل**
+- ثبّت أتمتة غاف البنكية بضغطة واحدة، وتشمل الرسائل وMashreq وMbank.
+- يمكن إضافة مشتريات Apple Pay من أتمتة المحفظة. وعندما تصل رسالة البنك لنفس العملية، يحتفظ غاف بسجل واحد.
+
 ## 1.1 (3)
 
 ### English
