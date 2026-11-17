@@ -7,6 +7,7 @@ import GhafCore
 /// receipt. Only the merchant name is sent to Apple Maps.
 struct GhafMerchantDetailView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.openURL) private var openURL
     let transaction: GhafTransaction
     let theme: GhafTheme
     let languageCode: String
@@ -51,47 +52,61 @@ struct GhafMerchantDetailView: View {
     }
 
     private func placeCard(_ item: MKMapItem) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Map(initialPosition: .item(item), interactionModes: []) {
-                Marker(item.name ?? "", coordinate: item.placemark.coordinate).tint(theme.accent)
+        let coordinate = item.placemark.coordinate
+        return VStack(alignment: .leading, spacing: 0) {
+            Map(initialPosition: .camera(MapCamera(centerCoordinate: coordinate, distance: 900))) {
+                Marker(item.name ?? "", systemImage: "bag.fill", coordinate: coordinate).tint(theme.accent)
             }
-            .frame(height: 150)
-            .allowsHitTesting(false)
+            .mapControlVisibility(.hidden)
+            .frame(height: 170)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(item.name ?? "").font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
-                if let address = item.placemark.title {
-                    Text(address).font(GhafTypography.body(13, languageCode: languageCode))
-                        .foregroundStyle(theme.secondaryText)
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.name ?? "").font(GhafTypography.heading(18, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                    if let address = item.placemark.title {
+                        Text(address).font(GhafTypography.body(13, languageCode: languageCode))
+                            .foregroundStyle(theme.secondaryText).lineLimit(2)
+                    }
                 }
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    placeAction(ar ? "الاتجاهات" : "Directions", "arrow.triangle.turn.up.right.diamond.fill") {
+                        item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDefault])
+                    }
+                    // A universal link: opens the Google Maps app when installed, else the web. No SDK or key needed.
+                    if let url = URL(string: "https://www.google.com/maps/dir/?api=1&destination=\(coordinate.latitude),\(coordinate.longitude)") {
+                        placeAction("Google Maps", "map.fill") { openURL(url) }
+                    }
                     if let phone = item.phoneNumber,
                        let url = URL(string: "tel:" + phone.filter { $0.isNumber || $0 == "+" }) {
-                        Link(destination: url) { Label(phone, systemImage: "phone.fill") }
+                        placeAction(ar ? "اتصال" : "Call", "phone.fill") { openURL(url) }
                     }
-                    Button { item.openInMaps() } label: {
-                        Label(ar ? "الخرائط" : "Maps", systemImage: "map.fill")
-                    }
+                    placeAction(ar ? "تغيير" : "Change", "mappin.and.ellipse") { choosingPlace = true }
                 }
-                .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
-                .buttonStyle(.bordered).tint(theme.accent)
-                HStack {
-                    Text(ar ? "رسائل البنك لا تتضمن الموقع، فهذا تطابق من خرائط Apple أو اختيارك."
-                            : "Bank messages don't include a location, so this is an Apple Maps match or your choice.")
-                        .font(GhafTypography.body(10, languageCode: languageCode))
-                        .foregroundStyle(theme.secondaryText)
-                    Spacer(minLength: 8)
-                    Button(ar ? "مكان خاطئ؟" : "Wrong place?") { choosingPlace = true }
-                        .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
-                        .foregroundStyle(theme.accent)
-                }
+                Text(ar ? "رسائل البنك لا تتضمن الموقع. هذا اختيارك أو أقرب تطابق، ويُحفظ لكل عمليات هذا المتجر."
+                        : "Bank messages don't include a location. This is your pick or the closest match, saved for every purchase here.")
+                    .font(GhafTypography.body(11, languageCode: languageCode))
+                    .foregroundStyle(theme.secondaryText)
             }
-            .padding(13)
+            .padding(14)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .ghafCard(theme: theme)
+        .clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+    }
+
+    private func placeAction(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 17, weight: .semibold))
+                Text(title).font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(theme.accent)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.ghafPress)
     }
 
     private var historyCard: some View {
@@ -147,7 +162,7 @@ struct GhafMerchantDetailView: View {
     }
 }
 
-/// Search Apple Maps for the real place, nearby first; the choice is remembered.
+/// Search Apple Maps for the real place, nearest first, with the results on a map; the choice is remembered.
 struct GhafPlacePicker: View {
     @Environment(\.dismiss) private var dismiss
     let initialQuery: String
@@ -158,32 +173,53 @@ struct GhafPlacePicker: View {
     @State private var query = ""
     @State private var results: [MKMapItem] = []
     @State private var searching = false
+    @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
 
     private var ar: Bool { languageCode == "ar" }
 
     var body: some View {
         NavigationStack {
-            List {
-                if results.isEmpty && !searching {
-                    Text(query.isEmpty ? (ar ? "اكتب اسم المتجر أو المطعم." : "Type the shop or restaurant name.")
-                                       : (ar ? "لا نتائج قريبة." : "No nearby results."))
-                        .foregroundStyle(theme.secondaryText)
+            VStack(spacing: 0) {
+                Map(position: $camera) {
+                    UserAnnotation()
+                    ForEach(results, id: \.self) { item in
+                        Marker(item.name ?? "", coordinate: item.placemark.coordinate).tint(theme.accent)
+                    }
                 }
-                ForEach(results, id: \.self) { item in
-                    Button {
-                        onPick(item)
-                        dismiss()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.name ?? "").font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                                .foregroundStyle(theme.primaryText)
-                            if let address = item.placemark.title {
-                                Text(address).font(GhafTypography.body(12, languageCode: languageCode))
-                                    .foregroundStyle(theme.secondaryText).lineLimit(2)
+                .frame(height: 220)
+                List {
+                    if results.isEmpty && !searching {
+                        Text(query.isEmpty ? (ar ? "اكتب اسم المتجر أو المطعم كما في الرسالة." : "Type the shop or restaurant name as it appears in the message.")
+                                           : (ar ? "لا نتائج. جرّب جزءاً من الاسم أو اسم المنطقة." : "No results. Try part of the name, or add the area."))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    ForEach(results, id: \.self) { item in
+                        Button {
+                            onPick(item)
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.name ?? "").font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                                        .foregroundStyle(theme.primaryText)
+                                    if let address = item.placemark.title {
+                                        Text(address).font(GhafTypography.body(12, languageCode: languageCode))
+                                            .foregroundStyle(theme.secondaryText).lineLimit(2)
+                                    }
+                                }
+                                Spacer(minLength: 8)
+                                if let distance = GhafPlaces.distance(to: item) {
+                                    Text(Measurement(value: distance / 1000, unit: UnitLength.kilometers)
+                                        .formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(1))).locale(Locale(identifier: languageCode))))
+                                        .font(GhafTypography.number(12, weight: .semibold))
+                                        .foregroundStyle(theme.secondaryText)
+                                }
                             }
+                            .frame(minHeight: 44)
                         }
                     }
                 }
+                .listStyle(.plain)
             }
             .overlay { if searching { ProgressView() } }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
@@ -196,8 +232,9 @@ struct GhafPlacePicker: View {
                 try? await Task.sleep(for: .milliseconds(350))   // wait for typing to pause
                 guard !Task.isCancelled else { return }
                 searching = true
-                results = (try? await GhafPlaces.search(query)) ?? []
+                results = await GhafPlaces.searchNearestFirst(query)
                 searching = false
+                if !results.isEmpty { withAnimation { camera = .automatic } }
             }
             .onAppear {
                 query = initialQuery

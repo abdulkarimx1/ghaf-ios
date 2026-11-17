@@ -124,6 +124,23 @@ enum GhafPlaces {
         return best
     }
 
+    static func distance(to item: MKMapItem) -> CLLocationDistance? {
+        guard let here = locationManager.location, let there = item.placemark.location else { return nil }
+        return here.distance(from: there)
+    }
+
+    /// Places first, then any match (addresses, areas) when no place has that name; nearest first.
+    static func searchNearestFirst(_ text: String) async -> [MKMapItem] {
+        var items = (try? await search(text)) ?? []
+        if items.isEmpty {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = text
+            request.region = searchRegion
+            items = (try? await MKLocalSearch(request: request).start().mapItems) ?? []
+        }
+        return items.sorted { (distance(to: $0) ?? .infinity) < (distance(to: $1) ?? .infinity) }
+    }
+
     static func search(_ text: String) async throws -> [MKMapItem] {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = text
