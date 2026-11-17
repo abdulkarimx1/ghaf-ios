@@ -368,17 +368,96 @@ struct GhafCityScene: View {
     }
 }
 
-/// The scene faded into the top of a screen's background. Hidden for Graphite, which has no city.
+/// The city behind every screen: a tall, faint scene in the middle of the background that is
+/// always slightly alive. A glow breathes, the near layer sways like wind through palms and
+/// mangroves, the far layer drifts, and coastal cities have a dhow riding the swell.
+/// Still when Reduce Motion is on. Hidden for Graphite, which has no city.
 struct GhafCityBackdrop: View {
     let theme: GhafTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private static let coastal: Set<String> = ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain", "Fujairah"]
 
     var body: some View {
-        GhafCityScene(city: theme.name, accent: theme.accent, glow: theme.glow, strength: theme.isDark ? 0.16 : 0.12)
-            .frame(height: 150)
-            .mask(LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .center, endPoint: .bottom))
+        let city = GhafTheme.canonical(theme.name)
+        if city != "Graphite" {
+            TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion)) { context in
+                let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+                scene(city: city, t: t)
+            }
+            .frame(height: 360)
+            .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.25),
+                                         .init(color: .black, location: 0.8), .init(color: .clear, location: 1)],
+                                 startPoint: .top, endPoint: .bottom))
             .frame(maxWidth: 620)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
+    private func scene(city: String, t: Double) -> some View {
+        let strength = theme.isDark ? 0.2 : 0.15
+        return ZStack {
+            // A soft light behind the landmarks that slowly breathes and wanders.
+            RadialGradient(colors: [theme.glow.opacity(theme.isDark ? 0.35 : 0.28), .clear], center: .center,
+                           startRadius: 0, endRadius: 220)
+                .scaleEffect(1 + 0.08 * sin(t * 0.45))
+                .offset(x: 40 * sin(t * 0.12), y: 30 + 14 * cos(t * 0.17))
+            GhafCitySkyline(city: city, layer: .back)
+                .fill(theme.glow.opacity(0.35 * strength))
+                .offset(x: 10 * sin(t * 0.06))
+            GhafCitySkyline(city: city, layer: .mid)
+                .fill(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength))
+            if Self.coastal.contains(city) {
+                GhafDhow()
+                    .fill(theme.accent.opacity(0.9 * strength))
+                    .frame(width: 64, height: 54)
+                    .rotationEffect(.degrees(2.5 * sin(t * 0.9)), anchor: .bottom)
+                    .offset(y: 3 * sin(t * 1.3))
+                    // Crosses the scene once a minute and comes back around.
+                    .offset(x: CGFloat((t / 60).truncatingRemainder(dividingBy: 1)) * 520 - 260, y: 132)
+            }
+            GhafCitySkyline(city: city, layer: .front)
+                .fill(theme.accent.opacity(strength))
+                .modifier(GhafWindSway(amount: 0.018 * sin(t * 0.8) + 0.008 * sin(t * 2.1)))
+        }
+        .clipped()
+        .environment(\.layoutDirection, .leftToRight)
+    }
+}
+
+/// Leans a layer from its base, so the tops of palms and mangroves move while the ground stays put.
+struct GhafWindSway: GeometryEffect {
+    var amount: CGFloat
+    var animatableData: CGFloat {
+        get { amount }
+        set { amount = newValue }
+    }
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(a: 1, b: 0, c: amount, d: 1, tx: -amount * size.height, ty: 0))
+    }
+}
+
+/// A dhow: a curved wooden hull and a lateen sail on a raked mast.
+struct GhafDhow: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * w, y: rect.minY + y * h) }
+        var hull = Path()
+        hull.move(to: p(0.0, 0.70))
+        hull.addQuadCurve(to: p(1.0, 0.66), control: p(0.55, 0.74))
+        hull.addQuadCurve(to: p(0.80, 0.94), control: p(0.94, 0.86))
+        hull.addLine(to: p(0.22, 0.94))
+        hull.addQuadCurve(to: p(0.0, 0.70), control: p(0.08, 0.88))
+        var sail = Path()
+        sail.move(to: p(0.20, 0.08))
+        sail.addQuadCurve(to: p(0.86, 0.62), control: p(0.70, 0.18))
+        sail.addLine(to: p(0.38, 0.62))
+        sail.closeSubpath()
+        var mast = Path()
+        mast.move(to: p(0.46, 0.70)); mast.addLine(to: p(0.42, 0.20))
+        return hull.union(sail).union(mast.strokedPath(StrokeStyle(lineWidth: w * 0.03, lineCap: .round)))
     }
 }
 

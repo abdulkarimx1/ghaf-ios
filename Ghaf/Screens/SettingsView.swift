@@ -474,11 +474,11 @@ struct GhafSettingsView: View {
                                 if option == "Graphite" {
                                     Circle().fill(LinearGradient(colors: [preview.accent, preview.glow],
                                                                  startPoint: .topLeading, endPoint: .bottomTrailing))
-                                        .frame(width: 34, height: 34)
-                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .frame(width: 44, height: 44)
+                                        .frame(maxWidth: .infinity, minHeight: 100)
                                 } else {
                                     GhafCityScene(city: option, accent: preview.accent, glow: preview.glow)
-                                        .frame(height: 52)
+                                        .frame(height: 100)
                                 }
                                 if themeName == option {
                                     Image(systemName: "checkmark.circle.fill")
@@ -493,7 +493,7 @@ struct GhafSettingsView: View {
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
                         .padding(.horizontal, 8).padding(.top, 10).padding(.bottom, 8)
-                        .frame(maxWidth: .infinity, minHeight: 86)
+                        .frame(maxWidth: .infinity, minHeight: 140)
                         .background(preview.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)

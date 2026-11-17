@@ -9,9 +9,9 @@ extension View {
     }
 
     func ghafBackground(theme: GhafTheme) -> some View {
-        background(ZStack(alignment: .top) {
+        background(ZStack {
             theme.background
-            GhafCityBackdrop(theme: theme).padding(.top, 34)
+            GhafCityBackdrop(theme: theme)
         }.ignoresSafeArea())
     }
 
