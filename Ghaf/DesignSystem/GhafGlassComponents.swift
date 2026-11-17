@@ -291,22 +291,51 @@ struct GhafCategoryIcon: View {
         }
     }
 
-    private var style: (symbol: String, color: Color) {
+    /// Built-in categories: symbol and palette colour.
+    static func builtIn(_ category: String) -> (symbol: String, palette: Palette)? {
         switch category {
-        case "Groceries": ("basket.fill", color(.palm))
-        case "Dining": ("fork.knife", color(.saffron))
-        case "Transport": ("car.fill", color(.gulf))
-        case "Fuel": ("fuelpump.fill", color(.ember))
-        case "Bills & Utilities": ("bolt.fill", color(.date))
-        case "Shopping": ("bag.fill", color(.rose))
-        case "Health": ("cross.case.fill", color(.coral))
-        case "Entertainment": ("play.rectangle.fill", color(.henna))
-        case "Travel": ("airplane", color(.sea))
-        case "Salary": ("banknote.fill", color(.mint))
-        case "Transfers": ("arrow.left.arrow.right", color(.stone))
-        case "Subscriptions": ("repeat", color(.lavender))
-        default: ("creditcard.fill", tint)
+        case "Groceries": ("basket.fill", .palm)
+        case "Dining": ("fork.knife", .saffron)
+        case "Transport": ("car.fill", .gulf)
+        case "Fuel": ("fuelpump.fill", .ember)
+        case "Bills & Utilities": ("bolt.fill", .date)
+        case "Shopping": ("bag.fill", .rose)
+        case "Health": ("cross.case.fill", .coral)
+        case "Entertainment": ("play.rectangle.fill", .henna)
+        case "Travel": ("airplane", .sea)
+        case "Salary": ("banknote.fill", .mint)
+        case "Transfers": ("arrow.left.arrow.right", .stone)
+        case "Subscriptions": ("repeat", .lavender)
+        default: nil
         }
+    }
+
+    /// One stable colour per category for charts: its own, else a palette colour picked from its name.
+    static func chartColor(_ category: String, dark: Bool) -> Color {
+        let all: [Palette] = [.saffron, .gulf, .palm, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
+        let palette = builtIn(category)?.palette ?? all[abs(category.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % all.count]
+        let hex = dark ? palette.pair.dark : palette.pair.light
+        return Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
+
+    /// Distinct colours for the categories shown together in one chart: built-in ones keep their own,
+    /// the rest take palette colours nobody else in the chart uses.
+    static func chartColors(for categories: [String], dark: Bool) -> [String: Color] {
+        let all: [Palette] = [.saffron, .gulf, .palm, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
+        var used = Set(categories.compactMap { builtIn($0)?.palette })
+        var result: [String: Color] = [:]
+        for category in categories {
+            let palette = builtIn(category)?.palette ?? all.first { !used.contains($0) } ?? all[result.count % all.count]
+            used.insert(palette)
+            let hex = dark ? palette.pair.dark : palette.pair.light
+            result[category] = Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+        }
+        return result
+    }
+
+    private var style: (symbol: String, color: Color) {
+        guard let builtIn = Self.builtIn(category) else { return ("creditcard.fill", tint) }
+        return (builtIn.symbol, color(builtIn.palette))
     }
 
     var body: some View {

@@ -68,6 +68,12 @@ struct GhafSettingsView: View {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     profileHeader
 
+                    menuGroup("Ghaf Pro") {
+                        menuRow(ar ? "خطط غاف Pro" : "Ghaf Pro plans", icon: "sparkles") { GhafProView(settings: settings, showsClose: false) }
+                        menuRow(ar ? "لماذا غاف مدفوع؟" : "Why Ghaf is paid", icon: "heart.fill") { GhafWhyPaidView(settings: settings) }
+                        menuRow(ar ? "شروط الاشتراك" : "Subscription terms", icon: "doc.text.fill") { GhafTermsView(settings: settings) }
+                    }
+
                     menuGroup(ar ? "المال" : "Money") {
                         menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
                         menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { categoriesCard; budgetCard } }

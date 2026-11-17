@@ -279,8 +279,8 @@ struct GhafTabView: View {
                 }
                 .tag(1)
 
-            GhafSubscriptionsView(settings: settings)
-                .tabItem { tabIcon(Image(systemName: "repeat"), settings.languageCode == "ar" ? "الاشتراكات" : "Subscriptions") }
+            GhafStatsView(settings: settings)
+                .tabItem { tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats") }
                 .tag(2)
 
             GhafSettingsView(settings: settings)

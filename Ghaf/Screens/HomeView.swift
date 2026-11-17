@@ -25,6 +25,7 @@ struct GhafHomeView: View {
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
+    @State private var showSubscriptions = false
     /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
     @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
     @State private var activityPeriodIndex = 0
@@ -136,6 +137,9 @@ struct GhafHomeView: View {
             .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }
+            }
+            .sheet(isPresented: $showSubscriptions) {
+                GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showInsights) {
                 GhafInsightsView(settings: settings).presentationDragIndicator(.visible)
@@ -370,8 +374,8 @@ struct GhafHomeView: View {
         HStack(spacing: 10) {
             GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
                            prominent: true) { showQuickAdd = true }
-            GhafPillButton(title: ar ? "بالصوت" : "Say it", icon: "mic.fill", theme: theme,
-                           languageCode: lang) { showVoiceEntry = true }
+            GhafPillButton(title: ar ? "اشتراكات" : "Subs", icon: "repeat", theme: theme,
+                           languageCode: lang) { showSubscriptions = true }
             GhafPillButton(title: ar ? "مراجعة" : "Review", icon: "tray.full.fill", theme: theme,
                            languageCode: lang, badge: summary.reviewCount) { showReview = true }
         }
