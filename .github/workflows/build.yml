@@ -165,17 +165,61 @@ jobs:
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
           BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
           TAG="v${VERSION}-${BUILD}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping."
-            exit 0
-          fi
           # Notes: this version's section of CHANGELOG.md (English and Arabic).
           awk -v heading="## ${VERSION} (${BUILD})" '$0 == heading { found = 1; next } /^## / { found = 0 } found' CHANGELOG.md > release-notes.md
           [ -s release-notes.md ] || echo "Ghaf ${VERSION} (${BUILD})" > release-notes.md
-          gh release create "$TAG" Ghaf.ipa \
-            --title "Ghaf ${VERSION} (${BUILD})" \
-            --notes-file release-notes.md \
-            --target "$GITHUB_SHA"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; keeping its IPA and refreshing source.json."
+          else
+            gh release create "$TAG" Ghaf.ipa \
+              --title "Ghaf ${VERSION} (${BUILD})" \
+              --notes-file release-notes.md \
+              --target "$GITHUB_SHA"
+          fi
+          # The source must describe the IPA actually attached to the release.
+          gh release download "$TAG" --pattern Ghaf.ipa --output release.ipa --clobber
+          # AltStore-format source for FlareStore, Feather, SideStore…; added once at
+          # releases/latest/download/source.json, which always points to the newest release.
+          VERSION="$VERSION" BUILD="$BUILD" TAG="$TAG" SIZE=$(stat -f%z release.ipa) REPO="$GITHUB_REPOSITORY" python3 - <<'PY'
+          import json, os, datetime
+          repo, tag = os.environ["REPO"], os.environ["TAG"]
+          raw = f"https://raw.githubusercontent.com/{repo}/main"
+          source = {
+              "name": "Ghaf",
+              "identifier": "com.ghaf.source",
+              "subtitle": "Personal finance for the UAE",
+              "website": f"https://github.com/{repo}",
+              "iconURL": f"{raw}/Ghaf/Assets.xcassets/AppIcon.appiconset/ghaf-app-icon.png",
+              "tintColor": "8A5A24",
+              "apps": [{
+                  "name": "Ghaf",
+                  "bundleIdentifier": "com.ghaf.app",
+                  "developerName": "Ghaf",
+                  "subtitle": "Personal finance for the UAE",
+                  "localizedDescription": "Track accounts, transactions, subscriptions and budgets in Arabic and English.",
+                  "iconURL": f"{raw}/Ghaf/Assets.xcassets/AppIcon.appiconset/ghaf-app-icon.png",
+                  "tintColor": "8A5A24",
+                  "category": "utilities",
+                  "versions": [{
+                      "version": os.environ["VERSION"],
+                      "buildVersion": os.environ["BUILD"],
+                      "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      "localizedDescription": open("release-notes.md").read().strip(),
+                      "downloadURL": f"https://github.com/{repo}/releases/download/{tag}/Ghaf.ipa",
+                      "size": int(os.environ["SIZE"]),
+                      "minOSVersion": "17.0"
+                  }],
+                  # Older stores read these top-level fields instead of versions[].
+                  "version": os.environ["VERSION"],
+                  "versionDate": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"),
+                  "downloadURL": f"https://github.com/{repo}/releases/download/{tag}/Ghaf.ipa",
+                  "size": int(os.environ["SIZE"])
+              }],
+              "news": []
+          }
+          json.dump(source, open("source.json", "w"), ensure_ascii=False, indent=2)
+          PY
+          gh release upload "$TAG" source.json --clobber
 
       - name: Upload iPhone 17 simulator preview
         uses: actions/upload-artifact@v7
