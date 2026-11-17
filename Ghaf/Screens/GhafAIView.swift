@@ -39,6 +39,8 @@ struct GhafAIView: View {
     @State private var speechDone = GhafSpeechDone()
     /// Set when Ghaf asked something out loud: it listens for the answer once it stops speaking.
     @State private var listenAfterSpeaking = false
+    /// Hands-free conversation: listen, answer aloud, listen again, until the user ends it.
+    @State private var voiceMode = false
     @FocusState private var inputFocused: Bool
     @State private var savedCount = 0
     /// Model availability is costly to query; read it when the tab appears, not on every render.
@@ -90,6 +92,11 @@ struct GhafAIView: View {
                     .ignoresSafeArea()
             }
             .toolbar(.hidden, for: .navigationBar)
+            .overlay {
+                if voiceMode {
+                    AnyView(voiceModeView).transition(.opacity.combined(with: .scale(scale: 1.04)))
+                }
+            }
             .sensoryFeedback(.success, trigger: savedCount)
             .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
             .onChange(of: recorder.finishedSpeakingCount) { _, _ in finishVoice() }
@@ -384,6 +391,18 @@ struct GhafAIView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
 
+                if !hasText && !recorder.isRecording {
+                    Button { enterVoiceMode() } label: {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(theme.accent)
+                            .frame(width: 44, height: 44)
+                            .background(theme.accent.opacity(0.12), in: Circle())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .disabled(isThinking)
+                    .accessibilityLabel(ar ? "وضع المحادثة الصوتية" : "Voice mode")
+                }
                 Button {
                     if recorder.isRecording { finishVoice() }
                     else if hasText { send(prompt) }
@@ -456,6 +475,10 @@ struct GhafAIView: View {
                 : (ar ? "لم أفهم ذلك. حاول مرة أخرى." : "I didn't catch that. Try again."))
             withAnimation(.snappy) { messages.append(note) }
             Task {
+                if voiceMode {
+                    try? await Task.sleep(for: .seconds(1.2))
+                    if voiceMode { startVoice() }
+                }
                 try? await Task.sleep(for: .seconds(3))
                 withAnimation(.snappy) { messages.removeAll { $0.id == note.id } }
             }
@@ -713,8 +736,98 @@ struct GhafAIView: View {
     }
 
     /// Replies to voice input are always spoken; typed messages only when "read replies aloud" is on.
+    // MARK: Voice mode
+
+    private func enterVoiceMode() {
+        inputFocused = false
+        withAnimation(.spring(duration: 0.45)) { voiceMode = true }
+        startVoice()
+    }
+
+    private func exitVoiceMode() {
+        withAnimation(.spring(duration: 0.4)) { voiceMode = false }
+        listenAfterSpeaking = false
+        recorder.reset()
+        synthesizer.stopSpeaking(at: .immediate)
+    }
+
+    private var voiceStatus: String {
+        if recorder.isRecording { return ar ? "أستمع…" : "Listening…" }
+        if isThinking { return ar ? "أفكر…" : "Thinking…" }
+        if speechDone.speaking { return ar ? "أتكلم… اضغط للمقاطعة" : "Speaking… tap to interrupt" }
+        return ar ? "اضغط على الدائرة للتحدث" : "Tap the orb to talk"
+    }
+
+    private var voiceModeView: some View {
+        let lastReply = messages.last { !$0.isUser }?.text ?? ""
+        return ZStack {
+            theme.background.opacity(0.97).ignoresSafeArea()
+            RadialGradient(colors: [theme.glow.opacity(0.35), .clear], center: .center, startRadius: 0, endRadius: 320)
+                .ignoresSafeArea()
+            VStack(spacing: 22) {
+                Text("Ghaf AI")
+                    .font(GhafTypography.heading(18, languageCode: "en"))
+                    .foregroundStyle(theme.secondaryText)
+                    .padding(.top, 24)
+                Spacer()
+                Button {
+                    // Tap to interrupt Ghaf, or to start talking.
+                    if speechDone.speaking { synthesizer.stopSpeaking(at: .immediate); startVoice() }
+                    else if recorder.isRecording { finishVoice() }
+                    else if !isThinking { startVoice() }
+                } label: {
+                    GhafAIOrb(theme: theme, active: (recorder.isRecording || isThinking || speechDone.speaking) && !reduceMotion)
+                        .frame(width: 220, height: 220)
+                        .scaleEffect(1 + CGFloat(min(recorder.isRecording ? recorder.level : 0, 1)) * 0.25)
+                        .animation(.easeOut(duration: 0.12), value: recorder.level)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(voiceStatus)
+                Text(voiceStatus)
+                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .bold))
+                    .foregroundStyle(theme.accent)
+                    .contentTransition(.opacity)
+                Text(recorder.isRecording ? recorder.transcript : lastReply)
+                    .font(GhafTypography.body(recorder.isRecording ? 20 : 17, languageCode: settings.languageCode,
+                                              weight: recorder.isRecording ? .semibold : .regular))
+                    .foregroundStyle(recorder.isRecording ? theme.primaryText : theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(6)
+                    .padding(.horizontal, 28)
+                    .frame(minHeight: 120, alignment: .top)
+                    .animation(.easeOut(duration: 0.2), value: recorder.transcript)
+                Spacer()
+                HStack(spacing: 40) {
+                    Button {
+                        speakReplies.toggle()
+                        if !speakReplies { synthesizer.stopSpeaking(at: .immediate) }
+                    } label: {
+                        Image(systemName: speechDone.speaking ? "speaker.wave.2.fill" : "speaker.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .frame(width: 64, height: 64)
+                            .background(theme.surface, in: Circle())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(ar ? "الصوت" : "Sound")
+                    Button { exitVoiceMode() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 64, height: 64)
+                            .background(theme.over, in: Circle())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(ar ? "إنهاء المحادثة الصوتية" : "End voice mode")
+                }
+                .padding(.bottom, 36)
+            }
+            .frame(maxWidth: 520)
+        }
+    }
+
     private func speak(_ text: String, force: Bool = false) {
-        guard speakReplies || force, !text.isEmpty else { return }
+        guard speakReplies || force || voiceMode, !text.isEmpty else { return }
         // The microphone leaves the session in .record, where speech is silent.
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
@@ -732,7 +845,7 @@ struct GhafAIView: View {
         synthesizer.stopSpeaking(at: .immediate)
         synthesizer.delegate = speechDone
         speechDone.onFinish = {
-            guard listenAfterSpeaking else { return }
+            guard listenAfterSpeaking || voiceMode else { return }
             listenAfterSpeaking = false
             startVoice()
         }
@@ -814,9 +927,21 @@ private struct GhafLevelBars: View {
 }
 
 /// Tells the chat when Ghaf has finished speaking, so it can listen for the answer.
+@Observable
 final class GhafSpeechDone: NSObject, AVSpeechSynthesizerDelegate {
     var onFinish: (@MainActor () -> Void)?
+    /// Whether Ghaf is talking right now, for the voice mode's status line.
+    var speaking = false
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+        Task { @MainActor in self.speaking = true }
+    }
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.onFinish?() }
+        Task { @MainActor in
+            self.speaking = false
+            self.onFinish?()
+        }
+    }
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in self.speaking = false }
     }
 }

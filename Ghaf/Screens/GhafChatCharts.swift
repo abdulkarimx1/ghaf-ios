@@ -107,8 +107,12 @@ struct GhafChatChartView: View {
     /// The tapped or dragged-over point; nil shows the total.
     @State private var selected: String?
     @State private var selectedAngle: Double?
+    /// The user can redraw the chart in place instead of asking again.
+    @State private var styleOverride: GhafChatChart.Style?
 
     private var ar: Bool { languageCode == "ar" }
+    private var style: GhafChatChart.Style { styleOverride ?? chart.style }
+    private var styles: [GhafChatChart.Style] { chart.kind == .categories ? [.bar, .donut, .rose] : [.bar, .line] }
     private var total: Double { chart.points.reduce(0) { $0 + $1.value } }
     private var maxValue: Double { max(chart.points.map(\.value).max() ?? 1, 1) }
     private var selectedPoint: GhafChatChart.Point? { chart.points.first { $0.label == selected } }
@@ -127,7 +131,7 @@ struct GhafChatChartView: View {
                 .lineLimit(1)
             Spacer(minLength: 6)
             Text(selectedPoint?.value ?? total, format: .number.precision(.fractionLength(0...2)))
-                .font(GhafTypography.number(20, weight: .heavy))
+                .font(GhafTypography.number(26, weight: .heavy))
                 .foregroundStyle(theme.primaryText)
                 .contentTransition(.numericText())
             Text(chart.currency)
@@ -141,19 +145,45 @@ struct GhafChatChartView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
-    /// Shades of the theme from accent to glow, so every chart belongs to the current city theme.
+    /// Categories get one distinct colour each; time series use the theme's accent and glow.
     private func shade(_ index: Int) -> Color {
+        if chart.kind == .categories {
+            let colors = GhafCategoryIcon.chartColors(for: chart.points.map(\.label), dark: theme.isDark)
+            return colors[chart.points[index].label] ?? theme.accent
+        }
         let step = Double(index) / Double(max(chart.points.count - 1, 1))
         return index.isMultiple(of: 2) ? theme.accent.opacity(1 - step * 0.55) : theme.glow.opacity(1 - step * 0.45)
     }
 
+    private var styleSwitch: some View {
+        HStack(spacing: 2) {
+            ForEach(styles, id: \.self) { item in
+                Button { withAnimation(.snappy) { styleOverride = item; selected = nil } } label: {
+                    Image(systemName: item == .bar ? "chart.bar.fill" : item == .donut ? "chart.pie.fill" : item == .rose ? "camera.macro" : "chart.xyaxis.line")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(style == item ? theme.accentContrast : theme.secondaryText)
+                        .frame(width: 34, height: 30)
+                        .background(style == item ? theme.accent : .clear, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.rawValue)
+            }
+        }
+        .padding(3)
+        .background(theme.elevatedSurface, in: Capsule())
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(chart.title)
-                .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                .foregroundStyle(theme.primaryText)
+            HStack {
+                Text(chart.title)
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+                Spacer(minLength: 8)
+                styleSwitch
+            }
             readout
-            switch chart.style {
+            switch style {
             case .bar: bars
             case .donut: donut
             case .rose: rose
@@ -165,7 +195,7 @@ struct GhafChatChartView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .ghafCard(theme: theme, radius: 22)
         .sensoryFeedback(.selection, trigger: selected)
         .accessibilityElement(children: .contain)
         .onAppear { withAnimation(.spring(duration: 0.9, bounce: 0.25)) { drawn = true } }
@@ -196,7 +226,7 @@ struct GhafChatChartView: View {
     }
 
     private var donut: some View {
-        HStack(spacing: 14) {
+        VStack(spacing: 14) {
             Chart(Array(chart.points.enumerated()), id: \.element.id) { index, point in
                 SectorMark(angle: .value(chart.currency, drawn ? point.value : 0.0001),
                            innerRadius: .ratio(0.62), angularInset: 2)
@@ -217,7 +247,7 @@ struct GhafChatChartView: View {
                     Text(chart.currency).font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.secondaryText)
                 }
             }
-            .frame(width: 140, height: 140)
+            .frame(height: 200)
             legend
         }
     }
@@ -287,7 +317,10 @@ struct GhafChatChartView: View {
                         Circle().fill(shade(index)).frame(width: 9, height: 9)
                         Text(point.label).lineLimit(1)
                         Spacer(minLength: 4)
+                        Text(point.value, format: .number.precision(.fractionLength(0))).monospacedDigit()
+                            .foregroundStyle(theme.secondaryText)
                         Text(total > 0 ? "\(Int((point.value / total * 100).rounded()))%" : "–").monospacedDigit()
+                            .frame(minWidth: 36, alignment: .trailing)
                     }
                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
