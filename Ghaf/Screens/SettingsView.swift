@@ -1,4 +1,5 @@
 import SwiftUI
+import GhafCore
 import SwiftData
 import UniformTypeIdentifiers
 import PhotosUI
@@ -48,6 +49,8 @@ struct GhafSettingsView: View {
     @State private var prompt: GhafSettingsPrompt?
     @State private var hasLoadedSettings = false
     @State private var categoryToRemove: String?
+    @State private var editingCategory: String?
+    @State private var categoryDraftName = ""
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -558,12 +561,15 @@ struct GhafSettingsView: View {
     }
 
     private var budgetCard: some View {
-        settingsCard(languageCode == "ar" ? "الميزانية" : "Budget", subtitle: languageCode == "ar" ? "حدد طريقة حساب المبلغ المتاح" : "Choose how your available money is measured") {
-            Picker(languageCode == "ar" ? "طريقة الميزانية" : "Budget method", selection: $budgetMode) {
-                Text(languageCode == "ar" ? "حد يومي" : "Daily limit").tag("Daily")
-                Text(languageCode == "ar" ? "ميزانيات الفئات" : "Category budgets").tag("Category")
+        settingsCard(ar ? "الميزانية" : "Budget",
+                     subtitle: ar ? "الميزانية هي المبلغ الذي تخطط أن تصرفه. يقارن غاف صرفك الفعلي بها ويخبرك إن كنت مرتاحاً أو قريباً من الحد أو تجاوزته."
+                                  : "A budget is how much you plan to spend. Ghaf compares what you actually spend with it and tells you if you're comfortable, close or over.") {
+            HStack(spacing: 10) {
+                budgetChoice("Daily", ar ? "حد يومي" : "Daily limit",
+                             ar ? "مبلغ لكل يوم من دخلك" : "One amount a day from your income", icon: "sun.max.fill")
+                budgetChoice("Category", ar ? "حسب الفئة" : "By category",
+                             ar ? "سقف شهري لكل فئة" : "A monthly cap per category", icon: "square.grid.2x2.fill")
             }
-            .pickerStyle(.segmented)
 
             if budgetMode == "Daily" {
                 settingsLabel(languageCode == "ar" ? "الدخل الشهري" : "Monthly income")
@@ -599,15 +605,47 @@ struct GhafSettingsView: View {
         }
     }
 
+    private func budgetChoice(_ value: String, _ title: String, _ detail: String, icon: String) -> some View {
+        let selected = budgetMode == value
+        return Button { withAnimation(.snappy) { budgetMode = value } } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: icon).font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(selected ? theme.accentContrast : theme.accent)
+                Text(title).font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                Text(detail).font(GhafTypography.body(12, languageCode: languageCode)).opacity(0.8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .background(selected ? theme.accent : theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.ghafPress)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
     private var categoriesCard: some View {
         let spent = categorySpendThisMonth
         return settingsCard(ar ? "الفئات" : "Categories",
-                            subtitle: ar ? "اضغط مطولاً على فئة لحذفها" : "Long-press a category to remove it") {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(settings.categories, id: \.self) { category in
-                    categoryTile(category, spent: spent[category] ?? 0)
+                            subtitle: ar ? "اضغط على فئة لتعديل اسمها أو حذفها" : "Tap a category to rename or remove it") {
+            ForEach(categoryGroups, id: \.title) { group in
+                if !group.names.isEmpty {
+                    settingsLabel(group.title)
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        ForEach(group.names, id: \.self) { category in
+                            Button { editingCategory = category; categoryDraftName = GhafLocalization.category(category, languageCode: languageCode) } label: {
+                                categoryTile(category, spent: spent[category] ?? 0)
+                            }
+                            .buttonStyle(.ghafPress)
+                        }
+                    }
                 }
             }
+            Label(ar ? "يتعلم غاف من تعديلاتك: عندما تغيّر فئة عملية، يتذكر التاجر ويقترح نفس الفئة في المرة القادمة. يُحفظ ذلك على جهازك ويمكنك مراجعته في «ما تعلّمه غاف»."
+                     : "Ghaf learns from your edits: change a transaction's category and it remembers that merchant for next time. This stays on your iPhone; review it in What Ghaf learned.",
+                  systemImage: "brain.head.profile")
+                .font(GhafTypography.body(12, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
             HStack(spacing: 8) {
                 TextField(ar ? "فئة جديدة" : "New category", text: $newCategory)
                     .font(GhafTypography.body(15, languageCode: languageCode))
@@ -626,6 +664,11 @@ struct GhafSettingsView: View {
                 .opacity(newCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
             }
         }
+        .sheet(item: Binding(get: { editingCategory.map(GhafEditingCategory.init) }, set: { editingCategory = $0?.name })) { item in
+            categoryEditor(item.name)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         .confirmationDialog(ar ? "حذف هذه الفئة؟" : "Remove this category?",
                             isPresented: Binding(get: { categoryToRemove != nil }, set: { if !$0 { categoryToRemove = nil } }),
                             titleVisibility: .visible) {
@@ -634,6 +677,83 @@ struct GhafSettingsView: View {
             }
         } message: {
             Text(ar ? "تبقى العمليات المسجلة بها كما هي." : "Transactions already in it keep their category.")
+        }
+    }
+
+    /// Expenses, income and transfers apart, so the list reads like the money it describes.
+    private var categoryGroups: [(title: String, names: [String])] {
+        let transfers = settings.categories.filter { $0.localizedCaseInsensitiveContains("transfer") }
+        let income = settings.categories.filter { name in
+            !transfers.contains(name) && (CategoryTaxonomy.category(named: name)?.isIncome ?? false
+                || ["Salary", "Other Income", "Income"].contains(name))
+        }
+        let expenses = settings.categories.filter { !transfers.contains($0) && !income.contains($0) }
+        return [(ar ? "المصروفات" : "Expenses", expenses), (ar ? "الدخل" : "Income", income), (ar ? "التحويلات" : "Transfers", transfers)]
+    }
+
+    private func categoryEditor(_ category: String) -> some View {
+        let builtIn = CategoryTaxonomy.category(named: category) != nil
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                GhafCategoryIcon(category: category, tint: theme.accent)
+                Text(GhafLocalization.category(category, languageCode: languageCode))
+                    .font(GhafTypography.heading(20, languageCode: languageCode))
+                    .foregroundStyle(theme.primaryText)
+            }
+            settingsLabel(ar ? "الاسم" : "Name")
+            settingsField(ar ? "اسم الفئة" : "Category name", text: $categoryDraftName)
+            Text(ar ? "تبقى العمليات والتجار الذين تعلّمهم غاف في هذه الفئة بعد تغيير الاسم."
+                    : "Its transactions and the merchants Ghaf learned stay with it under the new name.")
+                .font(GhafTypography.body(12, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+            HStack(spacing: 10) {
+                if settings.categories.count > 1 {
+                    Button(ar ? "حذف" : "Remove", role: .destructive) { categoryToRemove = category; editingCategory = nil }
+                        .ghafGlassButton(theme: theme, languageCode: languageCode)
+                }
+                Button(ar ? "حفظ" : "Save") {
+                    renameCategory(category, to: categoryDraftName)
+                    editingCategory = nil
+                }
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
+                .disabled(categoryDraftName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            if builtIn {
+                Text(ar ? "فئة أساسية: تغيير اسمها ينشئ فئة باسمك وينقل إليها كل شيء." : "A built-in category: renaming creates yours and moves everything to it.")
+                    .font(GhafTypography.body(11, languageCode: languageCode))
+                    .foregroundStyle(theme.secondaryText)
+            }
+        }
+        .padding(GhafMetrics.gutter)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(theme.background)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+
+    /// Moves a category to a new name everywhere it is used: the list, budgets, subcategories,
+    /// transactions and learned merchant rules. Nothing else changes.
+    private func renameCategory(_ old: String, to rawNew: String) {
+        let new = rawNew.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !new.isEmpty, new != old, new != GhafLocalization.category(old, languageCode: languageCode) else { return }
+        guard !settings.categories.contains(new) else {
+            prompt = .message(ar ? "توجد فئة بهذا الاسم." : "A category with that name already exists.")
+            return
+        }
+        settings.categories = settings.categories.map { $0 == old ? new : $0 }
+        var meta = settings.categoryMeta
+        if let value = meta.removeValue(forKey: old) { meta[new] = value }
+        settings.categoryMeta = meta
+        var budgets = settings.categoryBudgets
+        if let value = budgets.removeValue(forKey: old) { budgets[new] = value }
+        settings.categoryBudgets = budgets
+        if let text = categoryBudgetTexts.removeValue(forKey: old) { categoryBudgetTexts[new] = text }
+        for transaction in transactions where transaction.category == old { transaction.category = new }
+        if let rules = try? modelContext.fetch(FetchDescriptor<MerchantCategoryRule>()) {
+            for rule in rules where rule.category == old { rule.category = new }
+        }
+        do { try modelContext.save() } catch {
+            modelContext.rollback()
+            prompt = .message(ar ? "تعذر تغيير الاسم." : "Couldn't rename the category.")
         }
     }
 
@@ -977,4 +1097,9 @@ private struct GhafDocumentPicker: UIViewControllerRepresentable {
             if let url = urls.first { onPick(url) }
         }
     }
+}
+
+private struct GhafEditingCategory: Identifiable {
+    let name: String
+    var id: String { name }
 }
