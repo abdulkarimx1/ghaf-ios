@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.1 (24)
+
+### English
+- Fixed a crash when opening Ghaf on iPhone, caused by the new city drawings.
+
+### العربية
+- إصلاح توقف غاف عند فتحه على iPhone بسبب رسوم المدن الجديدة.
+
 ## 1.14 (23)
 
 ### English
