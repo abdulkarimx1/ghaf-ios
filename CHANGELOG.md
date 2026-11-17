@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.13 (22)
+
+### English
+- Bank automation only records real money movement: ads, offers, "discount" messages, statements and payment reminders are no longer saved as transactions.
+- New Notifications page: a note when a transaction is added (with the updated balance), plus optional morning, evening and weekly summaries.
+- Cash wallets are clearer: no bank or card digits, named Cash wallet 1, 2…, and voice entries go to your cash wallet.
+- Accounts show a designed card or AED note by default; the plain look is still available.
+- AED notes have richer, more visible engraving.
+- Categories are grouped into Expenses, Income and Transfers, and can be renamed or removed.
+- Budgets explain what they do and offer two clear choices.
+- Larger, clearer buttons for language, week start and appearance.
+
+### العربية
+- أتمتة البنك تسجّل الحركات المالية الحقيقية فقط: لم تعد الإعلانات والعروض ورسائل «الخصم» وكشوف الحساب وتذكيرات الدفع تُحفظ كعمليات.
+- صفحة إشعارات جديدة: تنبيه عند إضافة عملية مع الرصيد المحدّث، وملخصات اختيارية صباحية ومسائية وأسبوعية.
+- محافظ الكاش أوضح: بلا بنك أو أرقام بطاقة، بأسماء محفظة كاش ١ و٢…، وتُسجَّل العمليات الصوتية عليها.
+- تعرض الحسابات بطاقة مصممة أو ورقة درهم افتراضياً، مع بقاء الشكل البسيط خياراً.
+- نقوش أوراق الدرهم أغنى وأوضح.
+- الفئات مقسمة إلى مصروفات ودخل وتحويلات، ويمكن تعديل اسمها أو حذفها.
+- الميزانية تشرح عملها وتقدم خيارين واضحين.
+- أزرار أكبر وأوضح للغة وبداية الأسبوع والمظهر.
+
 ## 1.12 (21)
 
 ### English
