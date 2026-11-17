@@ -145,15 +145,6 @@ jobs:
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload Ghaf.ipa
           unzip -t Ghaf.ipa
 
-      - name: Upload unsigned IPA
-        uses: actions/upload-artifact@v7
-        with:
-          path: Ghaf.ipa
-          # Upload the .ipa itself, not wrapped in a zip: sideloading apps reject a zip with no Payload/ inside.
-          archive: false
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Publish release with IPA
         # One release per version: a push without a version bump (or a re-run) finds the tag and skips.
         if: github.ref == 'refs/heads/main'
@@ -220,6 +211,18 @@ jobs:
           json.dump(source, open("source.json", "w"), ensure_ascii=False, indent=2)
           PY
           gh release upload "$TAG" source.json --clobber
+
+      - name: Upload unsigned IPA
+        # Extra copy in the run's artifacts; the release above is the real download, so this never blocks it.
+        timeout-minutes: 5
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          path: Ghaf.ipa
+          # Upload the .ipa itself, not wrapped in a zip: sideloading apps reject a zip with no Payload/ inside.
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload iPhone 17 simulator preview
         uses: actions/upload-artifact@v7
