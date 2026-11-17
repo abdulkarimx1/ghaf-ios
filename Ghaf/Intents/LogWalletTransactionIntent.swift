@@ -32,7 +32,7 @@ struct LogWalletTransactionIntent: AppIntent {
             let context = try GhafPersistence.shared().mainContext
             // Phrased like a card message so the same parser and validation apply.
             return try TransactionIngestionService(context: context).ingest(
-                messageText: "Purchase of \(cleanAmount) at \(cleanMerchant).",
+                messageText: "Purchase of \(cleanAmount) with your card at \(cleanMerchant).",
                 sender: card,
                 fromWallet: true
             )

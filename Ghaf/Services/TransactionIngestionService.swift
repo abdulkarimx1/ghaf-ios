@@ -155,9 +155,17 @@ final class TransactionIngestionService {
 
         context.insert(transaction)
         try context.save()
+        // One notification per transaction: the unusual-charge note when it applies, else what was added.
         if let unusual, let merchant = parsed.merchant {
             notifyUnusual(merchant: merchant, parsed: parsed, typical: unusual.typical)
+        } else {
+            let all = (try? context.fetch(FetchDescriptor<GhafTransaction>())) ?? []
+            let balance = resolvedAccount.map { GhafAccountBalanceCalculator.balance(for: $0, transactions: all) }
+            let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
+            GhafDigestNotifications.transactionAdded(transaction, account: resolvedAccount, balance: balance,
+                                                     needsReview: needsReview, languageCode: language)
         }
+        GhafDigestNotifications.reschedule(context: context)
 
         let subscriptionNote = paidSubscription.map { " Looks like the \($0.name) payment. Confirm it in Subscriptions." }
             ?? detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""

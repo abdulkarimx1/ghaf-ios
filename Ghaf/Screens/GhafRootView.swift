@@ -60,6 +60,8 @@ struct GhafRootView: View {
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
         .onChange(of: scenePhase) { _, phase in
+            // Leaving Ghaf: refresh the morning/evening/weekly notes with today's numbers.
+            if phase == .background { GhafDigestNotifications.reschedule(context: modelContext) }
             if phase != .active {
                 if requiresAuthentication { isUnlocked = false }
             } else if requiresAuthentication {

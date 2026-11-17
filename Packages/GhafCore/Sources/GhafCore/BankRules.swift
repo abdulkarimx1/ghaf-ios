@@ -22,7 +22,8 @@ private enum BankPatterns {
         #"(?i)\bspent\b"#, #"(?i)\bpaid\b"#, #"(?i)\bpayment\b"#,
         #"(?i)\bwithdraw(?:al|n)?\b"#, #"(?i)\bcharged\b"#,
         #"(?i)\bcard\s+used\b"#,
-        #"خصم|شراء|سحب|دفع|مدين"#
+        // «خصم» alone also means a promotional discount; only its deduction forms count.
+        #"تم\s+(?:ال)?خصم|خُصم|خصم\s+مبلغ|مبلغ\s+مخصوم|شراء|سحب|دفع|مدين"#
     ]
 
     static let credits = [
@@ -39,6 +40,30 @@ private enum BankPatterns {
         #"(?i)\bpre-?authori[sz](?:ation|ed)\b"#, #"(?i)\bauthori[sz]ation\s+hold\b"#, #"قيد\s+المعالجة|معلق"#
     ]
     static let explicitDebit = [#"(?i)\bdebited\b"#, #"تم\s+خصم"#]
+
+    /// Words that say money actually moved, not that it could ("debited", «تم خصم», "was made").
+    static let completed = [
+        #"(?i)\b(?:debited|credited|deducted|withdrawn|charged|spent|deposited|transferred|refunded|reversed)\b"#,
+        #"(?i)\b(?:was|were|has\s+been|have\s+been)\s+(?:made|used|paid|completed|successful|approved|processed|received|sent)\b"#,
+        #"(?i)\byou\s+(?:paid|spent|received|sent|withdrew)\b"#,
+        #"(?i)\b(?:purchase|payment|withdrawal|debit|credit)\s+(?:of\s+)?(?:AED|USD|EUR|GBP|SAR|KWD|BHD|OMR|QAR)\s*[0-9]"#,
+        #"(?i)\bcard\s+purchase\b"#, #"(?i)\b(?:salary|refund)\b"#,
+        #"تم\s*(?:ال)?(?:خصم|شراء|سحب|إيداع|ايداع|تحويل|دفع|استلام|إضافة|اضافة|استرداد|عكس)|تمت\s+(?:عملية|العملية)|خُصم|أودع|عملية\s+شراء|سحب\s+نقدي|حوالة\s+(?:واردة|صادرة)|راتب"#
+    ]
+
+    /// The user's own card or account ("card ending 1234", "xxxx0000", «بطاقتك», «حسابك»).
+    static let ownReference = [
+        #"(?i)\b(?:card|account|a/c|acct)\s*(?:no\.?|number|ending(?:\s+(?:in|with))?)?\s*[:#]?\s*[x*•.\d]{3,}"#,
+        #"(?i)\byour\s+(?:card|account|credit\s+card|debit\s+card)\b"#,
+        #"(?:بطاقتك|بطاقتكم|حسابك|حسابكم|البطاقة\s+رقم|الحساب\s+رقم|المنتهية\s+ب)"#
+    ]
+
+    /// Marketing language: offers, rewards, links and invitations.
+    static let marketing = [
+        #"(?i)\b(?:offer|offers|deal|enjoy|win|reward|rewards|exclusive|apply\s+now|click|download|valid\s+(?:till|until)|t\s*&\s*c|terms\s+apply|up\s+to|discount|sale|voucher|coupon|instalment\s+plan|eligible)\b"#,
+        #"(?i)https?://|www\.|\d+\s*%"#,
+        #"استمتع|اربح|احصل|عرض|عروض|حصري|لفترة\s+محدودة|اضغط|سارع|قدم\s+الآن|قدّم|تطبق\s+الشروط|الشروط\s+والأحكام|كوبون|قسيمة|مكافأة|مكافآت|استرجاع\s+نقدي\s+يصل|يصل\s+إلى"#
+    ]
 
     static let transactionSignals = debits + credits + [
         #"(?i)\bwas\s+made\b"#, #"(?i)\btransaction\b"#,
@@ -210,6 +235,15 @@ struct RegexBankMessageRule: BankMessageRule {
         guard direction.1 else { return nil }
 
         let merchant = TransactionExtractor.merchant(message)
+        // Evidence that money moved. A bank sending a message proves nothing by itself.
+        let completed = Regex.matches(BankPatterns.completed, in: message)
+        let ownReference = Regex.matches(BankPatterns.ownReference, in: message)
+        // An offer ("Enjoy 50 AED off…", «خصم ٢٠٪») is never a transaction unless it also reports a
+        // completed movement on the user's own card or account.
+        if Regex.matches(BankPatterns.marketing, in: message), !(completed && ownReference) { return nil }
+        guard completed || ownReference || merchant != nil else { return nil }
+        // No currency: only a recognised bank's message with clear evidence is kept, and only for review.
+        if !amount.hasExplicitCurrency, bankName == nil || !(completed || ownReference) && merchant == nil { return nil }
         let date = TransactionExtractor.date(message, fallback: referenceDate)
         let hasSignal = Regex.matches(BankPatterns.transactionSignals, in: message)
 
@@ -308,6 +342,9 @@ enum MessageNoiseFilter {
         #"(?i)\bnever\s+share\b"#,
         #"احصل\s+على|عرض\s+(?:خاص|حصري)|خصم\s+\d+\s*%|\d+\s*%\s*خصم"#,
         #"رمز\s+(?:التحقق|التفعيل|سري)|كلمة\s+(?:ال)?مرور\s+لمرة\s+واحدة|لا\s+تشارك"#,
+        // Statements and payment reminders name an amount that has not moved.
+        #"(?i)\b(?:minimum\s+(?:amount\s+)?due|payment\s+due|amount\s+due|due\s+(?:date|by|on)|statement\s+(?:is\s+)?(?:ready|generated|available))\b"#,
+        #"المبلغ\s+المستحق|الحد\s+الأدنى\s+(?:للدفع|المستحق)|تاريخ\s+الاستحقاق|كشف\s+(?:حساب|البطاقة)|تذكير\s+بالدفع"#,
         // A transfer request is not proof that funds have moved.
         #"(?i)\brequest\s+received\s+for\s+fund\s+transfer\b"#,
         #"(?i)\btransfer\s+request\s+(?:received|created|submitted)\b"#,

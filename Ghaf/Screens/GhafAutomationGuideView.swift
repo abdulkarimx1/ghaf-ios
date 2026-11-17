@@ -41,7 +41,7 @@ struct GhafAutomationGuideView: View {
                 instructionCard(
                     number: "4",
                     title: localized("Turn on Run Immediately", "فعّل «التشغيل فوراً»"),
-                    detail: localized("Open each Ghaf automation and choose Run Immediately. iOS only lets you do this yourself.", "افتح كل أتمتة لغاف واختر «التشغيل فوراً». iOS يسمح لك وحدك بذلك.")
+                    detail: localized("Open each Ghaf automation, choose Run Immediately and turn off Notify When Run, so it works silently. Only you can change this in iOS.", "افتح كل أتمتة لغاف، اختر «التشغيل فوراً» وأوقف «الإشعار عند التشغيل» لتعمل بصمت. iOS يسمح لك وحدك بذلك.")
                 )
 
                 privacyCard

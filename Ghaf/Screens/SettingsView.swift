@@ -80,6 +80,7 @@ struct GhafSettingsView: View {
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
                             subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; appearanceCard }
                         }
+                        menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "الأمان والخصوصية" : "Security & privacy", icon: "lock.fill") { subpage(ar ? "الأمان" : "Security") { securityCard } }
                     }
 
