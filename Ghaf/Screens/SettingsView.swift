@@ -475,9 +475,8 @@ struct GhafSettingsView: View {
                                         .frame(width: 34, height: 34)
                                         .frame(maxWidth: .infinity, minHeight: 44)
                                 } else {
-                                    GhafCitySkyline(city: option)
-                                        .fill(LinearGradient(colors: [preview.accent, preview.glow], startPoint: .top, endPoint: .bottom))
-                                        .frame(height: 44)
+                                    GhafCityScene(city: option, accent: preview.accent, glow: preview.glow)
+                                        .frame(height: 52)
                                 }
                                 if themeName == option {
                                     Image(systemName: "checkmark.circle.fill")
