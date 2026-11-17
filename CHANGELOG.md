@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.15 (26)
+
+### English
+- Purchases abroad are recorded correctly: "TRY 597.60" is converted to your account's currency at today's market rate, and the original amount and rate are kept. Before, the available balance could be saved as the purchase.
+- New Stats tab: spending by week, month, 3 months or year, as bars, line or area, and by category as a donut, bars or tiles. Tap and drag on any chart. Subscriptions now open from Home.
+- Your accounts as a Wallet-style stack: tap a card for its balance, details and recent activity.
+- Hiding balances now hides every amount in the app.
+- A redesigned review screen that says why each transaction needs a look, with one-tap account choice.
+- Places: a bigger map, directions in Apple Maps or Google Maps, and nearby results first. Your choice is saved for that merchant.
+- Ghaf AI voice mode: talk hands-free; Ghaf answers aloud and listens again. Charts in chat are clearer and can be redrawn in place.
+- Widgets for your balance and today's spending, and a Live Activity for each new purchase.
+- City themes are taller and gently alive: palms sway, dhows float, the light breathes.
+- New welcome cards, a new opening screen, and Ghaf Pro plans (coming soon; everything stays free until then).
+- AED notes no longer carry the tree emblem.
+
+### العربية
+- تسجيل المشتريات من الخارج بشكل صحيح: يُحوَّل مبلغ مثل «TRY 597.60» إلى عملة حسابك بسعر السوق اليوم، مع حفظ المبلغ الأصلي وسعر الصرف. سابقاً كان يمكن أن يُسجَّل الرصيد المتاح كمبلغ للعملية.
+- تبويب إحصائيات جديد: صرفك أسبوعياً أو شهرياً أو لثلاثة أشهر أو سنوياً، بأعمدة أو خط أو مساحة، وحسب الفئة بشكل دائري أو أشرطة أو مربعات. اضغط واسحب على أي رسم. الاشتراكات تُفتح الآن من الرئيسية.
+- حساباتك كبطاقات مكدّسة مثل المحفظة: اضغط على بطاقة لترى رصيدها وتفاصيلها وآخر عملياتها.
+- إخفاء الأرصدة يخفي الآن كل المبالغ في التطبيق.
+- شاشة مراجعة جديدة توضّح سبب كل عملية، مع اختيار الحساب بلمسة.
+- الأماكن: خريطة أكبر، واتجاهات في خرائط Apple أو Google، والنتائج القريبة أولاً. اختيارك يُحفظ لنفس المتجر.
+- وضع المحادثة الصوتية في غاف AI: تكلّم بدون لمس، وغاف يرد بصوته ثم يستمع لك. الرسوم في المحادثة أوضح ويمكن تغيير شكلها مباشرة.
+- ودجت للرصيد وصرف اليوم، ونشاط مباشر لكل عملية جديدة.
+- ثيمات المدن أطول وفيها حياة: النخيل يتمايل، والمحامل تطفو، والضوء يتنفس.
+- بطاقات ترحيب جديدة، وشاشة افتتاح جديدة، وخطط غاف Pro (قريباً، وكل شيء مجاني حتى ذلك الحين).
+- إزالة شعار الشجرة من أوراق الدرهم.
+
 ## 1.14.2 (25)
 
 ### English

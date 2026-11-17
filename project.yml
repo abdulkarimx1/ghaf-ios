@@ -18,16 +18,18 @@ targets:
     platform: iOS
     sources:
       - path: Ghaf
+      - path: Shared
     dependencies:
       - package: GhafCore
         product: GhafCore
+      - target: GhafWidgets
 
     info:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.14.2"
-        CFBundleVersion: "25"
+        CFBundleShortVersionString: "1.15"
+        CFBundleVersion: "26"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
@@ -52,6 +54,7 @@ targets:
         # iOS OAuth client ID from Google Cloud Console (Drive backup). Empty = Drive sign-in hidden behind a setup note.
         GHAF_GOOGLE_CLIENT_ID: ""
         LSRequiresIPhoneOS: true
+        NSSupportsLiveActivities: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
 
@@ -59,9 +62,34 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app
         PRODUCT_NAME: Ghaf
+        CODE_SIGN_ENTITLEMENTS: Config/Ghaf.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "5.0"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
+
+  GhafWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: GhafWidgets
+      - path: Shared
+    info:
+      path: BuildConfig/GhafWidgets-Info.plist
+      properties:
+        CFBundleDisplayName: Ghaf
+        CFBundleShortVersionString: "1.15"
+        CFBundleVersion: "26"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app.widgets
+        PRODUCT_NAME: GhafWidgets
+        CODE_SIGN_ENTITLEMENTS: Config/GhafWidgets.entitlements
+        SWIFT_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
