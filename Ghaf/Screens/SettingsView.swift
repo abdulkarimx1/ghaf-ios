@@ -122,6 +122,7 @@ struct GhafSettingsView: View {
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear(perform: loadSettings)
             .onChange(of: languageCode) { _, _ in persistSettings() }
+            .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }
             .onChange(of: name) { _, _ in persistSettings() }
             .onChange(of: currency) { _, _ in persistSettings() }
             .onChange(of: income) { _, _ in persistSettings() }
@@ -417,25 +418,42 @@ struct GhafSettingsView: View {
     }
 
     private var languageCard: some View {
-        settingsCard(languageCode == "ar" ? "اللغة" : "Language", subtitle: languageCode == "ar" ? "لغة الواجهة في جميع أجزاء غاف" : "The language used throughout Ghaf") {
-            Picker(languageCode == "ar" ? "لغة التطبيق" : "App language", selection: $languageCode) {
-                Text("English").tag("en")
-                Text("العربية").tag("ar")
+        settingsCard(ar ? "اللغة" : "Language", subtitle: ar ? "لغة الواجهة في جميع أجزاء غاف" : "The language used throughout Ghaf") {
+            HStack(spacing: 10) {
+                choiceButton("English", detail: "Left to right", selected: languageCode == "en") { languageCode = "en" }
+                choiceButton("العربية", detail: "من اليمين لليسار", selected: languageCode == "ar") { languageCode = "ar" }
             }
-            .pickerStyle(.segmented)
 
-            settingsLabel(languageCode == "ar" ? "بداية الأسبوع" : "Week starts on")
-            Picker(languageCode == "ar" ? "بداية الأسبوع" : "Week starts on", selection: $weekStart) {
-                Text(languageCode == "ar" ? "السبت" : "Saturday").tag(7)
-                Text(languageCode == "ar" ? "الأحد" : "Sunday").tag(1)
-                Text(languageCode == "ar" ? "الإثنين" : "Monday").tag(2)
+            settingsLabel(ar ? "بداية الأسبوع" : "Week starts on")
+            HStack(spacing: 8) {
+                ForEach([(7, ar ? "السبت" : "Saturday"), (1, ar ? "الأحد" : "Sunday"), (2, ar ? "الإثنين" : "Monday")], id: \.0) { day, title in
+                    choiceButton(title, detail: nil, selected: weekStart == day) { weekStart = day }
+                }
             }
-            .pickerStyle(.segmented)
-            Text(languageCode == "ar" ? "يُستخدم لـ«هذا الأسبوع» في غاف AI والرسوم. الرئيسية تعرض آخر ٧ أيام."
-                                      : "Used for \"this week\" in Ghaf AI and charts. Home shows the last 7 days.")
+            Text(ar ? "يحدد «هذا الأسبوع» و«الأسبوع الماضي» في غاف AI والرسوم، وموعد الملخص الأسبوعي. الرئيسية تعرض آخر ٧ أيام."
+                    : "Sets \"this week\" and \"last week\" in Ghaf AI and charts, and when the weekly summary arrives. Home shows the last 7 days.")
                 .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
+    }
+
+    /// A large, high-contrast option: filled accent when selected, a quiet tile otherwise.
+    private func choiceButton(_ title: String, detail: String?, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.snappy) { action() } } label: {
+            VStack(spacing: 2) {
+                Text(title).font(GhafTypography.body(16, languageCode: languageCode, weight: .bold))
+                if let detail { Text(detail).font(GhafTypography.body(11, languageCode: languageCode)).opacity(0.8) }
+            }
+            .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: detail == nil ? 50 : 62)
+            .background(selected ? theme.accent : theme.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(selected ? .clear : theme.outline, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.ghafPress)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var appearanceCard: some View {
@@ -489,12 +507,11 @@ struct GhafSettingsView: View {
             }
 
             settingsLabel(languageCode == "ar" ? "وضع المظهر" : "Appearance mode")
-            Picker(languageCode == "ar" ? "وضع المظهر" : "Appearance mode", selection: $appearanceMode) {
-                Text(languageCode == "ar" ? "حسب الجهاز" : "System").tag("System")
-                Text(languageCode == "ar" ? "فاتح" : "Light").tag("Light")
-                Text(languageCode == "ar" ? "داكن" : "Dark").tag("Dark")
+HStack(spacing: 8) {
+                ForEach([("System", ar ? "حسب الجهاز" : "System"), ("Light", ar ? "فاتح" : "Light"), ("Dark", ar ? "داكن" : "Dark")], id: \.0) { mode, title in
+                    choiceButton(title, detail: nil, selected: appearanceMode == mode) { appearanceMode = mode }
+                }
             }
-            .pickerStyle(.segmented)
 
             HStack(spacing: 9) {
                 Circle().fill(theme.accent).frame(width: 16, height: 16)
