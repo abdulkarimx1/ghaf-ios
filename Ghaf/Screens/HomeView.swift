@@ -24,7 +24,7 @@ struct GhafHomeView: View {
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
-    @AppStorage("ghaf.hideBalances") private var hideBalances = false
+    @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
     /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
     @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
     @State private var activityPeriodIndex = 0

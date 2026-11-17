@@ -134,6 +134,14 @@ enum GhafFormat {
         }
     }
 
+    static let hideBalancesKey = "ghaf.hideBalances"
+    static var balancesHidden: Bool { UserDefaults.standard.bool(forKey: hideBalancesKey) }
+
+    /// `money`, or stars while balances are hidden. For text on screen; notifications and exports use `money`.
+    static func shownMoney(_ amount: Decimal, currency: String, languageCode: String = "en") -> String {
+        balancesHidden ? "\(currency) \(GhafMoneyLabel.mask)" : money(amount, currency: currency, languageCode: languageCode)
+    }
+
     static func money(
         _ amount: Decimal,
         currency: String,

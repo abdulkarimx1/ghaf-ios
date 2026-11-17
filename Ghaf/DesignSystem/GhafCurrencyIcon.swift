@@ -98,6 +98,8 @@ struct GhafMoneyLabel: View {
     let languageCode: String
     var size: CGFloat = 17
     var hidden = false
+    /// The eye toggle on Home hides every amount in the app, not just Home's.
+    @AppStorage(GhafFormat.hideBalancesKey) private var hiddenEverywhere = false
 
     static let mask = "✦✦✦✦"
 
@@ -125,7 +127,7 @@ struct GhafMoneyLabel: View {
                     .font(GhafTypography.number(size * 0.55, weight: .heavy))
             }
             // Hiding blurs the digits into stars (and back); a value change still rolls its digits.
-            if hidden {
+            if hidden || hiddenEverywhere {
                 Text(Self.mask)
                     .font(GhafTypography.number(size * 0.7, weight: .heavy))
                     .tracking(size * 0.08)
