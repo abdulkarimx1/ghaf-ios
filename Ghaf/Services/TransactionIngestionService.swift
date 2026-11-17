@@ -188,6 +188,14 @@ final class TransactionIngestionService {
                                                      needsReview: needsReview, languageCode: language)
         }
         GhafDigestNotifications.reschedule(context: context)
+        GhafWidgetSync.refresh(context: context)
+        do {
+            let all = (try? context.fetch(FetchDescriptor<GhafTransaction>())) ?? []
+            let balance = resolvedAccount.map { GhafAccountBalanceCalculator.balance(for: $0, transactions: all) }
+            let arabic = (try? GhafPersistence.settings(in: context).languageCode) == "ar"
+            let account = resolvedAccount
+            Task { await GhafWidgetSync.showPurchase(transaction, account: account, balance: balance, needsReview: needsReview, arabic: arabic) }
+        }
 
         let subscriptionNote = paidSubscription.map { " Looks like the \($0.name) payment. Confirm it in Subscriptions." }
             ?? detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""

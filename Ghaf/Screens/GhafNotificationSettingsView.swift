@@ -13,6 +13,7 @@ struct GhafNotificationSettingsView: View {
     @AppStorage(GhafDigestNotifications.morningKey) private var morning = false
     @AppStorage(GhafDigestNotifications.eveningKey) private var evening = false
     @AppStorage(GhafDigestNotifications.weeklyKey) private var weekly = false
+    @AppStorage(GhafWidgetSync.liveActivityKey) private var liveActivity = true
     @State private var denied = false
 
     private var ar: Bool { settings.languageCode == "ar" }
@@ -47,6 +48,10 @@ struct GhafNotificationSettingsView: View {
                     row(ar ? "عند إضافة عملية تلقائياً" : "When a transaction is added",
                         ar ? "المبلغ والمكان ورصيد الحساب المحدّث" : "Amount, place and the account's updated balance",
                         icon: "bolt.fill", isOn: $autoTransaction)
+                    Divider().overlay(theme.outline)
+                    row(ar ? "النشاط المباشر للعمليات" : "Live Activity for purchases",
+                        ar ? "آخر عملية على شاشة القفل وفي Dynamic Island لمدة ١٥ دقيقة" : "The latest purchase on the Lock Screen and Dynamic Island for 15 minutes",
+                        icon: "bolt.badge.clock.fill", isOn: $liveActivity)
                     Divider().overlay(theme.outline)
                     row(ar ? "صباحاً · ٨:٠٠" : "Morning · 8:00",
                         ar ? "كم صرفت أمس" : "What you spent yesterday", icon: "sunrise.fill", isOn: $morning)
