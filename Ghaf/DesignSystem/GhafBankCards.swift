@@ -128,7 +128,7 @@ struct GhafCardFace: View {
 extension GhafCardFace {
     /// A small card for list rows: only for bank accounts with a chosen image or a recognised bank.
     static func mini(for account: GhafAccount, width: CGFloat = 46) -> GhafCardFace? {
-        let design = account.cardDesign.flatMap(GhafCardDesign.init(rawValue:))
+        let design = GhafCardDesign.forAccount(account)
         guard design != nil || (account.type.isBankAccount && GhafUAEBank.match([account.institution, account.name]) != nil)
         else { return nil }
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",

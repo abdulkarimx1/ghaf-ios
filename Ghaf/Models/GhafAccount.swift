@@ -166,6 +166,21 @@ struct GhafCardDesign: Identifiable, Hashable, Decodable {
         self = found
     }
 
+    /// Stored when the user picks the plain face on purpose.
+    static let plainID = "plain"
+
+    /// The design shown when none was chosen: the AED 100 note for cash, else the bank's first card.
+    static func defaultDesign(isCash: Bool, bank: GhafUAEBank?) -> GhafCardDesign? {
+        isCash ? all.first { $0.id == "cash-aed-100" } : cards(for: bank).first
+    }
+
+    /// What an account shows: its chosen design, nothing for "plain", else the default.
+    static func forAccount(_ account: GhafAccount) -> GhafCardDesign? {
+        if account.cardDesign == plainID { return nil }
+        if let chosen = account.cardDesign.flatMap(GhafCardDesign.init(rawValue:)) { return chosen }
+        return defaultDesign(isCash: account.type == .cash, bank: GhafUAEBank.match([account.institution, account.name]))
+    }
+
     static func cards(for bank: GhafUAEBank?) -> [GhafCardDesign] {
         guard let bank else { return [] }
         return all.filter { $0.bank == bank.id }

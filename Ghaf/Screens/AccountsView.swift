@@ -218,6 +218,13 @@ struct GhafAccountEditorView: View {
     @State private var errorMessage = false
     @State private var showArchiveConfirmation = false
     @State private var cardDesign: GhafCardDesign?
+    /// The plain face, chosen on purpose; otherwise a designed card or note is always shown.
+    @State private var plainChosen = false
+    private var isCash: Bool { accountType == .cash }
+    private var defaultDesign: GhafCardDesign? {
+        GhafCardDesign.defaultDesign(isCash: isCash, bank: GhafUAEBank.match([institution, name]))
+    }
+    private var shownDesign: GhafCardDesign? { plainChosen ? nil : (cardDesign ?? defaultDesign) }
     @State private var showCardRequest = false
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
@@ -237,10 +244,10 @@ struct GhafAccountEditorView: View {
         ScrollView {
             VStack(spacing: 18) {
                 GhafCardFace(account: account, name: name, institution: institution, lastFour: lastFourDigits,
-                             design: cardDesign, width: 300)
+                             design: shownDesign, width: 300)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 6)
-                    .animation(.spring(duration: 0.4), value: cardDesign)
+                    .animation(.spring(duration: 0.4), value: shownDesign)
                     .ghafEntrance(0)
                 designStrip.ghafEntrance(1)
 
@@ -248,6 +255,7 @@ struct GhafAccountEditorView: View {
                     fieldRow(ar ? "الاسم" : "Name") {
                         TextField(ar ? "مثال: المشرق" : "e.g. Mashreq", text: $name)
                     }
+                    if !isCash {
                     fieldRow(ar ? "البنك" : "Bank") {
                         HStack(spacing: 6) {
                             TextField(ar ? "البنك أو الجهة" : "Bank or institution", text: $institution)
@@ -261,12 +269,21 @@ struct GhafAccountEditorView: View {
                             .accessibilityLabel(ar ? "اختر بنكاً" : "Choose a bank")
                         }
                     }
+                    }
                     fieldRow(ar ? "النوع" : "Type") {
                         Picker("", selection: $accountType) {
                             ForEach(GhafAccountType.allCases) { type in Text(accountTypeTitle(type)).tag(type) }
                         }
                         .labelsHidden()
                     }
+                    Text(isCash ? (ar ? "محفظة كاش: النقود التي معك. تسجّل مصروفاتها بنفسك أو بصوتك، ولا ترتبط ببنك أو بطاقة."
+                                     : "Cash wallet: the money in your pocket. You log its spending yourself or by voice; no bank or card.")
+                                : (ar ? "حساب بنكي: يُحدَّث تلقائياً من رسائل البنك وApple Pay عبر الأتمتة."
+                                      : "Bank account: updated automatically from bank messages and Apple Pay through the automation."))
+                        .font(GhafTypography.body(12, languageCode: lang))
+                        .foregroundStyle(theme.secondaryText)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     fieldRow(ar ? "العملة" : "Currency", divider: false) {
                         GhafCurrencyPicker(selection: $currency, currencies: currencies, languageCode: lang, tint: theme.accent)
                     }
@@ -291,10 +308,12 @@ struct GhafAccountEditorView: View {
                             TextField(ar ? "اختياري" : "Optional", text: $creditLimitText).keyboardType(.decimalPad)
                         }
                     }
-                    fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
-                        TextField("1234", text: $lastFourDigits)
-                            .keyboardType(.numberPad)
-                            .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
+                    if !isCash {
+                        fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
+                            TextField("1234", text: $lastFourDigits)
+                                .keyboardType(.numberPad)
+                                .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
+                        }
                     }
                     toggleRow(ar ? "الحساب الرئيسي" : "Primary account", isOn: $isPrimary, divider: account != nil)
                     if let account {
@@ -344,7 +363,12 @@ struct GhafAccountEditorView: View {
             if let design = cardDesign, design.bank != "cash", design.bank != bank { cardDesign = nil }
         }
         // Banknotes are for cash wallets only, and cards for the others.
-        .onChange(of: accountType) { _, type in
+        .onChange(of: accountType) { old, type in
+            if type == .cash { institution = ""; lastFourDigits = "" }
+            if account == nil {
+                if type == .cash { name = cashWalletName }
+                else if old == .cash, name.hasPrefix(ar ? "محفظة كاش" : "Cash wallet") { name = "" }
+            }
             if let design = cardDesign, (design.bank == "cash") != (type == .cash) { cardDesign = nil }
         }
         .sheet(isPresented: $showCardRequest) {
@@ -364,12 +388,12 @@ struct GhafAccountEditorView: View {
     private var designStrip: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
-                designOption(nil, label: accountType == .cash ? (ar ? "بسيط" : "Plain") : (ar ? "ألوان البنك" : "Bank colours"))
-                // Cash wallets get banknotes; others only their own bank's cards (none recognised: bank colours only).
-                ForEach(accountType == .cash ? GhafCardDesign.all.filter { $0.bank == "cash" }
-                                             : GhafCardDesign.cards(for: GhafUAEBank.match([institution, name]))) { design in
+                // Cash wallets get banknotes; others their own bank's cards. The plain face comes last.
+                ForEach(isCash ? GhafCardDesign.all.filter { $0.bank == "cash" }
+                               : GhafCardDesign.cards(for: GhafUAEBank.match([institution, name]))) { design in
                     designOption(design, label: design.title)
                 }
+                designOption(nil, label: isCash ? (ar ? "بسيط" : "Plain") : (ar ? "ألوان البنك" : "Bank colours"))
                 if accountType != .cash { cardRequestTile }
             }
             .padding(.horizontal, 2)
@@ -397,22 +421,23 @@ struct GhafAccountEditorView: View {
     }
 
     private func designOption(_ design: GhafCardDesign?, label: String) -> some View {
-        Button { withAnimation(.snappy) { cardDesign = design } } label: {
+        let selected = shownDesign == design
+        return Button { withAnimation(.snappy) { cardDesign = design; plainChosen = design == nil } } label: {
             VStack(spacing: 6) {
                 GhafCardFace(account: account, name: name, institution: institution, lastFour: lastFourDigits, design: design, width: 92)
                     .overlay {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(cardDesign == design ? theme.accent : .clear, lineWidth: 2.5)
+                            .stroke(selected ? theme.accent : .clear, lineWidth: 2.5)
                     }
                 Text(label)
                     .font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(cardDesign == design ? theme.primaryText : theme.secondaryText)
+                    .foregroundStyle(selected ? theme.primaryText : theme.secondaryText)
                     .lineLimit(2).multilineTextAlignment(.center)
                     .frame(width: 92)
             }
         }
         .buttonStyle(.ghafPress)
-        .accessibilityAddTraits(cardDesign == design ? .isSelected : [])
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -464,9 +489,16 @@ struct GhafAccountEditorView: View {
         }
     }
 
+    /// "Cash wallet 1", "Cash wallet 2"…: the next free number among existing cash wallets.
+    private var cashWalletName: String {
+        let base = ar ? "محفظة كاش" : "Cash wallet"
+        let taken = Set(accounts.filter { $0.type == .cash }.map(\.name))
+        return (1...).lazy.map { "\(base) \($0)" }.first { !taken.contains($0) }!
+    }
+
     private func load() {
         guard let account else {
-            name = settings.languageCode == "ar" ? "محفظة نقدية" : "Cash wallet"
+            name = cashWalletName
             accountType = .cash
             currency = settings.currency
             isPrimary = accounts.isEmpty
@@ -484,6 +516,7 @@ struct GhafAccountEditorView: View {
         lastFourDigits = account.lastFourDigits ?? ""
         isPrimary = account.isPrimary
         cardDesign = account.cardDesign.flatMap(GhafCardDesign.init(rawValue:))
+        plainChosen = account.cardDesign == GhafCardDesign.plainID
     }
 
     private func save() {
@@ -506,31 +539,31 @@ struct GhafAccountEditorView: View {
         if let account {
             target = account
             target.name = cleanName
-            target.institution = institution.isEmpty ? nil : institution
+            target.institution = institution.isEmpty || isCash ? nil : institution
             target.accountType = accountType.rawValue
             target.currency = currency
             // The entered amount is a reconciliation as of now; earlier activity is already reflected.
             target.openingBalance = balance
             target.openingDate = .now
             target.creditLimit = Decimal(string: creditLimitText)
-            target.lastFourDigits = lastFourDigits.isEmpty ? nil : lastFourDigits
+            target.lastFourDigits = lastFourDigits.isEmpty || isCash ? nil : lastFourDigits
             target.isArchived = false
             target.isPrimary = isPrimary
-            target.cardDesign = cardDesign?.rawValue
+            target.cardDesign = plainChosen ? GhafCardDesign.plainID : shownDesign?.rawValue
         } else {
             target = GhafAccount(
                 name: cleanName,
-                institution: institution.isEmpty ? nil : institution,
+                institution: institution.isEmpty || isCash ? nil : institution,
                 accountType: accountType,
                 currency: currency,
                 openingBalance: balance,
                 openingDate: .now,
                 creditLimit: Decimal(string: creditLimitText),
-                lastFourDigits: lastFourDigits.isEmpty ? nil : lastFourDigits,
+                lastFourDigits: lastFourDigits.isEmpty || isCash ? nil : lastFourDigits,
                 isPrimary: isPrimary,
                 sortOrder: accounts.count
             )
-            target.cardDesign = cardDesign?.rawValue
+            target.cardDesign = plainChosen ? GhafCardDesign.plainID : shownDesign?.rawValue
             modelContext.insert(target)
         }
 
