@@ -35,7 +35,7 @@ struct GhafRootView: View {
                 .background(Color.clear.ignoresSafeArea())
 
             if showLaunch {
-                GhafWelcomeLaunchScreen()
+                GhafWelcomeLaunchScreen(settings: settings.first)
                     .transition(.opacity)
                     .zIndex(10)
             }
@@ -61,7 +61,11 @@ struct GhafRootView: View {
         .onAppear(perform: beginLaunch)
         .onChange(of: scenePhase) { _, phase in
             // Leaving Ghaf: refresh the morning/evening/weekly notes with today's numbers.
-            if phase == .background { GhafDigestNotifications.reschedule(context: modelContext) }
+            if phase == .background {
+                GhafDigestNotifications.reschedule(context: modelContext)
+                GhafWidgetSync.refresh(context: modelContext)
+            }
+            if phase == .active { Task { await GhafWidgetSync.endStale() } }
             if phase == .active { Task { await GhafExchangeRates.refreshIfStale() } }
             if phase != .active {
                 if requiresAuthentication { isUnlocked = false }
@@ -194,7 +198,7 @@ struct GhafRootView: View {
         launchHasStarted = true
 
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.85))
+            try? await Task.sleep(for: .seconds(1.5))
             withAnimation(.easeOut(duration: 0.42)) {
                 showLaunch = false
             }
@@ -465,25 +469,137 @@ struct GhafOnboardingView: View {
 
     private var storyCard: StoryCard {
         switch step {
-        case 1: StoryCard(eyebrow: localized("Welcome to Ghaf", "أهلاً بك في غاف"),
-                          title: localized("Your money,\nclearly.", "أموالك،\nبوضوح."),
-                          body: localized("Every account and every dirham in one calm place.", "كل حساباتك وكل درهم في مكان واحد هادئ."),
+        case 1: StoryCard(eyebrow: localized("Welcome to Ghaf · Made in the UAE", "أهلاً بك في غاف · صُنع في الإمارات"),
+                          title: localized("Your money,\nclearly.", "فلوسك،\nبكل وضوح."),
+                          body: localized("Every account, card and dirham of cash in one calm place, in your language and currency.",
+                                          "كل حساباتك وبطاقاتك وكاشك في مكان واحد، بلغتك وعملتك."),
                           colors: [Color(red: 0.10, green: 0.17, blue: 0.14), Color(red: 0.33, green: 0.20, blue: 0.11)])
-        case 2: StoryCard(eyebrow: localized("Private by design", "الخصوصية أولاً"),
-                          title: localized("Your data stays\non this iPhone.", "بياناتك تبقى\nعلى جهازك."),
-                          body: localized("No Ghaf account, no bank login, no financial servers.", "لا حساب في غاف، ولا تسجيل دخول بنكي، ولا خوادم مالية."),
-                          colors: [Color(red: 0.06, green: 0.24, blue: 0.18), Color(red: 0.20, green: 0.45, blue: 0.33)],
-                          symbol: "lock.shield")
-        case 3: StoryCard(eyebrow: localized("Automatic", "تلقائي"),
-                          title: localized("Bank alerts\nlog themselves.", "تنبيهات البنك\nتُسجَّل وحدها."),
-                          body: localized("Install Ghaf's shortcut once and supported bank messages are recorded for you. Cash stays a quick manual entry.", "ثبّت اختصار غاف مرة واحدة وتُسجَّل رسائل البنوك المدعومة تلقائياً. النقد يبقى إدخالاً يدوياً سريعاً."),
-                          colors: [Color(red: 0.42, green: 0.20, blue: 0.12), Color(red: 0.72, green: 0.42, blue: 0.22)],
-                          symbol: "bolt")
-        default: StoryCard(eyebrow: localized("Before we start", "قبل أن نبدأ"),
+        case 2: StoryCard(eyebrow: localized("Automatic", "تلقائي"),
+                          title: localized("Bank alerts\nlog themselves.", "رسايل البنك\nتسجّل نفسها."),
+                          body: localized("Install Ghaf's shortcut once: purchases are recorded, ads and OTPs are ignored. Cash stays a quick entry.",
+                                          "ثبّت اختصار غاف مرة وحدة: تنسجّل المشتريات، وتنتجاهل الإعلانات ورموز التحقق. الكاش يبقى إدخال سريع."),
+                          colors: [Color(red: 0.42, green: 0.20, blue: 0.12), Color(red: 0.72, green: 0.42, blue: 0.22)])
+        case 3: StoryCard(eyebrow: "Ghaf AI",
+                          title: localized("Ask in Arabic\nor English.", "اسأله بالعربي\nأو بالإنجليزي."),
+                          body: localized("\"How much did I spend this week?\" Ghaf answers from your own records, never a guess.",
+                                          "«كم صرفت هالأسبوع؟» غاف يجاوبك من سجلك أنت، مب من تخمين."),
+                          colors: [Color(red: 0.06, green: 0.24, blue: 0.18), Color(red: 0.20, green: 0.45, blue: 0.33)])
+        default: StoryCard(eyebrow: localized("Private by design", "الخصوصية أولاً"),
                            title: localized("A few permissions.", "بعض الأذونات."),
-                           body: localized("iOS will ask for each one next. You can change them anytime in Settings.", "سيطلب iOS كل إذن تالياً، ويمكنك تغييرها في أي وقت من الإعدادات."),
-                           colors: [Color(red: 0.12, green: 0.14, blue: 0.24), Color(red: 0.36, green: 0.30, blue: 0.48)])
+                           body: localized("Your records stay on this iPhone. iOS asks for each permission next; change them anytime in Settings.",
+                                           "سجلاتك تبقى على جهازك. iOS بيطلب كل إذن الحين، وتقدر تغيّرها متى ما تبي من الإعدادات."),
+                           colors: [Color(red: 0.12, green: 0.14, blue: 0.24), Color(red: 0.36, green: 0.30, blue: 0.48)],
+                           symbol: "lock.shield")
         }
+    }
+
+    /// The feature each card talks about, drawn with Ghaf's own pieces above the text.
+    @ViewBuilder
+    private var storyVisual: some View {
+        switch step {
+        case 1:
+            ZStack {
+                ForEach(Array(["mashreq-neo-cashback-card-product-card-360x220", "mbank-jaywan-debit", "cash-aed-100"].enumerated()), id: \.offset) { index, id in
+                    GhafCardFace(account: nil, design: GhafCardDesign(rawValue: id), width: 250)
+                        .rotationEffect(.degrees(Double(index - 1) * 9))
+                        .offset(x: CGFloat(index - 1) * 34, y: CGFloat(index) * 26)
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "eye.fill").font(.system(size: 13, weight: .bold))
+                    GhafMoneyLabel(amount: 12_450, currency: "AED", languageCode: languageCode, size: 18, hidden: false)
+                }
+                .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background(storyInk, in: Capsule())
+                .shadow(color: .black.opacity(0.3), radius: 12, y: 6)
+                .offset(x: languageCode == "ar" ? -60 : 60, y: 150)
+            }
+        case 2:
+            VStack(spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(red: 0.95, green: 0.52, blue: 0.18))
+                        .frame(width: 38, height: 38)
+                        .overlay(Text("M").font(.system(size: 18, weight: .black)).foregroundStyle(.white))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Mashreq").font(.system(size: 14, weight: .bold))
+                        Text(localized("Purchase of AED 45.00 at Carrefour was made with card ending 1234.",
+                                       "تم شراء بمبلغ 45.00 درهم لدى كارفور ببطاقتك المنتهية بـ 1234."))
+                            .font(.system(size: 13)).lineLimit(2)
+                    }
+                    .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
+                }
+                .padding(14)
+                .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                Image(systemName: "arrow.down").font(.system(size: 20, weight: .bold)).foregroundStyle(storyInk.opacity(0.7))
+                HStack(spacing: 12) {
+                    GhafCategoryIcon(category: "Groceries", tint: storyInk)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(localized("Carrefour", "كارفور")).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                        Text(localized("Groceries · Mashreq", "بقالة · المشرق")).font(GhafTypography.body(12, languageCode: languageCode)).opacity(0.7)
+                    }
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 22)).foregroundStyle(Color(red: 0.45, green: 0.85, blue: 0.55))
+                }
+                .foregroundStyle(storyInk)
+                .padding(14)
+                .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+            .padding(.horizontal, 26)
+        case 3:
+            VStack(spacing: 12) {
+                Text(localized("How much did I spend this week?", "كم صرفت هالأسبوع؟"))
+                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
+                    .padding(.horizontal, 16).padding(.vertical, 11)
+                    .background(storyInk, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(localized("You spent AED 482 this week, mostly on your car.", "صرفت ٤٨٢ درهم هالأسبوع، أكثرها على السيارة."))
+                        .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    HStack(alignment: .bottom, spacing: 7) {
+                        ForEach(Array([0.35, 0.6, 0.25, 0.9, 0.5, 0.3, 0.7].enumerated()), id: \.offset) { index, value in
+                            Capsule().fill(storyInk.opacity(index == 3 ? 1 : 0.4)).frame(width: 16, height: 70 * value)
+                        }
+                    }
+                    .frame(height: 70, alignment: .bottom)
+                }
+                .foregroundStyle(storyInk)
+                .padding(16)
+                .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 26)
+        default:
+            EmptyView()
+        }
+    }
+
+    /// The first card asks to sign in; accounts are not available yet, so "Skip for now" continues.
+    private var signInPanel: some View {
+        VStack(spacing: 12) {
+            Text(localized("Ready to start?", "جاهز تبدأ؟"))
+                .font(GhafTypography.heading(18, languageCode: languageCode))
+            Button {} label: {
+                Label(localized("Continue with Apple", "المتابعة باستخدام Apple"), systemImage: "apple.logo")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .foregroundStyle(.white)
+                    .background(.black, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .disabled(true)
+            .opacity(0.55)
+            Text(localized("Ghaf accounts arrive soon. Until then everything stays on this iPhone.",
+                           "حسابات غاف قريباً. لين ذاك الوقت كل شي يبقى على جهازك."))
+                .font(GhafTypography.body(12, languageCode: languageCode))
+                .multilineTextAlignment(.center)
+                .opacity(0.7)
+            Button(localized("Skip for now", "تخطَّ الآن")) { withAnimation(.snappy) { advance() } }
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                .frame(minHeight: 44)
+        }
+        .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
+        .padding(18)
+        .background(storyInk, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
 
     private let storyInk = Color(red: 0.97, green: 0.94, blue: 0.89)
@@ -497,8 +613,7 @@ struct GhafOnboardingView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Spacer(minLength: 0)
                 if step == 4 { permissionList }
-                // The welcome artwork already carries the Ghaf name and caption, so card 1 adds no text over it.
-                if step != 1 {
+                if true {
                 Text(card.eyebrow)
                     .font(GhafTypography.body(15, languageCode: languageCode))
                     .foregroundStyle(storyInk.opacity(0.75))
@@ -520,8 +635,10 @@ struct GhafOnboardingView: View {
                 }
                 .padding(.top, 6)
                 .accessibilityHidden(true)
-                storyControls
-                    .padding(.top, 18)
+                Group {
+                    if step == 1 { signInPanel } else { storyControls }
+                }
+                .padding(.top, 18)
             }
             .padding(.horizontal, 26)
             .padding(.bottom, 12)
@@ -540,21 +657,14 @@ struct GhafOnboardingView: View {
     private func storyBackground(_ card: StoryCard) -> some View {
         ZStack {
             LinearGradient(colors: card.colors, startPoint: .top, endPoint: .bottom)
-            if step == 1 {
-                // Lifted so the artwork's own caption and flag sit above the controls; the gradient fills below.
-                Color.clear.overlay(alignment: .bottom) {
-                    Image("GhafWelcomeArtwork").resizable().scaledToFill()
-                }
-                .clipped()
-                .padding(.bottom, 150)
-                .accessibilityElement()
-                .accessibilityLabel(languageCode == "ar" ? "غاف، صنع بحب في الإمارات" : "Ghaf, made with love in the UAE")
-            }
             // A soft light source, then a scrim so the text always reads.
-            if step != 1 {
             RadialGradient(colors: [card.colors[1].opacity(0.55), .clear], center: .init(x: 0.35, y: 0.35),
                            startRadius: 0, endRadius: 360)
-            }
+                .allowsHitTesting(false)
+            AnyView(storyVisual)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .padding(.top, 90)
+                .accessibilityHidden(true)
             if let symbol = card.symbol {
                 Image(systemName: symbol)
                     .font(.system(size: 190, weight: .ultraLight))
@@ -1127,24 +1237,74 @@ struct GhafOnboardingView: View {
 /// Shown on every fresh app process launch. This is deliberately separate
 /// from onboarding completion, so returning users see the artwork without
 /// repeating setup or resetting any financial data.
+/// Cold-start screen: a personal greeting while Ghaf opens, with the theme's light rising from the
+/// bottom and a small spinner. Shown only on a fresh launch, never on return from the background.
 private struct GhafWelcomeLaunchScreen: View {
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color(uiColor: .systemBackground)
-                    .ignoresSafeArea()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let settings: GhafSettings?
+    @State private var risen = false
+    @State private var spinning = false
 
-                Image("GhafWelcomeArtwork")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                    .accessibilityLabel("Ghaf")
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+    private var ar: Bool { settings?.languageCode == "ar" }
+    private var lang: String { settings?.languageCode ?? "en" }
+    private var theme: GhafTheme {
+        GhafTheme.resolve(name: settings?.themeName ?? "Abu Dhabi", appearanceMode: settings?.appearanceMode ?? "System",
+                          systemIsDark: colorScheme == .dark)
+    }
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        switch hour {
+        case 5..<12: return ar ? "صباح الخير،" : "Good morning,"
+        case 12..<18: return ar ? "مساء النور،" : "Good afternoon,"
+        default: return ar ? "مساء الخير،" : "Good evening,"
         }
-        .ignoresSafeArea()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    private var name: String {
+        let value = settings?.userName.trimmingCharacters(in: .whitespaces) ?? ""
+        return value.isEmpty ? (ar ? "أهلاً بك" : "welcome") : value
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            theme.background.ignoresSafeArea()
+            // The city's light rises from the bottom while Ghaf opens.
+            LinearGradient(colors: [theme.glow.opacity(0), theme.glow.opacity(0.55), theme.accent.opacity(0.9)],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(height: UIScreen.main.bounds.height * (risen ? 0.58 : 0.4))
+                .ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 4) {
+                Text(greeting)
+                    .font(GhafTypography.display(40, languageCode: lang))
+                Text(name)
+                    .font(GhafTypography.display(40, languageCode: lang))
+                    .lineLimit(2).minimumScaleFactor(0.6)
+                Spacer()
+            }
+            .foregroundStyle(theme.primaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 32)
+            .padding(.top, 150)
+            VStack(spacing: 18) {
+                Circle()
+                    .trim(from: 0.08, to: 0.86)
+                    .stroke(theme.accentContrast, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .frame(width: 34, height: 34)
+                    .rotationEffect(.degrees(spinning ? 360 : 0))
+                Text(ar ? "صُنع بحب في الإمارات" : "Made with love in the UAE")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.accentContrast.opacity(0.85))
+            }
+            .padding(.bottom, 64)
+        }
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(ar ? "غاف يفتح" : "Ghaf is opening")
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 1.4)) { risen = true }
+            withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) { spinning = true }
+        }
     }
 }
 

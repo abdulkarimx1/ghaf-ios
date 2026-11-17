@@ -102,13 +102,14 @@ struct GhafStatsView: View {
                     GhafScreenTitle(title: ar ? "الإحصائيات" : "Statistics",
                                     subtitle: ar ? "صرفك بالتفصيل، بعملة \(currency)" : "Your spending in detail, in \(currency)",
                                     languageCode: lang, theme: theme)
-                    periodPicker
-                    hero(current: current, previous: previous).ghafEntrance(0)
-                    trendCard(buckets(filtered)).ghafEntrance(1)
-                    categoryCard(slices(current)).ghafEntrance(2)
-                    metrics(current).ghafEntrance(3)
-                    merchants(current).ghafEntrance(4)
-                    proCard.ghafEntrance(5)
+                    // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
+                    AnyView(periodPicker)
+                    AnyView(hero(current: current, previous: previous).ghafEntrance(0))
+                    AnyView(trendCard(buckets(filtered)).ghafEntrance(1))
+                    AnyView(categoryCard(slices(current)).ghafEntrance(2))
+                    AnyView(metrics(current).ghafEntrance(3))
+                    AnyView(merchants(current).ghafEntrance(4))
+                    AnyView(proCard.ghafEntrance(5))
                 }
                 .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 12)

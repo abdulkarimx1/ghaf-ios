@@ -205,27 +205,11 @@ struct GhafTreeMark: View {
     let color: Color
 
     var body: some View {
-        GeometryReader { geometry in
-            let side = min(geometry.size.width, geometry.size.height)
-            ZStack {
-                Ellipse().fill(color)
-                    .frame(width: side * 0.66, height: side * 0.27)
-                    .offset(y: -side * 0.17)
-                Circle().fill(color)
-                    .frame(width: side * 0.39, height: side * 0.39)
-                    .offset(x: -side * 0.20, y: -side * 0.19)
-                Circle().fill(color)
-                    .frame(width: side * 0.39, height: side * 0.39)
-                    .offset(x: side * 0.20, y: -side * 0.19)
-                RoundedRectangle(cornerRadius: side * 0.035, style: .continuous)
-                    .fill(color)
-                    .frame(width: side * 0.105, height: side * 0.42)
-                    .offset(y: side * 0.23)
-            }
-            .frame(width: side, height: side)
+        GhafTreeShape()
+            .fill(color)
+            .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .accessibilityLabel("Ghaf tree")
+            .accessibilityLabel("Ghaf tree")
     }
 }
 
