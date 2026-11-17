@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.2 (25)
+
+### English
+- Fixed Ghaf closing as soon as it opens on iOS 27.
+
+### العربية
+- إصلاح إغلاق غاف فور فتحه على iOS 27.
+
 ## 1.14.1 (24)
 
 ### English
