@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14 (23)
+
+### English
+- New city themes: each emirate is an original layered drawing of its landmarks, from Qasr Al Hosn and the Grand Mosque to Burj Khalifa, the Eye of the Emirates, a dhow in Ajman, flamingos in Umm Al Quwain, Jebel Jais and Fujairah Fort.
+
+### العربية
+- ثيمات مدن جديدة: لكل إمارة رسم أصلي بطبقات لمعالمها، من قصر الحصن وجامع الشيخ زايد إلى برج خليفة وعين الإمارات، والمحمل في عجمان، والفلامنغو في أم القيوين، وجبل جيس وقلعة الفجيرة.
+
 ## 1.13 (22)
 
 ### English
