@@ -243,8 +243,10 @@ struct GhafSettingsView: View {
         }
     }
 
+    // The page is type-erased: each row carrying its whole page in its type made More's type so deep
+    // that resolving it at launch overflowed the main thread's stack on iOS 27.
     private func menuRow<Destination: View>(_ title: String, icon: String, @ViewBuilder destination: @escaping () -> Destination) -> some View {
-        NavigationLink(destination: destination) {
+        NavigationLink { AnyView(destination()) } label: {
             GhafListRow(icon: icon, tint: theme.accent, title: title, theme: theme,
                         languageCode: languageCode, chevron: true)
                 .padding(.horizontal, 16)
@@ -848,8 +850,9 @@ HStack(spacing: 8) {
         _ title: String,
         subtitle: String,
         @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+    ) -> AnyView {
+        // Erased so a page holding several cards keeps a shallow type (see menuRow).
+        AnyView(VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(GhafTypography.heading(18, languageCode: languageCode))
@@ -862,7 +865,7 @@ HStack(spacing: 8) {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme, radius: 20)
+        .ghafCard(theme: theme, radius: 20))
     }
 
     private func settingsLabel(_ title: String) -> some View {
