@@ -8,11 +8,12 @@ struct GhafCitySkyline: Shape {
     let city: String
     var layer: Layer = .mid
 
-    @MainActor private static var cache: [String: Path] = [:]
+    // SwiftUI may draw shapes off the main thread, so the cache is guarded by a lock, not an actor.
+    private static let cache = GhafPathCache()
 
     func path(in rect: CGRect) -> Path {
         let key = "\(city)-\(layer)-\(Int(rect.width))x\(Int(rect.height))"
-        if let cached = MainActor.assumeIsolated({ Self.cache[key] }) {
+        if let cached = Self.cache[key] {
             return cached.offsetBy(dx: rect.minX, dy: rect.minY)
         }
         var scene = Scene(size: rect.size)
@@ -41,8 +42,18 @@ struct GhafCitySkyline: Shape {
         default: break
         }
         let path = scene.path
-        MainActor.assumeIsolated { Self.cache[key] = path }
+        Self.cache[key] = path
         return path.offsetBy(dx: rect.minX, dy: rect.minY)
+    }
+}
+
+/// A small thread-safe store for drawn paths (iOS 17 has no Mutex).
+private final class GhafPathCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var paths: [String: Path] = [:]
+    subscript(key: String) -> Path? {
+        get { lock.withLock { paths[key] } }
+        set { lock.withLock { paths[key] = newValue } }
     }
 }
 
