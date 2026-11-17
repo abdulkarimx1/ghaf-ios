@@ -1,12 +1,6 @@
 import Foundation
 
 private enum BankPatterns {
-    static let amounts = [
-        #"(?i)\b(?:AED|USD|EUR|GBP|SAR|KWD|BHD|OMR|QAR)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\b"#,
-        #"(?i)\b([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:AED|USD|EUR|GBP|SAR|KWD|BHD|OMR|QAR)\b"#,
-        #"(?i)\b(?:amount|of|for)\s+([0-9][0-9,]*(?:\.[0-9]{1,2})?)\b"#
-    ]
-
     static let merchants = [
         #"(?i)\bat\s+(.+?)(?=\s+(?:available\s+balance|balance|on\s+\d{1,4}[/-]\d)|[.;\n]|$)"#,
         #"(?:لدى|عند)\s+(.+?)(?=\s+(?:الرصيد|بتاريخ|في\s+\d)|[.،;\n]|$)"#,
@@ -102,26 +96,52 @@ private struct AmountResult {
 }
 
 private enum TransactionExtractor {
+    /// Codes always read in any letter case; every other ISO 4217 code counts only in capitals,
+    /// so "TRY 597.60" is Turkish lira while "try 3 times" is not money.
+    private static let familiarCodes: Set<String> = ["AED", "USD", "EUR", "GBP", "SAR", "KWD", "BHD", "OMR", "QAR"]
+    private static let isoCodes = Set(Locale.commonISOCurrencyCodes)
+    private static let number = #"([0-9][0-9,]*(?:\.[0-9]{1,2})?)"#
+
     static func amount(_ message: String, defaultCurrency: String) -> AmountResult? {
-        for pattern in BankPatterns.amounts {
-            guard let groups = Regex.captures(pattern, in: message),
-                  groups.count > 1, !groups[1].isEmpty else { continue }
-
-            let number = groups[1].replacingOccurrences(of: ",", with: "")
-            guard let value = Decimal(
-                string: number,
-                locale: Locale(identifier: "en_US_POSIX")
-            ), value > 0 else { continue }
-
-            let currencyPattern = #"(?i)\b(AED|USD|EUR|GBP|SAR|KWD|BHD|OMR|QAR)\b"#
-            let currency = Regex.captures(currencyPattern, in: groups[0])?[1]
-            return AmountResult(
-                amount: value,
-                currency: currency?.uppercased() ?? defaultCurrency,
-                hasExplicitCurrency: currency != nil
-            )
+        let range = NSRange(message.startIndex..<message.endIndex, in: message)
+        // Every "CODE 12.34" or "12.34 CODE" in the message, earliest first.
+        var found: [(position: Int, amount: Decimal, code: String)] = []
+        for (pattern, codeGroup, numberGroup) in [(#"\b([A-Za-z]{3})\s*"# + number + #"\b"#, 1, 2),
+                                                  (#"\b"# + number + #"\s*([A-Za-z]{3})\b"#, 2, 1)] {
+            let expression = try! NSRegularExpression(pattern: pattern)
+            for match in expression.matches(in: message, range: range) {
+                guard let codeRange = Range(match.range(at: codeGroup), in: message),
+                      let numberRange = Range(match.range(at: numberGroup), in: message),
+                      let whole = Range(match.range, in: message) else { continue }
+                let raw = String(message[codeRange])
+                let code = raw.uppercased()
+                guard familiarCodes.contains(code) || (raw == code && isoCodes.contains(code)),
+                      let value = decimal(message[numberRange]), value > 0,
+                      !followsBalanceLabel(message, before: whole.lowerBound) else { continue }
+                found.append((match.range.location, value, code))
+            }
+        }
+        if let first = found.min(by: { $0.position < $1.position }) {
+            return AmountResult(amount: first.amount, currency: first.code, hasExplicitCurrency: true)
+        }
+        // No currency code: "amount 25", "of 25", "for 25".
+        if let groups = Regex.captures(#"(?i)\b(?:amount|of|for)\s+"# + number + #"\b"#, in: message),
+           groups.count > 1, let value = decimal(Substring(groups[1])), value > 0 {
+            return AmountResult(amount: value, currency: defaultCurrency, hasExplicitCurrency: false)
         }
         return nil
+    }
+
+    private static func decimal(_ text: Substring) -> Decimal? {
+        Decimal(string: text.replacingOccurrences(of: ",", with: ""), locale: Locale(identifier: "en_US_POSIX"))
+    }
+
+    /// "Available Balance: AED 455.46" or «الرصيد المتاح 455.46 AED» reports what is left, not what moved.
+    private static func followsBalanceLabel(_ message: String, before index: String.Index) -> Bool {
+        let start = message.index(index, offsetBy: -30, limitedBy: message.startIndex) ?? message.startIndex
+        let prefix = message[start..<index]
+        return prefix.range(of: #"(?i)(?:\b(?:bal(?:ance)?|avl\.?\s*bal)\b(?:\s+(?:is|of|now|available))?|(?:ال)?رصيد(?:\s+(?:ال)?(?:متاح|حالي))?)[\s:.\-]*$"#,
+                            options: .regularExpression) != nil
     }
 
     static func merchant(_ message: String) -> String? {

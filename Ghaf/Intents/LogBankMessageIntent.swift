@@ -29,6 +29,8 @@ struct LogBankMessageIntent: AppIntent {
 
         // Reaching this line proves the user's automation runs; Home hides its setup card from now on.
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
+        // Rates for a purchase abroad; skipped when the cached ones are fresh, and never blocks long.
+        await GhafExchangeRates.refreshIfStale()
         let confirmation = try await MainActor.run {
 
             let container = try GhafPersistence.shared()

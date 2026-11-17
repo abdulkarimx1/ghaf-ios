@@ -125,6 +125,17 @@ struct GhafTransactionDetailView: View {
                           text: GhafLocalization.category(transaction.category, languageCode: lang)
                             + (transaction.subcategory.map { " › \(GhafLocalization.category($0, languageCode: lang))" } ?? ""),
                           theme: theme, languageCode: lang)
+            if let original = transaction.originalAmount, let code = transaction.originalCurrency {
+                GhafDetailRow(label: ar ? "المبلغ الأصلي" : "Charged abroad",
+                              text: GhafFormat.shownMoney(original, currency: code, languageCode: lang), theme: theme, languageCode: lang)
+                if let rate = transaction.exchangeRate {
+                    GhafDetailRow(label: ar ? "سعر الصرف (تقديري)" : "Rate (estimate)",
+                                  text: "1 \(code) = \(rate.formatted(.number.precision(.fractionLength(0...4)).locale(Locale(identifier: lang)))) \(transaction.currency)"
+                                    + " · " + (transaction.exchangeRateDate ?? transaction.date).formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang)))
+                                    + "\n" + (ar ? "سعر السوق من \(GhafExchangeRates.sourceName). قد يختلف سعر البنك ورسومه." : "Market rate from \(GhafExchangeRates.sourceName). Your bank's rate and fees may differ."),
+                                  theme: theme, languageCode: lang)
+                }
+            }
             GhafDetailRow(label: ar ? "التاريخ والوقت" : "Date & time",
                           text: transaction.date.formatted(.dateTime.day().month().year().hour().minute().locale(Locale(identifier: lang))),
                           theme: theme, languageCode: lang)

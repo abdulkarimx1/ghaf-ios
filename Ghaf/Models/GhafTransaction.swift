@@ -14,6 +14,12 @@ final class GhafTransaction {
     var direction: String
     var category: String
     var subcategory: String? = nil
+    /// A purchase made in another currency: what the bank message said, and the market rate Ghaf used
+    /// to record it in the account's currency (an estimate; the bank's own rate and fees may differ).
+    var originalAmount: Decimal? = nil
+    var originalCurrency: String? = nil
+    var exchangeRate: Decimal? = nil
+    var exchangeRateDate: Date? = nil
     var confidence: Double
     var bank: String?
     var needsReview: Bool

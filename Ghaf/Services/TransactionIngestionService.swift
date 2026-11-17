@@ -46,7 +46,7 @@ final class TransactionIngestionService {
             )
         }
 
-        guard let parsed = parser.parse(
+        guard let rawParsed = parser.parse(
             message,
             sender: sender,
             referenceDate: .now
@@ -58,11 +58,35 @@ final class TransactionIngestionService {
         }
 
         // An authorization hold is not money that has moved; the posted message records it.
-        if parsed.kind == .pending {
+        if rawParsed.kind == .pending {
             return TransactionIngestionResult(
                 status: .ignored,
                 confirmation: "Pending authorization. Ghaf records it once the bank posts it."
             )
+        }
+
+        let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
+        let activeBankAccounts = accounts.filter {
+            !$0.isArchived && $0.type.isBankAccount
+        }
+        let matchedAccount = GhafAccountBalanceCalculator.matchAccount(
+            bank: rawParsed.bank,
+            sender: sender,
+            accounts: accounts
+        )
+        // A purchase abroad ("TRY 597.60") is recorded in the account's currency at the last known market
+        // rate, keeping the original amount. Without any rate it stays in its own currency, in review.
+        let targetCurrency = (matchedAccount ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil))?.currency
+            ?? (try? GhafPersistence.settings(in: context).currency) ?? rawParsed.currency
+        var parsed = rawParsed
+        var fx: (rate: Decimal, date: Date)?
+        if rawParsed.currency != targetCurrency, let rates = GhafExchangeRates.cached,
+           let converted = rates.convert(rawParsed.amount, from: rawParsed.currency, to: targetCurrency),
+           let rate = rates.rate(from: rawParsed.currency, to: targetCurrency) {
+            parsed = ParsedTransaction(amount: converted, currency: targetCurrency, merchant: rawParsed.merchant,
+                                       date: rawParsed.date, direction: rawParsed.direction, confidence: rawParsed.confidence,
+                                       bank: rawParsed.bank, kind: rawParsed.kind)
+            fx = (rate, rates.updated)
         }
 
         // A Wallet run carries no reference number, so the minute keeps two identical purchases apart
@@ -91,15 +115,6 @@ final class TransactionIngestionService {
             )
         }
 
-        let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
-        let activeBankAccounts = accounts.filter {
-            !$0.isArchived && $0.type.isBankAccount
-        }
-        let matchedAccount = GhafAccountBalanceCalculator.matchAccount(
-            bank: parsed.bank,
-            sender: sender,
-            accounts: accounts
-        )
         let isReversal = parsed.kind == .refund || parsed.kind == .reversal
         // A refund offsets its original purchase, so it takes that purchase's category and account.
         let original = isReversal && parsed.direction == .credit ? try originalPurchase(for: parsed) : nil
@@ -124,6 +139,7 @@ final class TransactionIngestionService {
         let needsReview = parser.shouldSendToReview(parsed)
             || (parsed.merchant != nil && category == "Other")
             || accountNeedsReview
+            || parsed.currency != targetCurrency
             || (isReversal && original == nil)
             // A guess from the learned model is shown, but stays in review until it is confident.
             || (original == nil && suggestion?.source == .model && (suggestion?.confidence ?? 0) < 0.8)
@@ -136,6 +152,12 @@ final class TransactionIngestionService {
             isReversal: isReversal,
             accountID: resolvedAccount?.id
         )
+        if let fx {
+            transaction.originalAmount = rawParsed.amount
+            transaction.originalCurrency = rawParsed.currency
+            transaction.exchangeRate = fx.rate
+            transaction.exchangeRateDate = fx.date
+        }
         transaction.subcategory = original != nil ? original?.subcategory : suggestion?.category == category && suggestion?.isNewSubcategory == false
             ? suggestion?.subcategory : nil
 

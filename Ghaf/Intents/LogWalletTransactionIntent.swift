@@ -28,6 +28,8 @@ struct LogWalletTransactionIntent: AppIntent {
             return .result(value: "Missing amount or merchant. Nothing saved.")
         }
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
+        // Rates for a purchase abroad; skipped when the cached ones are fresh, and never blocks long.
+        await GhafExchangeRates.refreshIfStale()
         let result = try await MainActor.run {
             let context = try GhafPersistence.shared().mainContext
             // Phrased like a card message so the same parser and validation apply.
