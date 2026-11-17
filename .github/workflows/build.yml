@@ -10,7 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  # write: the build publishes each new version as a GitHub release with its IPA.
+  contents: write
 
 jobs:
   build:
@@ -152,6 +153,29 @@ jobs:
           archive: false
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish release with IPA
+        # One release per version: a push without a version bump (or a re-run) finds the tag and skips.
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PLIST="build/Ghaf.xcarchive/Products/Applications/Ghaf.app/Info.plist"
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
+          TAG="v${VERSION}-${BUILD}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            exit 0
+          fi
+          # Notes: this version's section of CHANGELOG.md (English and Arabic).
+          awk -v heading="## ${VERSION} (${BUILD})" '$0 == heading { found = 1; next } /^## / { found = 0 } found' CHANGELOG.md > release-notes.md
+          [ -s release-notes.md ] || echo "Ghaf ${VERSION} (${BUILD})" > release-notes.md
+          gh release create "$TAG" Ghaf.ipa \
+            --title "Ghaf ${VERSION} (${BUILD})" \
+            --notes-file release-notes.md \
+            --target "$GITHUB_SHA"
 
       - name: Upload iPhone 17 simulator preview
         uses: actions/upload-artifact@v7
