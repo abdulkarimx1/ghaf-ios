@@ -42,7 +42,7 @@ struct GhafCategoryPicker: View {
             HStack(spacing: 4) {
                 Text(subcategory.map { "\(label(category)) · \($0)" } ?? label(category))
                     .lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
             }
             .foregroundStyle(tint)
         }

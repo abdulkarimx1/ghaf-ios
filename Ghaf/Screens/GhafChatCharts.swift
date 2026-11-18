@@ -162,7 +162,8 @@ struct GhafChatChartView: View {
                     Image(systemName: item == .bar ? "chart.bar.fill" : item == .donut ? "chart.pie.fill" : item == .rose ? "camera.macro" : "chart.xyaxis.line")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(style == item ? theme.accentContrast : theme.secondaryText)
-                        .frame(width: 34, height: 30)
+                        .frame(width: 44, height: 36)
+                        .contentShape(Rectangle().inset(by: -4))
                         .background(style == item ? theme.accent : .clear, in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -190,7 +191,7 @@ struct GhafChatChartView: View {
             case .line: line
             }
             Text(ar ? "اضغط أو اسحب على الرسم لرؤية التفاصيل." : "Tap or drag on the chart for details.")
-                .font(GhafTypography.body(10, languageCode: languageCode))
+                .font(GhafTypography.body(11, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
         .padding(16)
@@ -211,7 +212,7 @@ struct GhafChatChartView: View {
                 .annotation(position: .top) {
                     if point.value > 0 {
                         Text(point.value, format: .number.precision(.fractionLength(0)))
-                            .font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondaryText)
                     }
                 }
         }
@@ -219,7 +220,7 @@ struct GhafChatChartView: View {
         // Headroom so the value labels above the tallest bar are never cut off.
         .chartYScale(domain: 0...(maxValue * 1.25))
         .chartXAxis {
-            AxisMarks { _ in AxisValueLabel(collisionResolution: .greedy).font(.system(size: 10, weight: .medium)) }
+            AxisMarks { _ in AxisValueLabel(collisionResolution: .greedy).font(.system(size: 11, weight: .medium)) }
         }
         .chartXSelection(value: $selected)
         .frame(height: 190)
@@ -244,7 +245,7 @@ struct GhafChatChartView: View {
                 VStack(spacing: 0) {
                     Text(selectedPoint?.value ?? total, format: .number.precision(.fractionLength(0)))
                         .font(GhafTypography.number(17, weight: .heavy)).foregroundStyle(theme.primaryText)
-                    Text(chart.currency).font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                    Text(chart.currency).font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondaryText)
                 }
             }
             .frame(height: 200)
@@ -298,7 +299,7 @@ struct GhafChatChartView: View {
                     .foregroundStyle(theme.accent)
                     .annotation(position: .top) {
                         Text(point.value, format: .number.precision(.fractionLength(0)))
-                            .font(.system(size: 10, weight: .bold)).foregroundStyle(theme.primaryText)
+                            .font(.system(size: 11, weight: .bold)).foregroundStyle(theme.primaryText)
                     }
             }
         }
@@ -369,7 +370,7 @@ private struct GhafPetalLabel: View {
             let radius = min(geometry.size.width, geometry.size.height) / 2 * ratio * 0.68
             VStack(spacing: 0) {
                 Text(value, format: .number.precision(.fractionLength(0))).font(.system(size: 12, weight: .heavy))
-                Text(label).font(.system(size: 9, weight: .semibold)).lineLimit(1).frame(maxWidth: 64)
+                Text(label).font(.system(size: 11, weight: .semibold)).lineLimit(1).frame(maxWidth: 64)
             }
             .foregroundStyle(color)
             .position(x: geometry.size.width / 2 + cos(angle.radians) * radius,

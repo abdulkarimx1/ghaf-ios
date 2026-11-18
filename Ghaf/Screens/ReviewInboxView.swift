@@ -198,7 +198,7 @@ struct GhafReviewInboxView: View {
             Text(label).font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
             HStack(spacing: 4) {
                 Text(value).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .bold))
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11, weight: .bold))
             }
             .foregroundStyle(missing ? theme.close : theme.primaryText)
         }

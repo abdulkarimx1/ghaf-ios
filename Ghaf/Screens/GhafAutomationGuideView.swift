@@ -46,7 +46,7 @@ struct GhafAutomationGuideView: View {
 
                 privacyCard
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, GhafMetrics.gutter)
             .padding(.top, 14)
             .padding(.bottom, 30)
             .frame(maxWidth: 620)

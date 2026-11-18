@@ -88,7 +88,7 @@ struct GhafVoiceEntryView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(isArabic ? "النص المتعرف عليه" : "RECOGNIZED TEXT")
-                        .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
                         .tracking(1.2)
                         .foregroundStyle(theme.secondaryText)
                     TextEditor(text: $transcript)
@@ -107,7 +107,7 @@ struct GhafVoiceEntryView: View {
                     Text(isArabic
                          ? "يستخدم غاف التعرّف على الكلام من iOS، ويفضّل المعالجة على الجهاز عندما تكون متاحة. قد تتطلب بعض اللغات اتصالاً بالإنترنت."
                          : "Ghaf uses iOS Speech Recognition and prefers on-device processing when available. Some languages may require an internet connection.")
-                        .font(GhafTypography.body(10, languageCode: settings.languageCode))
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -115,7 +115,7 @@ struct GhafVoiceEntryView: View {
                 if !drafts.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(isArabic ? "العمليات المقترحة · \(drafts.count)" : "SUGGESTED TRANSACTIONS · \(drafts.count)")
-                            .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
                             .tracking(1.2)
                             .foregroundStyle(theme.secondaryText)
 
@@ -163,7 +163,7 @@ struct GhafVoiceEntryView: View {
 
                         if accounts.count > 1 {
                             Text(isArabic ? "الحساب الافتراضي" : "DEFAULT ACCOUNT")
-                                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
                                 .tracking(1.1)
                                 .foregroundStyle(theme.secondaryText)
                             Picker(isArabic ? "الحساب" : "Account", selection: $selectedAccountID) {

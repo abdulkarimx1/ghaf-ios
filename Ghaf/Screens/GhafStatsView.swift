@@ -191,7 +191,8 @@ struct GhafStatsView: View {
                     Image(systemName: icons[index])
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(value.wrappedValue == style.rawValue ? theme.accentContrast : theme.secondaryText)
-                        .frame(width: 36, height: 32)
+                        .frame(width: 44, height: 36)
+                        .contentShape(Rectangle().inset(by: -4))
                         .background(value.wrappedValue == style.rawValue ? theme.accent : .clear, in: Capsule())
                 }
                 .buttonStyle(.ghafPress)

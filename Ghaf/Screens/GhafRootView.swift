@@ -473,22 +473,22 @@ struct GhafOnboardingView: View {
                           title: localized("Your money,\nclearly.", "فلوسك،\nبكل وضوح."),
                           body: localized("Every account, card and dirham of cash in one calm place, in your language and currency.",
                                           "كل حساباتك وبطاقاتك وكاشك في مكان واحد، بلغتك وعملتك."),
-                          colors: [Color(red: 0.10, green: 0.17, blue: 0.14), Color(red: 0.33, green: 0.20, blue: 0.11)])
+                          colors: brandNight)
         case 2: StoryCard(eyebrow: localized("Automatic", "تلقائي"),
                           title: localized("Bank alerts\nlog themselves.", "رسايل البنك\nتسجّل نفسها."),
                           body: localized("Install Ghaf's shortcut once: purchases are recorded, ads and OTPs are ignored. Cash stays a quick entry.",
                                           "ثبّت اختصار غاف مرة وحدة: تنسجّل المشتريات، وتنتجاهل الإعلانات ورموز التحقق. الكاش يبقى إدخال سريع."),
-                          colors: [Color(red: 0.42, green: 0.20, blue: 0.12), Color(red: 0.72, green: 0.42, blue: 0.22)])
+                          colors: brandNight)
         case 3: StoryCard(eyebrow: "Ghaf AI",
                           title: localized("Ask in Arabic\nor English.", "اسأله بالعربي\nأو بالإنجليزي."),
                           body: localized("\"How much did I spend this week?\" Ghaf answers from your own records, never a guess.",
                                           "«كم صرفت هالأسبوع؟» غاف يجاوبك من سجلك أنت، مب من تخمين."),
-                          colors: [Color(red: 0.06, green: 0.24, blue: 0.18), Color(red: 0.20, green: 0.45, blue: 0.33)])
+                          colors: brandNight)
         default: StoryCard(eyebrow: localized("Private by design", "الخصوصية أولاً"),
                            title: localized("A few permissions.", "بعض الأذونات."),
                            body: localized("Your records stay on this iPhone. iOS asks for each permission next; change them anytime in Settings.",
                                            "سجلاتك تبقى على جهازك. iOS بيطلب كل إذن الحين، وتقدر تغيّرها متى ما تبي من الإعدادات."),
-                           colors: [Color(red: 0.12, green: 0.14, blue: 0.24), Color(red: 0.36, green: 0.30, blue: 0.48)],
+                           colors: brandNight,
                            symbol: "lock.shield")
         }
     }
@@ -544,7 +544,7 @@ struct GhafOnboardingView: View {
                 .padding(14)
                 .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
-            .padding(.horizontal, 26)
+            .padding(.horizontal, 24)
         case 3:
             VStack(spacing: 12) {
                 Text(localized("How much did I spend this week?", "كم صرفت هالأسبوع؟"))
@@ -568,7 +568,7 @@ struct GhafOnboardingView: View {
                 .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 26)
+            .padding(.horizontal, 24)
         default:
             EmptyView()
         }
@@ -603,6 +603,13 @@ struct GhafOnboardingView: View {
     }
 
     private let storyInk = Color(red: 0.97, green: 0.94, blue: 0.89)
+
+    /// Every welcome card uses the theme's own night palette, the same colours as the app in dark mode,
+    /// so Ghaf looks like one brand from the first screen on. The light shifts across cards; the colours don't.
+    private var brandNight: [Color] {
+        let night = GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
+        return [night.background, night.accent.opacity(0.85)]
+    }
 
     private var storyBody: some View {
         let card = storyCard
@@ -640,7 +647,7 @@ struct GhafOnboardingView: View {
                 }
                 .padding(.top, 18)
             }
-            .padding(.horizontal, 26)
+            .padding(.horizontal, 24)
             .padding(.bottom, 12)
             .frame(width: geometry.size.width, alignment: .leading)
             .frame(minHeight: geometry.size.height, alignment: .bottom)
@@ -658,7 +665,8 @@ struct GhafOnboardingView: View {
         ZStack {
             LinearGradient(colors: card.colors, startPoint: .top, endPoint: .bottom)
             // A soft light source, then a scrim so the text always reads.
-            RadialGradient(colors: [card.colors[1].opacity(0.55), .clear], center: .init(x: 0.35, y: 0.35),
+            RadialGradient(colors: [card.colors[1].opacity(0.55), .clear],
+                           center: .init(x: [0.3, 0.7, 0.3, 0.7][max(0, min(3, step - 1))], y: 0.32),
                            startRadius: 0, endRadius: 360)
                 .allowsHitTesting(false)
             AnyView(storyVisual)
@@ -1055,7 +1063,7 @@ struct GhafOnboardingView: View {
 
     private func onboardingLabel(_ title: String) -> some View {
         Text(title)
-            .font(GhafTypography.body(10, languageCode: languageCode, weight: .bold))
+            .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
             .tracking(1.1)
             .foregroundStyle(theme.secondaryText)
     }

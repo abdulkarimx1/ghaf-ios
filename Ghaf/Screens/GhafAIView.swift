@@ -294,7 +294,7 @@ struct GhafAIView: View {
                             .disabled(state != .pending)
                         if state == .pending && isNewCategory(draft) {
                             Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
-                                .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
+                                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
                                 .foregroundStyle(theme.accentContrast)
                                 .padding(.horizontal, 7).padding(.vertical, 3)
                                 .background(theme.accent, in: Capsule())

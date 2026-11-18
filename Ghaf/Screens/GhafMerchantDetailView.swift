@@ -139,7 +139,7 @@ struct GhafMerchantDetailView: View {
             .foregroundStyle(theme.secondaryText)
             .padding(.top, 6)
         }
-        .padding(13)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }

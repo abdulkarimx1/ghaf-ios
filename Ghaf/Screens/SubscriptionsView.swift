@@ -621,7 +621,7 @@ private struct GhafSubscriptionDetailView: View {
             Button(ar ? "تغيير" : "Change") { editing = true }
                 .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 20).padding(.vertical, 12)
+                .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 12)
                 .background(theme.surface, in: Capsule())
         }
         .padding(.horizontal, 4)

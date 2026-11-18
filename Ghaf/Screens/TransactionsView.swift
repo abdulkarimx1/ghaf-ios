@@ -513,7 +513,7 @@ struct GhafTransactionEditor: View {
 
     private func editorLabel(_ value: String) -> some View {
         Text(value)
-            .font(GhafTypography.body(10, languageCode: languageCode, weight: .bold))
+            .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
             .tracking(1.3)
             .foregroundStyle(theme.secondaryText)
     }

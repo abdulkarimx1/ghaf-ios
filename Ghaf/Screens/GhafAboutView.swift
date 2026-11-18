@@ -209,7 +209,7 @@ struct GhafAboutView: View {
                 .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
             Text("© 2026 Abdulkarim Bayassi")
-                .font(GhafTypography.body(10, languageCode: lang))
+                .font(GhafTypography.body(11, languageCode: lang))
                 .foregroundStyle(theme.secondaryText.opacity(0.8))
         }
         .padding(.top, 4)

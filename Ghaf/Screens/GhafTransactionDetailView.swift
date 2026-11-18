@@ -82,39 +82,47 @@ struct GhafTransactionDetailView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 10) {
-            GhafStatusMark(tint: status.tint) {
-                Image(systemName: status.symbol)
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(status.tint)
+        VStack(spacing: 18) {
+            // Who and when, like a receipt's first line.
+            HStack(spacing: 12) {
+                GhafBrandBadge(name: merchantName, fallbackTint: theme.accent, size: 46)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(merchantName)
+                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(1)
+                    Text(transaction.date.formatted(.dateTime.weekday(.wide).day().month().hour().minute().locale(Locale(identifier: lang))))
+                        .font(GhafTypography.body(13, languageCode: lang))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                Spacer(minLength: 0)
             }
-            Text(status.title)
-                .font(GhafTypography.heading(22, languageCode: lang))
-                .foregroundStyle(theme.primaryText)
-            HStack(spacing: 3) {
-                Text(isCredit ? "+" : "−").font(GhafTypography.number(34, weight: .heavy))
-                GhafMoneyLabel(amount: transaction.amount, currency: transaction.currency, languageCode: lang, size: 34)
+            VStack(spacing: 4) {
+                HStack(spacing: 3) {
+                    Text(isCredit ? "+" : "−").font(GhafTypography.number(40, weight: .heavy))
+                    GhafMoneyLabel(amount: transaction.amount, currency: transaction.currency, languageCode: lang, size: 40)
+                }
+                .foregroundStyle(isCredit ? theme.credit : theme.primaryText)
+                .environment(\.layoutDirection, .leftToRight)
+                if let original = transaction.originalAmount, let code = transaction.originalCurrency {
+                    GhafMoneyLabel(amount: original, currency: code, languageCode: lang, size: 15)
+                        .foregroundStyle(theme.secondaryText)
+                }
             }
-            .foregroundStyle(isCredit ? theme.credit : theme.primaryText)
-            .environment(\.layoutDirection, .leftToRight)
-            Text(transaction.date.formatted(.dateTime.weekday(.wide).day().month().year().locale(Locale(identifier: lang))))
-                .font(GhafTypography.body(14, languageCode: lang))
-                .foregroundStyle(theme.secondaryText)
+            Label(status.title, systemImage: status.symbol + ".circle.fill")
+                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                .foregroundStyle(status.tint)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(status.tint.opacity(0.12), in: Capsule())
         }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity)
+        .padding(18)
+        .ghafCard(theme: theme)
         .padding(.top, 6)
     }
 
     private var receipt: some View {
         GhafDetailCard(theme: theme) {
             let accountName = account?.name ?? (ar ? "غير محدد" : "Not assigned")
-            GhafDetailRow(label: isCredit ? (ar ? "من" : "From") : (ar ? "إلى" : "To"), theme: theme, languageCode: lang) {
-                HStack(spacing: 8) {
-                    Text(merchantName).lineLimit(2)
-                    GhafBrandBadge(name: merchantName, fallbackTint: theme.accent, size: 26)
-                }
-            }
             GhafDetailRow(label: isCredit ? (ar ? "إلى حساب" : "Into") : (ar ? "من حساب" : "From"), theme: theme, languageCode: lang) {
                 HStack(spacing: 8) {
                     Text(accountName)
@@ -125,9 +133,7 @@ struct GhafTransactionDetailView: View {
                           text: GhafLocalization.category(transaction.category, languageCode: lang)
                             + (transaction.subcategory.map { " › \(GhafLocalization.category($0, languageCode: lang))" } ?? ""),
                           theme: theme, languageCode: lang)
-            if let original = transaction.originalAmount, let code = transaction.originalCurrency {
-                GhafDetailRow(label: ar ? "المبلغ الأصلي" : "Charged abroad",
-                              text: GhafFormat.shownMoney(original, currency: code, languageCode: lang), theme: theme, languageCode: lang)
+            if transaction.originalAmount != nil, let code = transaction.originalCurrency {
                 if let rate = transaction.exchangeRate {
                     GhafDetailRow(label: ar ? "سعر الصرف (تقديري)" : "Rate (estimate)",
                                   text: "1 \(code) = \(rate.formatted(.number.precision(.fractionLength(0...4)).locale(Locale(identifier: lang)))) \(transaction.currency)"
@@ -136,9 +142,6 @@ struct GhafTransactionDetailView: View {
                                   theme: theme, languageCode: lang)
                 }
             }
-            GhafDetailRow(label: ar ? "التاريخ والوقت" : "Date & time",
-                          text: transaction.date.formatted(.dateTime.day().month().year().hour().minute().locale(Locale(identifier: lang))),
-                          theme: theme, languageCode: lang)
             GhafDetailRow(label: ar ? "المصدر" : "Source", text: source, theme: theme, languageCode: lang)
             GhafDetailRow(label: ar ? "المرجع" : "Reference",
                           text: "#" + transaction.id.uuidString.prefix(8),
