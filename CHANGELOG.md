@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.16 (27)
+
+### English
+- Ghaf AI talks like a person: in voice mode, replies use a natural cloud voice in Arabic and English, stay short, and ask a follow-up. The orb moves with Ghaf's voice. Needs Cloud AI turned on; without it, the iPhone voice is used.
+- Accounts are now a swipeable row of cards, one at a time with the balance on the card, plus quick Spend, Transfer, Edit and New card buttons. No more compressed stack.
+- City themes no longer bend buildings: only palms and mangroves sway, dhows float on the water, and birds cross the sky (stars at night).
+- Widgets now work on sideloaded installs that support app groups.
+- A clearer Dynamic Island and Lock Screen activity in your theme's colours, with the category, a bigger amount and a review badge.
+- Transaction details redesigned like a receipt.
+- "Why Ghaf is paid" now sits on the Ghaf Pro page; More shows one Ghaf Pro card.
+- Welcome cards share one colour palette taken from your theme.
+- Larger small text, wider tap areas and consistent margins across the app.
+
+### العربية
+- غاف AI يتكلم مثل الإنسان: في وضع المحادثة الصوتية، الردود بصوت سحابي طبيعي بالعربي والإنجليزي، قصيرة وتنتهي بسؤال يكمل الحديث. والدائرة تتحرك مع صوت غاف. يحتاج تفعيل الذكاء السحابي، وبدونه يُستخدم صوت iPhone.
+- الحسابات الآن بطاقات تتصفحها بالسحب، بطاقة واحدة في كل مرة مع الرصيد عليها، وأزرار سريعة: صرف، تحويل، تعديل، بطاقة جديدة. بدون تكديس مزدحم.
+- ثيمات المدن لم تعد تُميل المباني: النخيل والقرم فقط تتمايل، والمحامل تطفو على الماء، والطيور تعبر السماء (والنجوم ليلاً).
+- الودجت تعمل الآن عند التثبيت الجانبي الذي يدعم مجموعات التطبيقات.
+- Dynamic Island ونشاط شاشة القفل أوضح وبألوان ثيمك، مع الفئة ومبلغ أكبر وشارة المراجعة.
+- تفاصيل العملية بتصميم جديد يشبه الإيصال.
+- «لماذا غاف مدفوع؟» أصبحت في صفحة غاف Pro، والمزيد يعرض بطاقة واحدة لغاف Pro.
+- بطاقات الترحيب بلوحة ألوان واحدة مأخوذة من ثيمك.
+- نصوص صغيرة أكبر، ومساحات لمس أوسع، وهوامش متناسقة في كل التطبيق.
+
 ## 1.15 (26)
 
 ### English
