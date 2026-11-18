@@ -278,7 +278,7 @@ struct GhafTodayView: View {
                     .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1).privacySensitive()
                 Spacer(minLength: 0)
                 if let last = s.lastPurchase {
-                    Text(text(s, "Last: ", "آخر عملية: ") + last.merchant).font(.system(size: 11, weight: .bold)).lineLimit(1)
+                    Text(text(s, "Last: ", "آخر عملية: ") + last.merchant).font(.system(size: 11, weight: .bold)).lineLimit(1).privacySensitive()
                     Text(last.date, style: .relative).font(.system(size: 11)).foregroundStyle(tile.foreground.opacity(0.6))
                 }
             }
@@ -380,7 +380,7 @@ private struct GhafActivityStatus: View {
                 Text((s.accountName.map { "\($0) · " } ?? "") + "\(s.currency) " + balance.formatted(.number.precision(.fractionLength(2))))
                     .lineLimit(1).privacySensitive()
             } else if let name = s.accountName {
-                Text(name).lineLimit(1)
+                Text(name).lineLimit(1).privacySensitive()
             }
         }
         .font(.caption.weight(.semibold))
@@ -403,8 +403,8 @@ struct GhafPurchaseLiveActivity: Widget {
                     HStack(spacing: 10) {
                         GhafCategoryBadge(state: s, attributes: a, size: 42)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(s.merchant).font(.headline).foregroundStyle(paper).lineLimit(1)
-                            Text(s.subtitle).font(.caption.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1)
+                            Text(s.merchant).font(.headline).foregroundStyle(paper).lineLimit(1).privacySensitive()
+                            Text(s.subtitle).font(.caption.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1).privacySensitive()
                         }
                     }
                     .dynamicIsland(verticalPlacement: .belowIfTooWide)
@@ -415,7 +415,7 @@ struct GhafPurchaseLiveActivity: Widget {
                         Text(s.signedAmount)
                             .font(.system(size: 24, weight: .heavy, design: .rounded))
                             .foregroundStyle(s.isCredit ? Color.green : paper)
-                            .minimumScaleFactor(0.6).lineLimit(1)
+                            .minimumScaleFactor(0.6).lineLimit(1).privacySensitive()
                         Text(s.currency).font(.caption2.weight(.heavy)).foregroundStyle(a.glowColor)
                     }
                     .dynamicIsland(verticalPlacement: .belowIfTooWide)
@@ -435,7 +435,7 @@ struct GhafPurchaseLiveActivity: Widget {
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(s.isCredit ? Color.green : a.glowColor)
-                    .opacity(fade)
+                    .opacity(fade).privacySensitive()
                     .accessibilityLabel(s.spoken(a.arabic))
             } minimal: {
                 Image(systemName: s.symbol)
@@ -458,9 +458,9 @@ struct GhafPurchaseLockView: View {
             HStack(spacing: 12) {
                 GhafCategoryBadge(state: s, attributes: a, size: 46)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(s.merchant).font(.system(size: 17, weight: .bold)).foregroundStyle(paper).lineLimit(1)
+                    Text(s.merchant).font(.system(size: 17, weight: .bold)).foregroundStyle(paper).lineLimit(1).privacySensitive()
                     Text(s.isCredit ? (a.arabic ? "وصلك مبلغ" : "Money received") : s.subtitle)
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1)
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1).privacySensitive()
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 0) {
@@ -468,7 +468,7 @@ struct GhafPurchaseLockView: View {
                         .font(.system(size: 30, weight: .heavy, design: .rounded)).tracking(-0.6)
                         .foregroundStyle(s.isCredit ? Color.green : paper)
                         .minimumScaleFactor(0.6).lineLimit(1)
-                        .contentTransition(.numericText())
+                        .contentTransition(.numericText()).privacySensitive()
                     Text(s.currency).font(.caption.weight(.heavy)).foregroundStyle(a.glowColor)
                 }
                 .opacity(context.isStale ? 0.55 : 1)

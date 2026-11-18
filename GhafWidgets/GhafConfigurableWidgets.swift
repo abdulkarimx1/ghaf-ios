@@ -299,7 +299,7 @@ struct GhafRecentView: View {
                 }
                 .opacity(0.75)
                 Text("\(r.currency) \(amount)").font(.system(size: 22, weight: .bold)).minimumScaleFactor(0.6).lineLimit(1).privacySensitive()
-                if !detail.isEmpty { Text(detail).font(.caption2).lineLimit(1).opacity(0.75) }
+                if !detail.isEmpty { Text(detail).font(.caption2).lineLimit(1).opacity(0.75).privacySensitive() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .ignore).accessibilityLabel(label))
@@ -308,8 +308,8 @@ struct GhafRecentView: View {
                 SymbolBadge(symbol: r.symbol, tile: tile, size: 52)
                 VStack(alignment: .leading, spacing: 4) {
                     Caption(value: text(s, "Latest · ", "آخر عملية · ") + dayText(r.date, s)).foregroundStyle(tile.dim)
-                    Text(r.category).font(.system(size: 24, weight: .heavy)).tracking(-0.6).lineLimit(1).minimumScaleFactor(0.6)
-                    if !detail.isEmpty { Text(detail).font(.system(size: 12, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1) }
+                    Text(r.category).font(.system(size: 24, weight: .heavy)).tracking(-0.6).lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
+                    if !detail.isEmpty { Text(detail).font(.system(size: 12, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1).privacySensitive() }
                     Spacer(minLength: 0)
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
                         Text(amount).font(.system(size: 34, weight: .heavy)).tracking(-1).lineLimit(1).minimumScaleFactor(0.5)
@@ -332,14 +332,14 @@ struct GhafRecentView: View {
                     RefreshButton(kind: GhafRecentWidget.kind, tile: tile, snapshot: s)
                 }
                 Spacer(minLength: 0)
-                Text(r.category).font(.system(size: 17, weight: .heavy)).lineLimit(1).minimumScaleFactor(0.6)
+                Text(r.category).font(.system(size: 17, weight: .heavy)).lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(amount).font(.system(size: 30, weight: .heavy)).tracking(-1).lineLimit(1).minimumScaleFactor(0.5)
                         .contentTransition(.numericText()).privacySensitive()
                     Text(r.currency).font(.system(size: 11, weight: .bold)).foregroundStyle(tile.dim)
                 }
                 Text(([entry.config.showMerchant ? r.merchant : nil, dayText(r.date, s)].compactMap { $0 }).joined(separator: " · "))
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1)
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1).privacySensitive()
             }
             .foregroundStyle(tile.foreground)
             .ghafLayout(s)
