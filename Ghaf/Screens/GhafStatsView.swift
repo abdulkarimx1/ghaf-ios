@@ -10,7 +10,6 @@ struct GhafStatsView: View {
     let settings: GhafSettings
 
     enum Period: Int, CaseIterable { case week, month, quarter, year }
-    enum TrendStyle: String, CaseIterable { case bars, line, area }
     enum CategoryStyle: String, CaseIterable { case donut, bars, tiles }
 
     @State private var period: Period = .month
@@ -18,7 +17,6 @@ struct GhafStatsView: View {
     @State private var selectedCategory: String?
     @State private var selectedAngle: Double?
     @State private var showPro = false
-    @AppStorage("ghaf.stats.trendStyle") private var trendStyle = TrendStyle.bars.rawValue
     @AppStorage("ghaf.stats.categoryStyle") private var categoryStyle = CategoryStyle.donut.rawValue
 
     private var lang: String { settings.languageCode }
@@ -103,9 +101,7 @@ struct GhafStatsView: View {
                                     subtitle: ar ? "صرفك بالتفصيل، بعملة \(currency)" : "Your spending in detail, in \(currency)",
                                     languageCode: lang, theme: theme)
                     // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
-                    AnyView(periodPicker)
-                    AnyView(hero(current: current, previous: previous).ghafEntrance(0))
-                    AnyView(trendCard(buckets(filtered)).ghafEntrance(1))
+                    AnyView(trendHero(buckets(filtered), current: current, previous: previous).ghafEntrance(0))
                     AnyView(categoryCard(slices(current)).ghafEntrance(2))
                     AnyView(metrics(current).ghafEntrance(3))
                     AnyView(merchants(current).ghafEntrance(4))
@@ -123,62 +119,142 @@ struct GhafStatsView: View {
             .sensoryFeedback(.selection, trigger: period)
             .task(id: "\(period)-\(transactions.count)-\(theme.isDark)") { refreshColors() }
             .sensoryFeedback(.selection, trigger: selectedCategory)
-            .sheet(isPresented: $showPro) { NavigationStack { GhafProView(settings: settings) } }
+            .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")) }
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
-    private var periodPicker: some View {
-        let titles = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]
-        return HStack(spacing: 6) {
-            ForEach(Period.allCases, id: \.self) { item in
-                Button {
-                    withAnimation(.snappy) { period = item; selectedLabel = nil; selectedCategory = nil }
-                } label: {
-                    Text(titles[item.rawValue])
-                        .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                        .foregroundStyle(period == item ? theme.accentContrast : theme.primaryText)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(period == item ? theme.accent : .clear, in: Capsule())
-                }
-                .buttonStyle(.ghafPress)
-                .accessibilityAddTraits(period == item ? .isSelected : [])
-            }
-        }
-        .padding(5)
-        .background(theme.surface, in: Capsule())
+    // MARK: Trend hero
+
+    /// The theme's dark-mode accent: it keeps contrast on the dark card in both appearances.
+    private var inkAccent: Color {
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true).accent
     }
 
-    private func hero(current: [GhafTransaction], previous: [GhafTransaction]) -> some View {
-        let spent = total(current), before = total(previous)
-        let change = before > 0 ? (spent - before) / before : nil
-        return VStack(spacing: 8) {
-            Text(ar ? "المصروف" : "Spent")
-                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
-            GhafMoneyLabel(amount: Decimal(spent), currency: currency, languageCode: lang, size: 40)
-                .foregroundStyle(theme.primaryText)
+    /// Short, unique label for a bucket on the chart's axis.
+    private func axisLabel(_ date: Date) -> String {
+        let locale = Locale(identifier: lang)
+        switch period {
+        case .week: return date.formatted(.dateTime.weekday(.abbreviated).locale(locale))
+        case .month: return date.formatted(.dateTime.day().locale(locale))
+        case .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .year: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
+        }
+    }
+
+    private func bucketLabel(_ date: Date) -> String {
+        let locale = Locale(identifier: lang)
+        switch period {
+        case .week: return date.formatted(.dateTime.weekday(.wide).locale(locale))
+        case .month: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .quarter: return (ar ? "أسبوع " : "Week of ") + date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
+        }
+    }
+
+    /// One dark card, Stocks style: the total (or the scrubbed point), the change against the previous
+    /// period, a line you drag across, and the period chips under it. Every value comes from the ledger.
+    private func trendHero(_ all: [Bucket], current: [GhafTransaction], previous: [GhafTransaction]) -> some View {
+        // Days that haven't happened yet aren't zero spending: the line stops at today, like Stocks.
+        let data = all.filter { $0.start <= .now }
+        // Plotted by a short label per bucket, not by date: date-unit marks by week or month crash Charts (NaN).
+        let selected = selectedLabel.flatMap { label in data.first { axisLabel($0.start) == label } }
+        let shown = Set(data.enumerated().filter { $0.offset % max(1, data.count / 6) == 0 }.map { axisLabel($0.element.start) })
+        let spent = selectedCategory == nil ? total(current) : data.reduce(0) { $0 + $1.total }
+        let before = total(previous)
+        let change = selectedCategory == nil && before > 0 ? (spent - before) / before : nil
+        let accent = inkAccent
+        let periods = ar ? ["أ", "ش", "٣ش", "س"] : ["W", "M", "3M", "Y"]
+        let periodNames = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]
+        let heading = selected.map { bucketLabel($0.start) }
+            ?? selectedCategory.map { GhafLocalization.category($0, languageCode: lang) }
+            ?? (ar ? "المصروف · \(periodNames[period.rawValue])" : "Spent · \(periodNames[period.rawValue])")
+        return VStack(spacing: 6) {
+            Text(heading)
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.inkText.opacity(0.6))
+                .contentTransition(.opacity)
+            GhafMoneyLabel(amount: Decimal(selected?.total ?? spent), currency: currency, languageCode: lang, size: 38)
+                .foregroundStyle(theme.inkText)
+                .contentTransition(.numericText())
                 .environment(\.layoutDirection, .leftToRight)
-            if let change {
+            if let change, selected == nil {
                 Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
                       + (ar ? " عن الفترة السابقة" : " vs previous"),
                       systemImage: change > 0 ? "arrow.up.right" : "arrow.down.right")
-                    .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
-                    .foregroundStyle(change > 0 ? theme.over : theme.credit)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background((change > 0 ? theme.over : theme.credit).opacity(0.1), in: Capsule())
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                    .foregroundStyle(change > 0 ? theme.inkDebit : theme.inkCredit)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background((change > 0 ? theme.inkDebit : theme.inkCredit).opacity(0.16), in: Capsule())
             } else {
-                Text(ar ? "لا توجد بيانات للفترة السابقة" : "No data for the previous period")
+                Text(selected != nil ? (ar ? "ارفع إصبعك لرؤية المجموع" : "Lift your finger to see the total")
+                                     : (ar ? "لا توجد بيانات للفترة السابقة" : "No data for the previous period"))
                     .font(GhafTypography.body(12, languageCode: lang))
-                    .foregroundStyle(theme.secondaryText)
+                    .foregroundStyle(theme.inkText.opacity(0.55))
+                    .padding(.vertical, 5)
             }
+            Chart(data) { bucket in
+                AreaMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                    .foregroundStyle(LinearGradient(colors: [accent.opacity(0.4), accent.opacity(0)], startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.monotone)
+                LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                    .foregroundStyle(accent)
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                if let selected, selected.id == bucket.id {
+                    RuleMark(x: .value("Date", axisLabel(bucket.start)))
+                        .foregroundStyle(theme.inkText.opacity(0.35))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    PointMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                        .symbol { Circle().fill(accent).frame(width: 14, height: 14).overlay(Circle().stroke(theme.ink, lineWidth: 3)) }
+                        .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                            Text(axisLabel(bucket.start))
+                                .font(GhafTypography.body(11, languageCode: lang, weight: .bold))
+                                .foregroundStyle(theme.ink)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(theme.inkText, in: Capsule())
+                        }
+                }
+            }
+            .chartXSelection(value: $selectedLabel)
+            // A new chart per period, faded in: Charts animating between different label sets produces NaN geometry.
+            .id(period)
+            .transition(.opacity)
+            .chartYAxis(.hidden)
+            .chartXAxis {
+                AxisMarks(values: data.map { axisLabel($0.start) }.filter { shown.contains($0) }) { _ in
+                    AxisValueLabel().foregroundStyle(theme.inkText.opacity(0.5))
+                }
+            }
+            .frame(height: 180)
+            .padding(.top, 14)
+            .environment(\.layoutDirection, .leftToRight)
+            .sensoryFeedback(.selection, trigger: selected?.id)
+            .accessibilityLabel(ar ? "اتجاه الصرف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
+
+            HStack(spacing: 6) {
+                ForEach(Period.allCases, id: \.self) { item in
+                    Button {
+                        withAnimation(.snappy) { period = item; selectedLabel = nil; selectedCategory = nil }
+                    } label: {
+                        Text(periods[item.rawValue])
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                            .foregroundStyle(period == item ? theme.ink : theme.inkText.opacity(0.7))
+                            .frame(minWidth: 54, minHeight: 40)
+                            .background(period == item ? accent : theme.inkText.opacity(0.08), in: Capsule())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(periodNames[item.rawValue])
+                    .accessibilityAddTraits(period == item ? .isSelected : [])
+                }
+            }
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
-        .ghafCard(theme: theme)
+        .padding(.horizontal, 16).padding(.vertical, 20)
+        .background(theme.ink, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .shadow(color: .black.opacity(theme.isDark ? 0 : 0.18), radius: 22, y: 12)
     }
-
-    // MARK: Trend
 
     private func styleSwitch<Style: RawRepresentable & CaseIterable & Hashable>(_ value: Binding<String>, _ styles: [Style],
                                                                              icons: [String], names: [String]) -> some View
@@ -202,102 +278,6 @@ struct GhafStatsView: View {
         }
         .padding(3)
         .background(theme.elevatedSurface, in: Capsule())
-    }
-
-    /// Short, unique label for a bucket on the chart's axis.
-    private func axisLabel(_ date: Date) -> String {
-        let locale = Locale(identifier: lang)
-        switch period {
-        case .week: return date.formatted(.dateTime.weekday(.abbreviated).locale(locale))
-        case .month: return date.formatted(.dateTime.day().locale(locale))
-        case .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
-        case .year: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
-        }
-    }
-
-    private func bucketLabel(_ date: Date) -> String {
-        let locale = Locale(identifier: lang)
-        switch period {
-        case .week: return date.formatted(.dateTime.weekday(.abbreviated).locale(locale))
-        case .month: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
-        case .quarter: return (ar ? "أسبوع " : "Week of ") + date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
-        case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
-        }
-    }
-
-    private func trendCard(_ data: [Bucket]) -> some View {
-        // Plotted by a short label per bucket, not by date: date-unit bars by week or month crash Charts (NaN).
-        let selected = selectedLabel.flatMap { label in data.first { axisLabel($0.start) == label } }
-        let shown = Set(data.enumerated().filter { $0.offset % max(1, data.count / 6) == 0 }.map { axisLabel($0.element.start) })
-        let sum = data.reduce(0) { $0 + $1.total }
-        let style = TrendStyle(rawValue: trendStyle) ?? .bars
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(selected.map { bucketLabel($0.start) } ?? (selectedCategory.map { GhafLocalization.category($0, languageCode: lang) }
-                                                                   ?? (ar ? "على مدى الفترة" : "Over time")))
-                        .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
-                    GhafMoneyLabel(amount: Decimal(selected?.total ?? sum), currency: currency, languageCode: lang, size: 22)
-                        .foregroundStyle(theme.primaryText)
-                        .contentTransition(.numericText())
-                        .environment(\.layoutDirection, .leftToRight)
-                }
-                Spacer()
-                styleSwitch($trendStyle, TrendStyle.allCases, icons: ["chart.bar.fill", "chart.xyaxis.line", "chart.line.uptrend.xyaxis"],
-                            names: ar ? ["أعمدة", "خط", "مساحة"] : ["Bars", "Line", "Area"])
-            }
-            Chart(data) { bucket in
-                switch style {
-                case .bars:
-                    BarMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(selected == nil || selected?.id == bucket.id ? theme.accent.gradient : theme.accent.opacity(0.25).gradient)
-                        .cornerRadius(5)
-                case .line:
-                    LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(theme.accent)
-                        .interpolationMethod(.catmullRom)
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
-                    if selected?.id == bucket.id {
-                        PointMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                            .foregroundStyle(theme.accent).symbolSize(110)
-                    }
-                case .area:
-                    AreaMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.45), theme.accent.opacity(0.02)], startPoint: .top, endPoint: .bottom))
-                        .interpolationMethod(.catmullRom)
-                    LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(theme.accent)
-                        .interpolationMethod(.catmullRom)
-                }
-                if let selected, selected.id == bucket.id {
-                    RuleMark(x: .value("Date", axisLabel(bucket.start)))
-                        .foregroundStyle(theme.secondaryText.opacity(0.35))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                }
-            }
-            .chartXSelection(value: $selectedLabel)
-            .id(period)
-            .chartYAxis {
-                AxisMarks(position: .trailing) { _ in
-                    AxisGridLine().foregroundStyle(theme.outline)
-                    if !GhafFormat.balancesHidden { AxisValueLabel().foregroundStyle(theme.secondaryText) }
-                }
-            }
-            .chartXAxis {
-                AxisMarks(values: data.map { axisLabel($0.start) }.filter { shown.contains($0) }) { _ in
-                    AxisValueLabel().foregroundStyle(theme.secondaryText)
-                }
-            }
-            .frame(height: 200)
-            .environment(\.layoutDirection, .leftToRight)
-            .sensoryFeedback(.selection, trigger: selected?.id)
-            Text(ar ? "اسحب على الرسم لرؤية كل يوم. اختر فئة بالأسفل لتصفية الرسم." : "Drag across the chart to read each point. Pick a category below to filter it.")
-                .font(GhafTypography.body(11, languageCode: lang))
-                .foregroundStyle(theme.secondaryText)
-        }
-        .padding(18)
-        .ghafCard(theme: theme)
     }
 
     // MARK: Categories
@@ -559,7 +539,7 @@ struct GhafStatsView: View {
     private var proCard: some View {
         Button { showPro = true } label: {
             HStack(spacing: 14) {
-                GhafTreeShape().fill(theme.accentContrast).frame(width: 34, height: 34)
+                Image(systemName: "sparkles").font(.system(size: 24, weight: .bold)).foregroundStyle(theme.accentContrast)
                     .frame(width: 54, height: 54)
                     .background(theme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 VStack(alignment: .leading, spacing: 3) {

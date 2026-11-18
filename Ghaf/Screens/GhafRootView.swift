@@ -764,7 +764,7 @@ struct GhafOnboardingView: View {
 
     private var languageSelectionPage: some View {
         VStack(spacing: 22) {
-            GhafTreeMark(color: theme.accent)
+            Image(systemName: "globe").font(.system(size: 44, weight: .semibold)).foregroundStyle(theme.accent)
                 .frame(width: 64, height: 64)
                 .padding(18)
                 .background(theme.accent.opacity(0.1), in: Circle())
@@ -1317,7 +1317,7 @@ private struct GhafWelcomeLaunchScreen: View {
 }
 
 
-/// Ghaf AI's tab icon: a solid Ghaf tree in the theme's gradient, kept in full colour. `frame` 1...frameCount
+/// Ghaf AI's tab icon: a blue glass orb, kept in full colour. `frame` 1...frameCount
 /// draws the twirl played when the tab opens; 0 is at rest.
 @MainActor
 enum GhafAITabIcon {
@@ -1327,26 +1327,21 @@ enum GhafAITabIcon {
     static func image(theme: GhafTheme, selected: Bool, frame: Int = 0) -> UIImage {
         let key = "\(theme.name)-\(theme.isDark)-\(selected)-\(frame)"
         if let cached = cache[key] { return cached }
-        // Neutral Graphite would make a grey tree, so it keeps Ghaf's signature sand-gold instead.
-        let city = GhafTheme.cities[theme.name == "Graphite" ? "Abu Dhabi" : theme.name] ?? GhafTheme.cities["Abu Dhabi"]!
-        let colors = theme.isDark ? [city.glow.dark, city.accent.dark] : [city.accent.light, city.glow.light]
         let t = Double(frame) / Double(frameCount)          // 0...1 through the twirl
         let lift = sin(t * .pi)                             // rises then settles
-        // A filled tile in the city's gradient with a white Ghaf tree: the one tab that is a button,
-        // not a glyph. On open the tree grows from its roots and sways once, then settles.
-        let side: CGFloat = selected ? 34 : 31
+        // The Ghaf AI orb: a small glass sphere with blue light, matching the AI screen. On open its
+        // inner ring turns once, then settles.
+        let side: CGFloat = selected ? 32 : 29
+        let blue = Color(red: 0.18, green: 0.42, blue: 1), light = Color(red: 0.61, green: 0.77, blue: 1)
         let mark = ZStack {
-            RoundedRectangle(cornerRadius: side * 0.32, style: .continuous)
-                .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                .shadow(color: colors[0].opacity(selected ? 0.55 : 0.25), radius: selected ? 5 : 2, y: 1)
-            RoundedRectangle(cornerRadius: side * 0.32, style: .continuous)
-                .strokeBorder(.white.opacity(0.35), lineWidth: 0.8)
-            GhafTreeShape()
-                .fill(.white)
-                .frame(width: side * 0.66, height: side * 0.66)
-                .scaleEffect(1 + 0.22 * lift, anchor: .bottom)
-                .rotationEffect(.degrees(-8 * sin(t * 2 * .pi)), anchor: .bottom)
-                .offset(y: -side * 0.02)
+            Circle().fill(RadialGradient(colors: [Color(red: 0.86, green: 0.91, blue: 1), light, blue, Color(red: 0.04, green: 0.1, blue: 0.29)],
+                                         center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: side * 0.62))
+                .shadow(color: blue.opacity(selected ? 0.6 : 0.3), radius: selected ? 5 : 2, y: 1)
+            Circle().trim(from: 0, to: 0.62)
+                .stroke(.white.opacity(0.85), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                .frame(width: side * 0.62, height: side * 0.62)
+                .rotationEffect(.degrees(-40 + 360 * t))
+            Circle().strokeBorder(.white.opacity(0.4), lineWidth: 0.8)
         }
         .frame(width: side, height: side)
         .scaleEffect(1 + 0.08 * lift)

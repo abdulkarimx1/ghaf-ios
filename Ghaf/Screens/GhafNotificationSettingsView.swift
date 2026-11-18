@@ -15,6 +15,13 @@ struct GhafNotificationSettingsView: View {
     @AppStorage(GhafDigestNotifications.weeklyKey) private var weekly = false
     @AppStorage(GhafWidgetSync.liveActivityKey) private var liveActivity = true
     @State private var denied = false
+    /// The Pro feature just tapped, if any; drives the Ghaf Pro sheet.
+    @State private var proFeature: ProFeature?
+
+    private struct ProFeature: Identifiable {
+        let en: String, ar: String
+        var id: String { en }
+    }
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
@@ -66,6 +73,8 @@ struct GhafNotificationSettingsView: View {
                 .padding(.horizontal, 16)
                 .ghafCard(theme: theme)
 
+                widgetStatus
+
                 Text(ar ? "iOS يطلب إذنك مرة واحدة لعرض الإشعارات. التذكيرات لا تسجّل أي عملية ولا تغيّر رصيدك. إشعار «تشغيل الأتمتة» من iOS نفسه؛ أوقفه من الاختصارات › الأتمتة › «الإشعار عند التشغيل»."
                         : "iOS asks once before Ghaf can show notifications. Summaries never record transactions or change balances. The \"automation ran\" banner comes from iOS: turn it off in Shortcuts › Automation › Notify When Run.")
                     .font(GhafTypography.body(12, languageCode: lang))
@@ -78,6 +87,8 @@ struct GhafNotificationSettingsView: View {
         .navigationTitle(ar ? "الإشعارات" : "Notifications")
         .navigationBarTitleDisplayMode(.inline)
         .task { await refreshPermission() }
+        .sheet(item: $proFeature) { GhafProSheet(settings: settings, feature: ($0.en, $0.ar)) }
+        .onChange(of: liveActivity) { _, on in if on { proFeature = ProFeature(en: "Live Activities", ar: "النشاط المباشر") } }
         .onChange(of: [autoTransaction, morning, evening, weekly]) { _, values in
             Task {
                 if values.contains(true) { _ = await GhafDigestNotifications.requestPermission() }
@@ -85,6 +96,34 @@ struct GhafNotificationSettingsView: View {
                 GhafDigestNotifications.reschedule(context: modelContext)
             }
         }
+    }
+
+    /// Whether the widgets can read Ghaf's data on this install. Sideload tools sometimes drop the App Group,
+    /// and then the widgets can only say "Open Ghaf"; this line makes that visible instead of a silent blank.
+    private var widgetStatus: some View {
+        let channels = GhafWidgetSync.lastChannels ?? (GhafWidgetSnapshot.hasSharedContainer, GhafWidgetKeychain.accessGroup != nil)
+        let ok = channels.group || channels.keychain
+        let detail: String = if channels.group {
+            ar ? "متصلة عبر مجموعة التطبيق (\(GhafWidgetSnapshot.groupID))" : "Connected through the App Group (\(GhafWidgetSnapshot.groupID))"
+        } else if channels.keychain {
+            ar ? "متصلة عبر سلسلة المفاتيح، لأن أداة التثبيت أزالت مجموعة التطبيق" : "Connected through the keychain; your install tool removed the App Group"
+        } else {
+            ar ? "غير متصلة: أداة التثبيت أزالت مجموعة التطبيق ومشاركة سلسلة المفاتيح، فلا تستطيع الودجت قراءة بياناتك. أعد التثبيت مع إبقاء App Groups."
+               : "Not connected: your install tool removed the App Group and keychain sharing, so widgets can't read Ghaf. Reinstall with App Groups kept."
+        }
+        return Button { proFeature = ProFeature(en: "Widgets", ar: "الودجت") } label: { Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ar ? "الودجت" : "Widgets").font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+            }
+        } icon: {
+            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(ok ? theme.comfortable : theme.over)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .ghafCard(theme: theme)
+        }
+        .buttonStyle(.ghafPress)
     }
 
     private func refreshPermission() async {

@@ -71,8 +71,7 @@ struct GhafSettingsView: View {
                     // One quiet Pro card; the plans, the reason Ghaf is paid and the terms all live on its page.
                     NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
                         HStack(spacing: 14) {
-                            GhafTreeShape().fill(theme.accentContrast)
-                                .frame(width: 26, height: 26)
+                            Image(systemName: "sparkles").font(.system(size: 20, weight: .bold)).foregroundStyle(theme.accentContrast)
                                 .frame(width: 48, height: 48)
                                 .background(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .topLeading, endPoint: .bottomTrailing),
                                             in: RoundedRectangle(cornerRadius: 14, style: .continuous))

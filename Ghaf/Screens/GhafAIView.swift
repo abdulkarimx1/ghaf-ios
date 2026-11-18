@@ -21,6 +21,9 @@ private struct GhafChatMessage: Identifiable {
 }
 
 struct GhafAIView: View {
+    static let night = Color(red: 0.02, green: 0.024, blue: 0.031)
+    static let blue = Color(red: 0.18, green: 0.42, blue: 1)
+    static let light = Color(red: 0.61, green: 0.77, blue: 1)
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
@@ -50,8 +53,9 @@ struct GhafAIView: View {
 
     let settings: GhafSettings
     private var ar: Bool { settings.languageCode == "ar" }
+    /// Ghaf AI has one look in every theme: near-black glass with blue light (Dubai's dark palette).
     private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+        GhafTheme.resolve(name: "Dubai", appearanceMode: "Dark", systemIsDark: true)
     }
 
     var body: some View {
@@ -79,19 +83,24 @@ struct GhafAIView: View {
                 }
                 inputBar
             }
-            .ghafBackground(theme: theme)
-            .overlay(alignment: .top) {
-                // A faint aurora behind the header gives the assistant its own light.
-                Ellipse()
-                    .fill(RadialGradient(colors: [theme.accent.opacity(0.22), theme.glow.opacity(0.12), .clear],
-                                         center: .center, startRadius: 0, endRadius: 220))
-                    .frame(width: 520, height: 300)
-                    .offset(y: -150)
-                    .blur(radius: 30)
-                    .allowsHitTesting(false)
-                    .ignoresSafeArea()
+            .background {
+                ZStack(alignment: .bottom) {
+                    GhafAIView.night.ignoresSafeArea()
+                    // Blue light rising from the bottom edge, brighter while Ghaf listens or thinks.
+                    Ellipse()
+                        .fill(RadialGradient(colors: [GhafAIView.light.opacity(0.9), GhafAIView.blue.opacity(0.6), .clear],
+                                             center: .center, startRadius: 0, endRadius: 260))
+                        .frame(width: 560, height: 300)
+                        .offset(y: 170)
+                        .blur(radius: 40)
+                        .opacity(isThinking || recorder.isRecording ? 1 : 0.7)
+                        .animation(.easeInOut(duration: 0.6), value: isThinking || recorder.isRecording)
+                        .ignoresSafeArea()
+                }
+                .allowsHitTesting(false)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .environment(\.colorScheme, .dark)
             .overlay {
                 if voiceMode {
                     AnyView(voiceModeView).transition(.opacity.combined(with: .scale(scale: 1.04)))
@@ -126,7 +135,8 @@ struct GhafAIView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(speakReplies ? theme.accent : theme.secondaryText)
                             .frame(width: 44, height: 44)
-                        .background(theme.surface, in: Circle())
+                            .background(.white.opacity(0.07), in: Circle())
+                            .overlay(Circle().stroke(.white.opacity(0.14)))
                     }
                     .buttonStyle(.ghafPress)
                     .accessibilityLabel(ar ? "قراءة الردود بصوت" : "Read replies aloud")
@@ -164,11 +174,18 @@ struct GhafAIView: View {
     private var welcome: some View {
         VStack(spacing: 16) {
             GhafAIOrb(theme: theme, active: false)
-                .frame(width: 88, height: 88)
-                .padding(.top, 12)
-            Text(ar ? "اسألني عن أموالك" : "Ask me about your money")
-                .font(GhafTypography.display(28, languageCode: settings.languageCode))
+                .frame(width: 150, height: 150)
+                .padding(.top, 28).padding(.bottom, 12)
+            let name = settings.userName.split(separator: " ").first.map(String.init) ?? ""
+            if !name.isEmpty {
+                Text(ar ? "أهلاً \(name)" : "Hello \(name)")
+                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+            }
+            Text(ar ? "كيف أساعدك في أموالك؟" : "How can I help with your money?")
+                .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.center)
             Text(ar ? "المصروف والميزانية والاشتراكات، أو قل ما اشتريت وأسجّله لك."
                     : "Spending, budgets, subscriptions. Or just say what you bought and I'll log it.")
                 .font(GhafTypography.body(15, languageCode: settings.languageCode))
@@ -186,7 +203,8 @@ struct GhafAIView: View {
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity, minHeight: 58)
                             .padding(.horizontal, 12)
-                            .ghafCard(theme: theme, radius: 20)
+                            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.14)))
                     }
                     .buttonStyle(.ghafPress)
                 }
@@ -231,10 +249,14 @@ struct GhafAIView: View {
                         .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: item.isUser ? .semibold : .regular))
                         .textSelection(.enabled)
                 }
-                .foregroundStyle(item.isUser ? theme.accentContrast : theme.primaryText)
+                .foregroundStyle(item.isUser ? GhafAIView.night : theme.primaryText)
                 .padding(.horizontal, 16).padding(.vertical, 12)
-                .background(item.isUser ? theme.accent : theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: item.isUser ? .clear : theme.shadow, radius: 8, y: 3)
+                .background {
+                    let shape = UnevenRoundedRectangle(topLeadingRadius: 22, bottomLeadingRadius: item.isUser ? 22 : 6,
+                                                       bottomTrailingRadius: item.isUser ? 6 : 22, topTrailingRadius: 22, style: .continuous)
+                    if item.isUser { shape.fill(theme.primaryText) }
+                    else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.04))).overlay(shape.stroke(.white.opacity(0.14))) }
+                }
                 .contextMenu {
                     if item.isUser {
                         Button { prompt = item.text; inputFocused = true } label: {
@@ -334,7 +356,8 @@ struct GhafAIView: View {
         }
         .padding(16)
         .frame(maxWidth: 340)
-        .ghafCard(theme: theme, radius: 22)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.14)))
     }
 
     private var thinkingDots: some View {
@@ -347,7 +370,7 @@ struct GhafAIView: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
-        .background(theme.surface, in: Capsule())
+        .background(.white.opacity(0.08), in: Capsule())
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -410,9 +433,9 @@ struct GhafAIView: View {
                 } label: {
                     Image(systemName: recorder.isRecording ? "stop.fill" : (hasText ? "arrow.up" : "mic.fill"))
                         .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(theme.accentContrast)
-                        .frame(width: 44, height: 44)
-                        .background(recorder.isRecording ? theme.over : theme.accent, in: Circle())
+                        .foregroundStyle(recorder.isRecording ? .white : GhafAIView.night)
+                        .frame(width: 46, height: 46)
+                        .background(recorder.isRecording ? theme.over : theme.primaryText, in: Circle())
                         .symbolEffect(.pulse, isActive: recorder.isRecording)
                         .contentTransition(.symbolEffect(.replace))
                 }
@@ -422,7 +445,8 @@ struct GhafAIView: View {
                                     : hasText ? (ar ? "إرسال" : "Send") : (ar ? "رسالة صوتية" : "Voice message"))
             }
             .padding(5)
-            .background(theme.surface, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay {
                 // Gradient rim that glows while Ghaf listens, thinks or the field is focused.
                 let lit = recorder.isRecording || isThinking || inputFocused
@@ -434,8 +458,7 @@ struct GhafAIView: View {
             }
             .shadow(color: theme.accent.opacity(recorder.isRecording || isThinking ? 0.35 : 0.14), radius: 14)
             .animation(.easeInOut(duration: 0.35), value: recorder.isRecording || isThinking || inputFocused)
-            .shadow(color: theme.shadow, radius: 12, y: 4)
-            .overlay { if theme.isDark { RoundedRectangle(cornerRadius: 27, style: .continuous).stroke(theme.outline) } }
+            .overlay { RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(.white.opacity(0.22)) }
         }
         .padding(.horizontal, 14)
         .padding(.top, 8)
@@ -766,8 +789,8 @@ struct GhafAIView: View {
     private var voiceModeView: some View {
         let lastReply = messages.last { !$0.isUser }?.text ?? ""
         return ZStack {
-            theme.background.opacity(0.97).ignoresSafeArea()
-            RadialGradient(colors: [theme.glow.opacity(0.35), .clear], center: .center, startRadius: 0, endRadius: 320)
+            GhafAIView.night.opacity(0.98).ignoresSafeArea()
+            RadialGradient(colors: [GhafAIView.blue.opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 340)
                 .ignoresSafeArea()
             VStack(spacing: 22) {
                 Text("Ghaf AI")
@@ -833,7 +856,7 @@ struct GhafAIView: View {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .frame(width: 64, height: 64)
-                            .background(theme.surface, in: Circle())
+                            .background(.white.opacity(0.1), in: Circle())
                     }
                     .buttonStyle(.ghafPress)
                     .accessibilityLabel(ar ? "الصوت" : "Sound")
@@ -901,8 +924,8 @@ struct GhafAIView: View {
 
 }
 
-/// Ghaf AI's mark: a Ghaf tree inside a rotating ring in the city's colours, with a breathing glow.
-/// It speeds up while Ghaf listens or thinks and stays still with Reduce Motion.
+/// Ghaf AI's mark: a blue glass orb with two rings of light turning inside it and a soft halo.
+/// It turns faster while Ghaf listens or thinks and stays still with Reduce Motion.
 private struct GhafAIOrb: View {
     let theme: GhafTheme
     let active: Bool
@@ -911,41 +934,44 @@ private struct GhafAIOrb: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
             let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
-            let speed = active ? 1.6 : 0.5
+            let speed = active ? 1.8 : 0.6
             GeometryReader { geometry in
                 let size = min(geometry.size.width, geometry.size.height)
                 ZStack {
-                    // Glow: two soft layers in accent and glow colour, breathing slowly.
+                    // Halo.
                     Circle()
-                        .fill(theme.glow.opacity(active ? 0.55 : 0.35))
-                        .blur(radius: size * 0.28)
-                        .scaleEffect(1.15 + 0.08 * sin(t * speed * 2))
+                        .fill(GhafAIView.blue.opacity(active ? 0.55 : 0.4))
+                        .blur(radius: size * 0.3)
+                        .scaleEffect(1.25 + 0.08 * sin(t * speed * 1.5))
+                    // Glass body.
                     Circle()
-                        .fill(theme.accent.opacity(active ? 0.5 : 0.3))
-                        .blur(radius: size * 0.18)
-                        .scaleEffect(0.95 + 0.06 * cos(t * speed * 1.6))
-                    // Ring.
+                        .fill(RadialGradient(colors: [.white.opacity(0.35), GhafAIView.light.opacity(0.15), GhafAIView.night.opacity(0.3)],
+                                             center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.6))
+                        .overlay(Circle().stroke(GhafAIView.light.opacity(0.5), lineWidth: 1))
+                        .shadow(color: GhafAIView.blue.opacity(0.6), radius: size * 0.12)
+                    // Two rings of light turning in opposite directions.
                     Circle()
-                        .strokeBorder(AngularGradient(colors: [theme.accent, theme.glow, theme.accent.opacity(0.25), theme.glow, theme.accent],
-                                                      center: .center, angle: .degrees(t * 60 * speed)),
-                                      lineWidth: max(2.5, size * 0.06))
-                    Circle().fill(theme.surface).padding(max(2.5, size * 0.06))
-                    GhafTreeShape()
-                        .fill(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom))
-                        .frame(width: size * 0.5, height: size * 0.5)
-                        .scaleEffect(1 + 0.05 * sin(t * speed * 3), anchor: .bottom)
-                        .rotationEffect(.degrees(3 * sin(t * speed * 1.4)), anchor: .bottom)
-                    // Seeds circling just outside the ring.
-                    ForEach(0..<3, id: \.self) { index in
-                        let phase = t * speed * 0.8 + Double(index) * 2.1
-                        Circle()
-                            .fill(theme.glow)
-                            .frame(width: size * (index == 0 ? 0.08 : 0.055))
-                            .opacity(0.35 + 0.65 * max(0, sin(phase * 1.7)))
-                            .offset(x: cos(phase) * size * 0.62, y: sin(phase) * size * 0.62)
-                    }
+                        .trim(from: 0, to: 0.55)
+                        .stroke(AngularGradient(colors: [GhafAIView.light.opacity(0), GhafAIView.light, .white], center: .center),
+                                style: StrokeStyle(lineWidth: max(2, size * 0.035), lineCap: .round))
+                        .padding(size * 0.08)
+                        .rotationEffect(.degrees(t * 70 * speed))
+                        .blur(radius: 0.6)
+                    Circle()
+                        .trim(from: 0, to: 0.4)
+                        .stroke(AngularGradient(colors: [GhafAIView.blue.opacity(0), GhafAIView.blue, Color(red: 0.86, green: 0.91, blue: 1)], center: .center),
+                                style: StrokeStyle(lineWidth: max(1.5, size * 0.022), lineCap: .round))
+                        .padding(size * 0.2)
+                        .rotationEffect(.degrees(-t * 110 * speed + 120))
+                    // Specular highlight.
+                    Ellipse()
+                        .fill(.white.opacity(0.5))
+                        .frame(width: size * 0.22, height: size * 0.1)
+                        .blur(radius: size * 0.03)
+                        .offset(x: -size * 0.16, y: -size * 0.26)
                 }
                 .frame(width: size, height: size)
+                .scaleEffect(1 + 0.03 * sin(t * speed * 2))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }

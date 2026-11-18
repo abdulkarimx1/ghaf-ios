@@ -33,30 +33,67 @@ struct GhafProvider: TimelineProvider {
 extension GhafWidgetSnapshot {
     static let sample = GhafWidgetSnapshot(currency: "AED", balance: 12_450, spentToday: 86.5, spentThisMonth: 2_310,
                                            lastPurchase: .init(merchant: "Carrefour", amount: 45, currency: "AED", date: .now),
-                                           hidden: false, arabic: false, updated: .now)
+                                           hidden: false, arabic: false, updated: .now,
+                                           todayCategories: [.init(name: "Groceries", amount: 45), .init(name: "Dining", amount: 28.5), .init(name: "Transport", amount: 13)],
+                                           lastSevenDays: [120, 60, 210, 90, 40, 150, 86.5])
 }
 
-private let ghafGreen = Color(red: 0.11, green: 0.42, blue: 0.40)
-private let ghafSand = Color(red: 0.55, green: 0.36, blue: 0.16)
+// Inspo palette: near-black tiles, lime highlight, a few category colours.
+private let ink = Color(red: 0.05, green: 0.05, blue: 0.06)
+private let lime = Color(red: 0.78, green: 0.96, blue: 0.38)
+private let paper = Color(red: 0.95, green: 0.95, blue: 0.95)
+private let categoryColors = [Color(red: 1, green: 0.35, blue: 0.12), lime, Color(red: 0.5, green: 0.7, blue: 1), Color(red: 0.72, green: 0.65, blue: 1)]
 
-/// The Ghaf tree drawn without a container, as the HIG asks for logo marks.
-struct GhafWidgetTree: View {
+private func text(_ snapshot: GhafWidgetSnapshot?, _ en: String, _ ar: String) -> String { snapshot?.arabic == true ? ar : en }
+
+/// Small caps caption used on every tile.
+private struct Caption: View {
+    let value: String
     var body: some View {
-        Image(systemName: "tree.fill").font(.system(size: 13, weight: .bold))
+        Text(value.uppercased()).font(.system(size: 10, weight: .bold)).tracking(0.6).lineLimit(1)
     }
 }
 
-private func text(_ snapshot: GhafWidgetSnapshot?, _ en: String, _ ar: String) -> String { snapshot?.arabic == true ? ar : en }
+/// Seven daily bars, today highlighted. Heights are relative to the week's largest day.
+private struct WeekBars: View {
+    let days: [Decimal]
+    let base: Color
+    let highlight: Color
+    var body: some View {
+        let peak = max(days.max() ?? 0, 1)
+        HStack(alignment: .bottom, spacing: 3) {
+            ForEach(Array(days.enumerated()), id: \.offset) { index, value in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(index == days.count - 1 ? highlight : base)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: max(3, CGFloat(NSDecimalNumber(decimal: value / peak).doubleValue) * 30))
+            }
+        }
+        .frame(height: 30, alignment: .bottom)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct OpenGhaf: View {
+    let ink: Color
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "arrow.up.forward.app").font(.system(size: 18, weight: .semibold))
+            Text("Open Ghaf to load your numbers").font(.caption.weight(.semibold)).multilineTextAlignment(.center)
+        }
+        .foregroundStyle(ink)
+    }
+}
 
 // MARK: Balance widget
 
 struct GhafBalanceWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafBalance", provider: GhafProvider()) { entry in
-            GhafBalanceView(entry: entry).containerBackground(for: .widget) { Color(.systemBackground) }
+            GhafBalanceView(entry: entry).containerBackground(for: .widget) { ink }
         }
         .configurationDisplayName("Balance")
-        .description("Your total balance and this month's spending.")
+        .description("Your total balance and this week's spending.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -72,34 +109,42 @@ struct GhafBalanceView: View {
                 Text(s.balance.map { s.money($0) } ?? text(s, "Open Ghaf", "افتح غاف"))
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 1) {
-                    Label(text(s, "Balance", "الرصيد"), systemImage: "tree.fill").font(.caption2.weight(.semibold))
+                    Caption(value: text(s, "Balance", "الرصيد"))
                     Text(s.balance.map { s.money($0) } ?? "—").font(.headline).minimumScaleFactor(0.6).privacySensitive()
                     Text(text(s, "Month ", "الشهر ") + s.money(s.spentThisMonth)).font(.caption2).privacySensitive()
                 }
             default:
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack { GhafWidgetTree().foregroundStyle(ghafGreen); Spacer()
-                        Text(text(s, "Total", "الإجمالي")).font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
-                    Spacer(minLength: 0)
-                    Text(s.balance.map { s.money($0) } ?? "—")
-                        .font(.system(size: family == .systemSmall ? 22 : 30, weight: .heavy, design: .rounded))
-                        .minimumScaleFactor(0.5).lineLimit(1)
-                        .contentTransition(.numericText())
-                        .privacySensitive()
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.right").foregroundStyle(.red)
-                        Text(s.money(s.spentThisMonth)).privacySensitive()
-                        Text(text(s, "this month", "هذا الشهر")).foregroundStyle(.secondary)
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Caption(value: text(s, "Balance · ", "الرصيد · ") + s.currency).foregroundStyle(paper.opacity(0.55))
+                        Spacer(minLength: 0)
+                        if family == .systemSmall, let week = s.lastSevenDays { WeekBars(days: week, base: paper.opacity(0.14), highlight: lime) }
+                        Text(s.balance.map { s.hidden ? "✦✦✦✦" : $0.formatted(.number.precision(.fractionLength(0))) } ?? "—")
+                            .font(.system(size: family == .systemSmall ? 30 : 36, weight: .bold))
+                            .tracking(-0.8)
+                            .foregroundStyle(paper)
+                            .minimumScaleFactor(0.5).lineLimit(1)
+                            .contentTransition(.numericText())
+                            .privacySensitive()
+                        Text(text(s, "Spent ", "صرفت ") + s.money(s.spentThisMonth) + text(s, " this month", " هذا الشهر"))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(lime)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                            .privacySensitive()
                     }
-                    .font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                    if family == .systemMedium, let week = s.lastSevenDays {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Caption(value: text(s, "Last 7 days", "آخر ٧ أيام")).foregroundStyle(paper.opacity(0.55))
+                            Spacer(minLength: 0)
+                            WeekBars(days: week, base: paper.opacity(0.14), highlight: lime).frame(height: 60)
+                        }
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
             }
         } else {
-            VStack(spacing: 6) {
-                GhafWidgetTree().foregroundStyle(ghafGreen)
-                Text("Open Ghaf to load your balance").font(.caption).multilineTextAlignment(.center)
-            }
+            OpenGhaf(ink: family == .systemSmall || family == .systemMedium ? paper : .primary)
         }
     }
 }
@@ -109,12 +154,10 @@ struct GhafBalanceView: View {
 struct GhafTodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafToday", provider: GhafProvider()) { entry in
-            GhafTodayView(entry: entry).containerBackground(for: .widget) {
-                LinearGradient(colors: [ghafGreen, ghafGreen.opacity(0.8)], startPoint: .top, endPoint: .bottom)
-            }
+            GhafTodayView(entry: entry).containerBackground(for: .widget) { lime }
         }
         .configurationDisplayName("Today")
-        .description("What you spent today and your last purchase.")
+        .description("What you spent today, by category.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular])
     }
 }
@@ -126,52 +169,91 @@ struct GhafTodayView: View {
     var body: some View {
         let s = entry.snapshot
         if family == .accessoryCircular {
-            VStack(spacing: 0) {
-                Image(systemName: "tree.fill").font(.system(size: 11, weight: .bold))
+            Gauge(value: 1) {
+                Text(s?.currency ?? "AED")
+            } currentValueLabel: {
                 Text(s.map { $0.hidden ? "✦✦" : $0.spentToday.formatted(.number.precision(.fractionLength(0))) } ?? "—")
-                    .font(.system(size: 15, weight: .heavy, design: .rounded)).minimumScaleFactor(0.5)
-                Text(s?.currency ?? "AED").font(.system(size: 8, weight: .semibold))
+                    .minimumScaleFactor(0.5)
             }
+            .gaugeStyle(.accessoryCircularCapacity)
+        } else if let s {
+            if family == .systemMedium { medium(s) } else { small(s) }
         } else {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(text(s, "Today", "اليوم")).font(.caption.weight(.bold)).opacity(0.75)
-                    Text(s.map { $0.money($0.spentToday) } ?? "—")
-                        .font(.system(size: 24, weight: .heavy, design: .rounded)).minimumScaleFactor(0.5).lineLimit(1)
-                        .privacySensitive()
-                    Spacer(minLength: 0)
-                    if let last = s?.lastPurchase, family == .systemSmall {
-                        Text(last.merchant).font(.caption.weight(.semibold)).lineLimit(1)
-                        Text(last.date, style: .relative).font(.caption2).opacity(0.7)
-                    }
-                }
-                if family == .systemMedium, let last = s?.lastPurchase, let s {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(text(s, "Last purchase", "آخر عملية")).font(.caption.weight(.bold)).opacity(0.75)
-                        Text(last.merchant).font(.headline).lineLimit(1)
-                        Text(s.money(last.amount, currency: last.currency)).font(.subheadline.weight(.semibold)).privacySensitive()
-                        Text(last.date, style: .relative).font(.caption2).opacity(0.7)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(.white.opacity(0.14), in: ContainerRelativeShape())
+            OpenGhaf(ink: ink)
+        }
+    }
+
+    private func small(_ s: GhafWidgetSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Caption(value: text(s, "Spent today", "صرف اليوم")).foregroundStyle(ink.opacity(0.6))
+            Text(s.hidden ? "✦✦✦" : s.spentToday.formatted(.number.precision(.fractionLength(0))))
+                .font(.system(size: 40, weight: .heavy)).tracking(-1.2)
+                .foregroundStyle(ink).minimumScaleFactor(0.5).lineLimit(1)
+                .privacySensitive()
+            Spacer(minLength: 0)
+            if let week = s.lastSevenDays { WeekBars(days: week, base: ink.opacity(0.18), highlight: ink) }
+            Text(s.currency + text(s, " · this week", " · هذا الأسبوع")).font(.system(size: 11, weight: .bold)).foregroundStyle(ink.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
+    }
+
+    private func medium(_ s: GhafWidgetSnapshot) -> some View {
+        let categories = s.todayCategories ?? []
+        let total = max(categories.reduce(Decimal.zero) { $0 + $1.amount }, 1)
+        return HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Caption(value: text(s, "Today spending", "صرف اليوم")).foregroundStyle(ink.opacity(0.6))
+                Text(s.money(s.spentToday)).font(.system(size: 26, weight: .heavy)).tracking(-0.8)
+                    .foregroundStyle(ink).minimumScaleFactor(0.5).lineLimit(1).privacySensitive()
+                Spacer(minLength: 0)
+                if let last = s.lastPurchase {
+                    Text(text(s, "Last: ", "آخر عملية: ") + last.merchant).font(.system(size: 11, weight: .bold)).lineLimit(1)
+                    Text(last.date, style: .relative).font(.system(size: 11)).foregroundStyle(ink.opacity(0.6))
                 }
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .environment(\.layoutDirection, s?.arabic == true ? .rightToLeft : .leftToRight)
+            .foregroundStyle(ink)
+            VStack(alignment: .leading, spacing: 5) {
+                if categories.isEmpty {
+                    Text(text(s, "No spending yet today", "لا صرف اليوم بعد")).font(.caption.weight(.semibold)).foregroundStyle(ink.opacity(0.6))
+                } else {
+                    GeometryReader { geo in
+                        HStack(spacing: 2) {
+                            ForEach(Array(categories.enumerated()), id: \.offset) { i, c in
+                                Capsule().fill(categoryColors[i % categoryColors.count] == lime ? ink : categoryColors[i % categoryColors.count])
+                                    .frame(width: max(4, geo.size.width * CGFloat(NSDecimalNumber(decimal: c.amount / total).doubleValue) - 2))
+                            }
+                        }
+                    }
+                    .frame(height: 6)
+                    ForEach(Array(categories.enumerated()), id: \.offset) { i, c in
+                        HStack(spacing: 6) {
+                            Circle().fill(categoryColors[i % categoryColors.count] == lime ? ink : categoryColors[i % categoryColors.count]).frame(width: 6, height: 6)
+                            Text(c.name).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(s.hidden ? "✦✦" : c.amount.formatted(.number.precision(.fractionLength(2)))).privacySensitive()
+                        }
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(ink)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
     }
 }
 
 // MARK: Live Activity: a purchase just recorded
 
-/// The theme's Ghaf tree mark in its gradient, without a container (HIG: logo marks stand alone).
+/// A small card glyph in the theme gradient, without a container (HIG: logo marks stand alone).
 private struct GhafActivityMark: View {
     let attributes: GhafPurchaseAttributes
     var size: CGFloat = 16
     var body: some View {
-        Image(systemName: "tree.fill")
+        Image(systemName: "creditcard.fill")
             .font(.system(size: size, weight: .bold))
             .foregroundStyle(LinearGradient(colors: [Color(ghafHex: attributes.glow), Color(ghafHex: attributes.accent)],
                                             startPoint: .top, endPoint: .bottom))

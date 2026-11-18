@@ -9,6 +9,8 @@ import UIKit
 @MainActor
 enum GhafWidgetSync {
     static let liveActivityKey = "ghaf.liveActivity"
+    /// Which channels the last refresh could write, shown in Notifications & widgets so a broken install is visible.
+    static private(set) var lastChannels: (group: Bool, keychain: Bool)?
 
     /// Recomputes what the widgets show and asks WidgetKit to redraw them.
     static func refresh(context: ModelContext) {
@@ -25,10 +27,22 @@ enum GhafWidgetSync {
         let month = spending.filter { calendar.isDate($0.date, equalTo: .now, toGranularity: .month) }
             .reduce(Decimal.zero) { $0 + $1.spendingAmount }
         let last = transactions.filter { $0.direction == "debit" && $0.isSpendingOrIncome }.max { $0.date < $1.date }
-        GhafWidgetSnapshot(currency: currency, balance: balance, spentToday: today, spentThisMonth: month,
+        let todays = spending.filter { calendar.isDateInToday($0.date) }
+        let byCategory = Dictionary(grouping: todays) { GhafLocalization.category($0.category, languageCode: settings.languageCode) }
+            .map { GhafWidgetSnapshot.CategorySpend(name: $0.key, amount: $0.value.reduce(Decimal.zero) { $0 + $1.spendingAmount }) }
+            .sorted { $0.amount > $1.amount }
+        let startOfToday = calendar.startOfDay(for: .now)
+        let week: [Decimal] = (0..<7).reversed().map { back in
+            guard let day = calendar.date(byAdding: .day, value: -back, to: startOfToday) else { return 0 }
+            return spending.filter { calendar.isDate($0.date, inSameDayAs: day) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+        }
+        var snapshot = GhafWidgetSnapshot(currency: currency, balance: balance, spentToday: today, spentThisMonth: month,
                            lastPurchase: last.map { .init(merchant: $0.merchant ?? GhafLocalization.category($0.category, languageCode: settings.languageCode),
                                                           amount: $0.amount, currency: $0.currency, date: $0.date) },
-                           hidden: GhafFormat.balancesHidden, arabic: settings.languageCode == "ar", updated: .now).save()
+                           hidden: GhafFormat.balancesHidden, arabic: settings.languageCode == "ar", updated: .now)
+        snapshot.todayCategories = Array(byCategory.prefix(4))
+        snapshot.lastSevenDays = week
+        lastChannels = snapshot.save()
         WidgetCenter.shared.reloadAllTimelines()
     }
 

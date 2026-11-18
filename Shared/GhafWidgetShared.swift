@@ -1,4 +1,5 @@
 import Foundation
+import Security
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -21,6 +22,15 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     var hidden: Bool
     var arabic: Bool
     var updated: Date
+    /// Today's spending per category, largest first (optional so older saved snapshots still decode).
+    var todayCategories: [CategorySpend]? = nil
+    /// Spending for each of the last seven days, oldest first, today last.
+    var lastSevenDays: [Decimal]? = nil
+
+    struct CategorySpend: Codable, Equatable {
+        let name: String
+        let amount: Decimal
+    }
 
     /// The App Group to use. Sideloaders such as AltStore and SideStore rename the group (adding the
     /// signing team) and list the real names under `ALTAppGroups` in Info.plist, so try those first.
@@ -35,14 +45,29 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     }()
     private static let key = "ghaf.widget.snapshot"
 
-    static func load() -> GhafWidgetSnapshot? {
-        guard let data = UserDefaults(suiteName: groupID)?.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(GhafWidgetSnapshot.self, from: data)
+    /// True when the signer kept the App Group, so app and widget see the same container.
+    static var hasSharedContainer: Bool {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) != nil
     }
 
-    func save() {
-        guard let defaults = UserDefaults(suiteName: Self.groupID), let data = try? JSONEncoder().encode(self) else { return }
-        defaults.set(data, forKey: Self.key)
+    /// Reads the App Group first, then the shared keychain, keeping the newer of the two.
+    static func load() -> GhafWidgetSnapshot? {
+        let decode = { (data: Data?) in data.flatMap { try? JSONDecoder().decode(GhafWidgetSnapshot.self, from: $0) } }
+        let fromGroup = hasSharedContainer ? decode(UserDefaults(suiteName: groupID)?.data(forKey: key)) : nil
+        let fromKeychain = decode(GhafWidgetKeychain.read())
+        return [fromGroup, fromKeychain].compactMap { $0 }.max { $0.updated < $1.updated }
+    }
+
+    /// Writes to every channel that works on this install and returns which ones did.
+    @discardableResult
+    func save() -> (group: Bool, keychain: Bool) {
+        guard let data = try? JSONEncoder().encode(self) else { return (false, false) }
+        var group = false
+        if Self.hasSharedContainer, let defaults = UserDefaults(suiteName: Self.groupID) {
+            defaults.set(data, forKey: Self.key)
+            group = true
+        }
+        return (group, GhafWidgetKeychain.write(data))
     }
 
     /// "AED 1,234.50", or stars while the user hides balances.
@@ -55,6 +80,53 @@ struct GhafWidgetSnapshot: Codable, Equatable {
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
         return "\(code) " + (formatter.string(from: value as NSDecimalNumber) ?? "\(value)")
+    }
+}
+
+/// Second channel for installs whose signer drops the App Group (some sideload tools do): a keychain
+/// item in "<team>.com.ghaf.shared". It only works when the signing profile allows that access group
+/// (wildcard profiles do); otherwise both calls fail quietly and the widget asks the user to open Ghaf.
+enum GhafWidgetKeychain {
+    private static let service = "ghaf.widget.snapshot"
+
+    /// The team prefix the signer gave this install, read from the default access group of a probe item.
+    static let accessGroup: String? = {
+        let probe: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: "ghaf.widget.probe",
+                                      kSecAttrAccount: "probe", kSecReturnAttributes: true]
+        var result: CFTypeRef?
+        var status = SecItemCopyMatching(probe as CFDictionary, &result)
+        if status == errSecItemNotFound {
+            var add = probe
+            add[kSecValueData] = Data()
+            add[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+            status = SecItemAdd(add as CFDictionary, &result)
+        }
+        guard status == errSecSuccess, let attributes = result as? [String: Any],
+              let group = attributes[kSecAttrAccessGroup as String] as? String,
+              let team = group.split(separator: ".").first, team.count == 10 else { return nil }
+        return "\(team).com.ghaf.shared"
+    }()
+
+    private static func query(_ group: String) -> [CFString: Any] {
+        [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: "snapshot", kSecAttrAccessGroup: group]
+    }
+
+    static func write(_ data: Data) -> Bool {
+        guard let group = accessGroup else { return false }
+        let base = query(group)
+        if SecItemUpdate(base as CFDictionary, [kSecValueData: data] as CFDictionary) == errSecSuccess { return true }
+        var add = base
+        add[kSecValueData] = data
+        add[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    static func read() -> Data? {
+        guard let group = accessGroup else { return nil }
+        var q = query(group)
+        q[kSecReturnData] = true
+        var result: CFTypeRef?
+        return SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
     }
 }
 
