@@ -107,6 +107,12 @@ final class CategoryMatcherTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(CategoryTaxonomy.all.count, 15)
     }
 
+    func testArabicNameCoversAliases() {
+        XCTAssertEqual(CategoryTaxonomy.arabicName(for: "Food"), CategoryTaxonomy.category(named: "Dining")?.arabic)
+        XCTAssertNotNil(CategoryTaxonomy.arabicName(for: "Car"))
+        XCTAssertNil(CategoryTaxonomy.arabicName(for: "HDD selling"))
+    }
+
     func testTransfersAreNeverSpending() {
         XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Transfers", subcategory: nil))
         XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Adjustment", subcategory: nil))

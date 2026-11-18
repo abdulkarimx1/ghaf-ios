@@ -204,6 +204,7 @@ public enum CategoryTaxonomy {
     public static func arabicName(for name: String) -> String? {
         if let category = all.first(where: { $0.name == name }) { return category.arabic }
         for category in all { if let sub = category.subcategories.first(where: { $0.name == name }) { return sub.arabic } }
-        return nil
+        // The user's own names for a category ("Food", "Car" from an Expend import) read as that category in Arabic.
+        return category(named: name)?.arabic
     }
 }
