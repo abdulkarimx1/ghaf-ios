@@ -119,8 +119,9 @@ final class TransactionIngestionService {
         // A refund offsets its original purchase, so it takes that purchase's category and account.
         let original = isReversal ? try originalPurchase(for: parsed, direction: parsed.direction == .credit ? "debit" : "credit") : nil
 
-        let resolvedAccount = original?.accountID.flatMap { id in accounts.first { $0.id == id } }
-            ?? matchedAccount
+        // The message's own account evidence beats the amount-based guess at the original.
+        let resolvedAccount = matchedAccount
+            ?? original?.accountID.flatMap { id in accounts.first { $0.id == id } }
             ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil)
 
         let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, amount: parsed.amount, date: parsed.date,

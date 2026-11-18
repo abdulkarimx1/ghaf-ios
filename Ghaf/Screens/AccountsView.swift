@@ -60,10 +60,6 @@ struct GhafAccountsView: View {
             .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
-        .onChange(of: hideBalances) { _, hidden in
-            GhafWidgetSync.refresh(context: modelContext)
-            if hidden { Task { await GhafWidgetSync.endAll() } }
-        }
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
