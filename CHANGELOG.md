@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.21 (35)
+
+### English
+- Every widget now has Edit Widget settings (long-press › Edit Widget): colour (Dark, Theme colour, Light or Midnight blue), font (Standard, Rounded, Serif or Monospaced), and what a tap does. Balance and Today are editable too.
+- Choose what tapping a widget does: open Ghaf, or switch its view right on the Home Screen. Spending, Where it went and Today step through day, week and month; Budget flips between what's left and what's used; Upcoming payments steps through 7, 14 and 31 days; Balance and Latest transaction flip to this month's and today's spending.
+- New Trends widget: a stock-style chart of how your spending is moving, with the change against the last period. Tap to switch between 1D, 1W and 1M. Available as a Home Screen and Lock Screen widget.
+
+### العربية
+- لكل أداة الآن إعدادات تعديل (اضغط مطوّلاً › تعديل الأداة): اللون (داكن أو لون المدينة أو فاتح أو أزرق ليلي)، والخط (قياسي أو مدوّر أو سيريف أو أحادي المسافة)، وما يحدث عند اللمس. أداتا الرصيد واليوم أصبحتا قابلتين للتعديل أيضاً.
+- اختر ما يفعله لمس الأداة: فتح غاف، أو تبديل عرضها مباشرة على الشاشة الرئيسية. الصرف وأين ذهبت واليوم تتنقل بين اليوم والأسبوع والشهر؛ والميزانية تبدّل بين المتبقي والمستخدم؛ والمدفوعات القادمة تنتقل بين ٧ و١٤ و٣١ يوماً؛ والرصيد وآخر عملية يبدّلان إلى صرف الشهر وصرف اليوم.
+- أداة جديدة: الاتجاهات، مخطط بأسلوب الأسهم يبيّن كيف يتحرك صرفك مع نسبة التغيّر عن الفترة السابقة. المس للتبديل بين يوم وأسبوع وشهر. متوفرة للشاشة الرئيسية وشاشة القفل.
+
 ## 1.20 (34)
 
 ### English

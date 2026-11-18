@@ -12,6 +12,7 @@ struct GhafWidgetBundle: WidgetBundle {
         GhafBudgetWidget()
         GhafCategoriesWidget()
         GhafBillsWidget()
+        GhafTrendsWidget()
         GhafPurchaseLiveActivity()
     }
 }
@@ -122,9 +123,11 @@ struct OpenGhaf: View {
 // MARK: Balance widget
 
 struct GhafBalanceWidget: Widget {
+    static let kind = "GhafBalance"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "GhafBalance", provider: GhafProvider()) { entry in
-            GhafBalanceView(entry: entry).containerBackground(for: .widget) { ink }
+        AppIntentConfiguration(kind: Self.kind, intent: GhafBalanceConfig.self, provider: GhafConfigProvider<GhafBalanceConfig>()) { entry in
+            GhafBalanceView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+                .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Balance")
         .description("Your total balance and this week's spending.")
@@ -134,43 +137,48 @@ struct GhafBalanceWidget: Widget {
 
 struct GhafBalanceView: View {
     @Environment(\.widgetFamily) private var family
-    let entry: GhafEntry
+    let entry: GhafConfigEntry<GhafBalanceConfig>
 
     var body: some View {
+        let tile = GhafTile(entry.config.style, entry.snapshot)
+        // Tapping (when set to switch view) swaps the big number between the balance and this month's spending.
+        let showSpent = entry.config.onTap == .switchView && GhafNextViewIntent.count(GhafBalanceWidget.kind) % 2 == 1
         if let s = entry.snapshot {
+            let hero: Decimal? = showSpent ? s.spentThisMonth : s.balance
+            let caption = showSpent ? text(s, "Spent · month · ", "صرفت · الشهر · ") : text(s, "Balance · ", "الرصيد · ")
             switch family {
             case .accessoryInline:
-                Text(s.balance.map { s.money($0) } ?? text(s, "Open Ghaf", "افتح غاف"))
+                Text(hero.map { s.money($0) } ?? text(s, "Open Ghaf", "افتح غاف"))
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 1) {
-                    Caption(value: text(s, "Balance", "الرصيد"))
-                    Text(s.balance.map { s.money($0) } ?? "—").font(.headline).minimumScaleFactor(0.6).privacySensitive()
+                    Caption(value: showSpent ? text(s, "Spent this month", "صرف الشهر") : text(s, "Balance", "الرصيد"))
+                    Text(hero.map { s.money($0) } ?? "—").font(.headline).minimumScaleFactor(0.6).privacySensitive()
                     Text(text(s, "Month ", "الشهر ") + s.money(s.spentThisMonth)).font(.caption2).privacySensitive()
                 }
             default:
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Caption(value: text(s, "Balance · ", "الرصيد · ") + s.currency).foregroundStyle(paper.opacity(0.55))
+                        Caption(value: caption + s.currency).foregroundStyle(tile.dim)
                         Spacer(minLength: 0)
-                        if family == .systemSmall, let week = s.lastSevenDays { WeekBars(days: week, base: paper.opacity(0.14), highlight: s.accentColor) }
-                        Text(s.balance.map { s.hidden ? "✦✦✦✦" : $0.formatted(.number.precision(.fractionLength(0))) } ?? "—")
+                        if family == .systemSmall, entry.config.showWeek, let week = s.lastSevenDays { WeekBars(days: week, base: tile.foreground.opacity(0.14), highlight: tile.highlight) }
+                        Text(hero.map { s.hidden ? "✦✦✦✦" : $0.formatted(.number.precision(.fractionLength(0))) } ?? "—")
                             .font(.system(size: family == .systemSmall ? 30 : 36, weight: .bold))
                             .tracking(-0.8)
-                            .foregroundStyle(paper)
+                            .foregroundStyle(tile.foreground)
                             .minimumScaleFactor(0.5).lineLimit(1)
                             .contentTransition(.numericText())
                             .privacySensitive()
                         Text(text(s, "Spent ", "صرفت ") + s.money(s.spentThisMonth) + text(s, " this month", " هذا الشهر"))
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(s.accentColor)
+                            .foregroundStyle(tile.highlight)
                             .lineLimit(1).minimumScaleFactor(0.6)
                             .privacySensitive()
                     }
-                    if family == .systemMedium, let week = s.lastSevenDays {
+                    if family == .systemMedium, entry.config.showWeek, let week = s.lastSevenDays {
                         VStack(alignment: .leading, spacing: 6) {
-                            Caption(value: text(s, "Last 7 days", "آخر ٧ أيام")).foregroundStyle(paper.opacity(0.55))
+                            Caption(value: text(s, "Last 7 days", "آخر ٧ أيام")).foregroundStyle(tile.dim)
                             Spacer(minLength: 0)
-                            WeekBars(days: week, base: paper.opacity(0.14), highlight: s.accentColor).frame(height: 60)
+                            WeekBars(days: week, base: tile.foreground.opacity(0.14), highlight: tile.highlight).frame(height: 60)
                         }
                     }
                 }
@@ -178,7 +186,7 @@ struct GhafBalanceView: View {
                 .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
             }
         } else {
-            OpenGhaf(ink: family == .systemSmall || family == .systemMedium ? paper : .primary)
+            OpenGhaf(ink: family == .systemSmall || family == .systemMedium ? tile.foreground : .primary)
         }
     }
 }
@@ -186,9 +194,11 @@ struct GhafBalanceView: View {
 // MARK: Today widget
 
 struct GhafTodayWidget: Widget {
+    static let kind = "GhafToday"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "GhafToday", provider: GhafProvider()) { entry in
-            GhafTodayView(entry: entry).containerBackground(for: .widget) { entry.snapshot?.accentColor ?? Color(ghafHex: 0xE0B472) }
+        AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>()) { entry in
+            GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+                .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Today")
         .description("What you spent today, by category.")
@@ -198,10 +208,22 @@ struct GhafTodayWidget: Widget {
 
 struct GhafTodayView: View {
     @Environment(\.widgetFamily) private var family
-    let entry: GhafEntry
+    let entry: GhafConfigEntry<GhafTodayConfig>
+
+    /// The snapshot with today's numbers swapped for the week's or month's, when the widget has been tapped on.
+    private static func shown(_ snapshot: GhafWidgetSnapshot?, _ period: GhafWidgetPeriod, at date: Date) -> GhafWidgetSnapshot? {
+        guard period != .day, var patched = snapshot, let shown = patched.shown(period, at: date) else { return snapshot }
+        patched.spentToday = shown.spent
+        patched.todayCategories = shown.categories
+        return patched
+    }
 
     var body: some View {
-        let s = entry.snapshot
+        let tile = GhafTile(entry.config.style, entry.snapshot)
+        // Tapping (when set to switch view) steps today → this week → this month; the numbers come from that period.
+        let period = ghafStepped([GhafWidgetPeriod.day, .week, .month], start: .day, kind: GhafTodayWidget.kind, tap: entry.config.onTap)
+        let s = Self.shown(entry.snapshot, period, at: entry.date)
+        let caption = period == .day ? text(s, "Spent today", "صرف اليوم") : text(s, "Spent · ", "صرفت · ") + periodName(period, s)
         if family == .accessoryCircular {
             // Budget ring: how much of today's budget is spent. Without a daily budget it shows today's spend only.
             let used = s?.dailyBudgetUsed
@@ -218,57 +240,57 @@ struct GhafTodayView: View {
                                 ?? text(s, "Spent today", "صرف اليوم"))
         } else if family == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 1) {
-                Caption(value: text(s, "Spent today", "صرف اليوم")).opacity(0.7)
+                Caption(value: caption).opacity(0.7)
                 Text(s.map { $0.money($0.spentToday) } ?? "—")
                     .font(.system(size: 22, weight: .bold)).minimumScaleFactor(0.6).lineLimit(1)
                     .privacySensitive()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let s {
-            if family == .systemMedium { medium(s) } else { small(s) }
+            if family == .systemMedium { medium(s, tile, caption) } else { small(s, tile, caption) }
         } else {
-            OpenGhaf(ink: ink)
+            OpenGhaf(ink: tile.foreground)
         }
     }
 
-    private func small(_ s: GhafWidgetSnapshot) -> some View {
+    private func small(_ s: GhafWidgetSnapshot, _ tile: GhafTile, _ caption: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Caption(value: text(s, "Spent today", "صرف اليوم")).foregroundStyle(ink.opacity(0.6))
+            Caption(value: caption).foregroundStyle(tile.dim)
             Text(s.hidden ? "✦✦✦" : s.spentToday.formatted(.number.precision(.fractionLength(0))))
                 .font(.system(size: 40, weight: .heavy)).tracking(-1.2)
-                .foregroundStyle(ink).minimumScaleFactor(0.5).lineLimit(1)
+                .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1)
                 .privacySensitive()
             Spacer(minLength: 0)
-            if let week = s.lastSevenDays { WeekBars(days: week, base: ink.opacity(0.18), highlight: ink) }
-            Text(s.currency + text(s, " · this week", " · هذا الأسبوع")).font(.system(size: 11, weight: .bold)).foregroundStyle(ink.opacity(0.6))
+            if let week = s.lastSevenDays { WeekBars(days: week, base: tile.foreground.opacity(0.18), highlight: tile.highlight) }
+            Text(s.currency + text(s, " · this week", " · هذا الأسبوع")).font(.system(size: 11, weight: .bold)).foregroundStyle(tile.foreground.opacity(0.6))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
     }
 
-    private func medium(_ s: GhafWidgetSnapshot) -> some View {
+    private func medium(_ s: GhafWidgetSnapshot, _ tile: GhafTile, _ caption: String) -> some View {
         let categories = s.todayCategories ?? []
         let total = max(categories.reduce(Decimal.zero) { $0 + $1.amount }, 1)
         return HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Caption(value: text(s, "Today spending", "صرف اليوم")).foregroundStyle(ink.opacity(0.6))
+                Caption(value: caption).foregroundStyle(tile.dim)
                 Text(s.money(s.spentToday)).font(.system(size: 26, weight: .heavy)).tracking(-0.8)
-                    .foregroundStyle(ink).minimumScaleFactor(0.5).lineLimit(1).privacySensitive()
+                    .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1).privacySensitive()
                 Spacer(minLength: 0)
                 if let last = s.lastPurchase {
                     Text(text(s, "Last: ", "آخر عملية: ") + last.merchant).font(.system(size: 11, weight: .bold)).lineLimit(1)
-                    Text(last.date, style: .relative).font(.system(size: 11)).foregroundStyle(ink.opacity(0.6))
+                    Text(last.date, style: .relative).font(.system(size: 11)).foregroundStyle(tile.foreground.opacity(0.6))
                 }
             }
-            .foregroundStyle(ink)
+            .foregroundStyle(tile.foreground)
             VStack(alignment: .leading, spacing: 5) {
                 if categories.isEmpty {
-                    Text(text(s, "No spending yet today", "لا صرف اليوم بعد")).font(.caption.weight(.semibold)).foregroundStyle(ink.opacity(0.6))
+                    Text(text(s, "No spending yet today", "لا صرف اليوم بعد")).font(.caption.weight(.semibold)).foregroundStyle(tile.foreground.opacity(0.6))
                 } else {
                     GeometryReader { geo in
                         HStack(spacing: 2) {
                             ForEach(Array(categories.enumerated()), id: \.offset) { i, c in
-                                Capsule().fill(s.categoryColors[i % 4])
+                                Capsule().fill(tile.palette[i % tile.palette.count])
                                     .frame(width: max(4, geo.size.width * CGFloat(NSDecimalNumber(decimal: c.amount / total).doubleValue) - 2))
                             }
                         }
@@ -276,13 +298,13 @@ struct GhafTodayView: View {
                     .frame(height: 6)
                     ForEach(Array(categories.enumerated()), id: \.offset) { i, c in
                         HStack(spacing: 6) {
-                            Circle().fill(s.categoryColors[i % 4]).frame(width: 6, height: 6)
+                            Circle().fill(tile.palette[i % tile.palette.count]).frame(width: 6, height: 6)
                             Text(c.name).lineLimit(1)
                             Spacer(minLength: 4)
                             Text(s.hidden ? "✦✦" : c.amount.formatted(.number.precision(.fractionLength(2)))).privacySensitive()
                         }
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(ink)
+                        .foregroundStyle(tile.foreground)
                     }
                 }
                 Spacer(minLength: 0)

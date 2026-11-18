@@ -1,4 +1,5 @@
 import AppIntents
+import SwiftUI
 import WidgetKit
 
 // Settings people pick when they long-press a Ghaf widget > Edit Widget, and the buttons inside the widgets.
@@ -14,10 +15,30 @@ enum GhafWidgetPeriod: String, AppEnum {
 }
 
 enum GhafWidgetStyle: String, AppEnum {
-    case ink, theme
+    case ink, theme, light, midnight
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Colour"
     static let caseDisplayRepresentations: [GhafWidgetStyle: DisplayRepresentation] = [
-        .ink: "Dark", .theme: "Theme colour"
+        .ink: "Dark", .theme: "Theme colour", .light: "Light", .midnight: "Midnight blue"
+    ]
+}
+
+enum GhafWidgetFont: String, AppEnum {
+    case standard, rounded, serif, mono
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Font"
+    static let caseDisplayRepresentations: [GhafWidgetFont: DisplayRepresentation] = [
+        .standard: "Standard", .rounded: "Rounded", .serif: "Serif", .mono: "Monospaced"
+    ]
+    var design: Font.Design {
+        switch self { case .standard: .default; case .rounded: .rounded; case .serif: .serif; case .mono: .monospaced }
+    }
+}
+
+/// What tapping the widget does: open Ghaf, or flip the widget to its next view (period, display, window) in place.
+enum GhafWidgetTap: String, AppEnum {
+    case open, switchView
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "When tapped"
+    static let caseDisplayRepresentations: [GhafWidgetTap: DisplayRepresentation] = [
+        .open: "Open Ghaf", .switchView: "Switch view"
     ]
 }
 
@@ -43,6 +64,8 @@ struct GhafRecentConfig: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Latest transaction"
     static let description = IntentDescription("The last transaction Ghaf recorded.")
     @Parameter(title: "Colour", default: .theme) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .standard) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show merchant", default: true) var showMerchant: Bool
     @Parameter(title: "Show account", default: true) var showAccount: Bool
 }
@@ -52,6 +75,8 @@ struct GhafSpendingConfig: WidgetConfigurationIntent {
     static let description = IntentDescription("What you spent today, this week or this month.")
     @Parameter(title: "Start on", default: .week) var period: GhafWidgetPeriod
     @Parameter(title: "Colour", default: .ink) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .rounded) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Compare with last period", default: true) var compare: Bool
 }
 
@@ -60,6 +85,8 @@ struct GhafBudgetConfig: WidgetConfigurationIntent {
     static let description = IntentDescription("How much of your budget is left.")
     @Parameter(title: "Show", default: .left) var display: GhafBudgetDisplay
     @Parameter(title: "Colour", default: .theme) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .serif) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show last 7 days", default: true) var showWeek: Bool
 }
 
@@ -68,6 +95,8 @@ struct GhafCategoriesConfig: WidgetConfigurationIntent {
     static let description = IntentDescription("Your top spending categories.")
     @Parameter(title: "Start on", default: .month) var period: GhafWidgetPeriod
     @Parameter(title: "Colour", default: .ink) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .mono) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show amounts", default: true) var showAmounts: Bool
 }
 
@@ -76,10 +105,56 @@ struct GhafBillsConfig: WidgetConfigurationIntent {
     static let description = IntentDescription("Subscriptions due soon.")
     @Parameter(title: "Due within", default: .fortnight) var window: GhafBillWindow
     @Parameter(title: "Colour", default: .ink) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .rounded) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show total", default: true) var showTotal: Bool
 }
 
+struct GhafBalanceConfig: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Balance"
+    static let description = IntentDescription("Your total balance and this month's spending.")
+    @Parameter(title: "Colour", default: .ink) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .standard) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
+    @Parameter(title: "Show last 7 days", default: true) var showWeek: Bool
+}
+
+struct GhafTodayConfig: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Today"
+    static let description = IntentDescription("What you spent today, by category.")
+    @Parameter(title: "Colour", default: .theme) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .standard) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
+}
+
+struct GhafTrendsConfig: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Trends"
+    static let description = IntentDescription("How your spending is moving, like a stock chart.")
+    @Parameter(title: "Start on", default: .week) var period: GhafWidgetPeriod
+    @Parameter(title: "Colour", default: .midnight) var style: GhafWidgetStyle
+    @Parameter(title: "Font", default: .standard) var font: GhafWidgetFont
+    @Parameter(title: "When tapped", default: .switchView) var onTap: GhafWidgetTap
+    @Parameter(title: "Show change", default: true) var showChange: Bool
+    @Parameter(title: "Fill under the line", default: true) var showFill: Bool
+}
+
 // MARK: Button actions
+
+/// Moves a widget to its next view when it is tapped (see GhafWidgetTap). The step is kept per widget kind.
+struct GhafNextViewIntent: AppIntent {
+    static let title: LocalizedStringResource = "Next view"
+    static let isDiscoverable = false
+    @Parameter(title: "Widget") var kind: String
+    init() {}
+    init(kind: String) { self.kind = kind }
+    func perform() async throws -> some IntentResult {
+        UserDefaults.standard.set(Self.count(kind) + 1, forKey: Self.key(kind))
+        return .result()
+    }
+    static func key(_ kind: String) -> String { "ghaf.widget.step.\(kind)" }
+    static func count(_ kind: String) -> Int { UserDefaults.standard.integer(forKey: key(kind)) }
+}
+
 
 /// Reloads the widget from the numbers Ghaf last wrote.
 struct GhafRefreshWidgetIntent: AppIntent {

@@ -25,14 +25,51 @@ struct GhafConfigProvider<Config: WidgetConfigurationIntent>: AppIntentTimelineP
     }
 }
 
+// MARK: Tap behaviour
+
+private struct GhafSwitchTapKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    /// True while the whole widget is one "switch view" button; inner buttons turn into plain labels then.
+    var ghafSwitchTap: Bool {
+        get { self[GhafSwitchTapKey.self] }
+        set { self[GhafSwitchTapKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// "Open Ghaf" leaves the default tap (opens the app). "Switch view" makes the whole widget step to its next view.
+    @ViewBuilder func ghafTap(_ kind: String, _ tap: GhafWidgetTap) -> some View {
+        if tap == .switchView {
+            Button(intent: GhafNextViewIntent(kind: kind)) { environment(\.ghafSwitchTap, true) }.buttonStyle(.plain)
+        } else {
+            self
+        }
+    }
+}
+
+/// The value after `GhafNextViewIntent.count` taps, walking `all` from `start`; unchanged unless the widget switches on tap.
+func ghafStepped<T: Equatable>(_ all: [T], start: T, kind: String, tap: GhafWidgetTap) -> T {
+    guard tap == .switchView, let i = all.firstIndex(of: start) else { return start }
+    return all[(i + GhafNextViewIntent.count(kind)) % all.count]
+}
+
+/// The period a day/week/month widget shows: the Day/Week/Month chip choice, or the tap-cycled one.
+func ghafSelectedPeriod(_ kind: String, configured: GhafWidgetPeriod, tap: GhafWidgetTap) -> GhafWidgetPeriod {
+    tap == .switchView
+        ? ghafStepped([.day, .week, .month], start: configured, kind: kind, tap: tap)
+        : GhafSelectPeriodIntent.current(kind, configured: configured)
+}
+
 /// Colours for a tile: the dark ink tile lit by the theme, or the theme-coloured tile with ink text.
 struct GhafTile {
     let background: Color, foreground: Color, highlight: Color
     let palette: [Color]
+    let isDark: Bool
 
     init(_ style: GhafWidgetStyle, _ s: GhafWidgetSnapshot?) {
         let accent = s?.accentColor ?? Color(ghafHex: 0xE0B472)
         let glow = s?.glowColor ?? Color(ghafHex: 0xF3D29A)
+        isDark = style == .ink || style == .midnight
         switch style {
         case .ink:
             background = ink; foreground = paper; highlight = accent
@@ -40,6 +77,12 @@ struct GhafTile {
         case .theme:
             background = accent; foreground = ink; highlight = ink
             palette = [ink, ink.opacity(0.6), paper, ink.opacity(0.35), paper.opacity(0.6)]
+        case .light:
+            background = paper; foreground = ink; highlight = accent
+            palette = [accent, glow, ink.opacity(0.75), ink.opacity(0.45), ink.opacity(0.2)]
+        case .midnight:
+            background = Color(ghafHex: 0x10162B); foreground = paper; highlight = glow
+            palette = [glow, accent, paper.opacity(0.75), paper.opacity(0.45), paper.opacity(0.25)]
         }
     }
     var dim: Color { foreground.opacity(0.6) }
@@ -92,7 +135,7 @@ extension GhafWidgetSnapshot {
     var locale: Locale { Locale(identifier: arabic ? "ar_AE" : "en_AE") }
 }
 
-private func periodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> String {
+func periodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> String {
     switch p {
     case .day: text(s, "Today", "اليوم")
     case .week: text(s, "This week", "هذا الأسبوع")
@@ -100,7 +143,7 @@ private func periodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> Stri
     }
 }
 
-private func lastPeriodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> String {
+func lastPeriodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> String {
     switch p {
     case .day: text(s, "yesterday", "أمس")
     case .week: text(s, "last week", "الأسبوع الماضي")
@@ -109,7 +152,9 @@ private func lastPeriodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> 
 }
 
 /// Day · Week · Month switch. Each chip is a button that flips the widget without opening Ghaf.
-private struct PeriodSwitch: View {
+struct PeriodSwitch: View {
+    @Environment(\.ghafSwitchTap) private var passive
+    var short = false
     let kind: String
     let configured: GhafWidgetPeriod
     let selected: GhafWidgetPeriod
@@ -119,15 +164,17 @@ private struct PeriodSwitch: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach([GhafWidgetPeriod.day, .week, .month], id: \.self) { p in
-                Button(intent: GhafSelectPeriodIntent(kind: kind, configured: configured, period: p)) {
-                    Text(label(p))
-                        .font(.system(size: 11, weight: .bold))
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity, minHeight: 26)
-                        .foregroundStyle(p == selected ? tile.background : tile.foreground)
-                        .background(p == selected ? tile.foreground : tile.foreground.opacity(0.12), in: Capsule())
+                let chip = Text(label(p))
+                    .font(.system(size: 11, weight: .bold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity, minHeight: 26)
+                    .foregroundStyle(p == selected ? tile.background : tile.foreground)
+                    .background(p == selected ? tile.foreground : tile.foreground.opacity(0.12), in: Capsule())
+                Group {
+                    if passive { chip } else {
+                        Button(intent: GhafSelectPeriodIntent(kind: kind, configured: configured, period: p)) { chip }.buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
                 .accessibilityLabel(periodName(p, snapshot))
                 .accessibilityAddTraits(p == selected ? .isSelected : [])
             }
@@ -135,29 +182,34 @@ private struct PeriodSwitch: View {
     }
 
     private func label(_ p: GhafWidgetPeriod) -> String {
+        if short && snapshot?.arabic != true { return p == .day ? "1D" : p == .week ? "1W" : "1M" }
         switch p {
-        case .day: text(snapshot, "Day", "يوم")
-        case .week: text(snapshot, "Week", "أسبوع")
-        case .month: text(snapshot, "Month", "شهر")
+        case .day: return text(snapshot, "Day", "يوم")
+        case .week: return text(snapshot, "Week", "أسبوع")
+        case .month: return text(snapshot, "Month", "شهر")
         }
     }
 }
 
 /// A round refresh button for widgets whose view does not switch.
 private struct RefreshButton: View {
+    @Environment(\.ghafSwitchTap) private var passive
     let kind: String
     let tile: GhafTile
     let snapshot: GhafWidgetSnapshot?
     var body: some View {
-        Button(intent: GhafRefreshWidgetIntent(kind: kind)) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 12, weight: .bold))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(tile.foreground)
-                .background(tile.foreground.opacity(0.12), in: Circle())
+        // In "switch view" mode the whole widget is the button, and buttons cannot nest.
+        if !passive {
+            Button(intent: GhafRefreshWidgetIntent(kind: kind)) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .bold))
+                    .frame(width: 28, height: 28)
+                    .foregroundStyle(tile.foreground)
+                    .background(tile.foreground.opacity(0.12), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(text(snapshot, "Refresh", "تحديث"))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(text(snapshot, "Refresh", "تحديث"))
     }
 }
 
@@ -206,7 +258,7 @@ struct GhafRecentWidget: Widget {
     static let kind = "GhafRecent"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafRecentConfig.self, provider: GhafConfigProvider<GhafRecentConfig>()) { entry in
-            GhafRecentView(entry: entry).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafRecentView(entry: entry).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Latest transaction")
         .description("The last purchase or deposit Ghaf recorded, from a bank message, a shortcut or by hand.")
@@ -220,11 +272,17 @@ struct GhafRecentView: View {
 
     var body: some View {
         guard let s = entry.snapshot else { return AnyView(OpenGhaf(ink: family.isAccessory ? .primary : GhafTile(entry.config.style, nil).foreground)) }
-        guard let r = s.recent else {
+        guard let latest = s.recent else {
             return AnyView(Text(text(s, "No transactions yet", "لا عمليات بعد")).font(.caption.weight(.semibold))
                 .foregroundStyle(family.isAccessory ? .primary : GhafTile(entry.config.style, s).dim))
         }
         let tile = GhafTile(entry.config.style, s)
+        let flipped = entry.config.onTap == .switchView && GhafNextViewIntent.count(GhafRecentWidget.kind) % 2 == 1
+        // Tapping flips between the latest transaction and what has been spent today.
+        let r = flipped
+            ? GhafWidgetSnapshot.Recent(merchant: nil, category: text(s, "Spent today", "صرف اليوم"), symbol: "calendar", amount: s.spentToday,
+                                        currency: s.currency, date: s.updated, isCredit: false, account: nil, bank: nil, needsReview: false)
+            : latest
         let amount = (r.isCredit ? "+" : "") + (s.hidden ? "✦✦✦" : r.amount.formatted(.number.precision(.fractionLength(2)).locale(s.locale)))
         let detail = [entry.config.showMerchant ? r.merchant : nil, entry.config.showAccount ? r.account : nil]
             .compactMap { $0 }.joined(separator: " · ")
@@ -305,7 +363,7 @@ struct GhafSpendingWidget: Widget {
     static let kind = "GhafSpending"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafSpendingConfig.self, provider: GhafConfigProvider<GhafSpendingConfig>()) { entry in
-            GhafSpendingView(entry: entry).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafSpendingView(entry: entry).ghafTap(GhafSpendingWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Spending")
         .description("Today, this week or this month. Tap Day, Week or Month to switch.")
@@ -320,7 +378,7 @@ struct GhafSpendingView: View {
     var body: some View {
         let tile = GhafTile(entry.config.style, entry.snapshot)
         guard let s = entry.snapshot else { return AnyView(OpenGhaf(ink: tile.foreground)) }
-        let selected = GhafSelectPeriodIntent.current(GhafSpendingWidget.kind, configured: entry.config.period)
+        let selected = ghafSelectedPeriod(GhafSpendingWidget.kind, configured: entry.config.period, tap: entry.config.onTap)
         let switcher = PeriodSwitch(kind: GhafSpendingWidget.kind, configured: entry.config.period, selected: selected, tile: tile, snapshot: s)
         guard let p = s.shown(selected, at: entry.date) else {
             return AnyView(VStack { Spacer(); Text(text(s, "Open Ghaf to load this period", "افتح غاف لتحميل هذه الفترة")).font(.caption.weight(.semibold)); Spacer(); switcher }
@@ -377,7 +435,7 @@ struct GhafBudgetWidget: Widget {
     static let kind = "GhafBudget"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBudgetConfig.self, provider: GhafConfigProvider<GhafBudgetConfig>()) { entry in
-            GhafBudgetView(entry: entry).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafBudgetView(entry: entry).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Budget")
         .description("How much of your budget is left, from your Budget settings in Ghaf.")
@@ -410,7 +468,8 @@ struct GhafBudgetView: View {
         let spent = entry.date >= b.end ? 0 : b.spent
         let left = b.limit - spent
         let usedShare = NSDecimalNumber(decimal: spent / b.limit).doubleValue
-        let showLeft = entry.config.display == .left
+        let flipped = entry.config.onTap == .switchView && GhafNextViewIntent.count(GhafBudgetWidget.kind) % 2 == 1
+        let showLeft = (entry.config.display == .left) != flipped
         let share = showLeft ? max(0, 1 - usedShare) : usedShare
         let percent = share.formatted(.percent.precision(.fractionLength(0)).locale(s.locale))
         let caption = showLeft ? text(s, "Budget left", "المتبقي من الميزانية") : text(s, "Budget used", "المستخدم من الميزانية")
@@ -484,7 +543,7 @@ struct GhafCategoriesWidget: Widget {
     static let kind = "GhafCategories"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafCategoriesConfig.self, provider: GhafConfigProvider<GhafCategoriesConfig>()) { entry in
-            GhafCategoriesView(entry: entry).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafCategoriesView(entry: entry).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Where it went")
         .description("Your top spending categories. Tap Day, Week or Month to switch.")
@@ -499,7 +558,7 @@ struct GhafCategoriesView: View {
     var body: some View {
         let tile = GhafTile(entry.config.style, entry.snapshot)
         guard let s = entry.snapshot else { return AnyView(OpenGhaf(ink: tile.foreground)) }
-        let selected = GhafSelectPeriodIntent.current(GhafCategoriesWidget.kind, configured: entry.config.period)
+        let selected = ghafSelectedPeriod(GhafCategoriesWidget.kind, configured: entry.config.period, tap: entry.config.onTap)
         let p = s.shown(selected, at: entry.date)
         let rows = Array((p?.categories ?? []).prefix(family == .systemLarge ? 5 : 3))
         let total = max(rows.reduce(Decimal.zero) { $0 + $1.amount }, 1)
@@ -564,7 +623,7 @@ struct GhafBillsWidget: Widget {
     static let kind = "GhafBills"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBillsConfig.self, provider: GhafConfigProvider<GhafBillsConfig>()) { entry in
-            GhafBillsView(entry: entry).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafBillsView(entry: entry).ghafTap(GhafBillsWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Upcoming payments")
         .description("Subscriptions due soon. A reminder is not a payment: Ghaf records it when the charge arrives.")
@@ -580,13 +639,14 @@ struct GhafBillsView: View {
         let tile = GhafTile(entry.config.style, entry.snapshot)
         guard let s = entry.snapshot else { return AnyView(OpenGhaf(ink: family.isAccessory ? .primary : tile.foreground)) }
         let calendar = Calendar.current
-        let limit = calendar.date(byAdding: .day, value: entry.config.window.rawValue, to: calendar.startOfDay(for: entry.date)) ?? entry.date
+        let window = ghafStepped([GhafBillWindow.week, .fortnight, .month], start: entry.config.window, kind: GhafBillsWidget.kind, tap: entry.config.onTap)
+        let limit = calendar.date(byAdding: .day, value: window.rawValue, to: calendar.startOfDay(for: entry.date)) ?? entry.date
         let bills = (s.upcoming ?? []).filter { $0.date < limit }
         // A total only when every bill shares one currency: unlike currencies are never added.
         let currencies = Set(bills.map(\.currency))
         let total: String? = entry.config.showTotal && currencies.count == 1
             ? "\(bills[0].currency) \(s.whole(bills.reduce(Decimal.zero) { $0 + $1.amount }))" : nil
-        let windowText = text(s, "Next \(entry.config.window.rawValue) days", "خلال \(entry.config.window.rawValue.formatted(.number.locale(s.locale))) يوماً")
+        let windowText = text(s, "Next \(window.rawValue) days", "خلال \(window.rawValue.formatted(.number.locale(s.locale))) يوماً")
 
         guard let next = bills.first else {
             let empty = text(s, "Nothing due soon", "لا مدفوعات قريبة")
@@ -657,6 +717,6 @@ struct GhafBillsView: View {
     }
 }
 
-private extension WidgetFamily {
+extension WidgetFamily {
     var isAccessory: Bool { self == .accessoryCircular || self == .accessoryRectangular || self == .accessoryInline }
 }

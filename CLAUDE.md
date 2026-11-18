@@ -380,88 +380,11 @@ Notifications useful, accurate, user-controlled. Distinguish transaction review,
 
 ## 17. Quality assurance checklist
 
-Use for relevant changes. Don't mark passed unless actually performed.
-
-### Navigation and UI
-- [ ] Five tabs in intended order.
-- [ ] Ghaf AI is center tab.
-- [ ] Every tab opens functional screen.
-- [ ] Home has no long transaction feed.
-- [ ] Daily/Weekly/Monthly updates real data.
-- [ ] Hidden balances use star representation.
-- [ ] More simplified + navigable.
-- [ ] Profile actions work.
-- [ ] No blank editor or category screens.
-- [ ] No clipped content or safe-area overlap.
-
-### Accounts and ledger
-- [ ] Multiple accounts supported.
-- [ ] No empty accounts created automatically.
-- [ ] Each transaction affects correct account exactly once.
-- [ ] Transfers don't inflate income/spending.
-- [ ] Refunds + reversals handled distinctly.
-- [ ] Different currencies not incorrectly added.
-- [ ] Balances persist after relaunch.
-
-### Transactions and automation
-- [ ] Arabic + English parsing tested.
-- [ ] Multiple purchases stay separate.
-- [ ] OTP/promotional messages don't create transactions.
-- [ ] Duplicate Shortcut runs don't duplicate records.
-- [ ] Account matching uses evidence.
-- [ ] Low-confidence transactions go to review.
-- [ ] Editing + category changes work.
-- [ ] JSON import works + reports errors.
-
-### Ghaf AI
-- [ ] Numerical answers use actual ledger data.
-- [ ] AI doesn't invent balances or transactions.
-- [ ] Arabic/English voice entry works where supported.
-- [ ] Confirmed corrections influence future suggestions.
-- [ ] Learning behavior accurately described.
-- [ ] No API secrets in app bundle.
-- [ ] Privacy/reset controls work.
-
-### Subscriptions
-- [ ] Add/edit/delete works.
-- [ ] Billing cycle calculations correct.
-- [ ] Reminders schedule + reschedule.
-- [ ] Deactivated subscriptions stop reminders.
-- [ ] Confirmed payments match without double-counting.
-- [ ] Payment history preserved.
-- [ ] Reminders don't deduct balances.
-
-### Localization and launch
-- [ ] Arabic RTL works.
-- [ ] English LTR works.
-- [ ] Language switch updates whole UI.
-- [ ] AED, SAR, OMR artwork correct.
-- [ ] Other currencies use text abbreviations.
-- [ ] Welcome artwork packaged.
-- [ ] Fresh-process launch behavior correct.
-- [ ] Existing data survives launch + updates.
+Full checklist: `docs/QA.md`. Read it for QA/release work. Don't mark item passed unless actually performed.
 
 ## 18. Implementation roadmap
 
-No massive all-at-once rewrite. Focused stages.
-
-### Stage 1 — Inspect and stabilize
-Inspect repo, branch, build config, latest CI. Find compile errors + broken flows. Fix persistence + navigation, blank transaction/category screens, language switching + safe-area problems, multi-account + balance inconsistencies. Verify welcome asset + launch behavior.
-
-### Stage 2 — Core UI
-Refine shared design system. Redesign Home around balances + overview; remove Home feed. Daily/Weekly/Monthly interaction. Hidden-balance stars. Simplify More, improve Profile. Confirm five tabs with Ghaf AI centered.
-
-### Stage 3 — Accounts and transaction reliability
-Fix account lifecycle + matching. Improve ingestion + duplicate prevention. Improve Arabic/English parsing. Fix voice transaction splitting + merchant cleanup. Complete transaction editing + review. Repair JSON import/export.
-
-### Stage 4 — Subscriptions
-Complete subscription CRUD + persistence. Reminders. Payment history. Confirmed transaction matching. Subscription statistics.
-
-### Stage 5 — Ghaf AI
-Complete AI interface. Voice input. Deterministic financial query tools. Secure backend if required. Confirmed-feedback learning. Privacy, inspection, reset controls.
-
-### Stage 6 — QA and delivery
-Run relevant automated tests. Full build. Check GitHub Actions; fix build failures. IPA only after successful build. Report what is/isn't verified. Don't imply physical-device testing unless performed.
+Staged plan: `docs/ROADMAP.md`. Focused stages, no all-at-once rewrite.
 
 ## 19. How Claude should handle each task
 

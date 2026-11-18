@@ -1,0 +1,478 @@
+# Ghaf — Codex Project Instructions
+
+> Product + engineering brief for Ghaf iOS repo. Describes intended product, not proof anything implemented.
+
+## 1. Product vision
+
+Ghaf: iOS personal finance companion. Reliable, understandable view of money across multiple bank accounts, wallets, transactions, budgets, recurring subscriptions. Must feel like one coherent app, not unrelated screens.
+
+### Product reference: Outcap
+
+Outcap = reference for transaction automation via iOS Shortcuts (capture bank notification/message, pass into app).
+- Don't copy Outcap visual identity or assume its architecture. Ghaf has own design language.
+- Goal: similar convenience; no manual logging of every bank transaction.
+- Cash may still need manual entry unless reliable capture exists.
+
+### Core principles
+
+1. Accuracy before decoration.
+2. Automation before repetitive manual effort.
+3. One coherent experience across screens.
+4. Clarity over density.
+5. AI genuine: no canned responses or simulated learning.
+6. Privacy by design.
+7. Incremental, reviewable engineering.
+8. Never claim feature complete without evidence.
+
+## 2. Repository workflow and engineering rules
+
+### Before editing
+
+1. Inspect relevant implementation + direct dependencies.
+2. Understand current models, persistence, navigation, tests.
+3. Check branch + working tree.
+4. Read relevant project config + instructions.
+5. Bugs: trace/reproduce actual failure before changing code.
+6. Prefer smallest complete fix.
+
+Don't reread whole repo per small task. Inspect relevant files first, expand only when dependencies require.
+
+### Preserve the existing application
+
+- No replacing app with prototype.
+- No large architecture rewrites without demonstrated need.
+- No removing working functionality without clear reason.
+- No duplicate models, services, screens, or competing sources of truth.
+- Reuse existing components, design tokens, services, persistence patterns.
+- If code conflicts with this doc, inspect + explain conflict before broad architectural changes.
+
+### Git workflow
+
+- Intended branch: `main`. No new branch unless explicitly requested.
+- Inspect `git status` before editing. Preserve unrelated user changes.
+- Never reset, clean, overwrite, or discard uncommitted user work.
+- Focused commits when requested or task workflow requires.
+- Never claim commit/push succeeded unless confirmed.
+- Inspect GitHub Actions after meaningful changes when available.
+- Local compile, successful CI, produced IPA, physical-device test = four different verification levels.
+
+### Reporting
+
+Report separately: code changed; behavior implemented; tests actually run + results; CI status (passed/failed/cancelled/in progress); IPA produced?; installed + tested on physical device?
+
+Never claim fixed/working/tested/built/released unless evidence supports that exact claim.
+
+### Efficiency
+
+- Scope each task to current request. Don't implement whole roadmap when asked to fix one screen.
+- Don't print/summarize huge files unnecessarily. Targeted searches, inspect only necessary code.
+- Check feature exists before creating another implementation.
+- Split oversized work into stages; finish current stage cleanly.
+
+## 3. Financial architecture and correctness
+
+### Ledger is the source of truth
+
+Deterministic logic + ledger (not AI) determine: account balances, transaction totals, income/spending, budget usage, subscription payment records, period comparisons.
+
+AI may interpret questions, explain trends, suggest categories, identify patterns. Must not invent or silently modify financial facts.
+
+### Balance rules
+
+- Support multiple bank accounts + cash wallets; each balance independent.
+- Combined total only when currencies can meaningfully combine. Never add unlike currencies.
+- Conversion (if supported): known rate with timestamp/source, label converted total as estimate.
+- Define "available balance" consistently. Don't confuse manual balances, ledger-calculated, pending, bank-reported.
+- Transaction affects correct account exactly once.
+- Treat refunds, reversals, transfers, pending authorizations, duplicate notifications distinctly.
+- Transfers between own accounts not income/spending in consolidated analytics.
+- Never silently create accounts or wallets.
+
+### Data integrity
+
+- Validate parsed/imported data before writing.
+- Stable identifiers + idempotency safeguards for automated ingestion; no duplicates when same notification delivered twice.
+- Preserve user edits + confirmed corrections.
+- Surface persistence errors; never silently discard financial data.
+- Safe schema evolution + migrations when changing persisted models. Test persistence after relaunch.
+- No destructive migrations without approval + backup.
+
+## 4. Design system and visual direction
+
+Minimal, modern, confident, readable, distinctive without excess decoration.
+- Larger, stronger typography where appropriate. Amounts + primary actions easy to scan.
+- Clear hierarchy, intentional whitespace.
+- Avoid excess nested cards, borders, shadows, random icon styles, tiny tap targets.
+- Consistent colors, typography, spacing, shapes, components across tabs.
+- Inspect existing tokens before adding new; extend/consolidate, no parallel systems.
+- Coherent light/dark if both supported.
+
+### Alignment
+
+Overall presentation intentionally center-aligned, not left by default. Center suits: main headings, key totals, welcome/onboarding, empty states, AI entry, primary overview. Don't force everything centered: lists, dense data, form fields, transaction details may need leading alignment. Use alignment intentionally.
+
+### Accessibility and layout
+
+- Respect safe areas. Support Dynamic Type where feasible.
+- Accessible labels on icon-only controls. Sufficient contrast.
+- No clipped content or fixed heights breaking localization. Test small + large devices.
+- Comfortable touch targets. Don't rely on color alone for meaning.
+
+## 5. Main navigation
+
+Five destinations: 1. Home 2. Transactions 3. Ghaf AI 4. Subscriptions 5. More
+
+**Ghaf AI must be center tab (third of five)**, feel like primary feature, not decorative chatbot.
+- Clear labels/icons; consistent selected/unselected states.
+- Preserve navigation state where appropriate. No duplicate destinations.
+- Every tab opens functional screen. No placeholder screens presented as finished.
+
+## 6. Home screen
+
+Home = financial dashboard: balances, accounts, useful summaries. Not long transaction feed.
+
+### Content
+
+Where real data supports: combined available balance (only when currency treatment valid); individual account balances; account names + currencies; spending/income summaries; budget status; period overview. Don't assume one bank or wallet.
+
+### Transactions feed
+
+No long transaction list on Home; Transactions has own tab. Small shortcut to Transactions OK; don't recreate feed.
+
+### Daily / Weekly / Monthly
+
+Selector or interactive overview for Daily/Weekly/Monthly. Selected period must update all relevant stats: spending, income, comparisons, budget progress, charts. Period boundaries consistent with user's locale, calendar, timezone; handle locale week start. No data → useful empty state, not fabricated values.
+
+### Hide balances
+
+Eye control hides/reveals sensitive amounts. When hidden:
+- Replace amounts with small group of star-shaped symbols. No dashes, generic asterisks, or unrelated icons.
+- Apply consistently. Don't alter underlying values/calculations.
+- Visibility state predictable across navigation + relaunch per privacy design.
+
+## 7. Accounts and wallets
+
+Users can add bank accounts + cash wallets, edit details, archive/remove safely, set currency + opening balance, view calculated balance, assign transactions.
+
+- No automatic empty wallets or placeholder accounts without explicit user action.
+- Account identity stable when renamed.
+- No loose substring-only matching; use confirmed mappings + robust matching. Uncertain identity → review.
+- Archiving must not erase historical transactions.
+- Explain consequences + safeguards when removing account.
+
+## 8. Transactions and automation
+
+### Product goal
+
+Minimize manual entry; cash may still need it. Outcap = reference for Shortcuts capture convenience. Don't assume iOS lets ordinary app read other apps' notifications.
+
+### iOS constraints
+
+- Don't claim ordinary iOS app can freely read other apps' notifications.
+- Use user-configured Shortcuts, supported share actions, App Intents, or other permitted mechanisms.
+- Explain required setup clearly. Don't promise unsupported background automation.
+- Keep workflow as automatic + low-friction as iOS permits.
+
+### Intended ingestion flow
+
+1. Supported notification/message reaches configured Shortcut or integration.
+2. Shortcut passes text/structured data to Ghaf via App Intent or supported handoff.
+3. Ghaf parses content.
+4. Ghaf identifies transaction details + confidence.
+5. Ghaf checks duplicates.
+6. Ghaf assigns category/account when confident enough.
+7. Ghaf records transaction or sends to Needs Review.
+8. Ledger updates balances + analytics.
+
+### Message and transaction types
+
+Distinguish: purchase; income/deposit; transfer; cash withdrawal; refund; reversal; pending authorization; balance alert; OTP; promotional; other non-transaction.
+
+Never create financial record from OTP, marketing message, generic balance alert, or unconfirmed event.
+
+### Parser fields
+
+Extract where present: amount + currency; merchant/description; direction/type; date + time; account/card reference; available balance (separate data point, not another transaction); reference/transaction ID; confidence + review info.
+
+Support Arabic + English, Arabic-Indic + Western digits, common UAE amount/date formats, currency abbreviations. Potential UAE sources: Mashreq, iVESTOR, Ruya, others. Don't assume all formats known. Parsing modular + testable.
+
+### Account mapping
+
+Learn confirmed mappings between notification clues and user accounts (e.g. account "Ivestor" ← iVESTOR messages when evidence supports). Never silently map by vague name similarity.
+
+### Duplicates, pending transactions, and reversals
+
+Idempotency keys where possible (stable source IDs or careful fingerprints). Handle duplicate Shortcut runs, repeated notifications, pending→posted updates, reversals, refunds, legitimate repeated purchases. Don't dedupe solely by amount + date if that could merge separate purchases.
+
+### Transaction UI
+
+Users can view/search/filter, open details, edit fields, change category/account, add notes, review automatic classifications, delete with clear confirmation or undo where feasible. Fix blank editors, blank category pickers, broken navigation. No controls that lead nowhere.
+
+## 9. Ghaf AI
+
+### Role and capabilities
+
+Central financial assistant, connected to user's data. Not static chat UI with canned answers.
+
+Build toward: Arabic + English conversation; natural-language financial questions; voice transaction entry; categorization suggestions; merchant + account recognition; spending/budget analysis; recurring spending detection; subscription awareness; period comparisons; useful reminders/explanations.
+
+Example questions:
+- "How much did I spend this week?"
+- "Where did most of my money go?"
+- "How much did I spend on restaurants this month?"
+- "How much do I have across my accounts?"
+- "Am I spending more than last month?"
+- "Which subscriptions are due soon?"
+- "كم صرفت هالأسبوع؟"
+- "وين أكثر مكان صرفت فيه؟"
+- "سجلت ٣٥ درهم غداء."
+
+### Grounded financial answers
+
+Numerical questions:
+1. Retrieve relevant records.
+2. Apply deterministic calculations.
+3. Respect account + currency boundaries.
+4. State period, explain result.
+5. Never invent missing data.
+
+LLM must not calculate authoritative balances from unverified prompt summary.
+
+### Voice transaction entry
+
+Support natural Arabic + English, e.g.:
+- "I spent 35 dirhams on lunch."
+- "Paid 120 AED for fuel using Mashreq."
+- "اشتريت قهوة بعشرين درهم."
+- "دفعت ٥٠ درهم بنزين."
+
+Extract amount, currency, merchant/description, category, type, account if known, date if specified. Essential field unclear → concise clarification, no silent guess. Multiple purchases in one utterance → separate candidates. Confirm/review where necessary.
+
+### Genuine learning
+
+Learn from actual user actions + confirmed corrections: changing suggested category; changing merchant's account; editing merchant name; confirming/rejecting suggested transaction; repeated consistent category for merchant/pattern.
+
+Store structured feedback: normalized merchant key; confirmed category; confirmed account mapping; user preference; confidence/count; last-confirmed timestamp; source + parser/model version.
+
+Use learned data to improve suggestions. Prefer transparent deterministic mappings for repeated high-confidence corrections. Describe accurately whether capability is local preference/mapping, server-side retrieval memory, trained model, or recent-context suggestion. Don't claim model training if only local rule stored.
+
+### Hybrid architecture and privacy
+
+On-device where practical: local preferences, confirmed mappings, basic parsing/categorization, offline behavior, deterministic calculations. Secure backend for advanced cloud reasoning if needed.
+
+- Never embed provider API keys/secrets in iOS binary.
+- Check whether backend exists before proposing another; reuse infrastructure.
+- Explain tradeoffs before new service.
+- Minimize financial data shared; send only context needed for current task. Don't send full history every request by default.
+- Authenticated requests, secure transport. Define retention + deletion.
+- Controls to inspect, reset, disable learned preferences. Make AI data use understandable.
+
+### AI interface
+
+Clear starting point, useful suggested questions, voice/text input, readable conversation, clear distinction between answers, suggestions, transactions awaiting confirmation. Loading, error, empty, offline states. No fake thinking animations or fabricated responses.
+
+## 10. Subscriptions
+
+Dedicated tab, integrated with rest of Ghaf.
+
+### Subscription data
+
+Support: name; amount + currency; billing cycle; next payment date; category; payment account; reminder preference; notes; active/inactive; creation + update dates. Cycles: weekly, monthly, quarterly, yearly; design for extensibility.
+
+### Overview
+
+Show active subscriptions, upcoming dates, monthly equivalent cost, annual cost, payment history where available. Label estimated monthly equivalents for non-monthly cycles. Correct decimal arithmetic, no integer division.
+
+### Reminders
+
+- Local notifications where appropriate. Request permission with clear explanation.
+- Reminder timing preferences. Reschedule on date/cycle/status change; cancel on delete/deactivate.
+- Handle denied permission gracefully.
+- Reminder ≠ proof of payment.
+
+### Transaction matching
+
+Compare ingested real transaction with active subscriptions using merchant, amount, date window, account evidence.
+- Confidence thresholds; ask confirmation when uncertain.
+- Record confirmed payments in history.
+- Advance next payment date only after confirmed payment or clearly defined trusted rule.
+- Prevent duplicate payment records + duplicate balance deductions.
+- Reminder never deducts money. Only confirmed transaction affects ledger.
+
+## 11. More screen and Profile
+
+### More screen
+
+Few clear groups:
+- **Profile**: personal details; profile image or initials; language + personal preferences.
+- **Accounts**: bank accounts + wallets.
+- **Preferences**: currency; appearance; language; notifications.
+- **Ghaf AI**: learning preferences; privacy controls; learned mappings/preferences; reset learning data.
+- **Data**: import; export; backup/restore if supported.
+- **About**: app info; help + support.
+
+No long cluttered list of unrelated cards. Every row leads to working destination.
+
+### Profile
+
+Clear, well-designed profile screen with supported editable fields, consistent spacing + typography. Don't invent authentication or profile sync without backend.
+
+## 12. Currencies and money formatting
+
+Currency selector + display need correction.
+
+### Dedicated artwork
+
+Currency-specific artwork only for: UAE Dirham (AED); Saudi Riyal (SAR); Omani Rial (OMR). Remove generic currency icons + placeholders. No country flags. Other currencies: abbreviation as text.
+
+### Formatting and calculations
+
+- Keep currency codes + amounts paired correctly. Locale-aware number formatting.
+- Avoid ambiguous shared symbols.
+- Consistent formatting across accounts, transactions, subscriptions, summaries.
+- Never aggregate currencies without real conversion rate; when converting, show rate + timestamp.
+- Changing display currency must not silently change historical transaction currencies.
+
+## 13. Arabic, English, and localization
+
+Support Arabic + English throughout.
+- Arabic: proper RTL. English: proper LTR.
+- Semantic leading/trailing over hardcoded left/right. Handle directional icons.
+- Don't manually reverse components if SwiftUI layout direction handles it.
+
+Language switch must update navigation, headings, buttons, forms, empty states, categories, transaction types, dates, currency formatting, notifications, AI interface/prompts. No mixed-language UI except user-provided merchant names/notes. Check clipping + button widths in both languages.
+
+## 14. Welcome screen and onboarding
+
+Supplied welcome artwork = actual welcome screen. User wants it shown on every fresh launch after app fully removed from app switcher.
+- Not same as restarting first-time onboarding.
+- Don't erase data or reset accounts/preferences. Don't force full onboarding every launch.
+- Returning from background ≠ fresh process launch.
+- Verify asset catalog membership + target packaging. Verify actual launch behavior; `Image` reference alone doesn't prove asset packaged.
+
+If iOS launch-screen restrictions apply, explain what native launch screen can do vs what needs in-app welcome view.
+
+## 15. Import, export, and backup
+
+Existing JSON import workflow must work.
+
+### Import
+
+- Select supported Ghaf JSON file. Validate schema/version before import.
+- Understandable errors for invalid/unsupported files. Never silently do nothing.
+- No partial imports leaving inconsistent data. Handle duplicate imports safely where possible.
+- Preserve accounts, transactions, categories, settings, subscriptions, relevant preferences.
+
+### Export
+
+- Export data supported by current schema. Versioned, documented format.
+- No unnecessary secrets. State clearly what's included/excluded.
+
+Add schema/version handling as models evolve. Don't claim compatibility with untested formats.
+
+## 16. Notifications and Shortcuts
+
+Notifications useful, accurate, user-controlled. Distinguish transaction review, subscription reminders, budget alerts, optional financial reminders.
+- No duplicate notifications for same event. Appropriate settings. Handle denied permission gracefully.
+- Shortcut setup understandable. Clear App Intent names + parameters.
+- Validate incoming data. Return useful success/failure results. Ingestion idempotent.
+- No manual app navigation required per transaction.
+
+## 17. Quality assurance checklist
+
+Use for relevant changes. Don't mark passed unless actually performed.
+
+### Navigation and UI
+- [ ] Five tabs in intended order.
+- [ ] Ghaf AI is center tab.
+- [ ] Every tab opens functional screen.
+- [ ] Home has no long transaction feed.
+- [ ] Daily/Weekly/Monthly updates real data.
+- [ ] Hidden balances use star representation.
+- [ ] More simplified + navigable.
+- [ ] Profile actions work.
+- [ ] No blank editor or category screens.
+- [ ] No clipped content or safe-area overlap.
+
+### Accounts and ledger
+- [ ] Multiple accounts supported.
+- [ ] No empty accounts created automatically.
+- [ ] Each transaction affects correct account exactly once.
+- [ ] Transfers don't inflate income/spending.
+- [ ] Refunds + reversals handled distinctly.
+- [ ] Different currencies not incorrectly added.
+- [ ] Balances persist after relaunch.
+
+### Transactions and automation
+- [ ] Arabic + English parsing tested.
+- [ ] Multiple purchases stay separate.
+- [ ] OTP/promotional messages don't create transactions.
+- [ ] Duplicate Shortcut runs don't duplicate records.
+- [ ] Account matching uses evidence.
+- [ ] Low-confidence transactions go to review.
+- [ ] Editing + category changes work.
+- [ ] JSON import works + reports errors.
+
+### Ghaf AI
+- [ ] Numerical answers use actual ledger data.
+- [ ] AI doesn't invent balances or transactions.
+- [ ] Arabic/English voice entry works where supported.
+- [ ] Confirmed corrections influence future suggestions.
+- [ ] Learning behavior accurately described.
+- [ ] No API secrets in app bundle.
+- [ ] Privacy/reset controls work.
+
+### Subscriptions
+- [ ] Add/edit/delete works.
+- [ ] Billing cycle calculations correct.
+- [ ] Reminders schedule + reschedule.
+- [ ] Deactivated subscriptions stop reminders.
+- [ ] Confirmed payments match without double-counting.
+- [ ] Payment history preserved.
+- [ ] Reminders don't deduct balances.
+
+### Localization and launch
+- [ ] Arabic RTL works.
+- [ ] English LTR works.
+- [ ] Language switch updates whole UI.
+- [ ] AED, SAR, OMR artwork correct.
+- [ ] Other currencies use text abbreviations.
+- [ ] Welcome artwork packaged.
+- [ ] Fresh-process launch behavior correct.
+- [ ] Existing data survives launch + updates.
+
+## 18. Implementation roadmap
+
+No massive all-at-once rewrite. Focused stages.
+
+### Stage 1 — Inspect and stabilize
+Inspect repo, branch, build config, latest CI. Find compile errors + broken flows. Fix persistence + navigation, blank transaction/category screens, language switching + safe-area problems, multi-account + balance inconsistencies. Verify welcome asset + launch behavior.
+
+### Stage 2 — Core UI
+Refine shared design system. Redesign Home around balances + overview; remove Home feed. Daily/Weekly/Monthly interaction. Hidden-balance stars. Simplify More, improve Profile. Confirm five tabs with Ghaf AI centered.
+
+### Stage 3 — Accounts and transaction reliability
+Fix account lifecycle + matching. Improve ingestion + duplicate prevention. Improve Arabic/English parsing. Fix voice transaction splitting + merchant cleanup. Complete transaction editing + review. Repair JSON import/export.
+
+### Stage 4 — Subscriptions
+Complete subscription CRUD + persistence. Reminders. Payment history. Confirmed transaction matching. Subscription statistics.
+
+### Stage 5 — Ghaf AI
+Complete AI interface. Voice input. Deterministic financial query tools. Secure backend if required. Confirmed-feedback learning. Privacy, inspection, reset controls.
+
+### Stage 6 — QA and delivery
+Run relevant automated tests. Full build. Check GitHub Actions; fix build failures. IPA only after successful build. Report what is/isn't verified. Don't imply physical-device testing unless performed.
+
+## 19. How Codex should handle each task
+
+1. Identify relevant existing implementation.
+2. State important constraints/dependencies briefly.
+3. Make requested change with controlled scope.
+4. Review diff for regressions + unrelated edits.
+5. Run relevant tests/build checks.
+6. Commit only when requested or required by workflow.
+7. Report files changed, behavior implemented, tests/results, limitations, CI status.
+
+Blocked → explain exact blocker. Never replace requested feature with fake/local simulation or silently skip requirements.
+
+**Most important:** Build Ghaf as reliable financial product. Prioritize correctness, automation, consistency, privacy, genuine intelligence. Visually complete screen ≠ functionally complete feature.
