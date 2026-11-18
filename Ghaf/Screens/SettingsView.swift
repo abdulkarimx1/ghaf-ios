@@ -68,11 +68,27 @@ struct GhafSettingsView: View {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     profileHeader
 
-                    menuGroup("Ghaf Pro") {
-                        menuRow(ar ? "خطط غاف Pro" : "Ghaf Pro plans", icon: "sparkles") { GhafProView(settings: settings, showsClose: false) }
-                        menuRow(ar ? "لماذا غاف مدفوع؟" : "Why Ghaf is paid", icon: "heart.fill") { GhafWhyPaidView(settings: settings) }
-                        menuRow(ar ? "شروط الاشتراك" : "Subscription terms", icon: "doc.text.fill") { GhafTermsView(settings: settings) }
+                    // One quiet Pro card; the plans, the reason Ghaf is paid and the terms all live on its page.
+                    NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
+                        HStack(spacing: 14) {
+                            GhafTreeShape().fill(theme.accentContrast)
+                                .frame(width: 26, height: 26)
+                                .frame(width: 48, height: 48)
+                                .background(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ghaf Pro").font(GhafTypography.heading(17, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                                Text(ar ? "ادعم غاف واحصل على المزيد" : "Support Ghaf and get more")
+                                    .font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: ar ? "chevron.left" : "chevron.right")
+                                .font(.system(size: 13, weight: .bold)).foregroundStyle(theme.secondaryText)
+                        }
+                        .padding(14)
+                        .ghafCard(theme: theme)
                     }
+                    .buttonStyle(.ghafPress)
 
                     menuGroup(ar ? "المال" : "Money") {
                         menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
@@ -804,7 +820,7 @@ HStack(spacing: 8) {
                 GhafMoneyLabel(amount: spent, currency: currency, languageCode: languageCode, size: 12)
                 if !subs.isEmpty {
                     Text("· \(subs.count)")
-                    Image(systemName: "square.stack").font(.system(size: 10, weight: .semibold))
+                    Image(systemName: "square.stack").font(.system(size: 11, weight: .semibold))
                 }
             }
             .font(GhafTypography.body(12, languageCode: languageCode))
@@ -846,7 +862,7 @@ HStack(spacing: 8) {
             Text(languageCode == "ar"
                  ? "تنبيه: نسخة JSON الحالية غير مشفّرة، وتحتوي على بياناتك المالية. احفظها في مكان خاص."
                  : "Note: the current JSON backup is not encrypted and contains financial records. Store it somewhere private.")
-                .font(GhafTypography.body(10, languageCode: languageCode))
+                .font(GhafTypography.body(11, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }

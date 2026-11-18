@@ -612,6 +612,9 @@ struct GhafQuickAddView: View {
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
 
     let settings: GhafSettings
+    /// Opened from a card in Accounts: start on that account, optionally as a transfer.
+    var presetAccountID: UUID? = nil
+    var startAsTransfer = false
 
     @State private var selectedAccountID: UUID?
     @State private var amount = ""
@@ -709,8 +712,10 @@ struct GhafQuickAddView: View {
         .tint(theme.accent)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .onAppear {
-            selectedAccountID = accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
+            selectedAccountID = presetAccountID
+                ?? accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
                 ?? accounts.first(where: { !$0.isArchived })?.id
+            if startAsTransfer { direction = "transfer" }
             toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
             amountFocused = true
         }

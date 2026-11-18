@@ -120,6 +120,22 @@ struct GhafProView: View {
                         .frame(minHeight: 44)
                 }
 
+                // Why Ghaf is paid, in the developer's own words, where the decision is made.
+                VStack(spacing: 12) {
+                    Image(systemName: "heart.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(theme.accent)
+                    Text(ar ? "لماذا غاف مدفوع؟" : "Why Ghaf is paid")
+                        .font(GhafTypography.heading(20, languageCode: lang)).foregroundStyle(theme.primaryText)
+                    Text(GhafWhyPaidView.message(ar: ar))
+                        .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        .lineSpacing(4)
+                    Text(ar ? "— مطوّر غاف، من الإمارات 🇦🇪" : "— Ghaf's developer, from the UAE 🇦🇪")
+                        .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                }
+                .multilineTextAlignment(.center)
+                .padding(20)
+                .frame(maxWidth: .infinity)
+                .background(theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+
                 Text(plan.renews
                      ? (ar ? "بعد التجربة المجانية لمدة ٣ أيام يُخصم \(plan.price) من حساب Apple الخاص بك \(plan == .monthly ? "كل شهر" : "كل سنة") ويتجدد تلقائياً ما لم تُلغِه قبل نهاية الفترة بـ ٢٤ ساعة على الأقل من إعدادات Apple ID › الاشتراكات. كل المبيعات نهائية، ولا يقدّم غاف أي استرداد أو إرجاع بعد الشراء."
                            : "After the 3-day free trial, \(plan.price) is charged to your Apple Account \(plan == .monthly ? "every month" : "every year") and renews automatically unless cancelled at least 24 hours before the period ends, in Settings › Apple Account › Subscriptions. All sales are final; Ghaf offers no refunds or returns after purchase.")
@@ -132,7 +148,6 @@ struct GhafProView: View {
                 HStack(spacing: 18) {
                     NavigationLink { GhafTermsView(settings: settings) } label: { Text(ar ? "شروط الاشتراك" : "Terms of subscription") }
                     NavigationLink { GhafPrivacyPolicyView(settings: settings) } label: { Text(ar ? "سياسة الخصوصية" : "Privacy policy") }
-                    NavigationLink { GhafWhyPaidView(settings: settings) } label: { Text(ar ? "لماذا مدفوع؟" : "Why paid?") }
                 }
                 .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.accent)
@@ -191,59 +206,11 @@ struct GhafProView: View {
     }
 }
 
-/// Why Ghaf asks for money, in the voice of the person who makes it.
-struct GhafWhyPaidView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let settings: GhafSettings
-    private var lang: String { settings.languageCode }
-    private var ar: Bool { lang == "ar" }
-    private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 80, height: 80)
-                    .background(theme.accent.opacity(0.12), in: Circle())
-                Text(ar ? "لماذا غاف مدفوع؟" : "Why Ghaf is paid")
-                    .font(GhafTypography.display(30, languageCode: lang))
-                    .foregroundStyle(theme.primaryText)
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(paragraphs, id: \.self) { text in
-                        Text(text)
-                            .font(GhafTypography.body(16, languageCode: lang))
-                            .foregroundStyle(theme.primaryText)
-                            .lineSpacing(4)
-                    }
-                }
-                .padding(20)
-                .ghafCard(theme: theme)
-                Text(ar ? "صُنع بحب في الإمارات 🇦🇪" : "Made with love in the UAE 🇦🇪")
-                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.secondaryText)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 16)
-            .frame(maxWidth: 560).frame(maxWidth: .infinity)
-        }
-        .ghafBackground(theme: theme)
-        .navigationBarTitleDisplayMode(.inline)
-        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
-    }
-
-    private var paragraphs: [String] {
-        ar ? ["الإمارات كانت دائماً سنداً لكل من يبني ويبدع، ووقفت مع أبنائها حتى صارت أحلامهم واقعاً.",
-              "غاف صُنع هنا، على يد مطوّر واحد وبنفس هذه الروح. الاشتراك في غاف Pro هو طريقتك في رد هذا الحب: سند لمن يبني.",
-              "كل اشتراك يذهب لتطوير غاف وبناء تطبيقات أجدد وأفضل، لا أكثر.",
-              "بياناتك ليست ثمن غاف أبداً: لا إعلانات، ولا بيع للبيانات، ولا مشاركة لسجلك المالي مع أي جهة."]
-           : ["The UAE has always stood behind the people who build, and believed in them until their ideas became real.",
-              "Ghaf is made here, by one developer, in that same spirit. Ghaf Pro is your way of passing that love on: standing behind someone who builds.",
-              "Every plan goes into making Ghaf better and building newer, better apps. Nothing else.",
-              "Your data is never the price of Ghaf: no ads, no selling data, and your financial records are never shared with anyone."]
+/// Why Ghaf asks for money, in the voice of the person who makes it. Shown on the Pro page.
+enum GhafWhyPaidView {
+    static func message(ar: Bool) -> String {
+        ar ? "الإمارات كانت دائماً سنداً لكل من يبني ويبدع. غاف صُنع هنا بيد مطوّر واحد وبنفس هذه الروح، واشتراكك هو طريقتك في رد هذا الحب. كل اشتراك يذهب لتطوير غاف وبناء تطبيقات أجدد وأفضل، وبياناتك لن تكون ثمناً له أبداً: لا إعلانات ولا بيع للبيانات."
+           : "The UAE has always stood behind the people who build. Ghaf is made here by one developer in that same spirit, and a plan is your way of passing that love on. Every plan goes into making Ghaf better and building newer apps, and your data will never be the price: no ads, no selling data."
     }
 }
 

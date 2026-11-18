@@ -32,30 +32,28 @@ struct GhafAccountsView: View {
         let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
         ScrollView {
             VStack(spacing: GhafMetrics.sectionSpacing) {
+                let totals = GhafAccountBalanceCalculator.balancesByCurrency(accounts: activeAccounts, balances: balances)
                 GhafScreenTitle(title: lang == "ar" ? "محفظتك" : "Your wallet",
-                                subtitle: lang == "ar" ? "اضغط على بطاقة لرؤية رصيدها وتفاصيلها" : "Tap a card for its balance and details",
+                                subtitle: activeAccounts.isEmpty ? nil
+                                    : (lang == "ar" ? "الإجمالي " : "Total ") + totals.map { GhafFormat.shownMoney($0.amount, currency: $0.currency, languageCode: lang) }
+                                        .joined(separator: " · "),
                                 languageCode: lang, theme: theme)
 
                 if activeAccounts.isEmpty {
                     emptyState
+                    Button {
+                        editorTarget = EditorTarget(account: nil)
+                    } label: {
+                        Label(lang == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet", systemImage: "plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .ghafProminentButton(theme: theme, languageCode: lang)
                 } else {
-                    totalBalancesCard(GhafAccountBalanceCalculator.balancesByCurrency(accounts: activeAccounts, balances: balances))
-                    GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, theme: theme,
-                                    languageCode: lang, onEdit: { editorTarget = EditorTarget(account: $0) },
-                                    onMove: moveAccount)
+                    GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
+                                    theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
+                                    onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
                         .ghafEntrance(1)
                 }
-
-                Button {
-                    editorTarget = EditorTarget(account: nil)
-                } label: {
-                    Label(
-                        settings.languageCode == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet",
-                        systemImage: "plus"
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
 
                 if accounts.contains(where: \.isArchived) {
                     archivedAccounts(balances)
@@ -75,26 +73,6 @@ struct GhafAccountsView: View {
                 GhafAccountEditorView(account: target.account, settings: settings)
             }
         }
-    }
-
-    private func totalBalancesCard(_ currencyBalances: [GhafCurrencyBalance]) -> some View {
-        VStack(spacing: 10) {
-            Text(lang == "ar" ? "الإجمالي حسب العملة" : "Total by currency")
-                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
-            ForEach(currencyBalances) { item in
-                GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: lang,
-                               size: currencyBalances.count == 1 ? 38 : 26)
-                    .foregroundStyle(theme.primaryText)
-            }
-            Text(lang == "ar" ? "لا يتم تحويل العملات أو جمعها معاً." : "Different currencies are never converted or combined.")
-                .font(GhafTypography.body(12, languageCode: lang))
-                .foregroundStyle(theme.secondaryText)
-        }
-        .multilineTextAlignment(.center)
-        .padding(.vertical, 22).padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme, radius: 28)
     }
 
     private func moveAccount(_ account: GhafAccount, by offset: Int) {
@@ -365,7 +343,7 @@ struct GhafAccountEditorView: View {
                     .frame(width: 92, height: 58)
                     .overlay { Image(systemName: "plus").font(.system(size: 18, weight: .semibold)).foregroundStyle(theme.accent) }
                 Text(ar ? "بطاقتك غير موجودة؟" : "Card not found?")
-                    .font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                     .lineLimit(2).multilineTextAlignment(.center)
                     .frame(width: 92)
@@ -385,7 +363,7 @@ struct GhafAccountEditorView: View {
                             .stroke(selected ? theme.accent : .clear, lineWidth: 2.5)
                     }
                 Text(label)
-                    .font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
                     .foregroundStyle(selected ? theme.primaryText : theme.secondaryText)
                     .lineLimit(2).multilineTextAlignment(.center)
                     .frame(width: 92)
