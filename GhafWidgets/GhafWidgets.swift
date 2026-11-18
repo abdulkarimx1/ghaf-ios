@@ -38,11 +38,16 @@ extension GhafWidgetSnapshot {
                                            lastSevenDays: [120, 60, 210, 90, 40, 150, 86.5])
 }
 
-// Inspo palette: near-black tiles, lime highlight, a few category colours.
+// Near-black tiles lit by the user's city theme (sent by the app); sand-gold until the app has written one.
 private let ink = Color(red: 0.05, green: 0.05, blue: 0.06)
-private let lime = Color(red: 0.78, green: 0.96, blue: 0.38)
 private let paper = Color(red: 0.95, green: 0.95, blue: 0.95)
-private let categoryColors = [Color(red: 1, green: 0.35, blue: 0.12), lime, Color(red: 0.5, green: 0.7, blue: 1), Color(red: 0.72, green: 0.65, blue: 1)]
+
+extension GhafWidgetSnapshot {
+    var accentColor: Color { Color(ghafHex: accent ?? 0xE0B472) }
+    var glowColor: Color { Color(ghafHex: glow ?? 0xF3D29A) }
+    /// Category colours: the theme's two, then two neutrals that read on the accent tile.
+    var categoryColors: [Color] { [ink, ink.opacity(0.55), paper, ink.opacity(0.3)] }
+}
 
 private func text(_ snapshot: GhafWidgetSnapshot?, _ en: String, _ ar: String) -> String { snapshot?.arabic == true ? ar : en }
 
@@ -118,7 +123,7 @@ struct GhafBalanceView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Caption(value: text(s, "Balance · ", "الرصيد · ") + s.currency).foregroundStyle(paper.opacity(0.55))
                         Spacer(minLength: 0)
-                        if family == .systemSmall, let week = s.lastSevenDays { WeekBars(days: week, base: paper.opacity(0.14), highlight: lime) }
+                        if family == .systemSmall, let week = s.lastSevenDays { WeekBars(days: week, base: paper.opacity(0.14), highlight: s.accentColor) }
                         Text(s.balance.map { s.hidden ? "✦✦✦✦" : $0.formatted(.number.precision(.fractionLength(0))) } ?? "—")
                             .font(.system(size: family == .systemSmall ? 30 : 36, weight: .bold))
                             .tracking(-0.8)
@@ -128,7 +133,7 @@ struct GhafBalanceView: View {
                             .privacySensitive()
                         Text(text(s, "Spent ", "صرفت ") + s.money(s.spentThisMonth) + text(s, " this month", " هذا الشهر"))
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(lime)
+                            .foregroundStyle(s.accentColor)
                             .lineLimit(1).minimumScaleFactor(0.6)
                             .privacySensitive()
                     }
@@ -136,7 +141,7 @@ struct GhafBalanceView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Caption(value: text(s, "Last 7 days", "آخر ٧ أيام")).foregroundStyle(paper.opacity(0.55))
                             Spacer(minLength: 0)
-                            WeekBars(days: week, base: paper.opacity(0.14), highlight: lime).frame(height: 60)
+                            WeekBars(days: week, base: paper.opacity(0.14), highlight: s.accentColor).frame(height: 60)
                         }
                     }
                 }
@@ -154,7 +159,7 @@ struct GhafBalanceView: View {
 struct GhafTodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafToday", provider: GhafProvider()) { entry in
-            GhafTodayView(entry: entry).containerBackground(for: .widget) { lime }
+            GhafTodayView(entry: entry).containerBackground(for: .widget) { entry.snapshot?.accentColor ?? Color(ghafHex: 0xE0B472) }
         }
         .configurationDisplayName("Today")
         .description("What you spent today, by category.")
@@ -220,7 +225,7 @@ struct GhafTodayView: View {
                     GeometryReader { geo in
                         HStack(spacing: 2) {
                             ForEach(Array(categories.enumerated()), id: \.offset) { i, c in
-                                Capsule().fill(categoryColors[i % categoryColors.count] == lime ? ink : categoryColors[i % categoryColors.count])
+                                Capsule().fill(s.categoryColors[i % 4])
                                     .frame(width: max(4, geo.size.width * CGFloat(NSDecimalNumber(decimal: c.amount / total).doubleValue) - 2))
                             }
                         }
@@ -228,7 +233,7 @@ struct GhafTodayView: View {
                     .frame(height: 6)
                     ForEach(Array(categories.enumerated()), id: \.offset) { i, c in
                         HStack(spacing: 6) {
-                            Circle().fill(categoryColors[i % categoryColors.count] == lime ? ink : categoryColors[i % categoryColors.count]).frame(width: 6, height: 6)
+                            Circle().fill(s.categoryColors[i % 4]).frame(width: 6, height: 6)
                             Text(c.name).lineLimit(1)
                             Spacer(minLength: 4)
                             Text(s.hidden ? "✦✦" : c.amount.formatted(.number.precision(.fractionLength(2)))).privacySensitive()

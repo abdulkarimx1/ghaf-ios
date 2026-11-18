@@ -22,8 +22,6 @@ private struct GhafChatMessage: Identifiable {
 
 struct GhafAIView: View {
     static let night = Color(red: 0.02, green: 0.024, blue: 0.031)
-    static let blue = Color(red: 0.18, green: 0.42, blue: 1)
-    static let light = Color(red: 0.61, green: 0.77, blue: 1)
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
@@ -53,9 +51,9 @@ struct GhafAIView: View {
 
     let settings: GhafSettings
     private var ar: Bool { settings.languageCode == "ar" }
-    /// Ghaf AI has one look in every theme: near-black glass with blue light (Dubai's dark palette).
+    /// Ghaf AI is always the dark version of the user's city theme: near-black glass lit by the city's colours.
     private var theme: GhafTheme {
-        GhafTheme.resolve(name: "Dubai", appearanceMode: "Dark", systemIsDark: true)
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
     }
 
     var body: some View {
@@ -88,7 +86,7 @@ struct GhafAIView: View {
                     GhafAIView.night.ignoresSafeArea()
                     // Blue light rising from the bottom edge, brighter while Ghaf listens or thinks.
                     Ellipse()
-                        .fill(RadialGradient(colors: [GhafAIView.light.opacity(0.9), GhafAIView.blue.opacity(0.6), .clear],
+                        .fill(RadialGradient(colors: [theme.glow.opacity(0.9), theme.accent.opacity(0.6), .clear],
                                              center: .center, startRadius: 0, endRadius: 260))
                         .frame(width: 560, height: 300)
                         .offset(y: 170)
@@ -790,7 +788,7 @@ struct GhafAIView: View {
         let lastReply = messages.last { !$0.isUser }?.text ?? ""
         return ZStack {
             GhafAIView.night.opacity(0.98).ignoresSafeArea()
-            RadialGradient(colors: [GhafAIView.blue.opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 340)
+            RadialGradient(colors: [theme.accent.opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 340)
                 .ignoresSafeArea()
             VStack(spacing: 22) {
                 Text("Ghaf AI")
@@ -924,7 +922,7 @@ struct GhafAIView: View {
 
 }
 
-/// Ghaf AI's mark: a blue glass orb with two rings of light turning inside it and a soft halo.
+/// Ghaf AI's mark: a glass orb in the theme's colours with two rings of light turning inside it and a soft halo.
 /// It turns faster while Ghaf listens or thinks and stays still with Reduce Motion.
 private struct GhafAIOrb: View {
     let theme: GhafTheme
@@ -940,26 +938,26 @@ private struct GhafAIOrb: View {
                 ZStack {
                     // Halo.
                     Circle()
-                        .fill(GhafAIView.blue.opacity(active ? 0.55 : 0.4))
+                        .fill(theme.accent.opacity(active ? 0.55 : 0.4))
                         .blur(radius: size * 0.3)
                         .scaleEffect(1.25 + 0.08 * sin(t * speed * 1.5))
                     // Glass body.
                     Circle()
-                        .fill(RadialGradient(colors: [.white.opacity(0.35), GhafAIView.light.opacity(0.15), GhafAIView.night.opacity(0.3)],
+                        .fill(RadialGradient(colors: [.white.opacity(0.35), theme.glow.opacity(0.15), GhafAIView.night.opacity(0.3)],
                                              center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.6))
-                        .overlay(Circle().stroke(GhafAIView.light.opacity(0.5), lineWidth: 1))
-                        .shadow(color: GhafAIView.blue.opacity(0.6), radius: size * 0.12)
+                        .overlay(Circle().stroke(theme.glow.opacity(0.5), lineWidth: 1))
+                        .shadow(color: theme.accent.opacity(0.6), radius: size * 0.12)
                     // Two rings of light turning in opposite directions.
                     Circle()
                         .trim(from: 0, to: 0.55)
-                        .stroke(AngularGradient(colors: [GhafAIView.light.opacity(0), GhafAIView.light, .white], center: .center),
+                        .stroke(AngularGradient(colors: [theme.glow.opacity(0), theme.glow, .white], center: .center),
                                 style: StrokeStyle(lineWidth: max(2, size * 0.035), lineCap: .round))
                         .padding(size * 0.08)
                         .rotationEffect(.degrees(t * 70 * speed))
                         .blur(radius: 0.6)
                     Circle()
                         .trim(from: 0, to: 0.4)
-                        .stroke(AngularGradient(colors: [GhafAIView.blue.opacity(0), GhafAIView.blue, Color(red: 0.86, green: 0.91, blue: 1)], center: .center),
+                        .stroke(AngularGradient(colors: [theme.accent.opacity(0), theme.accent, .white.opacity(0.9)], center: .center),
                                 style: StrokeStyle(lineWidth: max(1.5, size * 0.022), lineCap: .round))
                         .padding(size * 0.2)
                         .rotationEffect(.degrees(-t * 110 * speed + 120))

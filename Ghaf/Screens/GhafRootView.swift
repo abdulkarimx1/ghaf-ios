@@ -1317,7 +1317,7 @@ private struct GhafWelcomeLaunchScreen: View {
 }
 
 
-/// Ghaf AI's tab icon: a blue glass orb, kept in full colour. `frame` 1...frameCount
+/// Ghaf AI's tab icon: a glass orb in the theme's colours, kept in full colour. `frame` 1...frameCount
 /// draws the twirl played when the tab opens; 0 is at rest.
 @MainActor
 enum GhafAITabIcon {
@@ -1329,12 +1329,14 @@ enum GhafAITabIcon {
         if let cached = cache[key] { return cached }
         let t = Double(frame) / Double(frameCount)          // 0...1 through the twirl
         let lift = sin(t * .pi)                             // rises then settles
-        // The Ghaf AI orb: a small glass sphere with blue light, matching the AI screen. On open its
+        // The Ghaf AI orb: a small glass sphere in the city's light, matching the AI screen. On open its
         // inner ring turns once, then settles.
         let side: CGFloat = selected ? 32 : 29
-        let blue = Color(red: 0.18, green: 0.42, blue: 1), light = Color(red: 0.61, green: 0.77, blue: 1)
+        // The dark palette's accent and glow are the brighter pair, so the orb reads on light and dark tab bars.
+        let lit = GhafTheme.resolve(name: theme.name, appearanceMode: "Dark", systemIsDark: true)
+        let blue = lit.accent, light = lit.glow
         let mark = ZStack {
-            Circle().fill(RadialGradient(colors: [Color(red: 0.86, green: 0.91, blue: 1), light, blue, Color(red: 0.04, green: 0.1, blue: 0.29)],
+            Circle().fill(RadialGradient(colors: [.white.opacity(0.9), light, blue, blue.opacity(0.55)],
                                          center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: side * 0.62))
                 .shadow(color: blue.opacity(selected ? 0.6 : 0.3), radius: selected ? 5 : 2, y: 1)
             Circle().trim(from: 0, to: 0.62)

@@ -1,11 +1,12 @@
 # Changelog
 
-## 1.17 (28)
+## 1.17 (29)
 
 ### English
-- A new Ghaf AI look: a glowing blue glass orb, "How can I help with your money?", frosted chat bubbles and a glass input. The AI tab icon is now the orb.
+- One look across Ghaf: Ghaf AI, its tab icon and the widgets now take your city theme's colours, like Home and Stats.
+- A new Ghaf AI look: a glowing glass orb, "How can I help with your money?", frosted chat bubbles and a glass input. The AI tab icon is now the orb.
 - Statistics: one dark trend card like Stocks. Drag across the line to read any day, and switch Week, Month, 3 months or Year under it. The line stops at today.
-- Widgets redesigned: a black Balance tile with this week's bars and a lime Today tile, plus a Today spending list by category.
+- Widgets redesigned: a black Balance tile with this week's bars and a Today tile in your theme colour, plus a Today spending list by category.
 - Widgets on more sideloaded installs: if your install tool drops the app group, Ghaf now tries the keychain too, and Notifications shows whether widgets are connected.
 - Tapping a Pro feature opens a short Ghaf Pro sheet with Monthly, Yearly and Lifetime plans and a "Skip for now" button. Everything stays free until purchases open.
 - Fixed: Stats no longer crashes when switching to 3 months or Year.
@@ -13,9 +14,10 @@
 - The tree mark is gone from Ghaf Pro, More and the language screen.
 
 ### العربية
-- شكل جديد لغاف AI: دائرة زجاجية زرقاء مضيئة، و«كيف أساعدك في أموالك؟»، وفقاعات محادثة زجاجية وحقل كتابة زجاجي. وأيقونة تبويب الذكاء أصبحت الدائرة.
+- شكل واحد في كل غاف: غاف AI وأيقونته والودجت تأخذ الآن ألوان ثيم مدينتك، مثل الرئيسية والإحصائيات.
+- شكل جديد لغاف AI: دائرة زجاجية مضيئة، و«كيف أساعدك في أموالك؟»، وفقاعات محادثة زجاجية وحقل كتابة زجاجي. وأيقونة تبويب الذكاء أصبحت الدائرة.
 - الإحصائيات: بطاقة اتجاه داكنة واحدة مثل تطبيق الأسهم. اسحب على الخط لقراءة أي يوم، وبدّل بين أسبوع وشهر و٣ أشهر وسنة تحته. والخط يتوقف عند اليوم.
-- ودجت بتصميم جديد: بطاقة رصيد سوداء مع أعمدة هذا الأسبوع، وبطاقة اليوم بلون الليمون، وقائمة صرف اليوم حسب الفئة.
+- ودجت بتصميم جديد: بطاقة رصيد سوداء مع أعمدة هذا الأسبوع، وبطاقة اليوم بلون ثيمك، وقائمة صرف اليوم حسب الفئة.
 - الودجت تعمل في تثبيتات جانبية أكثر: إذا أزالت أداة التثبيت مجموعة التطبيق، يجرب غاف سلسلة المفاتيح أيضاً، وصفحة الإشعارات توضح هل الودجت متصلة.
 - الضغط على ميزة Pro يفتح نافذة غاف Pro قصيرة بخطط شهرية وسنوية ومدى الحياة وزر «تخطَّ الآن». كل شيء مجاني حتى يُفتح الشراء.
 - إصلاح: الإحصائيات لم تعد تتوقف عند التبديل إلى ٣ أشهر أو سنة.

@@ -26,6 +26,9 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     var todayCategories: [CategorySpend]? = nil
     /// Spending for each of the last seven days, oldest first, today last.
     var lastSevenDays: [Decimal]? = nil
+    /// The city theme's bright accent and glow (0xRRGGBB, dark palette), so widgets match the app.
+    var accent: UInt32? = nil
+    var glow: UInt32? = nil
 
     struct CategorySpend: Codable, Equatable {
         let name: String

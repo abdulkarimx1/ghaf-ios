@@ -42,6 +42,9 @@ enum GhafWidgetSync {
                            hidden: GhafFormat.balancesHidden, arabic: settings.languageCode == "ar", updated: .now)
         snapshot.todayCategories = Array(byCategory.prefix(4))
         snapshot.lastSevenDays = week
+        let lit = GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
+        snapshot.accent = hex(lit.accent)
+        snapshot.glow = hex(lit.glow)
         lastChannels = snapshot.save()
         WidgetCenter.shared.reloadAllTimelines()
     }
