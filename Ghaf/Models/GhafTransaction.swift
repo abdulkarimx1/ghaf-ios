@@ -29,7 +29,7 @@ final class GhafTransaction {
 
     /// Moves between the user's own wallets and balance adjustments change balances,
     /// but are never spending or income.
-    var isSpendingOrIncome: Bool { category != "Transfers" && category != "Adjustment" }
+    var isSpendingOrIncome: Bool { !CategoryTaxonomy.isTransferOrAdjustment(category: category, subcategory: subcategory) }
     /// Purchases, plus refunds/reversals of purchases (credits that offset spending).
     /// shortcut: a reversed credit (debit with isReversal) counts as neither; offset income if that shows up.
     var isExpense: Bool { isSpendingOrIncome && (direction == "debit") != isReversal }

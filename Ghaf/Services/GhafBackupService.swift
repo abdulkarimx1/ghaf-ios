@@ -25,6 +25,8 @@ private struct GhafSubscriptionBackup: Codable {
     var isActive: Bool
     var needsConfirmation: Bool
     var notes: String?
+    /// A pending price-rise prompt; optional so backups from before 1.19 still import.
+    var proposedAmount: Decimal?
 }
 
 private struct GhafSettingsBackup: Codable {
@@ -207,7 +209,8 @@ enum GhafBackupService {
                 GhafSubscriptionBackup(id: $0.id, name: $0.name, amount: $0.amount, currency: $0.currency,
                                        billingCycle: $0.billingCycle, nextPaymentDate: $0.nextPaymentDate,
                                        category: $0.category, accountID: $0.accountID, reminderDays: $0.reminderDays,
-                                       isActive: $0.isActive, needsConfirmation: $0.needsConfirmation, notes: $0.notes)
+                                       isActive: $0.isActive, needsConfirmation: $0.needsConfirmation, notes: $0.notes,
+                                       proposedAmount: $0.proposedAmount)
             }
         )
 
@@ -343,6 +346,7 @@ enum GhafBackupService {
                 reminderDays: item.reminderDays, isActive: item.isActive, notes: item.notes
             )
             subscription.needsConfirmation = item.needsConfirmation
+            subscription.proposedAmount = item.proposedAmount
             context.insert(subscription)
         }
 

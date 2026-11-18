@@ -45,6 +45,11 @@ final class SubscriptionPaymentMatchTests: XCTestCase {
                 subscriptionName: "Netflix", subscriptionAmount: 56, dueDate: due, toleranceDays: 5)
         }
         XCTAssertFalse(pays("Netflixer Store", 56, 0))
+        XCTAssertTrue(SubscriptionDetector.sameService(merchant: "CHATGPT", subscriptionName: "Chat GPT"))
+        XCTAssertTrue(SubscriptionDetector.sameService(merchant: "OPENAI *CHATGPT SUBSCR", subscriptionName: "ChatGPT"))
+        XCTAssertTrue(SubscriptionDetector.sameService(merchant: "NETFLIX.COM 8829", subscriptionName: "Netflix"))
+        XCTAssertFalse(SubscriptionDetector.sameService(merchant: "CHATGPTX", subscriptionName: "Chat GPT"))
+        XCTAssertFalse(SubscriptionDetector.sameService(merchant: "CHAT GPTS", subscriptionName: "ChatGPT"))
         XCTAssertFalse(pays("Spotify", 56, 0))
         XCTAssertFalse(pays("Netflix", 120, 0))
         XCTAssertFalse(pays("Netflix", 56, 12))

@@ -63,10 +63,25 @@ public enum SubscriptionDetector {
 
     /// Same service when the names match after `normalize`, or the charge's merchant starts with the
     /// subscription name as a whole word ("NETFLIX.COM 8829" pays "Netflix", "Netflixer" does not).
+    /// Spaces are ignored ("CHATGPT" pays "Chat GPT") and the name may start at any word of the charge
+    /// ("OPENAI *CHATGPT SUBSCR" pays "ChatGPT").
     public static func sameService(merchant: String, subscriptionName: String) -> Bool {
-        let charge = normalize(merchant), name = normalize(subscriptionName)
-        guard name.count >= 3, charge.hasPrefix(name) else { return false }
-        return charge.dropFirst(name.count).first.map { !$0.isLetter } ?? true
+        let words = normalize(merchant).split(separator: " ").map(String.init)
+        let name = normalize(subscriptionName).replacingOccurrences(of: " ", with: "")
+        guard name.count >= 3 else { return false }
+        for start in words.indices {
+            var joined = ""
+            for word in words[start...] {
+                joined += word
+                if joined.hasPrefix(name) {
+                    // Whole words only: "Netflixer" is not "Netflix", "netflix.com" is.
+                    if joined.dropFirst(name.count).first.map({ !$0.isLetter }) ?? true { return true }
+                    break
+                }
+                if !name.hasPrefix(joined) { break }
+            }
+        }
+        return false
     }
 
     /// A charge pays a subscription due on `dueDate` when it is the same service, its amount is

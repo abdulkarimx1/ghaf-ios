@@ -189,6 +189,13 @@ public enum CategoryTaxonomy {
     /// The category list a brand-new user starts with (plus system ones the app relies on).
     public static var defaultNames: [String] { all.map(\.name) + ["Transfers", "Other"] }
 
+    /// Money moved between the user's own wallets, or a balance correction: changes balances, never spending or income.
+    /// Imported ledgers (Expend) can file a transfer as a subcategory "Transfer" under another category, so both are checked.
+    public static func isTransferOrAdjustment(category: String, subcategory: String?) -> Bool {
+        category == "Transfers" || category == "Adjustment"
+            || subcategory.map { ["transfer", "transfers"].contains(CategoryMatcher.normalize($0)) } == true
+    }
+
     public static func category(named name: String) -> Category? {
         let key = CategoryMatcher.normalize(name)
         return all.first { CategoryMatcher.normalize($0.name) == key || $0.aliases.map(CategoryMatcher.normalize).contains(key) }

@@ -92,6 +92,8 @@ struct GhafStatsView: View {
         let current = expenses(in: interval)
         let previous = expenses(in: previousInterval)
         let filtered = selectedCategory.map { category in current.filter { $0.category == category } } ?? current
+        // With a category picked, the hero compares that category against itself last period.
+        let previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
         NavigationStack {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
@@ -99,7 +101,7 @@ struct GhafStatsView: View {
                                     subtitle: nil,
                                     languageCode: lang, theme: theme)
                     // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
-                    AnyView(trendHero(buckets(filtered), current: current, previous: previous).ghafEntrance(0))
+                    AnyView(trendHero(buckets(filtered), current: filtered, previous: previousFiltered).ghafEntrance(0))
                     AnyView(whereItWent(slices(current)).ghafEntrance(1))
                     AnyView(tiles(current).ghafEntrance(2))
                     AnyView(budgetLink.ghafEntrance(3))
@@ -153,9 +155,9 @@ struct GhafStatsView: View {
         // Plotted by a short label per bucket, not by date: date-unit marks by week or month crash Charts (NaN).
         let selected = selectedLabel.flatMap { label in data.first { axisLabel($0.start) == label } }
         let shown = Set(data.enumerated().filter { $0.offset % max(1, data.count / 6) == 0 }.map { axisLabel($0.element.start) })
-        let spent = selectedCategory == nil ? total(current) : data.reduce(0) { $0 + $1.total }
+        let spent = total(current)
         let before = total(previous)
-        let change = selectedCategory == nil && before > 0 ? (spent - before) / before : nil
+        let change = before > 0 ? (spent - before) / before : nil
         let accent = theme.accent
         let periods = ar ? ["أ", "ش", "٣ش", "س"] : ["W", "M", "3M", "Y"]
         let periodNames = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]

@@ -106,4 +106,14 @@ final class CategoryMatcherTests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(CategoryTaxonomy.all.count, 15)
     }
+
+    func testTransfersAreNeverSpending() {
+        XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Transfers", subcategory: nil))
+        XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Adjustment", subcategory: nil))
+        // Expend files some transfers as Utilities › Transfer.
+        XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Utilities", subcategory: "Transfer"))
+        XCTAssertFalse(CategoryTaxonomy.isTransferOrAdjustment(category: "Utilities", subcategory: "Home rent"))
+        XCTAssertFalse(CategoryTaxonomy.isTransferOrAdjustment(category: "Transfer Fee", subcategory: nil))
+        XCTAssertFalse(CategoryTaxonomy.isTransferOrAdjustment(category: "Dining", subcategory: nil))
+    }
 }
