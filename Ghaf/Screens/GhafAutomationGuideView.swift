@@ -14,35 +14,25 @@ struct GhafAutomationGuideView: View {
     }
 
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
+    @State private var step = 0
+
+    private var steps: [(title: String, detail: String)] {
+        [(localized("Install the automation", "ثبّت الأتمتة"),
+          localized("Tap Install automation, choose Shortcuts, then Add. It already listens to Messages.", "اضغط «تثبيت الأتمتة»، اختر الاختصارات ثم «إضافة». هي تستمع للرسائل مسبقاً.")),
+         (localized("Catch every Apple Pay purchase", "التقط كل مشتريات Apple Pay"),
+          localized("Shortcuts › Automation › + › Transaction. Select all cards, add Ghaf's “Add Apple Pay purchase”, map Amount, Merchant and Card. One automation covers every bank. For the map, add “Get Current Location” first and pass it as Location.", "الاختصارات › الأتمتة › + › معاملة. اختر كل البطاقات، أضف «أضف عملية Apple Pay» من غاف، واربط المبلغ والتاجر والبطاقة. أتمتة واحدة تغطي كل البنوك. للخريطة، أضف «الحصول على الموقع الحالي» أولاً ومرّره كموقع.")),
+         (localized("Add your bank apps", "أضف تطبيقات بنوكك"),
+          localized("Shortcuts › Automation › + › Notification. Pick a bank app, add Ghaf's “أضف عملية من رسالة بنكية” and set its text to Shortcut Input. Don't add a title filter. Repeat for each bank app.", "الاختصارات › الأتمتة › + › إشعار. اختر تطبيق البنك، أضف «أضف عملية من رسالة بنكية» من غاف واربط النص بـ Shortcut Input. لا تضف فلتر عنوان. كرّر لكل تطبيق بنك.")),
+         (localized("Turn on Run Immediately", "فعّل «التشغيل فوراً»"),
+          localized("Open each Ghaf automation, choose Run Immediately and turn off Notify When Run, so it works silently. Only you can change this in iOS.", "افتح كل أتمتة لغاف، اختر «التشغيل فوراً» وأوقف «الإشعار عند التشغيل» لتعمل بصمت. iOS يسمح لك وحدك بذلك."))]
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 heading
                 shortcutReadyCard
-                instructionCard(
-                    number: "1",
-                    title: localized("Install the automation", "ثبّت الأتمتة"),
-                    detail: localized("Tap Install automation, choose Shortcuts, then Add. It already listens to Messages.", "اضغط «تثبيت الأتمتة»، اختر الاختصارات ثم «إضافة». هي تستمع للرسائل مسبقاً.")
-                )
-
-                instructionCard(
-                    number: "2",
-                    title: localized("Catch every Apple Pay purchase", "التقط كل مشتريات Apple Pay"),
-                    detail: localized("Shortcuts › Automation › + › Transaction. Select all cards, add Ghaf's “Add Apple Pay purchase”, map Amount, Merchant and Card. One automation covers every bank. For the map, add “Get Current Location” first and pass it as Location.", "الاختصارات › الأتمتة › + › معاملة. اختر كل البطاقات، أضف «أضف عملية Apple Pay» من غاف، واربط المبلغ والتاجر والبطاقة. أتمتة واحدة تغطي كل البنوك. للخريطة، أضف «الحصول على الموقع الحالي» أولاً ومرّره كموقع.")
-                )
-
-                instructionCard(
-                    number: "3",
-                    title: localized("Add your bank apps", "أضف تطبيقات بنوكك"),
-                    detail: localized("Shortcuts › Automation › + › Notification. Pick a bank app, add Ghaf's “أضف عملية من رسالة بنكية” and set its text to Shortcut Input. Don't add a title filter. Repeat for each bank app.", "الاختصارات › الأتمتة › + › إشعار. اختر تطبيق البنك، أضف «أضف عملية من رسالة بنكية» من غاف واربط النص بـ Shortcut Input. لا تضف فلتر عنوان. كرّر لكل تطبيق بنك.")
-                )
-
-                instructionCard(
-                    number: "4",
-                    title: localized("Turn on Run Immediately", "فعّل «التشغيل فوراً»"),
-                    detail: localized("Open each Ghaf automation, choose Run Immediately and turn off Notify When Run, so it works silently. Only you can change this in iOS.", "افتح كل أتمتة لغاف، اختر «التشغيل فوراً» وأوقف «الإشعار عند التشغيل» لتعمل بصمت. iOS يسمح لك وحدك بذلك.")
-                )
+                AnyView(stepCards)
 
                 privacyCard
             }
@@ -65,7 +55,7 @@ struct GhafAutomationGuideView: View {
     }
 
     private var heading: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(spacing: 7) {
             Text(settings.languageCode == "ar" ? "اربط بنكك بغاف" : "Let Ghaf capture your spending.")
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
@@ -75,6 +65,8 @@ struct GhafAutomationGuideView: View {
                 .font(GhafTypography.body(14, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 
     private var shortcutReadyCard: some View {
@@ -118,27 +110,71 @@ struct GhafAutomationGuideView: View {
         .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.outline, lineWidth: 1))
     }
 
-    private func instructionCard(number: String, title: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Text(number)
-                .font(GhafTypography.number(13, weight: .bold))
-                .foregroundStyle(theme.accentContrast)
-                .frame(width: 30, height: 30)
-                .background(theme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(GhafTypography.heading(16, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.primaryText)
-                Text(detail)
-                    .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+    /// The setup steps as big numbered cards you swipe through, with dots and arrows under them.
+    private var stepCards: some View {
+        let items = steps
+        return VStack(spacing: 14) {
+            TabView(selection: $step) {
+                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(String(format: "%02d", index + 1))
+                            .font(GhafTypography.number(56, weight: .heavy))
+                            .foregroundStyle(theme.inkText)
+                            .environment(\.layoutDirection, .leftToRight)
+                        Text(item.title)
+                            .font(GhafTypography.heading(20, languageCode: settings.languageCode))
+                            .foregroundStyle(theme.inkText)
+                        Text(item.detail)
+                            .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                            .foregroundStyle(theme.inkText.opacity(0.75))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        // Only a real run proves setup worked; Ghaf records that, so step 1 can say so.
+                        if index == 0 && automationLastRun > 0 {
+                            Label(localized("Done · Ghaf saw it run", "تم · غاف رآها تعمل"), systemImage: "checkmark.circle.fill")
+                                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
+                                .foregroundStyle(theme.inkCredit)
+                        }
+                    }
+                    .padding(22)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .background(theme.ink, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .padding(.horizontal, 4)
+                    .tag(index)
+                }
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 300)
+
+            HStack {
+                Button { withAnimation(.snappy) { step = max(0, step - 1) } } label: {
+                    Image(systemName: "chevron.backward").font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(width: 48, height: 48).background(theme.surface, in: Circle())
+                }
+                .disabled(step == 0)
+                .accessibilityLabel(localized("Previous step", "الخطوة السابقة"))
+                Spacer()
+                HStack(spacing: 6) {
+                    ForEach(items.indices, id: \.self) { index in
+                        Capsule().fill(index == step ? theme.primaryText : theme.secondaryText.opacity(0.3))
+                            .frame(width: index == step ? 20 : 7, height: 7)
+                    }
+                }
+                .accessibilityElement()
+                .accessibilityLabel(localized("Step \(step + 1) of \(items.count)", "الخطوة \(step + 1) من \(items.count)"))
+                Spacer()
+                Button { withAnimation(.snappy) { step = min(items.count - 1, step + 1) } } label: {
+                    Image(systemName: "chevron.forward").font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(theme.accentContrast)
+                        .frame(width: 48, height: 48).background(theme.accent, in: Circle())
+                }
+                .disabled(step == items.count - 1)
+                .accessibilityLabel(localized("Next step", "الخطوة التالية"))
+            }
+            .buttonStyle(.ghafPress)
         }
-        .padding(17)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme, radius: 19)
+        .sensoryFeedback(.selection, trigger: step)
     }
 
     private var privacyCard: some View {

@@ -108,8 +108,9 @@ struct GhafNotificationSettingsView: View {
         } else if channels.keychain {
             ar ? "متصلة عبر سلسلة المفاتيح، لأن أداة التثبيت أزالت مجموعة التطبيق" : "Connected through the keychain; your install tool removed the App Group"
         } else {
-            ar ? "غير متصلة: أداة التثبيت أزالت مجموعة التطبيق ومشاركة سلسلة المفاتيح، فلا تستطيع الودجت قراءة بياناتك. أعد التثبيت مع إبقاء App Groups."
-               : "Not connected: your install tool removed the App Group and keychain sharing, so widgets can't read Ghaf. Reinstall with App Groups kept."
+            (ar ? "غير متصلة: توقيع التثبيت لا يمنح غاف مجموعة تطبيق، فلا تستطيع الودجت قراءة بياناتك. فعّل App Groups في أداة التثبيت ثم أعد التثبيت."
+                : "Not connected: this install's signature gives Ghaf no App Group, so widgets can't read its data. Turn on App Groups in your install tool and reinstall.")
+            + "\n" + profileSummary
         }
         return Button { proFeature = ProFeature(en: "Widgets", ar: "الودجت") } label: { Label {
             VStack(alignment: .leading, spacing: 2) {
@@ -124,6 +125,14 @@ struct GhafNotificationSettingsView: View {
         .ghafCard(theme: theme)
         }
         .buttonStyle(.ghafPress)
+    }
+
+    /// What the installer's profile grants, so a broken install can be diagnosed from a screenshot.
+    private var profileSummary: String {
+        let profile = GhafSigningProfile.current
+        let groups = profile.appGroups.isEmpty ? "none" : profile.appGroups.joined(separator: ", ")
+        let keychain = profile.keychainGroups.isEmpty ? "none" : profile.keychainGroups.joined(separator: ", ")
+        return "Profile: \(profile.name ?? "none") · App Groups: \(groups) · Keychain: \(keychain)"
     }
 
     private func refreshPermission() async {

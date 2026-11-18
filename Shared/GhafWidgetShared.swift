@@ -35,14 +35,16 @@ struct GhafWidgetSnapshot: Codable, Equatable {
         let amount: Decimal
     }
 
-    /// The App Group to use. Sideloaders such as AltStore and SideStore rename the group (adding the
-    /// signing team) and list the real names under `ALTAppGroups` in Info.plist, so try those first.
+    /// The App Group to use. Sideload tools re-sign with their own profile and often rename the group
+    /// (AltStore lists the new names under `ALTAppGroups`; others only put them in the embedded profile),
+    /// so every group the install actually grants is tried, Ghaf-named ones first.
     static let groupID: String = {
         let fallback = "group.com.ghaf.app"
         // In the widget, Bundle.main is the extension; its app is two folders up (Ghaf.app/PlugIns/x.appex).
         let app = Bundle(url: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent())
         let listed = [Bundle.main, app].compactMap { $0?.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] }.flatMap { $0 }
-        return (listed + [fallback]).first {
+        let granted = GhafSigningProfile.current.appGroups.sorted { $0.lowercased().contains("ghaf") && !$1.lowercased().contains("ghaf") }
+        return (listed + [fallback] + granted).first {
             FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil
         } ?? fallback
     }()
@@ -107,7 +109,10 @@ enum GhafWidgetKeychain {
         guard status == errSecSuccess, let attributes = result as? [String: Any],
               let group = attributes[kSecAttrAccessGroup as String] as? String,
               let team = group.split(separator: ".").first, team.count == 10 else { return nil }
-        return "\(team).com.ghaf.shared"
+        // A wildcard profile ("TEAM.*") allows a shared name; otherwise only an explicitly granted group can be shared.
+        let granted = GhafSigningProfile.current.keychainGroups
+        if granted.isEmpty || granted.contains("\(team).*") { return "\(team).com.ghaf.shared" }
+        return granted.first { $0.lowercased().contains("shared") || $0.lowercased().contains("group") } ?? "\(team).com.ghaf.shared"
     }()
 
     private static func query(_ group: String) -> [CFString: Any] {
@@ -130,6 +135,30 @@ enum GhafWidgetKeychain {
         q[kSecReturnData] = true
         var result: CFTypeRef?
         return SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
+    }
+}
+
+/// What the signing profile embedded by the installer grants this bundle. Read from `embedded.mobileprovision`
+/// (a signed plist); empty when there is none, e.g. in the simulator or an App Store install.
+struct GhafSigningProfile {
+    var appGroups: [String] = []
+    var keychainGroups: [String] = []
+    var name: String?
+
+    static let current: GhafSigningProfile = {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision") else { return .init() }
+        return parse((try? Data(contentsOf: url)) ?? Data())
+    }()
+
+    static func parse(_ data: Data) -> GhafSigningProfile {
+        guard let start = data.range(of: Data("<?xml".utf8)), let end = data.range(of: Data("</plist>".utf8)),
+              start.lowerBound < end.upperBound,
+              let plist = try? PropertyListSerialization.propertyList(from: data[start.lowerBound..<end.upperBound], format: nil) as? [String: Any]
+        else { return .init() }
+        let entitlements = plist["Entitlements"] as? [String: Any] ?? [:]
+        return GhafSigningProfile(appGroups: entitlements["com.apple.security.application-groups"] as? [String] ?? [],
+                                  keychainGroups: entitlements["keychain-access-groups"] as? [String] ?? [],
+                                  name: plist["Name"] as? String)
     }
 }
 
