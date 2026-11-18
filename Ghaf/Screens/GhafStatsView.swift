@@ -14,7 +14,7 @@ struct GhafStatsView: View {
     enum CategoryStyle: String, CaseIterable { case donut, bars, tiles }
 
     @State private var period: Period = .month
-    @State private var selectedDate: Date?
+    @State private var selectedLabel: String?
     @State private var selectedCategory: String?
     @State private var selectedAngle: Double?
     @State private var showPro = false
@@ -133,7 +133,7 @@ struct GhafStatsView: View {
         return HStack(spacing: 6) {
             ForEach(Period.allCases, id: \.self) { item in
                 Button {
-                    withAnimation(.snappy) { period = item; selectedDate = nil; selectedCategory = nil }
+                    withAnimation(.snappy) { period = item; selectedLabel = nil; selectedCategory = nil }
                 } label: {
                     Text(titles[item.rawValue])
                         .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
@@ -204,6 +204,17 @@ struct GhafStatsView: View {
         .background(theme.elevatedSurface, in: Capsule())
     }
 
+    /// Short, unique label for a bucket on the chart's axis.
+    private func axisLabel(_ date: Date) -> String {
+        let locale = Locale(identifier: lang)
+        switch period {
+        case .week: return date.formatted(.dateTime.weekday(.abbreviated).locale(locale))
+        case .month: return date.formatted(.dateTime.day().locale(locale))
+        case .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .year: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
+        }
+    }
+
     private func bucketLabel(_ date: Date) -> String {
         let locale = Locale(identifier: lang)
         switch period {
@@ -215,7 +226,9 @@ struct GhafStatsView: View {
     }
 
     private func trendCard(_ data: [Bucket]) -> some View {
-        let selected = selectedDate.flatMap { date in data.first { calendar.isDate($0.start, equalTo: date, toGranularity: bucketUnit) } }
+        // Plotted by a short label per bucket, not by date: date-unit bars by week or month crash Charts (NaN).
+        let selected = selectedLabel.flatMap { label in data.first { axisLabel($0.start) == label } }
+        let shown = Set(data.enumerated().filter { $0.offset % max(1, data.count / 6) == 0 }.map { axisLabel($0.element.start) })
         let sum = data.reduce(0) { $0 + $1.total }
         let style = TrendStyle(rawValue: trendStyle) ?? .bars
         return VStack(alignment: .leading, spacing: 14) {
@@ -237,33 +250,34 @@ struct GhafStatsView: View {
             Chart(data) { bucket in
                 switch style {
                 case .bars:
-                    BarMark(x: .value("Date", bucket.start, unit: bucketUnit), y: .value(currency, bucket.total))
+                    BarMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
                         .foregroundStyle(selected == nil || selected?.id == bucket.id ? theme.accent.gradient : theme.accent.opacity(0.25).gradient)
                         .cornerRadius(5)
                 case .line:
-                    LineMark(x: .value("Date", bucket.start, unit: bucketUnit), y: .value(currency, bucket.total))
+                    LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
                         .foregroundStyle(theme.accent)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
                     if selected?.id == bucket.id {
-                        PointMark(x: .value("Date", bucket.start, unit: bucketUnit), y: .value(currency, bucket.total))
+                        PointMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
                             .foregroundStyle(theme.accent).symbolSize(110)
                     }
                 case .area:
-                    AreaMark(x: .value("Date", bucket.start, unit: bucketUnit), y: .value(currency, bucket.total))
+                    AreaMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
                         .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.45), theme.accent.opacity(0.02)], startPoint: .top, endPoint: .bottom))
                         .interpolationMethod(.catmullRom)
-                    LineMark(x: .value("Date", bucket.start, unit: bucketUnit), y: .value(currency, bucket.total))
+                    LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
                         .foregroundStyle(theme.accent)
                         .interpolationMethod(.catmullRom)
                 }
                 if let selected, selected.id == bucket.id {
-                    RuleMark(x: .value("Date", bucket.start, unit: bucketUnit))
+                    RuleMark(x: .value("Date", axisLabel(bucket.start)))
                         .foregroundStyle(theme.secondaryText.opacity(0.35))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 }
             }
-            .chartXSelection(value: $selectedDate)
+            .chartXSelection(value: $selectedLabel)
+            .id(period)
             .chartYAxis {
                 AxisMarks(position: .trailing) { _ in
                     AxisGridLine().foregroundStyle(theme.outline)
@@ -271,9 +285,8 @@ struct GhafStatsView: View {
                 }
             }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: period == .year ? 6 : 5)) { _ in
-                    AxisValueLabel(format: period == .year ? .dateTime.month(.narrow) : .dateTime.day().month(.abbreviated), collisionResolution: .greedy)
-                        .foregroundStyle(theme.secondaryText)
+                AxisMarks(values: data.map { axisLabel($0.start) }.filter { shown.contains($0) }) { _ in
+                    AxisValueLabel().foregroundStyle(theme.secondaryText)
                 }
             }
             .frame(height: 200)
@@ -289,8 +302,25 @@ struct GhafStatsView: View {
 
     // MARK: Categories
 
+    /// The donut's slices: anything under 2% joins "Other". Hairline sectors with rounded corners
+    /// produce NaN geometry inside Charts and crash it (seen on Year, where small categories are tiny).
+    private func ring(_ data: [Slice]) -> [Slice] {
+        let sum = data.reduce(0) { $0 + $1.total }
+        guard sum > 0 else { return [] }
+        let big = data.filter { $0.total / sum >= 0.02 }
+        let rest = data.filter { $0.total / sum < 0.02 }.reduce(0) { $0 + $1.total }
+        guard rest > 0 else { return big }
+        if let index = big.firstIndex(where: { $0.category == "Other" }) {
+            var merged = big
+            merged[index] = Slice(category: "Other", total: big[index].total + rest)
+            return merged
+        }
+        return big + [Slice(category: "Other", total: rest)]
+    }
+
     private func categoryCard(_ data: [Slice]) -> some View {
         let sum = data.reduce(0) { $0 + $1.total }
+        let ringData = ring(data)
         let style = CategoryStyle(rawValue: categoryStyle) ?? .donut
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -308,7 +338,7 @@ struct GhafStatsView: View {
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else {
                 switch style {
-                case .donut: donut(data, sum: sum)
+                case .donut: donut(ringData, legendData: data, sum: sum)
                 case .bars: categoryBars(data, sum: sum)
                 case .tiles: tiles(data, sum: sum)
                 }
@@ -319,7 +349,7 @@ struct GhafStatsView: View {
         .onChange(of: selectedAngle) { _, angle in
             guard let angle else { return }
             var running = 0.0
-            let hit = data.first { running += $0.total; return angle <= running }
+            let hit = ((CategoryStyle(rawValue: categoryStyle) ?? .donut) == .donut ? ringData : data).first { running += $0.total; return angle <= running }
             withAnimation(.snappy) { selectedCategory = hit?.category == selectedCategory ? nil : hit?.category }
         }
     }
@@ -334,7 +364,7 @@ struct GhafStatsView: View {
         withAnimation(.snappy) { selectedCategory = selectedCategory == category ? nil : category }
     }
 
-    private func donut(_ data: [Slice], sum: Double) -> some View {
+    private func donut(_ data: [Slice], legendData: [Slice], sum: Double) -> some View {
         let focus = data.first { $0.category == selectedCategory }
         return VStack(spacing: 16) {
             Chart(data) { slice in
@@ -344,6 +374,9 @@ struct GhafStatsView: View {
                     .foregroundStyle(color(slice.category).opacity(selectedCategory == nil || selectedCategory == slice.category ? 1 : 0.3))
             }
             .chartAngleSelection(value: $selectedAngle)
+            // A new chart per period: Charts animating sectors from one set of slices to another
+            // produces NaN geometry and crashes (seen switching to 3 months and Year).
+            .id(period)
             .chartBackground { _ in
                 VStack(spacing: 2) {
                     Text(focus.map { GhafLocalization.category($0.category, languageCode: lang) } ?? (ar ? "المجموع" : "Total"))
@@ -360,7 +393,7 @@ struct GhafStatsView: View {
                 }
             }
             .frame(height: 220)
-            legend(data, sum: sum)
+            legend(legendData, sum: sum)
         }
     }
 

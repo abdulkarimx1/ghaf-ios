@@ -228,7 +228,8 @@ struct GhafChatChartView: View {
 
     private var donut: some View {
         VStack(spacing: 14) {
-            Chart(Array(chart.points.enumerated()), id: \.element.id) { index, point in
+            // Slices under 2% are left out of the ring (they stay in the legend): hairline sectors crash Charts.
+            Chart(Array(chart.points.enumerated()).filter { total > 0 && $0.element.value / total >= 0.02 }, id: \.element.id) { index, point in
                 SectorMark(angle: .value(chart.currency, drawn ? point.value : 0.0001),
                            innerRadius: .ratio(0.62), angularInset: 2)
                     .cornerRadius(5)

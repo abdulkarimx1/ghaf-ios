@@ -14,6 +14,9 @@ struct GhafCitySkyline: Shape {
     private static let cache = GhafPathCache()
 
     func path(in rect: CGRect) -> Path {
+        // SwiftUI can measure a shape with an unbounded size first; there is nothing to draw then,
+        // and Int(infinity) would crash.
+        guard rect.width.isFinite, rect.height.isFinite, rect.width > 0, rect.height > 0 else { return Path() }
         let key = "\(city)-\(layer)-\(foliage)-\(Int(rect.width))x\(Int(rect.height))"
         if let cached = Self.cache[key] {
             return cached.offsetBy(dx: rect.minX, dy: rect.minY)
