@@ -35,7 +35,61 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     struct CategorySpend: Codable, Equatable {
         let name: String
         let amount: Decimal
+        var symbol: String? = nil
     }
+
+    // 1.20 additions, all optional so snapshots written by older builds still decode.
+
+    /// One calendar period (today, this week, this month) as the ledger saw it when the app wrote the snapshot.
+    struct Period: Codable, Equatable {
+        /// When the period ends; after this the widget knows the numbers belong to a past period.
+        var end: Date
+        var spent: Decimal
+        /// The whole previous period of the same kind, for "vs last week".
+        var previous: Decimal
+        var count: Int
+        /// Spending per slice (3-hour blocks for a day, days for a week, 7-day blocks for a month).
+        var bars: [Decimal]
+        var categories: [CategorySpend]
+    }
+    var day: Period? = nil
+    var week: Period? = nil
+    var month: Period? = nil
+
+    /// The transaction Ghaf recorded most recently (by when it was logged, not its date).
+    struct Recent: Codable, Equatable {
+        var merchant: String?
+        var category: String
+        var symbol: String
+        var amount: Decimal
+        var currency: String
+        var date: Date
+        var isCredit: Bool
+        var account: String?
+        /// The bank whose message it came from; nil when entered by hand.
+        var bank: String?
+        var needsReview: Bool
+    }
+    var recent: Recent? = nil
+
+    /// The budget the app's Budget screen uses: today's in daily mode, the month's (or salary cycle's) in category mode.
+    struct Budget: Codable, Equatable {
+        var limit: Decimal
+        var spent: Decimal
+        var title: String
+        var end: Date
+    }
+    var budget: Budget? = nil
+
+    /// Active subscriptions by next payment date. Amounts keep their own currency.
+    struct Bill: Codable, Equatable {
+        var name: String
+        var amount: Decimal
+        var currency: String
+        var date: Date
+        var symbol: String
+    }
+    var upcoming: [Bill]? = nil
 
     /// The App Group to use. Sideload tools re-sign with their own profile and often rename the group
     /// (AltStore lists the new names under `ALTAppGroups`; others only put them in the embedded profile),
@@ -182,6 +236,10 @@ struct GhafPurchaseAttributes: ActivityAttributes {
         /// SF Symbol for the category, so the activity shows what kind of purchase it was.
         var symbol: String = "bag.fill"
         var category: String = ""
+        /// When Ghaf recorded it, so a stale activity can say how long ago.
+        var recordedAt: Date? = nil
+        /// The user hides balances: show stars instead of the amount.
+        var hidden: Bool? = nil
     }
     var arabic: Bool
     /// The user's theme colours (0xRRGGBB), so the activity looks like Ghaf.
