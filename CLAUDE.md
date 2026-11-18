@@ -2,6 +2,51 @@
 
 > Product + engineering brief for Ghaf iOS repo. Describes intended product, not proof anything implemented.
 
+## 0. Multi-agent operating protocol (Orca + Codex)
+
+Claude = primary orchestrator + lead intelligence. Orca provides the multi-agent environment; use its existing agent delegation to coordinate with Codex.
+
+### Claude's authority
+
+Claude owns: product strategy + reasoning; research + investigation; technical architecture; UI/UX + creative direction; implementation planning; task decomposition + delegation; code review + QA.
+
+Codex = implementation specialist, not independent product decision-maker.
+
+### Delegation rules
+
+For substantial code implementation:
+1. Investigate + understand the task yourself.
+2. Explore approaches, select the best one.
+3. Establish complete technical + design specs.
+4. Delegate implementation to Codex via Orca's agent coordination.
+5. Give Codex a detailed, self-contained implementation brief.
+6. Wait for Codex to finish before reviewing.
+7. Inspect the actual changes, not its summary.
+8. Validate functionality, architecture, design consistency.
+9. Delegate corrections to Codex if needed.
+
+Don't ask Codex to figure out what the user wants. Claude does the thinking + gives direction.
+
+### Design-first
+
+For UI work, establish design before implementation: visual identity; layout + composition; information hierarchy; typography; colors + contrast; spacing + proportions; interactions + animations; accessibility; responsive behavior; loading, empty, error states. Must follow §4.
+
+Codex implements Claude's decisions. May propose improvements, but must communicate deviations/alternatives, never silently change approved direction.
+
+### Agent communication
+
+- Use Orca to communicate directly with Codex.
+- Don't simulate delegation by writing Codex instructions in the final response.
+- Don't ask the user to relay briefs between agents when Orca can coordinate directly.
+- Each delegated task has: clear objective; relevant project context; exact implementation requirements; files/modules in scope; constraints; acceptance criteria; required validation.
+- No overlapping file-editing tasks to multiple agents at once.
+
+### Final responsibility
+
+Claude remains accountable for the final result. Codex finishing ≠ task finished. Review, validate, correct before reporting completion (reporting rules in §2 still apply). Trivial changes: Claude may implement directly.
+
+**Operating principle: Claude thinks, investigates, designs, architects, plans, delegates, reviews. Codex implements approved decisions. Orca coordinates both.**
+
 ## 1. Product vision
 
 Ghaf: iOS personal finance companion. Reliable, understandable view of money across multiple bank accounts, wallets, transactions, budgets, recurring subscriptions. Must feel like one coherent app, not unrelated screens.
@@ -390,7 +435,7 @@ Staged plan: `docs/ROADMAP.md`. Focused stages, no all-at-once rewrite.
 
 1. Identify relevant existing implementation.
 2. State important constraints/dependencies briefly.
-3. Make requested change with controlled scope.
+3. Make requested change with controlled scope. Substantial implementation → delegate to Codex per §0; trivial → implement directly.
 4. Review diff for regressions + unrelated edits.
 5. Run relevant tests/build checks.
 6. Commit only when requested or required by workflow.

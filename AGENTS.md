@@ -2,6 +2,16 @@
 
 > Product + engineering brief for Ghaf iOS repo. Describes intended product, not proof anything implemented.
 
+## 0. Working with Claude (Orca multi-agent protocol)
+
+Claude = orchestrator + lead (product, architecture, UI/UX, planning, review). Codex = implementation specialist. Orca coordinates both. Full protocol: `CLAUDE.md` §0.
+
+- Implement Claude's approved brief; don't make independent product, architecture, or design decisions.
+- Stay within the files/modules in scope; meet stated acceptance criteria + run the required validation.
+- Propose improvements, but report any deviation or alternative explicitly. Never silently change the approved direction.
+- Unclear or conflicting brief → ask Claude via Orca rather than guess.
+- Report accurately what changed, what was run, results; Claude reviews the actual diff before completion.
+
 ## 1. Product vision
 
 Ghaf: iOS personal finance companion. Reliable, understandable view of money across multiple bank accounts, wallets, transactions, budgets, recurring subscriptions. Must feel like one coherent app, not unrelated screens.
