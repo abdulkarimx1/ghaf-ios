@@ -29,7 +29,7 @@ targets:
       properties:
         CFBundleDisplayName: Ghaf
         CFBundleShortVersionString: "1.18"
-        CFBundleVersion: "31"
+        CFBundleVersion: "32"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
@@ -81,7 +81,7 @@ targets:
       properties:
         CFBundleDisplayName: Ghaf
         CFBundleShortVersionString: "1.18"
-        CFBundleVersion: "31"
+        CFBundleVersion: "32"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

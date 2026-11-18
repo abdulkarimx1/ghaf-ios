@@ -43,7 +43,9 @@ struct GhafWidgetSnapshot: Codable, Equatable {
         // In the widget, Bundle.main is the extension; its app is two folders up (Ghaf.app/PlugIns/x.appex).
         let app = Bundle(url: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent())
         let listed = [Bundle.main, app].compactMap { $0?.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] }.flatMap { $0 }
-        let granted = GhafSigningProfile.current.appGroups.sorted { $0.lowercased().contains("ghaf") && !$1.lowercased().contains("ghaf") }
+        // The widget's own bundle often has no profile listing the renamed group, so read the app's too.
+        let granted = ([Bundle.main, app].compactMap { $0 }.flatMap { GhafSigningProfile.load(from: $0).appGroups })
+            .sorted { $0.lowercased().contains("ghaf") && !$1.lowercased().contains("ghaf") }
         return (listed + [fallback] + granted).first {
             FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil
         } ?? fallback
@@ -145,10 +147,12 @@ struct GhafSigningProfile {
     var keychainGroups: [String] = []
     var name: String?
 
-    static let current: GhafSigningProfile = {
-        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision") else { return .init() }
+    static let current = load(from: .main)
+
+    static func load(from bundle: Bundle) -> GhafSigningProfile {
+        guard let url = bundle.url(forResource: "embedded", withExtension: "mobileprovision") else { return .init() }
         return parse((try? Data(contentsOf: url)) ?? Data())
-    }()
+    }
 
     static func parse(_ data: Data) -> GhafSigningProfile {
         guard let start = data.range(of: Data("<?xml".utf8)), let end = data.range(of: Data("</plist>".utf8)),
