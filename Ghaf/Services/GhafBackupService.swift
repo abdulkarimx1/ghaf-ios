@@ -103,11 +103,14 @@ private struct GhafMerchantRuleBackup: Codable {
 
 enum GhafBackupError: LocalizedError {
     case unsupportedVersion
+    case invalidBackup(String)
 
     var errorDescription: String? {
         switch self {
         case .unsupportedVersion:
             "This backup version is not supported."
+        case .invalidBackup(let summary):
+            "This backup is damaged: \(summary)."
         }
     }
 }
@@ -241,16 +244,24 @@ enum GhafBackupService {
             throw GhafBackupError.unsupportedVersion
         }
 
+        let problems = BackupIntegrity.validate(
+            transactionIDs: payload.transactions.map(\.id),
+            fingerprints: payload.transactions.map(\.fingerprint),
+            accountIDs: payload.accounts?.map(\.id),
+            subscriptionIDs: payload.subscriptions?.map(\.id) ?? [],
+            merchantRuleKeys: payload.merchantRules.map(\.normalizedMerchant),
+            accountReferences: payload.transactions.map(\.accountID) + (payload.subscriptions ?? []).map(\.accountID) + [payload.settings.salaryAccountID]
+        )
+        if !problems.isEmpty {
+            throw GhafBackupError.invalidBackup("\(problems.count) integrity issue(s) found")
+        }
+
         try context.fetch(FetchDescriptor<GhafTransaction>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafAccount>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafSettings>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<MerchantCategoryRule>()).forEach { context.delete($0) }
-        if payload.subscriptions != nil {
-            try context.fetch(FetchDescriptor<GhafSubscription>()).forEach {
-                GhafSubscriptionReminderService.cancel($0)
-                context.delete($0)
-            }
-        }
+        let oldSubscriptions = payload.subscriptions == nil ? [] : try context.fetch(FetchDescriptor<GhafSubscription>())
+        oldSubscriptions.forEach { context.delete($0) }
 
         let source = payload.settings
         let settings = GhafSettings(
@@ -350,7 +361,13 @@ enum GhafBackupService {
             context.insert(subscription)
         }
 
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+        oldSubscriptions.forEach(GhafSubscriptionReminderService.cancel)
         for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }
