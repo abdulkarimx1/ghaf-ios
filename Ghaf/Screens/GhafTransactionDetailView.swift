@@ -75,7 +75,7 @@ struct GhafTransactionDetailView: View {
             .sheet(isPresented: $editing) {
                 GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName,
                                       appearanceMode: settings.appearanceMode, languageCode: lang, accounts: accounts)
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.visible).ghafDirection(lang)
             }
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)

@@ -58,7 +58,7 @@ struct GhafReviewInboxView: View {
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName,
                                       appearanceMode: settings.appearanceMode, languageCode: lang, accounts: activeAccounts)
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.visible).ghafDirection(lang)
             }
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)

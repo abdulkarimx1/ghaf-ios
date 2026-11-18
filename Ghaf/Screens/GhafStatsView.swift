@@ -119,7 +119,7 @@ struct GhafStatsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.selection, trigger: period)
             .sensoryFeedback(.selection, trigger: selectedCategory)
-            .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")) }
+            .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }

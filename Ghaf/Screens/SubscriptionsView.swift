@@ -94,10 +94,10 @@ struct GhafSubscriptionsView: View {
             .animation(.snappy, value: subscriptions.count)
             .sheet(item: $detail) { item in
                 GhafSubscriptionDetailView(subscription: item, settings: settings, accounts: accounts.filter { !$0.isArchived })
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .sheet(item: $editorTarget) { target in
-                GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription)
+                GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription).ghafDirection(settings.languageCode)
             }
         }
         .ghafDirection(settings.languageCode)
@@ -545,7 +545,7 @@ private struct GhafSubscriptionDetailView: View {
                 // Deleted from the editor: close this page instead of showing a removed record.
                 if subscription.isDeleted || subscription.modelContext == nil { dismiss() } else { load() }
             }) {
-                GhafSubscriptionEditor(settings: settings, accounts: accounts, subscription: subscription)
+                GhafSubscriptionEditor(settings: settings, accounts: accounts, subscription: subscription).ghafDirection(settings.languageCode)
             }
             .onAppear(perform: load)
         }

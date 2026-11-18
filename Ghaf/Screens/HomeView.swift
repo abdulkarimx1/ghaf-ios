@@ -135,9 +135,9 @@ struct GhafHomeView: View {
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings) }
-            .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings) }
+            .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
-                NavigationStack { GhafVoiceEntryView(settings: settings) }
+                NavigationStack { GhafVoiceEntryView(settings: settings) }.ghafDirection(settings.languageCode)
             }
             .sheet(isPresented: $showSubscriptions) {
                 GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible)
@@ -146,11 +146,11 @@ struct GhafHomeView: View {
                 GhafInsightsView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showReview) {
-                GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible)
+                GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
@@ -163,7 +163,7 @@ struct GhafHomeView: View {
                 }
             }
             .sheet(isPresented: $showSalaryCheckIn) {
-                GhafSalaryCheckInView(settings: settings, accounts: accounts)
+                GhafSalaryCheckInView(settings: settings, accounts: accounts).ghafDirection(settings.languageCode)
             }
             .onAppear(perform: checkSalaryDue)
             .task {

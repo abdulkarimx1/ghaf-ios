@@ -86,7 +86,7 @@ struct GhafNotificationSettingsView: View {
         .ghafBackground(theme: theme)
         .ghafPageTitle(ar ? "الإشعارات" : "Notifications", languageCode: settings.languageCode, theme: theme)
         .task { await refreshPermission() }
-        .sheet(item: $proFeature) { GhafProSheet(settings: settings, feature: ($0.en, $0.ar)) }
+        .sheet(item: $proFeature) { GhafProSheet(settings: settings, feature: ($0.en, $0.ar)).ghafDirection(settings.languageCode) }
         .onChange(of: liveActivity) { _, on in if on { proFeature = ProFeature(en: "Live Activities", ar: "النشاط المباشر") } }
         .onChange(of: [autoTransaction, morning, evening, weekly]) { _, values in
             Task {

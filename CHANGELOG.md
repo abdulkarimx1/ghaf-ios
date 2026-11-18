@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.20 (34)
+
+### English
+- A new Wallet: your cards stack like Apple Pay, with the chosen card's balance big on top. Swipe or tap to switch, and see its latest purchases underneath. The eye button hides balances right there.
+- A new welcome back screen: your own cards drift by while Ghaf updates your balances.
+- Settings pages are cleaner, with bigger buttons and less scrolling. Pick a city theme from one swipeable row, and switch between Budget and Categories with two tabs.
+- Subscriptions has a close button, and its title no longer sits under the sheet's handle.
+- Five new widgets, each with its own settings (long-press › Edit Widget): Latest transaction (price and category big and bold), Spending (tap Day, Week or Month on the widget), Budget left, Where it went, and Upcoming payments. Each has a refresh button and follows your city theme.
+- Redesigned purchase Live Activity: category icon and amount in the Dynamic Island, a clearer expanded view, and a dark Lock Screen card that fades after 15 minutes. Amounts show as stars when balances are hidden.
+- A new Ghaf AI orb: liquid light in a glass sphere that drifts, listens, thinks and speaks in your city's colours. The tab icon matches.
+- Ghaf AI answers show where they came from ("From 30 of your transactions · November"), with category bars inside the reply. Replies stream as they're written, with follow-up suggestions, and Ghaf keeps the conversation's context.
+- Chat history: your chats are saved on this iPhone. Open them from the top-left button, continue, or swipe to delete.
+- A warmer voice: with Cloud AI on, read-aloud uses Ghaf's natural voice with a friendlier Gulf-style Arabic. Without it, Ghaf uses the best voice on your iPhone.
+- Transfers between your own accounts no longer count as spending in Statistics, Budget, Home or widgets.
+- Picking a category in Statistics compares it with the same category in the previous period.
+- Subscription charges are recognised even when the bank writes the name differently ("CHATGPT" for "Chat GPT"). Backups keep a pending price change.
+- Arabic: category names show in Arabic, long names in Statistics no longer get cut off, and sheets lay out right to left.
+
+### العربية
+- محفظة جديدة: بطاقاتك مرتبة مثل Apple Pay، ورصيد البطاقة المختارة كبير في الأعلى. اسحب أو اضغط للتنقل، وتظهر آخر مشترياتها تحتها. زر العين يخفي الأرصدة من الصفحة نفسها.
+- شاشة ترحيب جديدة: بطاقاتك تمر أمامك بينما يحدّث غاف أرصدتك.
+- صفحات الإعدادات أوضح، بأزرار أكبر وتمرير أقل. اختر نمط المدينة من صف واحد، وتنقّل بين الميزانية والفئات بتبويبين.
+- صفحة الاشتراكات فيها زر إغلاق، ولم يعد عنوانها تحت مقبض النافذة.
+- خمس أدوات جديدة، لكل منها إعداداتها (اضغط مطوّلاً › تعديل الأداة): آخر عملية (المبلغ والفئة بخط كبير)، والصرف (اضغط يوم أو أسبوع أو شهر داخل الأداة)، والميزانية المتبقية، وأين ذهب المال، والمدفوعات القادمة. لكل منها زر تحديث وألوانها تتبع مدينتك.
+- تصميم جديد للنشاط المباشر للمشتريات: أيقونة الفئة والمبلغ في الجزيرة الديناميكية، وعرض موسّع أوضح، وبطاقة داكنة على شاشة القفل تخفت بعد ١٥ دقيقة. وتظهر المبالغ نجوماً عند إخفاء الأرصدة.
+- كرة غاف AI الجديدة: ضوء سائل داخل كرة زجاجية يتهادى ويستمع ويفكّر ويتكلم بألوان مدينتك، وأيقونة التبويب بنفس الشكل.
+- إجابات غاف AI تبيّن مصدرها («من ٣٠ من عملياتك · نوفمبر»)، مع أعمدة الفئات داخل الرد. الردود تظهر وهي تُكتب مع اقتراحات للسؤال التالي، وغاف يتذكر سياق المحادثة.
+- سجل المحادثات: تُحفظ محادثاتك على هذا الآيفون. افتحها من الزر أعلى اليسار، وأكمل، أو اسحب لحذفها.
+- صوت أدفأ: مع تفعيل الذكاء السحابي، تستخدم قراءة الردود صوت غاف الطبيعي بنبرة عربية خليجية أقرب. وبدونه يستخدم غاف أفضل صوت على جهازك.
+- التحويلات بين حساباتك لم تعد تُحسب مصروفاً في الإحصائيات والميزانية والرئيسية والأدوات.
+- عند اختيار فئة في الإحصائيات تُقارن بالفئة نفسها في الفترة السابقة.
+- يتعرّف غاف على دفعات الاشتراك حتى لو كتب البنك الاسم بشكل مختلف («CHATGPT» بدلاً من «Chat GPT»)، والنسخ الاحتياطية تحفظ تغيّر السعر المعلّق.
+- بالعربية: أسماء الفئات تظهر بالعربية، ولم تعد الأسماء الطويلة تُقصّ في الإحصائيات، والنوافذ تظهر من اليمين لليسار.
+
 ## 1.19 (33)
 
 ### English

@@ -51,7 +51,7 @@ struct GhafWalletStack: View {
         .sensoryFeedback(.selection, trigger: selectedID)
         .onAppear { if selectedID == nil { selectedID = accounts.first?.id } }
         .sheet(item: $quickAdd) { item in
-            GhafQuickAddView(settings: settings, presetAccountID: item.account, startAsTransfer: item.transfer)
+            GhafQuickAddView(settings: settings, presetAccountID: item.account, startAsTransfer: item.transfer).ghafDirection(settings.languageCode)
         }
     }
 

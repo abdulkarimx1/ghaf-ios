@@ -66,7 +66,7 @@ struct GhafAccountsView: View {
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
-            }
+            }.ghafDirection(settings.languageCode)
         }
     }
 
@@ -318,7 +318,7 @@ struct GhafAccountEditorView: View {
         }
         .sheet(isPresented: $showCardRequest) {
             GhafCardRequestView(settings: settings,
-                                bank: GhafUAEBank.match([institution, name]).map { ar ? $0.ar : $0.en } ?? institution)
+                                bank: GhafUAEBank.match([institution, name]).map { ar ? $0.ar : $0.en } ?? institution).ghafDirection(settings.languageCode)
         }
         .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
                             titleVisibility: .visible) {

@@ -167,7 +167,7 @@ struct GhafTransactionsView: View {
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .confirmationDialog(
                 ar ? "حذف هذه العملية؟" : "Delete this transaction?",
