@@ -30,6 +30,7 @@ enum GhafLocalization {
             "Entertainment": "الترفيه",
             "Travel": "السفر",
             "Transfers": "التحويلات",
+            "Adjustment": "تعديل رصيد",
             "Salary": "الراتب",
             "Other": "أخرى",
             "Other Income": "دخل آخر",

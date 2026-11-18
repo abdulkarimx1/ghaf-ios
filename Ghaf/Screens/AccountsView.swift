@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import GhafCore
 
 struct GhafAccountsView: View {
     @Environment(\.colorScheme) private var systemColorScheme
@@ -474,10 +475,25 @@ struct GhafAccountEditorView: View {
             target.name = cleanName
             target.institution = institution.isEmpty || isCash ? nil : institution
             target.accountType = accountType.rawValue
-            target.currency = currency
-            // The entered amount is a reconciliation as of now; earlier activity is already reflected.
-            target.openingBalance = balance
-            target.openingDate = .now
+            if target.currency == currency {
+                // A new balance is recorded as an Adjustment for the difference, so history keeps the
+                // change and earlier activity stays as it was. Adjustments are never spending or income.
+                let current = GhafAccountBalanceCalculator.balance(for: target, transactions: transactions)
+                let difference = balance - current
+                if difference != 0 {
+                    let parsed = ParsedTransaction(amount: abs(difference), currency: currency,
+                                                   merchant: ar ? "تعديل الرصيد" : "Balance adjustment", date: .now,
+                                                   direction: difference > 0 ? .credit : .debit, confidence: 1, bank: nil)
+                    modelContext.insert(GhafTransaction(fingerprint: "manual-adjust-\(UUID().uuidString)", parsed: parsed,
+                                                        category: "Adjustment", needsReview: false, isReversal: false,
+                                                        accountID: target.id))
+                }
+            } else {
+                // Another currency: earlier activity no longer counts, so the entered amount starts afresh.
+                target.currency = currency
+                target.openingBalance = balance
+                target.openingDate = .now
+            }
             target.creditLimit = Decimal(string: creditLimitText)
             target.lastFourDigits = lastFourDigits.isEmpty || isCash ? nil : lastFourDigits
             target.isArchived = false
