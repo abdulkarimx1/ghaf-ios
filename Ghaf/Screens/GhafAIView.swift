@@ -740,12 +740,17 @@ struct GhafAIView: View {
 
     private func enterVoiceMode() {
         inputFocused = false
+        GhafCloudAI.conversational = true
+        GhafCloudVoice.shared.onLevel = { level in speechDone.level = level }
         withAnimation(.spring(duration: 0.45)) { voiceMode = true }
         startVoice()
     }
 
     private func exitVoiceMode() {
         withAnimation(.spring(duration: 0.4)) { voiceMode = false }
+        GhafCloudAI.conversational = false
+        GhafCloudVoice.shared.stop()
+        speechDone.speaking = false
         listenAfterSpeaking = false
         recorder.reset()
         synthesizer.stopSpeaking(at: .immediate)
@@ -772,14 +777,17 @@ struct GhafAIView: View {
                 Spacer()
                 Button {
                     // Tap to interrupt Ghaf, or to start talking.
-                    if speechDone.speaking { synthesizer.stopSpeaking(at: .immediate); startVoice() }
+                    if speechDone.speaking {
+                        synthesizer.stopSpeaking(at: .immediate); GhafCloudVoice.shared.stop()
+                        speechDone.speaking = false; startVoice()
+                    }
                     else if recorder.isRecording { finishVoice() }
                     else if !isThinking { startVoice() }
                 } label: {
                     GhafAIOrb(theme: theme, active: (recorder.isRecording || isThinking || speechDone.speaking) && !reduceMotion)
                         .frame(width: 220, height: 220)
-                        .scaleEffect(1 + CGFloat(min(recorder.isRecording ? recorder.level : 0, 1)) * 0.25)
-                        .animation(.easeOut(duration: 0.12), value: recorder.level)
+                        .scaleEffect(1 + CGFloat(min(recorder.isRecording ? recorder.level : speechDone.level, 1)) * 0.25)
+                        .animation(.easeOut(duration: 0.12), value: recorder.isRecording ? recorder.level : speechDone.level)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(voiceStatus)
@@ -787,6 +795,25 @@ struct GhafAIView: View {
                     .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .contentTransition(.opacity)
+                if !GhafCloudAI.isEnabled {
+                    Button {
+                        UserDefaults.standard.set(true, forKey: GhafCloudAI.enabledKey)
+                        engine = assistant.engine
+                    } label: {
+                        Label(ar ? "فعّل الصوت الطبيعي والذكاء السحابي" : "Turn on the natural voice and Cloud AI", systemImage: "waveform.badge.plus")
+                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                            .padding(.horizontal, 16).frame(minHeight: 44)
+                            .background(theme.accent.opacity(0.12), in: Capsule())
+                            .foregroundStyle(theme.accent)
+                    }
+                    .buttonStyle(.ghafPress)
+                    Text(GhafCloudAI.disclosure(ar: ar))
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                        .lineLimit(4)
+                }
                 Text(recorder.isRecording ? recorder.transcript : lastReply)
                     .font(GhafTypography.body(recorder.isRecording ? 20 : 17, languageCode: settings.languageCode,
                                               weight: recorder.isRecording ? .semibold : .regular))
@@ -828,6 +855,26 @@ struct GhafAIView: View {
 
     private func speak(_ text: String, force: Bool = false) {
         guard speakReplies || force || voiceMode, !text.isEmpty else { return }
+        if voiceMode && GhafCloudAI.isEnabled {
+            let spoken = SpokenMoney.speakable(text, arabic: ar)
+            Task {
+                let played = await GhafCloudVoice.shared.speak(spoken, arabic: ar,
+                    onStart: { speechDone.speaking = true },
+                    onFinish: {
+                        speechDone.speaking = false
+                        guard listenAfterSpeaking || voiceMode else { return }
+                        listenAfterSpeaking = false
+                        startVoice()
+                    })
+                if !played { speakOnDevice(text) }
+            }
+            return
+        }
+        speakOnDevice(text)
+    }
+
+    /// The iPhone's own voice: used outside voice mode, without Cloud AI, or when the server is unreachable.
+    private func speakOnDevice(_ text: String) {
         // The microphone leaves the session in .record, where speech is silent.
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
@@ -932,6 +979,8 @@ final class GhafSpeechDone: NSObject, AVSpeechSynthesizerDelegate {
     var onFinish: (@MainActor () -> Void)?
     /// Whether Ghaf is talking right now, for the voice mode's status line.
     var speaking = false
+    /// Loudness of Ghaf's own voice (cloud voice only), so the orb moves with it.
+    var level: Float = 0
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         Task { @MainActor in self.speaking = true }
     }

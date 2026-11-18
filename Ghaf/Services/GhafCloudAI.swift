@@ -12,6 +12,8 @@ enum GhafCloudAI {
     enum Failure: Error { case dailyLimit, unavailable }
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
+    /// Set while Ghaf AI's voice mode is open: replies come back short and conversational.
+    @MainActor static var conversational = false
 
     /// What turning it on means, shown wherever it can be switched on.
     static func disclosure(ar: Bool) -> String {
@@ -43,7 +45,8 @@ enum GhafCloudAI {
             "facts": minimized(facts),
             "direct": direct ?? "",
             "language": languageCode,
-            "history": history.suffix(6).map { ["isUser": $0.isUser, "text": $0.text] }
+            "history": history.suffix(6).map { ["isUser": $0.isUser, "text": $0.text] },
+            "mode": await conversational ? "voice" : "chat"
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)

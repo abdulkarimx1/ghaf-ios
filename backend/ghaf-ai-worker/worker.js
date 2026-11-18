@@ -10,7 +10,8 @@ const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary,
 
 export default {
   async fetch(request, env) {
-    if (request.method !== "POST" || new URL(request.url).pathname !== "/chat") {
+    const path = new URL(request.url).pathname;
+    if (request.method !== "POST" || !["/chat", "/speak"].includes(path)) {
       return json({ error: "not_found" }, 404);
     }
     const developer = env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN;
@@ -22,7 +23,8 @@ export default {
 
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
-    const { question, facts = "", direct = "", language = "en", history = [] } = body;
+    if (path === "/speak") return speak(body, env, developer, device);
+    const { question, facts = "", direct = "", language = "en", history = [], mode = "chat" } = body;
     if (typeof question !== "string" || !question.trim()) return json({ error: "missing_question" }, 400);
 
     const system = [
@@ -32,6 +34,7 @@ export default {
       "If a DIRECT ANSWER is given, keep every number in it and add at most one short, useful tip.",
       "If the message is not about money, reply in one light, friendly line, then offer one thing you can do.",
       `Reply in ${language === "ar" ? "Arabic (Gulf-friendly Modern Standard Arabic)" : "English"}, in 1-4 short sentences.`,
+      mode === "voice" ? "This reply is spoken aloud in a live voice conversation: 1-2 short, natural sentences, no lists, symbols or currency codes (say 'dirhams'), and end with a brief follow-up question when it helps the person continue." : "",
       "",
       "FACTS:", String(facts).slice(0, 8000),
       direct ? `\nDIRECT ANSWER FROM THE LEDGER: ${direct}` : ""
@@ -96,14 +99,64 @@ export default {
   }
 };
 
+// Text to speech for Ghaf AI's voice mode. Gemini's speech model first (Arabic and English);
+// Deepgram Aura on Workers AI for English when Gemini is unavailable. Returns audio bytes.
+async function speak(body, env, developer, device) {
+  const text = String(body.text || "").trim().slice(0, 700);
+  const arabic = body.language === "ar";
+  if (!text) return json({ error: "missing_text" }, 400);
+  if (!developer) {
+    const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 60));
+    if (limited) return json({ error: "limit", scope: limited }, 429);
+  }
+  if (env.GEMINI_API_KEY) {
+    const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.TTS_MODEL || "gemini-2.5-flash-preview-tts"}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: (arabic ? "قلها بنبرة دافئة وطبيعية: " : "Say warmly and naturally: ") + text }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: arabic ? "Kore" : "Aoede" } } }
+        }
+      })
+    });
+    if (upstream.ok) {
+      const data = await upstream.json();
+      const b64 = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+      if (b64) return new Response(wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0))),
+                                   { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini" } });
+    }
+  }
+  if (!arabic && env.AI) {
+    try {
+      const audio = await env.AI.run("@cf/deepgram/aura-1", { text, speaker: "asteria" }, { returnRawResponse: true });
+      const bytes = audio instanceof Response ? await audio.arrayBuffer() : audio;
+      if (bytes && bytes.byteLength > 0) return new Response(bytes, { headers: { "Content-Type": "audio/mpeg", "X-Ghaf-Voice": "aura" } });
+    } catch (error) { /* fall through */ }
+  }
+  return json({ error: "unavailable" }, 503);
+}
+
+// Gemini returns raw 24 kHz 16-bit mono PCM; wrap it in a WAV header so iOS can play it directly.
+function wav(pcm) {
+  const header = new ArrayBuffer(44), v = new DataView(header), rate = 24000;
+  const put = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  put(0, "RIFF"); v.setUint32(4, 36 + pcm.length, true); put(8, "WAVE"); put(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); put(36, "data"); v.setUint32(40, pcm.length, true);
+  const out = new Uint8Array(44 + pcm.length); out.set(new Uint8Array(header), 0); out.set(pcm, 44);
+  return out;
+}
+
 // Counts this request and reports which daily limit, if any, it would exceed.
 // KV is eventually consistent, so a burst can overshoot slightly; good enough for a free-quota guard.
-async function overLimit(env, device) {
+async function overLimit(env, device, kind = "d", deviceLimit = Number(env.FREE_DAILY_LIMIT || 20)) {
   const day = new Date().toISOString().slice(0, 10);
-  const deviceKey = `d:${day}:${device}`, globalKey = `g:${day}`;
+  const deviceKey = `${kind}:${day}:${device}`, globalKey = `g:${day}`;
   const [used, all] = await Promise.all([env.USAGE.get(deviceKey), env.USAGE.get(globalKey)]);
   const deviceCount = Number(used || 0), globalCount = Number(all || 0);
-  if (deviceCount >= Number(env.FREE_DAILY_LIMIT || 20)) return "device";
+  if (deviceCount >= deviceLimit) return "device";
   if (globalCount >= Number(env.GLOBAL_DAILY_LIMIT || 1000)) return "global";
   const ttl = { expirationTtl: 172800 };
   await Promise.all([env.USAGE.put(deviceKey, String(deviceCount + 1), ttl), env.USAGE.put(globalKey, String(globalCount + 1), ttl)]);
