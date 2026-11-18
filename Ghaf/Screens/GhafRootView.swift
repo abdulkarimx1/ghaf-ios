@@ -65,7 +65,11 @@ struct GhafRootView: View {
                 GhafDigestNotifications.reschedule(context: modelContext)
                 GhafWidgetSync.refresh(context: modelContext)
             }
-            if phase == .active { Task { await GhafWidgetSync.endStale() } }
+            if phase == .active {
+                // Also on open, so widgets get numbers even if Ghaf is never sent to the background cleanly.
+                GhafWidgetSync.refresh(context: modelContext)
+                Task { await GhafWidgetSync.endStale() }
+            }
             if phase == .active { Task { await GhafExchangeRates.refreshIfStale() } }
             if phase != .active {
                 if requiresAuthentication { isUnlocked = false }

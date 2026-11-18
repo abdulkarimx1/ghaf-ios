@@ -1,18 +1,18 @@
 # Changelog
 
-## 1.18 (30)
+## 1.18 (31)
 
 ### English
 - New Budget card in Stats: your income split 50/30/20 into Needs, Wants and Savings, with what you actually spent in each this month (or salary cycle) and whether you're under or over plan so far. Add your income in More › Budget & categories.
 - Bank automation is now four big numbered cards you swipe through, with arrows and dots.
 - The Stats trend card now follows your theme in light and dark mode.
-- Widgets: Ghaf now uses any App Group your install tool's profile grants, not only the original name. If widgets still can't connect, More › Notifications shows exactly what the profile allows.
+- Widgets: Ghaf now uses any App Group your install tool's profile grants, not only the original name. If widgets still can't connect, More › Notifications shows exactly what the profile allows, and an empty widget shows what it can reach. Widgets also update every time you open Ghaf.
 
 ### العربية
 - بطاقة ميزانية جديدة في الإحصائيات: دخلك مقسّم ٥٠/٣٠/٢٠ على الأساسيات والرغبات والادخار، مع ما صرفته فعلاً في كل منها هذا الشهر (أو دورة الراتب)، وهل أنت تحت الخطة أو فوقها حتى الآن. أضف دخلك من المزيد › الميزانية والفئات.
 - أتمتة البنك أصبحت أربع بطاقات كبيرة مرقّمة تتصفحها بالسحب، مع أسهم ونقاط.
 - بطاقة الاتجاه في الإحصائيات تتبع ثيمك الآن في الوضع الفاتح والداكن.
-- الودجت: يستخدم غاف الآن أي مجموعة تطبيق يمنحها ملف التوقيع في أداة التثبيت، وليس الاسم الأصلي فقط. وإذا لم تتصل الودجت، تعرض المزيد › الإشعارات ما يسمح به الملف بالضبط.
+- الودجت: يستخدم غاف الآن أي مجموعة تطبيق يمنحها ملف التوقيع في أداة التثبيت، وليس الاسم الأصلي فقط. وإذا لم تتصل الودجت، تعرض المزيد › الإشعارات ما يسمح به الملف بالضبط، والودجت الفارغة تعرض ما تصل إليه. وتتحدث الودجت كلما فتحت غاف.
 
 ## 1.17 (29)
 

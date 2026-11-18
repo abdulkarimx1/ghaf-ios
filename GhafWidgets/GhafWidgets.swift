@@ -85,6 +85,11 @@ private struct OpenGhaf: View {
         VStack(spacing: 6) {
             Image(systemName: "arrow.up.forward.app").font(.system(size: 18, weight: .semibold))
             Text("Open Ghaf to load your numbers").font(.caption.weight(.semibold)).multilineTextAlignment(.center)
+            // What this widget can reach, so a sideloaded install with mismatched sharing can be diagnosed.
+            Text("Widget · group \(GhafWidgetSnapshot.hasSharedContainer ? "✓" : "✗") \(GhafWidgetSnapshot.groupID) · keychain \(GhafWidgetKeychain.read() != nil ? "✓" : (GhafWidgetKeychain.accessGroup == nil ? "✗" : "empty"))")
+                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .opacity(0.6)
         }
         .foregroundStyle(ink)
     }
