@@ -51,6 +51,7 @@ struct GhafSettingsView: View {
     @State private var categoryToRemove: String?
     @State private var editingCategory: String?
     @State private var categoryDraftName = ""
+    @State private var showCategories = false
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -91,7 +92,7 @@ struct GhafSettingsView: View {
 
                     menuGroup(ar ? "المال" : "Money") {
                         menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
-                        menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { categoriesCard; budgetCard } }
+                        menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { budgetPage } }
                         menuRow(ar ? "دورة الراتب" : "Salary cycle", icon: "calendar.badge.clock") { GhafSalarySettingsView(settings: settings) }
                         menuRow(ar ? "ربط البنك تلقائياً" : "Bank automation", icon: "bolt.fill") { GhafAutomationGuideView(settings: settings) }
                     }
@@ -136,6 +137,7 @@ struct GhafSettingsView: View {
                 .frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
+            .ghafStatusBarFade(theme: theme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
@@ -278,14 +280,13 @@ struct GhafSettingsView: View {
     private func subpage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         ScrollView {
             VStack(spacing: 16) { content() }
-                .padding(20)
+                .padding(.horizontal, GhafMetrics.gutter).padding(.top, 8).padding(.bottom, 32)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
         .ghafKeyboardDone()
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
+        .ghafPageTitle(title, languageCode: languageCode, theme: theme)
         .toolbar(.visible, for: .navigationBar)
         .tint(theme.accent)
     }
@@ -312,7 +313,8 @@ struct GhafSettingsView: View {
                 }
                 .buttonStyle(.ghafPress).disabled(drive.isBusy)
                 Button(ar ? "قطع الاتصال" : "Disconnect", role: .destructive) { drive.signOut() }
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
             } else {
                 Button { Task { await driveRun { try await drive.signIn() } } } label: {
                     Label(ar ? "تسجيل الدخول عبر Google" : "Sign in with Google", systemImage: "person.crop.circle.badge.plus")
@@ -382,7 +384,8 @@ struct GhafSettingsView: View {
                     Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
                         GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
                     }
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                    .frame(minHeight: 44)
                 }
                 Text(name.isEmpty ? (ar ? "مرحباً بك في غاف" : "Welcome to Ghaf") : name)
                     .font(GhafTypography.display(26, languageCode: languageCode))
@@ -410,14 +413,14 @@ struct GhafSettingsView: View {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(theme.accent)
-                .frame(width: 30, height: 30)
-                .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                .frame(width: 36, height: 36)
+                .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 11))
             VStack(alignment: .leading, spacing: 1) {
                 Text(value)
                     .font(GhafTypography.number(17, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                 Text(title)
-                    .font(GhafTypography.body(8, languageCode: languageCode, weight: .bold))
+                    .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
                     .tracking(languageCode == "ar" ? 0 : 0.8)
                     .foregroundStyle(theme.secondaryText)
             }
@@ -482,7 +485,10 @@ struct GhafSettingsView: View {
     private var appearanceCard: some View {
         settingsCard(languageCode == "ar" ? "المظهر" : "Appearance", subtitle: languageCode == "ar" ? "سبع مدن، كلٌّ بوضع فاتح وداكن" : "Seven cities, each in light and dark") {
             settingsLabel(languageCode == "ar" ? "النمط" : "Theme")
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], spacing: 10) {
+            // One swipeable row instead of a tall grid: the page fits without scrolling past seven cities.
+            ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+              HStack(spacing: 10) {
                 ForEach(GhafTheme.themeNames, id: \.self) { option in
                     let preview = GhafTheme.resolve(name: option, appearanceMode: appearanceMode,
                                                     systemIsDark: theme.isDark)
@@ -514,7 +520,7 @@ struct GhafSettingsView: View {
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
                         .padding(.horizontal, 8).padding(.top, 10).padding(.bottom, 8)
-                        .frame(maxWidth: .infinity, minHeight: 140)
+                        .frame(width: 112, height: 140)
                         .background(preview.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -525,7 +531,14 @@ struct GhafSettingsView: View {
                     .sensoryFeedback(.selection, trigger: themeName)
                     .accessibilityLabel(themeTitle(option))
                     .accessibilityAddTraits(themeName == option ? .isSelected : [])
+                    .id(option)
                 }
+              }
+              .padding(2)
+            }
+            .scrollIndicators(.hidden)
+            // Open on the chosen city (also keeps Arabic from starting at the far end of the row).
+            .onAppear { proxy.scrollTo(themeName, anchor: .center) }
             }
 
             settingsLabel(languageCode == "ar" ? "وضع المظهر" : "Appearance mode")
@@ -580,22 +593,34 @@ HStack(spacing: 8) {
             )) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(languageCode == "ar" ? "القفل بالبصمة أو رمز الجهاز" : "Require Face ID or device passcode")
-                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                        .font(GhafTypography.body(16, languageCode: languageCode, weight: .bold))
                         .foregroundStyle(theme.primaryText)
                     Text(languageCode == "ar"
                         ? "يتطلب المصادقة عند فتح غاف أو العودة إليه."
                         : "Authenticate when opening Ghaf or returning to it.")
-                        .font(GhafTypography.body(11, languageCode: languageCode))
+                        .font(GhafTypography.body(13, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
             }
             .tint(theme.accent)
+            .frame(minHeight: 52)
 
             Text(languageCode == "ar"
                 ? "يستخدم غاف آلية المصادقة الآمنة في iOS. قد يطلب رمز دخول الجهاز إذا لم تكن البصمة متاحة."
                 : "Ghaf uses iOS device authentication. Your device passcode may be requested when biometrics are unavailable.")
                 .font(GhafTypography.body(11, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+        }
+    }
+
+    /// Budget and categories behind two big tabs, so the page is one card tall instead of two.
+    private var budgetPage: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 10) {
+                choiceButton(ar ? "الميزانية" : "Budget", detail: nil, selected: !showCategories) { showCategories = false }
+                choiceButton(ar ? "الفئات" : "Categories", detail: nil, selected: showCategories) { showCategories = true }
+            }
+            if showCategories { categoriesCard } else { budgetCard }
         }
     }
 
@@ -636,8 +661,8 @@ HStack(spacing: 8) {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 106)
-                            .padding(10)
-                            .background(theme.background, in: RoundedRectangle(cornerRadius: 10))
+                            .padding(.horizontal, 12).frame(minHeight: 46)
+                            .background(theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                 }
             }
@@ -903,31 +928,32 @@ HStack(spacing: 8) {
         TextField(placeholder, text: text)
             .font(GhafTypography.body(15, languageCode: languageCode))
             .keyboardType(numeric ? .decimalPad : .default)
-            .padding(13)
-            .background(theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.outline, lineWidth: 1))
+            .padding(.horizontal, 14).frame(minHeight: 50)
+            .background(theme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.outline, lineWidth: 1))
     }
 
     private func settingsActionRow(_ title: String, detail: String, icon: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(theme.accent)
-                .frame(width: 30)
-            VStack(alignment: .leading, spacing: 3) {
+                .frame(width: 44, height: 44)
+                .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                 Text(detail)
-                    .font(GhafTypography.body(11, languageCode: languageCode))
+                    .font(GhafTypography.body(13, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.forward")
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(theme.secondaryText)
         }
-        .padding(.vertical, 7)
+        .frame(minHeight: 60)
         .contentShape(Rectangle())
     }
 

@@ -51,6 +51,8 @@ struct GhafScreenTitle: View {
     let subtitle: String?
     let languageCode: String
     let theme: GhafTheme
+    /// For screens shown as a sheet: a 44pt close button level with the title.
+    var onClose: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 4) {
@@ -65,7 +67,24 @@ struct GhafScreenTitle: View {
             }
         }
         .multilineTextAlignment(.center)
+        .padding(.horizontal, onClose == nil ? 0 : 48)
         .frame(maxWidth: .infinity)
+        .overlay(alignment: .topTrailing) {
+            if let onClose {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(theme.surface, in: Circle())
+                        .shadow(color: theme.shadow, radius: 8, y: 3)
+                }
+                .buttonStyle(.ghafPress)
+                .accessibilityLabel(languageCode == "ar" ? "إغلاق" : "Close")
+            }
+        }
+        // Sheets put their grabber over the top 20pt; keep the title clear of it.
+        .padding(.top, onClose == nil ? 0 : 16)
     }
 }
 
@@ -113,5 +132,51 @@ struct GhafLaunchSplash: View {
         .ignoresSafeArea()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("غاف")
+    }
+}
+
+extension View {
+    /// More's pages (and Wallet): one big centred title in the bar's own row, next to the back button,
+    /// so pages start with content instead of a second title row. Same look as Home and About Ghaf.
+    func ghafPageTitle(_ title: String, languageCode: String, theme: GhafTheme) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(title)
+                        .font(GhafTypography.display(24, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+    }
+}
+
+extension View {
+    /// Sheets don't inherit the app's Arabic right-to-left direction; set it again at each sheet's root.
+    func ghafDirection(_ languageCode: String) -> some View {
+        environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
+            .environment(\.locale, Locale(identifier: languageCode))
+    }
+}
+
+extension View {
+    /// Screens that hide the navigation bar: fade content out under the status bar so text never
+    /// scrolls behind the clock and battery.
+    func ghafStatusBarFade(theme: GhafTheme) -> some View {
+        overlay(alignment: .top) {
+            GeometryReader { geometry in
+                let top = geometry.safeAreaInsets.top, fade: CGFloat = 18
+                LinearGradient(stops: [.init(color: theme.background, location: 0),
+                                       .init(color: theme.background, location: top / (top + fade)),
+                                       .init(color: theme.background.opacity(0), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: top + fade)
+                    .offset(y: -top)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
     }
 }

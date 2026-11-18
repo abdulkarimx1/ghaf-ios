@@ -65,8 +65,7 @@ struct GhafLearnedRulesView: View {
         }
         .scrollContentBackground(.hidden)
         .ghafBackground(theme: theme)
-        .navigationTitle(ar ? "ما تعلّمه غاف" : "What Ghaf learned")
-        .navigationBarTitleDisplayMode(.inline)
+        .ghafPageTitle(ar ? "ما تعلّمه غاف" : "What Ghaf learned", languageCode: settings.languageCode, theme: theme)
         .toolbar(.visible, for: .navigationBar)
         .confirmationDialog(ar ? "مسح كل القواعد المتعلَّمة؟" : "Reset all learned rules?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button(ar ? "مسح" : "Reset", role: .destructive) {

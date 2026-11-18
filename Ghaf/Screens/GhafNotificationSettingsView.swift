@@ -84,8 +84,7 @@ struct GhafNotificationSettingsView: View {
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
-        .navigationTitle(ar ? "الإشعارات" : "Notifications")
-        .navigationBarTitleDisplayMode(.inline)
+        .ghafPageTitle(ar ? "الإشعارات" : "Notifications", languageCode: settings.languageCode, theme: theme)
         .task { await refreshPermission() }
         .sheet(item: $proFeature) { GhafProSheet(settings: settings, feature: ($0.en, $0.ar)) }
         .onChange(of: liveActivity) { _, on in if on { proFeature = ProFeature(en: "Live Activities", ar: "النشاط المباشر") } }

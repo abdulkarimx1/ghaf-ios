@@ -50,7 +50,7 @@ struct GhafProView: View {
           ar ? "كل عملية جديدة تظهر على شاشة القفل وفي Dynamic Island." : "Each new purchase on the Lock Screen and in the Dynamic Island."),
          ("waveform", ar ? "صوت غاف AI المتقدم" : "Ghaf AI advanced voice",
           ar ? "محادثة صوتية طبيعية بالعربي والإنجليزي." : "Natural voice conversation in Arabic and English."),
-         ("heart.fill", ar ? "دعم مطوّر إماراتي" : "Support an Emirati-made app",
+         ("heart.fill", ar ? "ادعم تطبيقاً من الإمارات" : "Support an app built in the UAE",
           ar ? "كل اشتراك يبني غاف وتطبيقات أفضل." : "Every plan builds Ghaf and better apps.")]
     }
 
@@ -127,7 +127,7 @@ struct GhafProView: View {
                     Text(GhafWhyPaidView.message(ar: ar))
                         .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         .lineSpacing(4)
-                    Text(ar ? "— مطوّر غاف، من الإمارات 🇦🇪" : "— Ghaf's developer, from the UAE 🇦🇪")
+                    Text(ar ? "— مطوّر غاف" : "— Ghaf's developer")
                         .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
                 }
                 .multilineTextAlignment(.center)
@@ -253,8 +253,7 @@ struct GhafTermsView: View {
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
-        .navigationTitle(ar ? "الشروط" : "Terms")
-        .navigationBarTitleDisplayMode(.inline)
+        .ghafPageTitle(ar ? "الشروط" : "Terms", languageCode: lang, theme: theme)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 

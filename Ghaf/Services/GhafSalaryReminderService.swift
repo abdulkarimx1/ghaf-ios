@@ -327,8 +327,7 @@ struct GhafSalarySettingsView: View {
         .scrollContentBackground(.hidden)
         .background(theme.background)
         .tint(theme.accent)
-        .navigationTitle(settings.languageCode == "ar" ? "إعداد الراتب" : "Salary settings")
-        .navigationBarTitleDisplayMode(.inline)
+        .ghafPageTitle(settings.languageCode == "ar" ? "إعداد الراتب" : "Salary settings", languageCode: settings.languageCode, theme: theme)
         .onAppear(perform: load)
     }
 

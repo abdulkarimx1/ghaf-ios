@@ -9,6 +9,7 @@ private struct GhafCategoryTotal: Identifiable {
 }
 
 struct GhafInsightsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var systemColorScheme
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
@@ -70,7 +71,7 @@ struct GhafInsightsView: View {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     GhafScreenTitle(title: settings.languageCode == "ar" ? "التحليلات" : "Insights",
                                     subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
-                                    languageCode: settings.languageCode, theme: theme)
+                                    languageCode: settings.languageCode, theme: theme, onClose: { dismiss() })
                     headlineCard.ghafEntrance(0)
                     forecastCard.ghafEntrance(1)
                     categoryChart(totals).ghafEntrance(2)
@@ -85,6 +86,7 @@ struct GhafInsightsView: View {
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
         }
+        .ghafDirection(settings.languageCode)
     }
 
     /// Month-end projection from this month's pace and the usual month (statistics, not a promise).

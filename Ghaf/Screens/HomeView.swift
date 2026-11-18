@@ -128,6 +128,7 @@ struct GhafHomeView: View {
             }
             .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
+            .ghafStatusBarFade(theme: theme)
             .onChange(of: router.homeReselects) { _, _ in
                 withAnimation(.spring(duration: 0.45, bounce: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
             }

@@ -1,9 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Accounts as a swipeable row of cards, one at a time with the next one peeking, like a wallet app.
-/// The balance is printed on the card; round actions and the card's details sit underneath.
-/// Scales to any number of cards without compressing them.
+/// Accounts as an Apple Pay style deck (canvas "Wallet"): the chosen card's balance on top, the card in front
+/// with its neighbours peeking, dots, four round actions and the card's latest purchases.
 struct GhafWalletStack: View {
     let accounts: [GhafAccount]
     let balances: [UUID: Decimal]
@@ -22,13 +21,30 @@ struct GhafWalletStack: View {
     private var ar: Bool { languageCode == "ar" }
     private var current: GhafAccount? { accounts.first { $0.id == selectedID } ?? accounts.first }
 
+    private var index: Int { accounts.firstIndex { $0.id == current?.id } ?? 0 }
+
     var body: some View {
         VStack(spacing: 18) {
-            carousel
+            if let account = current {
+                // "<card> balance" over a big number, like the canvas; the card itself stays clean.
+                VStack(spacing: 2) {
+                    Text(ar ? "رصيد \(account.name)" : "\(account.name) balance")
+                        .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+                    GhafMoneyLabel(amount: balances[account.id] ?? account.openingBalance, currency: account.currency,
+                                   languageCode: languageCode, size: 40)
+                        .foregroundStyle(theme.primaryText)
+                        .contentTransition(.numericText())
+                }
+                .padding(.top, 6)
+                .accessibilityElement(children: .combine)
+            }
+            deck
             if accounts.count > 1 { pageIndicator }
             if let account = current {
                 actions(account)
-                details(account).id(account.id).transition(.opacity)
+                recent(account).id(account.id).transition(.opacity)
             }
         }
         .animation(.snappy, value: selectedID)
@@ -41,68 +57,79 @@ struct GhafWalletStack: View {
 
     // MARK: Cards
 
-    private var carousel: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 12) {
-                ForEach(accounts) { account in
-                    card(account)
-                        .containerRelativeFrame(.horizontal) { width, _ in width - 2 * GhafMetrics.gutter - 16 }
-                        .scrollTransition(axis: .horizontal) { content, phase in
-                            content.scaleEffect(phase.isIdentity ? 1 : 0.94).opacity(phase.isIdentity ? 1 : 0.7)
-                        }
+    @State private var drag: CGFloat = 0
+
+    /// Apple Pay style: the chosen card in front, its neighbours tucked behind and peeking on each side.
+    private var deck: some View {
+        // Canvas: a 250pt card on a 390pt screen, neighbours shifted 52pt and scaled to 0.86.
+        let width = min((UIScreen.main.bounds.width) * 0.64, 300)
+        let step = width * 0.208
+        // SwiftUI mirrors offsets in Arabic but drag translations stay physical, so only the drag is flipped.
+        let sign: CGFloat = ar ? -1 : 1
+        return ZStack {
+            Ellipse()
+                .fill(theme.accent.opacity(0.55))
+                .frame(width: width * 0.8, height: 60)
+                .blur(radius: 22)
+                .offset(y: width / 1.586 / 2 + 6)
+            ForEach(Array(accounts.enumerated()), id: \.element.id) { k, account in
+                let d = k - index
+                if abs(d) <= 2 {
+                    GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
+                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
+                        .brightness(d == 0 ? 0 : -0.14)
+                        .scaleEffect(d == 0 ? 1 : 0.86)
+                        .offset(x: CGFloat(d) * step + sign * drag)
+                        .opacity(abs(d) > 1 ? 0 : 1)
+                        .zIndex(Double(10 - abs(d)))
+                        .onTapGesture { selectedID = account.id }
                         .contextMenu {
                             Button { onEdit(account) } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
-                            Button { onMove(account, -1) } label: { Label(ar ? "نقل لليسار" : "Move earlier", systemImage: "arrow.backward") }
+                            Button { onMove(account, -1) } label: { Label(ar ? "نقل للأمام" : "Move earlier", systemImage: "arrow.backward") }
                                 .disabled(account.id == accounts.first?.id)
-                            Button { onMove(account, 1) } label: { Label(ar ? "نقل لليمين" : "Move later", systemImage: "arrow.forward") }
+                            Button { onMove(account, 1) } label: { Label(ar ? "نقل للخلف" : "Move later", systemImage: "arrow.forward") }
                                 .disabled(account.id == accounts.last?.id)
                         }
+                        .accessibilityHidden(true)
                 }
             }
-            .scrollTargetLayout()
         }
-        .contentMargins(.horizontal, GhafMetrics.gutter, for: .scrollContent)
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: $selectedID)
-        .scrollIndicators(.hidden)
-        .scrollClipDisabled()
-        // The row runs edge to edge; the cards keep the page's margins.
-        .padding(.horizontal, -GhafMetrics.gutter)
-    }
-
-    private func card(_ account: GhafAccount) -> some View {
-        GeometryReader { geometry in
-            GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
-                         lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: geometry.size.width)
-                .overlay(alignment: .topLeading) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(account.name)
-                            .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
-                            .lineLimit(1)
-                        GhafMoneyLabel(amount: balances[account.id] ?? account.openingBalance, currency: account.currency,
-                                       languageCode: languageCode, size: 26)
-                            .environment(\.layoutDirection, .leftToRight)
+        .frame(maxWidth: .infinity)
+        .frame(height: width / 1.586 + 50)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 12)
+                .onChanged { drag = $0.translation.width * 0.6 }
+                .onEnded { value in
+                    let move = sign * value.predictedEndTranslation.width
+                    var next = index
+                    if move < -step { next = min(index + 1, accounts.count - 1) }
+                    if move > step { next = max(index - 1, 0) }
+                    withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
+                        selectedID = accounts[next].id
+                        drag = 0
                     }
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.45), radius: 6, y: 1)
-                    .padding(.horizontal, 14).padding(.vertical, 12)
-                    .background(
-                        // A soft scrim so the balance reads on any card art.
-                        LinearGradient(colors: [.black.opacity(0.42), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .padding(10)
                 }
+        )
+        .animation(.spring(duration: 0.45, bounce: 0.2), value: selectedID)
+        .accessibilityElement()
+        .accessibilityLabel(current?.name ?? "")
+        .accessibilityValue(ar ? "بطاقة \(index + 1) من \(accounts.count)" : "Card \(index + 1) of \(accounts.count)")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: selectedID = accounts[min(index + 1, accounts.count - 1)].id
+            case .decrement: selectedID = accounts[max(index - 1, 0)].id
+            @unknown default: break
+            }
         }
-        .aspectRatio(1.586, contentMode: .fit)
-        .accessibilityElement(children: .combine)
     }
 
     private var pageIndicator: some View {
         Group {
-            if accounts.count <= 8 {
+            if accounts.count <= 12 {
                 HStack(spacing: 6) {
                     ForEach(accounts) { account in
-                        Capsule().fill(account.id == current?.id ? theme.accent : theme.secondaryText.opacity(0.25))
+                        Capsule().fill(account.id == current?.id ? theme.primaryText : theme.secondaryText.opacity(0.25))
                             .frame(width: account.id == current?.id ? 20 : 7, height: 7)
                     }
                 }
@@ -146,68 +173,20 @@ struct GhafWalletStack: View {
         .buttonStyle(.ghafPress)
     }
 
-    private func details(_ account: GhafAccount) -> some View {
-        let own = transactions.filter { $0.accountID == account.id }.sorted { $0.date > $1.date }
-        let month = own.filter { GhafCalendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
-        let spent = month.reduce(Decimal.zero) { $0 + $1.spendingAmount }
-        let income = month.filter(\.isIncome).reduce(Decimal.zero) { $0 + $1.amount }
-        return VStack(spacing: 14) {
-            HStack(spacing: 10) {
-                stat(ar ? "صرف هذا الشهر" : "Spent this month", spent, account.currency, theme.over, "arrow.down.right")
-                stat(ar ? "دخل هذا الشهر" : "In this month", income, account.currency, theme.credit, "arrow.up.right")
-            }
-            GhafDetailCard(theme: theme) {
-                GhafDetailRow(label: ar ? "النوع" : "Type", text: typeTitle(account.type), theme: theme, languageCode: languageCode)
-                if let bank = account.institution, !bank.isEmpty {
-                    GhafDetailRow(label: ar ? "البنك" : "Bank", text: bank, theme: theme, languageCode: languageCode)
-                }
-                if let lastFour = account.lastFourDigits, !lastFour.isEmpty {
-                    GhafDetailRow(label: ar ? "البطاقة" : "Card", text: "•••• \(lastFour)", theme: theme, languageCode: languageCode)
-                }
-                GhafDetailRow(label: ar ? "العملة" : "Currency", text: account.currency, theme: theme, languageCode: languageCode, divider: false)
-            }
+    private func recent(_ account: GhafAccount) -> some View {
+        let own = transactions.filter { $0.accountID == account.id }.sorted { $0.date > $1.date }.prefix(3)
+        return Group {
             if !own.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(ar ? "آخر العمليات" : "Recent activity")
-                        .font(GhafTypography.heading(18, languageCode: languageCode))
-                        .foregroundStyle(theme.primaryText)
-                    VStack(spacing: 0) {
-                        ForEach(own.prefix(5), id: \.id) { item in
-                            GhafTransactionRow(transaction: item, theme: theme, languageCode: languageCode)
-                                .padding(.vertical, 4)
-                            if item.id != own.prefix(5).last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
-                        }
+                VStack(spacing: 0) {
+                    ForEach(own, id: \.id) { item in
+                        GhafTransactionRow(transaction: item, theme: theme, languageCode: languageCode)
+                            .frame(minHeight: 58)
+                        if item.id != own.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 6)
-                    .ghafCard(theme: theme)
                 }
+                .padding(.horizontal, 16).padding(.vertical, 6)
+                .ghafCard(theme: theme, radius: 22)
             }
-        }
-    }
-
-    private func stat(_ title: String, _ value: Decimal, _ currency: String, _ tint: Color, _ icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: icon)
-                .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
-                .foregroundStyle(tint)
-            GhafMoneyLabel(amount: value, currency: currency, languageCode: languageCode, size: 18)
-                .foregroundStyle(theme.primaryText)
-                .environment(\.layoutDirection, .leftToRight)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme, radius: 18)
-    }
-
-    private func typeTitle(_ type: GhafAccountType) -> String {
-        guard ar else { return type.titleKey }
-        switch type {
-        case .cash: return "محفظة نقدية"
-        case .debit: return "بطاقة خصم"
-        case .current: return "حساب جاري"
-        case .savings: return "حساب توفير"
-        case .credit: return "بطاقة ائتمان"
-        case .prepaid: return "بطاقة مسبقة الدفع"
         }
     }
 }

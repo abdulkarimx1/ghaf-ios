@@ -3,6 +3,7 @@ import SwiftData
 import GhafCore
 
 struct GhafSubscriptionsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \GhafSubscription.nextPaymentDate) private var subscriptions: [GhafSubscription]
@@ -35,7 +36,7 @@ struct GhafSubscriptionsView: View {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     GhafScreenTitle(title: ar ? "الاشتراكات" : "Subscriptions",
                                     subtitle: ar ? "التجديدات القادمة وتكلفتها" : "Renewals, costs and reminders",
-                                    languageCode: lang, theme: theme)
+                                    languageCode: lang, theme: theme, onClose: { dismiss() })
                         .ghafEntrance(0)
                     costCard.ghafEntrance(1)
                     monthTiles.ghafEntrance(1)
@@ -99,6 +100,7 @@ struct GhafSubscriptionsView: View {
                 GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription)
             }
         }
+        .ghafDirection(settings.languageCode)
     }
 
     private func daysUntil(_ date: Date) -> Int {
@@ -453,6 +455,7 @@ private struct GhafSubscriptionEditor: View {
                 Text(settings.languageCode == "ar" ? "لم يتغير شيء. حاول مرة أخرى." : "Nothing was changed. Please try again.")
             }
         }
+        .ghafDirection(settings.languageCode)
     }
 
     private func load() {
@@ -546,6 +549,7 @@ private struct GhafSubscriptionDetailView: View {
             }
             .onAppear(perform: load)
         }
+        .ghafDirection(settings.languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 

@@ -33,13 +33,6 @@ struct GhafAccountsView: View {
         let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
         ScrollView {
             VStack(spacing: GhafMetrics.sectionSpacing) {
-                let totals = GhafAccountBalanceCalculator.balancesByCurrency(accounts: activeAccounts, balances: balances)
-                GhafScreenTitle(title: lang == "ar" ? "محفظتك" : "Your wallet",
-                                subtitle: activeAccounts.isEmpty ? nil
-                                    : (lang == "ar" ? "الإجمالي " : "Total ") + totals.map { GhafFormat.shownMoney($0.amount, currency: $0.currency, languageCode: lang) }
-                                        .joined(separator: " · "),
-                                languageCode: lang, theme: theme)
-
                 if activeAccounts.isEmpty {
                     emptyState
                     Button {
@@ -61,19 +54,37 @@ struct GhafAccountsView: View {
                 }
             }
             .padding(.horizontal, GhafMetrics.gutter)
-            .padding(.top, 14)
+            .padding(.top, 4)
             .padding(.bottom, 30)
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
-        .navigationTitle(settings.languageCode == "ar" ? "الحسابات" : "Accounts")
-        .navigationBarTitleDisplayMode(.inline)
+        // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
+        .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
             }
         }
+    }
+
+    @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
+
+    private var eyeButton: some View {
+        Button {
+            withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
+        } label: {
+            Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
+                .font(.system(size: 17, weight: .bold))
+                .contentTransition(.symbolEffect(.replace))
+                .foregroundStyle(theme.primaryText)
+                .frame(width: 44, height: 44)
+        }
+        .sensoryFeedback(.impact(weight: .medium), trigger: hideBalances)
+        .accessibilityLabel(lang == "ar" ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
+                                         : (hideBalances ? "Show balances" : "Hide balances"))
     }
 
     private func moveAccount(_ account: GhafAccount, by offset: Int) {

@@ -56,8 +56,7 @@ struct GhafAboutView: View {
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
-        .navigationTitle(ar ? "عن غاف" : "About Ghaf")
-        .navigationBarTitleDisplayMode(.inline)
+        .ghafPageTitle(ar ? "عن غاف" : "About Ghaf", languageCode: lang, theme: theme)
         .environment(\.locale, Locale(identifier: lang))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .onAppear { withAnimation(.spring(duration: 0.8, bounce: 0.3)) { appeared = true } }
