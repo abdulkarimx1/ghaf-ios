@@ -125,7 +125,7 @@ enum GhafLedgerAnswers {
         }
 
         if has(["income", "earn", "salary", "received", "دخل", "راتب", "استلمت"]) {
-            let income = inCurrency.filter { $0.isIncome && period.interval.contains($0.date) }.reduce(Decimal.zero) { $0 + $1.amount }
+            let income = inCurrency.filter { period.interval.contains($0.date) }.reduce(Decimal.zero) { $0 + $1.incomeAmount }
             let net = income - spent
             return ar ? "دخلك \(label) \(money(income))، ومصروفك \(money(spent))، والصافي \(money(net))."
                       : "Income \(label) is \(money(income)) against \(money(spent)) spent, a net of \(money(net))."

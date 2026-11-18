@@ -100,8 +100,8 @@ struct GhafHomeView: View {
             if transaction.isExpense {
                 summary.spent += transaction.spendingAmount
                 byCategory[transaction.category, default: 0] += transaction.spendingAmount
-            } else if transaction.isIncome {
-                summary.income += transaction.amount
+            } else {
+                summary.income += transaction.incomeAmount
             }
         }
         summary.categories = byCategory.filter { $0.value > 0 }.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }

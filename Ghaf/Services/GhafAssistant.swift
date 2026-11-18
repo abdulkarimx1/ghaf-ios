@@ -45,7 +45,7 @@ enum GhafFinanceFacts {
             for currency in currencies {
                 let items = inPeriod.filter { $0.currency == currency }
                 let spent = spendingSum(items)
-                let income = sum(items.filter(\.isIncome))
+                let income = items.reduce(Decimal.zero) { $0 + $1.incomeAmount }
                 if spent > 0 || income > 0 {
                     lines.append("Spent \(label) (refunds subtracted): \(fmt(spent, currency: currency)) \(currency); income \(label): \(fmt(income, currency: currency)) \(currency); \(items.count) transactions.")
                 }

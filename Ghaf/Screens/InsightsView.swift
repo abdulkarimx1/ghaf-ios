@@ -36,16 +36,12 @@ struct GhafInsightsView: View {
         monthTransactions.filter(\.isExpense)
     }
 
-    private var incomeTransactions: [GhafTransaction] {
-        monthTransactions.filter(\.isIncome)
-    }
-
     private var totalExpenses: Decimal {
         expenses.reduce(Decimal.zero) { $0 + $1.spendingAmount }
     }
 
     private var totalIncome: Decimal {
-        incomeTransactions.reduce(Decimal.zero) { $0 + $1.amount }
+        monthTransactions.reduce(Decimal.zero) { $0 + $1.incomeAmount }
     }
 
     private var categoryTotals: [GhafCategoryTotal] {
