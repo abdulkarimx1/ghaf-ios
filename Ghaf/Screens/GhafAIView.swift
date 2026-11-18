@@ -3,6 +3,7 @@ import SwiftData
 import AVFoundation
 import Charts
 import GhafCore
+import OSLog
 
 private struct GhafChatMessage: Identifiable {
     enum DraftState { case pending, saved, discarded }
@@ -18,6 +19,23 @@ private struct GhafChatMessage: Identifiable {
     var suggestions: [String] = []
     /// Transactions created when the drafts were saved, so later corrections can update them.
     var savedIDs: [UUID] = []
+    /// "From 312 of your transactions · November", on answers computed from the ledger.
+    var source: String?
+
+    init(isUser: Bool, text: String, isVoice: Bool = false, isStreaming: Bool = false,
+         drafts: [GhafVoiceTransactionDraft] = [], chart: GhafChatChart? = nil, suggestions: [String] = []) {
+        self.isUser = isUser; self.text = text; self.isVoice = isVoice; self.isStreaming = isStreaming
+        self.drafts = drafts; self.chart = chart; self.suggestions = suggestions
+    }
+
+    init(_ stored: GhafStoredChatMessage) {
+        self.init(isUser: stored.isUser, text: stored.text, isVoice: stored.isVoice, chart: stored.chart)
+        source = stored.source
+    }
+
+    var stored: GhafStoredChatMessage {
+        GhafStoredChatMessage(isUser: isUser, text: text, isVoice: isVoice, source: source, chart: chart)
+    }
 }
 
 struct GhafAIView: View {
@@ -28,6 +46,10 @@ struct GhafAIView: View {
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     @Query private var subscriptions: [GhafSubscription]
     @Query(sort: \MerchantCategoryRule.hits, order: .reverse) private var rules: [MerchantCategoryRule]
+    @Query(sort: \GhafChat.updatedAt, order: .reverse) private var chats: [GhafChat]
+    /// The saved chat the open conversation belongs to; nil until its first message is kept.
+    @State private var chatID: UUID?
+    @State private var showHistory = false
 
     @StateObject private var assistant = GhafAssistant()
     @StateObject private var recorder = GhafSpeechRecorder()
@@ -114,8 +136,11 @@ struct GhafAIView: View {
             .onAppear { engine = assistant.engine }
             .onDisappear {
                 recorder.reset()
-                synthesizer.stopSpeaking(at: .immediate)
+                stopSpeaking()
+                persistChat()
             }
+            .onChange(of: isThinking) { _, thinking in if !thinking { persistChat() } }
+            .onChange(of: messages.count) { _, _ in if !isThinking { persistChat() } }
         }
     }
 
@@ -130,57 +155,74 @@ struct GhafAIView: View {
             .overlay(Circle().stroke(.white.opacity(0.14)))
     }
 
-    private var header: some View {
-        HStack {
-            // Settings for this chat: engine, read-aloud, dictation. There is no saved chat history to list.
-            Menu {
-                Section(engineLabel) {
-                    if engine != .cloud {
-                        Button { offerCloud = true } label: {
-                            Label(ar ? "فعّل الذكاء السحابي" : "Turn on Cloud AI", systemImage: "cloud.fill")
-                        }
+    /// Engine, read-aloud and dictation; also reachable from the history sheet.
+    private var optionsMenu: some View {
+        Menu {
+            Section(engineLabel) {
+                if engine != .cloud {
+                    Button { offerCloud = true } label: {
+                        Label(ar ? "فعّل الذكاء السحابي" : "Turn on Cloud AI", systemImage: "cloud.fill")
                     }
                 }
-                Button {
-                    speakReplies.toggle()
-                    if !speakReplies { synthesizer.stopSpeaking(at: .immediate) }
-                } label: {
-                    Label(ar ? "قراءة الردود بصوت" : "Read replies aloud",
-                          systemImage: speakReplies ? "checkmark" : "speaker.slash")
-                }
-                Button { startVoice() } label: {
-                    Label(ar ? "إملاء رسالة" : "Dictate a message", systemImage: "mic.fill")
-                }
-                .disabled(isThinking || recorder.isRecording)
-            } label: {
-                glassCircle("line.3.horizontal")
             }
-            .accessibilityLabel(ar ? "خيارات غاف" : "Ghaf AI options")
+            Button { showHistory = true } label: {
+                Label(ar ? "المحادثات السابقة" : "Chat history", systemImage: "clock.arrow.circlepath")
+            }
+            Button {
+                speakReplies.toggle()
+                if !speakReplies { stopSpeaking() }
+            } label: {
+                Label(ar ? "قراءة الردود بصوت" : "Read replies aloud",
+                      systemImage: speakReplies ? "checkmark" : "speaker.slash")
+            }
+            Button { startVoice() } label: {
+                Label(ar ? "إملاء رسالة" : "Dictate a message", systemImage: "mic.fill")
+            }
+            .disabled(isThinking || recorder.isRecording)
+        } label: {
+            glassCircle("ellipsis")
+        }
+        .accessibilityLabel(ar ? "خيارات غاف" : "Ghaf AI options")
+    }
+
+    private var header: some View {
+        HStack {
+            if messages.isEmpty {
+                // As on the canvas: history on the start screen.
+                Button { showHistory = true } label: { glassCircle("line.3.horizontal") }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(ar ? "المحادثات السابقة" : "Chat history")
+            } else {
+                // Back to the start screen; the chat is already saved in history.
+                Button { startNewChat() } label: { glassCircle(ar ? "chevron.right" : "chevron.left") }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(ar ? "محادثة جديدة، المحادثة محفوظة" : "New chat, this one is saved")
+            }
             Spacer()
             if !messages.isEmpty {
                 HStack(spacing: 8) {
-                    GhafAIOrb(theme: theme, active: (isThinking || recorder.isRecording) && !reduceMotion)
-                        .frame(width: 24, height: 24)
+                    GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+                        .frame(width: 26, height: 26)
                     Text("Ghaf AI")
                         .font(GhafTypography.heading(17, languageCode: "en"))
                         .foregroundStyle(theme.primaryText)
                 }
                 Spacer()
             }
-            Button {
-                replyTask?.cancel()
-                synthesizer.stopSpeaking(at: .immediate)
-                isThinking = false
-                withAnimation(.spring(duration: 0.35)) { messages.removeAll() }
-            } label: {
-                glassCircle("plus")
-            }
-            .buttonStyle(.ghafPress)
-            .disabled(messages.isEmpty)
-            .accessibilityLabel(ar ? "محادثة جديدة" : "New chat")
+            optionsMenu
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
+        .sheet(isPresented: $showHistory) {
+            AnyView(GhafChatHistorySheet(
+                chats: chats, currentID: chatID, theme: theme, languageCode: settings.languageCode,
+                engineLabel: engineLabel, speakReplies: $speakReplies,
+                open: { chat in openChat(chat) },
+                dictate: { showHistory = false; startVoice() },
+                turnOnCloud: engine == .cloud ? nil : { showHistory = false; offerCloud = true },
+                delete: { deleteChats($0) }
+            ))
+        }
         .confirmationDialog(ar ? "الذكاء السحابي" : "Cloud AI", isPresented: $offerCloud, titleVisibility: .visible) {
             Button(ar ? "تفعيل" : "Turn On") {
                 UserDefaults.standard.set(true, forKey: GhafCloudAI.enabledKey)
@@ -188,6 +230,57 @@ struct GhafAIView: View {
             }
         } message: {
             Text(GhafCloudAI.disclosure(ar: ar) + (ar ? " يمكنك إيقافه من «ما تعلّمه غاف»." : " Turn it off anytime in What Ghaf learned."))
+        }
+    }
+
+    // MARK: History
+
+    private func startNewChat() {
+        replyTask?.cancel()
+        stopSpeaking()
+        isThinking = false
+        persistChat()
+        chatID = nil
+        withAnimation(.spring(duration: 0.35)) { messages.removeAll() }
+    }
+
+    private func openChat(_ chat: GhafChat) {
+        replyTask?.cancel()
+        stopSpeaking()
+        isThinking = false
+        persistChat()
+        showHistory = false
+        chatID = chat.id
+        var restored = chat.messages.map(GhafChatMessage.init)
+        if let last = restored.indices.last, !restored[last].isUser,
+           let question = restored.last(where: \.isUser)?.text {
+            restored[last].suggestions = suggestions(after: question)
+        }
+        withAnimation(.spring(duration: 0.35)) { messages = restored }
+    }
+
+    private func deleteChats(_ doomed: [GhafChat]) {
+        if doomed.contains(where: { $0.id == chatID }) { chatID = nil; messages.removeAll() }
+        doomed.forEach(modelContext.delete)
+        do { try modelContext.save() } catch {
+            Logger(subsystem: "com.ghaf.app", category: "ai").error("Deleting chats failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Keeps the open conversation in history once it has a question in it. Runs after each finished reply.
+    private func persistChat() {
+        let stored = messages.filter { !$0.isStreaming && (!$0.text.isEmpty || $0.chart != nil) }.map(\.stored)
+        guard let first = stored.first(where: \.isUser) else { return }
+        if let chatID, let chat = try? modelContext.fetch(FetchDescriptor<GhafChat>(predicate: #Predicate { $0.id == chatID })).first {
+            guard chat.messagesData != (try? JSONEncoder().encode(stored)) else { return }
+            chat.messages = stored
+        } else {
+            let chat = GhafChat(title: String(first.text.prefix(80)), messages: stored)
+            modelContext.insert(chat)
+            chatID = chat.id
+        }
+        do { try modelContext.save() } catch {
+            Logger(subsystem: "com.ghaf.app", category: "ai").error("Saving chat failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -203,7 +296,7 @@ struct GhafAIView: View {
 
     private var welcome: some View {
         VStack(spacing: 0) {
-            GhafAIOrb(theme: theme, active: false)
+            GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
                 .frame(width: 150, height: 150)
                 .padding(.top, 40)
             let name = settings.userName.split(separator: " ").first.map(String.init) ?? ""
@@ -246,8 +339,11 @@ struct GhafAIView: View {
     @ViewBuilder
     private func bubble(_ message: Binding<GhafChatMessage>) -> some View {
         let item = message.wrappedValue
+        let inlineBars = item.chart.map { $0.kind == .categories && $0.style == .bar } ?? false
         VStack(alignment: item.isUser ? .trailing : .leading, spacing: 8) {
-            if !item.text.isEmpty {
+            if !item.isUser && (item.source != nil || inlineBars) && !item.text.isEmpty {
+                answerCard(item, bars: inlineBars ? item.chart : nil)
+            } else if !item.text.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
                     if item.isVoice { Image(systemName: "waveform").font(.system(size: 13, weight: .bold)) }
                     GhafMoneyText.text(item.text, size: 15)
@@ -274,7 +370,7 @@ struct GhafAIView: View {
                     ShareLink(item: item.text) { Label(ar ? "مشاركة" : "Share", systemImage: "square.and.arrow.up") }
                 }
             }
-            if let chart = item.chart {
+            if let chart = item.chart, !inlineBars || item.text.isEmpty {
                 GhafChatChartView(chart: chart, theme: theme, languageCode: settings.languageCode)
                     .transition(.scale(scale: 0.92, anchor: .topLeading).combined(with: .opacity))
             }
@@ -285,10 +381,11 @@ struct GhafAIView: View {
                             Button { send(suggestion) } label: {
                                 Text(suggestion)
                                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
-                                    .foregroundStyle(theme.accent)
-                                    .padding(.horizontal, 14).padding(.vertical, 9)
-                                    .background(theme.accent.opacity(0.1), in: Capsule())
-                                    .overlay(Capsule().stroke(theme.accent.opacity(0.25), lineWidth: 1))
+                                    .foregroundStyle(theme.primaryText)
+                                    .padding(.horizontal, 14)
+                                    .frame(minHeight: 40)
+                                    .background(.white.opacity(0.06), in: Capsule())
+                                    .overlay(Capsule().stroke(.white.opacity(0.16), lineWidth: 1))
                             }
                             .buttonStyle(.ghafPress)
                         }
@@ -302,6 +399,35 @@ struct GhafAIView: View {
         .frame(maxWidth: .infinity, alignment: item.isUser ? .trailing : .leading)
         .padding(item.isUser ? .leading : .trailing, 40)
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// The canvas answer card: where the numbers came from, the answer, and the top categories as inline bars.
+    private func answerCard(_ item: GhafChatMessage, bars chart: GhafChatChart?) -> some View {
+        let shape = UnevenRoundedRectangle(topLeadingRadius: 22, bottomLeadingRadius: 6,
+                                           bottomTrailingRadius: 22, topTrailingRadius: 22, style: .continuous)
+        return VStack(alignment: .leading, spacing: 12) {
+            if let source = item.source {
+                Label(source, systemImage: "checkmark.seal.fill")
+                    .labelStyle(GhafSourceLabelStyle())
+                    .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.glow)
+            }
+            (GhafMoneyText.text(item.text, size: 16) + Text(item.isStreaming ? " ▍" : "").foregroundStyle(theme.glow))
+                .font(GhafTypography.body(16, languageCode: settings.languageCode))
+                .foregroundStyle(theme.primaryText)
+                .lineSpacing(3)
+                .textSelection(.enabled)
+            if let chart, !item.isStreaming {
+                GhafInlineBars(chart: chart, theme: theme, languageCode: settings.languageCode)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .frame(maxWidth: 340, alignment: .leading)
+        .background { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.08))).overlay(shape.stroke(.white.opacity(0.14))) }
+        .contextMenu {
+            Button { UIPasteboard.general.string = item.text } label: { Label(ar ? "نسخ" : "Copy", systemImage: "doc.on.doc") }
+            ShareLink(item: item.text) { Label(ar ? "مشاركة" : "Share", systemImage: "square.and.arrow.up") }
+        }
     }
 
     private func draftCard(_ message: Binding<GhafChatMessage>) -> some View {
@@ -458,7 +584,7 @@ struct GhafAIView: View {
     // MARK: Actions
 
     private func startVoice() {
-        synthesizer.stopSpeaking(at: .immediate)
+        stopSpeaking()
         prompt = ""
         inputFocused = false
         // Bias recognition towards this user's own merchants and categories.
@@ -656,6 +782,9 @@ struct GhafAIView: View {
         let history = messages.dropLast().filter { !$0.text.isEmpty }.map { (isUser: $0.isUser, text: $0.text) }
         let facts = GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions)
         isThinking = true
+        let direct = GhafLedgerAnswers.answer(to: resolved, accounts: accounts, transactions: transactions,
+                                              subscriptions: subscriptions, currency: settings.currency,
+                                              languageCode: settings.languageCode)
         replyTask = Task {
             var index: Int?
             do {
@@ -665,9 +794,6 @@ struct GhafAIView: View {
                 GhafLedgerContext.currency = settings.currency
                 GhafLedgerContext.languageCode = settings.languageCode
                 GhafLedgerContext.requestedChart = nil
-                let direct = GhafLedgerAnswers.answer(to: resolved, accounts: accounts, transactions: transactions,
-                                                      subscriptions: subscriptions, currency: settings.currency,
-                                                      languageCode: settings.languageCode)
                 for try await partial in assistant.reply(to: text, facts: facts, direct: direct, history: Array(history), languageCode: settings.languageCode) {
                     if let index {
                         messages[index].text = partial
@@ -689,6 +815,11 @@ struct GhafAIView: View {
                     messages[index].chart = GhafChatChartBuilder.chart(for: chartQuestion, transactions: transactions,
                                                                       currency: settings.currency, languageCode: settings.languageCode)
                     messages[index].suggestions = suggestions(after: resolved)
+                    // Only answers the ledger computed say where their numbers came from.
+                    if direct != nil {
+                        messages[index].source = GhafChatChartBuilder.source(for: resolved, transactions: transactions,
+                                                                             languageCode: settings.languageCode)
+                    }
                 }
                 speak(messages[index].text, force: isVoice)
             }
@@ -699,8 +830,12 @@ struct GhafAIView: View {
     /// Three useful next questions, chosen from what was just asked, never repeating it.
     private func suggestions(after question: String) -> [String] {
         let q = question.lowercased()
+        func lastMonth(_ code: String) -> String {
+            (GhafCalendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now)
+                .formatted(.dateTime.month(.wide).locale(Locale(identifier: code)))
+        }
         let pool: [(match: [String], en: String, ar: String)] = [
-            (["compare", "قارن"], "Compare with last month", "قارن بالشهر الماضي"),
+            (["compare", "قارن"], "Compare to \(lastMonth("en"))", "قارن بشهر \(lastMonth("ar"))"),
             (["donut", "دائري"], "Show as a donut", "اعرضها كرسم دائري"),
             (["petal", "بتلات"], "Show as a petal chart", "اعرضها كرسم بتلات"),
             (["trend", "اتجاه"], "This month's trend", "اتجاه هذا الشهر"),
@@ -769,6 +904,15 @@ struct GhafAIView: View {
         synthesizer.stopSpeaking(at: .immediate)
     }
 
+    private var orbMood: GhafAIOrb.Mood {
+        if recorder.isRecording { return .listening }
+        if isThinking { return .thinking }
+        if speechDone.speaking { return .speaking }
+        return .idle
+    }
+
+    private var orbLevel: Float { recorder.isRecording ? recorder.level : speechDone.level }
+
     private var voiceStatus: String {
         if recorder.isRecording { return ar ? "أستمع…" : "Listening…" }
         if isThinking { return ar ? "أفكر…" : "Thinking…" }
@@ -797,10 +941,8 @@ struct GhafAIView: View {
                     else if recorder.isRecording { finishVoice() }
                     else if !isThinking { startVoice() }
                 } label: {
-                    GhafAIOrb(theme: theme, active: (recorder.isRecording || isThinking || speechDone.speaking) && !reduceMotion)
-                        .frame(width: 220, height: 220)
-                        .scaleEffect(1 + CGFloat(min(recorder.isRecording ? recorder.level : speechDone.level, 1)) * 0.25)
-                        .animation(.easeOut(duration: 0.12), value: recorder.isRecording ? recorder.level : speechDone.level)
+                    GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+                        .frame(width: 240, height: 240)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(voiceStatus)
@@ -840,7 +982,7 @@ struct GhafAIView: View {
                 HStack(spacing: 40) {
                     Button {
                         speakReplies.toggle()
-                        if !speakReplies { synthesizer.stopSpeaking(at: .immediate) }
+                        if !speakReplies { stopSpeaking() }
                     } label: {
                         Image(systemName: speechDone.speaking ? "speaker.wave.2.fill" : "speaker.fill")
                             .font(.system(size: 20, weight: .semibold))
@@ -866,9 +1008,17 @@ struct GhafAIView: View {
         }
     }
 
+    private func stopSpeaking() {
+        synthesizer.stopSpeaking(at: .immediate)
+        GhafCloudVoice.shared.stop()
+        speechDone.speaking = false
+    }
+
+    /// Ghaf's server voice whenever Cloud AI is on (warmer, Gulf-friendly Arabic); the iPhone's own voice otherwise or offline.
     private func speak(_ text: String, force: Bool = false) {
         guard speakReplies || force || voiceMode, !text.isEmpty else { return }
-        if voiceMode && GhafCloudAI.isEnabled {
+        if GhafCloudAI.isEnabled {
+            GhafCloudVoice.shared.onLevel = { level in speechDone.level = level }
             let spoken = SpokenMoney.speakable(text, arabic: ar)
             Task {
                 let played = await GhafCloudVoice.shared.speak(spoken, arabic: ar,
@@ -914,58 +1064,53 @@ struct GhafAIView: View {
 
 }
 
-/// Ghaf AI's mark: a glass orb in the theme's colours with two rings of light turning inside it and a soft halo.
-/// It turns faster while Ghaf listens or thinks and stays still with Reduce Motion.
-private struct GhafAIOrb: View {
+/// The source line's icon sits tight against its text.
+private struct GhafSourceLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 5) { configuration.icon.imageScale(.small); configuration.title }
+    }
+}
+
+/// Top categories as rows of name, bar and amount inside an answer, as on the canvas. Values from the ledger.
+private struct GhafInlineBars: View {
+    let chart: GhafChatChart
     let theme: GhafTheme
-    let active: Bool
+    let languageCode: String
+    @State private var grown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
-            let speed = active ? 1.8 : 0.6
-            GeometryReader { geometry in
-                let size = min(geometry.size.width, geometry.size.height)
-                ZStack {
-                    // Halo.
-                    Circle()
-                        .fill(theme.accent.opacity(active ? 0.55 : 0.4))
-                        .blur(radius: size * 0.3)
-                        .scaleEffect(1.25 + 0.08 * sin(t * speed * 1.5))
-                    // Glass body.
-                    Circle()
-                        .fill(RadialGradient(colors: [.white.opacity(0.35), theme.glow.opacity(0.15), GhafAIView.night.opacity(0.3)],
-                                             center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.6))
-                        .overlay(Circle().stroke(theme.glow.opacity(0.5), lineWidth: 1))
-                        .shadow(color: theme.accent.opacity(0.6), radius: size * 0.12)
-                    // Two rings of light turning in opposite directions.
-                    Circle()
-                        .trim(from: 0, to: 0.55)
-                        .stroke(AngularGradient(colors: [theme.glow.opacity(0), theme.glow, .white], center: .center),
-                                style: StrokeStyle(lineWidth: max(2, size * 0.035), lineCap: .round))
-                        .padding(size * 0.08)
-                        .rotationEffect(.degrees(t * 70 * speed))
-                        .blur(radius: 0.6)
-                    Circle()
-                        .trim(from: 0, to: 0.4)
-                        .stroke(AngularGradient(colors: [theme.accent.opacity(0), theme.accent, .white.opacity(0.9)], center: .center),
-                                style: StrokeStyle(lineWidth: max(1.5, size * 0.022), lineCap: .round))
-                        .padding(size * 0.2)
-                        .rotationEffect(.degrees(-t * 110 * speed + 120))
-                    // Specular highlight.
-                    Ellipse()
-                        .fill(.white.opacity(0.5))
-                        .frame(width: size * 0.22, height: size * 0.1)
-                        .blur(radius: size * 0.03)
-                        .offset(x: -size * 0.16, y: -size * 0.26)
+        let points = Array(chart.points.prefix(4))
+        let top = max(points.map(\.value).max() ?? 1, 1)
+        let total = max(chart.points.reduce(0) { $0 + $1.value }, 1)
+        let colors = GhafCategoryIcon.chartColors(for: points.map(\.label), dark: true)
+        VStack(spacing: 9) {
+            ForEach(points) { point in
+                HStack(spacing: 10) {
+                    Text(point.label)
+                        .lineLimit(1)
+                        .frame(width: 96, alignment: .leading)
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.white.opacity(0.1))
+                            Capsule().fill(colors[point.label] ?? theme.accent)
+                                .frame(width: max(8, geometry.size.width * (grown ? point.value / top : 0)))
+                        }
+                    }
+                    .frame(height: 8)
+                    Text(point.value, format: .number.precision(.fractionLength(0)).locale(Locale(identifier: languageCode)))
+                        .foregroundStyle(theme.secondaryText)
+                        .frame(minWidth: 48, alignment: .trailing)
                 }
-                .frame(width: size, height: size)
-                .scaleEffect(1 + 0.03 * sin(t * speed * 2))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(point.label), \(GhafFormat.money(Decimal(point.value), currency: chart.currency, languageCode: languageCode)), \(Int((point.value / total * 100).rounded()))%")
             }
         }
-        .accessibilityHidden(true)
+        .onAppear {
+            if reduceMotion { grown = true } else { withAnimation(.smooth(duration: 0.9)) { grown = true } }
+        }
     }
 }
 
@@ -1008,5 +1153,103 @@ final class GhafSpeechDone: NSObject, AVSpeechSynthesizerDelegate {
     }
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         Task { @MainActor in self.speaking = false }
+    }
+}
+
+/// Saved Ghaf AI chats, newest first, plus the chat options (engine, read-aloud, dictation).
+private struct GhafChatHistorySheet: View {
+    let chats: [GhafChat]
+    let currentID: UUID?
+    let theme: GhafTheme
+    let languageCode: String
+    let engineLabel: String
+    @Binding var speakReplies: Bool
+    let open: (GhafChat) -> Void
+    let dictate: () -> Void
+    let turnOnCloud: (() -> Void)?
+    let delete: ([GhafChat]) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmDeleteAll = false
+
+    private var ar: Bool { languageCode == "ar" }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Label(engineLabel, systemImage: "cpu")
+                        .foregroundStyle(.secondary)
+                    if let turnOnCloud {
+                        Button(action: turnOnCloud) {
+                            Label(ar ? "فعّل الذكاء السحابي" : "Turn on Cloud AI", systemImage: "cloud.fill")
+                        }
+                    }
+                    Toggle(isOn: $speakReplies) {
+                        Label(ar ? "قراءة الردود بصوت" : "Read replies aloud", systemImage: "speaker.wave.2.fill")
+                    }
+                    Button(action: dictate) {
+                        Label(ar ? "إملاء رسالة" : "Dictate a message", systemImage: "mic.fill")
+                    }
+                }
+                Section {
+                    if chats.isEmpty {
+                        Text(ar ? "لا توجد محادثات بعد. اسأل غاف أي شيء عن أموالك وستُحفظ هنا."
+                                : "No chats yet. Ask Ghaf anything about your money and it's kept here.")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                            .padding(.vertical, 12)
+                    }
+                    ForEach(chats) { chat in
+                        Button { open(chat) } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(chat.title)
+                                        .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    if chat.id == currentID {
+                                        Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(theme.accent)
+                                            .accessibilityLabel(ar ? "مفتوحة الآن" : "Open now")
+                                    }
+                                }
+                                Text(chat.updatedAt.formatted(.relative(presentation: .named).locale(Locale(identifier: languageCode))))
+                                    .font(GhafTypography.body(12, languageCode: languageCode))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .onDelete { offsets in delete(offsets.map { chats[$0] }) }
+                } header: {
+                    Text(ar ? "المحادثات" : "Chats")
+                } footer: {
+                    Text(ar ? "تبقى المحادثات على هذا الآيفون ولا تدخل في النسخ الاحتياطي. اسحب لحذف محادثة."
+                            : "Chats stay on this iPhone and aren't part of backups. Swipe to delete one.")
+                }
+            }
+            .navigationTitle(ar ? "غاف AI" : "Ghaf AI")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(ar ? "تم" : "Done") { dismiss() }
+                }
+                if !chats.isEmpty {
+                    ToolbarItem(placement: .destructiveAction) {
+                        Button(ar ? "حذف الكل" : "Delete All", role: .destructive) { confirmDeleteAll = true }
+                    }
+                }
+            }
+            .confirmationDialog(ar ? "حذف كل المحادثات؟" : "Delete all chats?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
+                Button(ar ? "حذف \(chats.count) محادثة" : "Delete \(chats.count) Chats", role: .destructive) { delete(chats) }
+            } message: {
+                Text(ar ? "لا يمكن التراجع. عملياتك المحفوظة لا تتأثر." : "This can't be undone. Your saved transactions aren't affected.")
+            }
+        }
+        .tint(theme.accent)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        .presentationDetents([.medium, .large])
     }
 }

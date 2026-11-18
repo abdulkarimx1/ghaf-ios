@@ -1331,27 +1331,19 @@ enum GhafAITabIcon {
     static func image(theme: GhafTheme, selected: Bool, frame: Int = 0) -> UIImage {
         let key = "\(theme.name)-\(theme.isDark)-\(selected)-\(frame)"
         if let cached = cache[key] { return cached }
-        let t = Double(frame) / Double(frameCount)          // 0...1 through the twirl
+        let t = Double(frame) / Double(frameCount)          // 0...1 through the opening swirl
         let lift = sin(t * .pi)                             // rises then settles
-        // The Ghaf AI orb: a small glass sphere in the city's light, matching the AI screen. On open its
-        // inner ring turns once, then settles.
+        // The Ghaf AI orb, drawn by the same code as the AI screen. The dark palette's accent and glow are
+        // the brighter pair, so it reads on light and dark tab bars. On open its light swirls once, then settles.
         let side: CGFloat = selected ? 32 : 29
-        // The dark palette's accent and glow are the brighter pair, so the orb reads on light and dark tab bars.
         let lit = GhafTheme.resolve(name: theme.name, appearanceMode: "Dark", systemIsDark: true)
-        let blue = lit.accent, light = lit.glow
-        let mark = ZStack {
-            Circle().fill(RadialGradient(colors: [.white.opacity(0.9), light, blue, blue.opacity(0.55)],
-                                         center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: side * 0.62))
-                .shadow(color: blue.opacity(selected ? 0.6 : 0.3), radius: selected ? 5 : 2, y: 1)
-            Circle().trim(from: 0, to: 0.62)
-                .stroke(.white.opacity(0.85), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                .frame(width: side * 0.62, height: side * 0.62)
-                .rotationEffect(.degrees(-40 + 360 * t))
-            Circle().strokeBorder(.white.opacity(0.4), lineWidth: 0.8)
-        }
-        .frame(width: side, height: side)
-        .scaleEffect(1 + 0.08 * lift)
-        .frame(width: 40, height: 40)
+        let mark = GhafAIOrbFace(theme: lit, mood: frame == 0 ? .idle : .thinking, level: 0,
+                                 time: 3.1 + t * 3, still: frame == 0, halo: false)
+            .frame(width: side, height: side)
+            .shadow(color: lit.accent.opacity(selected ? 0.6 : 0.3), radius: selected ? 5 : 2, y: 1)
+            .opacity(selected ? 1 : 0.82)
+            .scaleEffect(1 + 0.08 * lift)
+            .frame(width: 40, height: 40)
         let renderer = ImageRenderer(content: mark)
         renderer.scale = 3
         let image = (renderer.uiImage ?? UIImage()).withRenderingMode(.alwaysOriginal)

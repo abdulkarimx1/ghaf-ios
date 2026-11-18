@@ -18,7 +18,8 @@ enum GhafPersistence {
             GhafSettings.self,
             GhafAccount.self,
             MerchantCategoryRule.self,
-            GhafSubscription.self
+            GhafSubscription.self,
+            GhafChat.self   // 1.20, additive: a new table, existing data untouched
         ])
 
         let configuration = ModelConfiguration(

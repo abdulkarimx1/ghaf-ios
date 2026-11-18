@@ -114,7 +114,10 @@ async function speak(body, env, developer, device) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: (arabic ? "قلها بنبرة دافئة وطبيعية: " : "Say warmly and naturally: ") + text }] }],
+        // The style line steers delivery: Gulf-friendly Arabic, like a friend talking, not a newsreader.
+        contents: [{ parts: [{ text: (arabic
+          ? "اقرأ النص التالي بصوت دافئ وهادئ ولهجة خليجية خفيفة، كأنك صديق يتكلم بطبيعية وليس مذيع أخبار: "
+          : "Read this like a friendly, relaxed person talking, warm and natural, not like an announcer: ") + text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: arabic ? "Kore" : "Aoede" } } }

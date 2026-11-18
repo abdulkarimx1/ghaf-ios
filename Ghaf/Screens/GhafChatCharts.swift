@@ -1,12 +1,22 @@
 import SwiftUI
 import Charts
+import GhafCore
 
 /// A chart Ghaf attaches to an answer. Values come from the ledger, never from the language model.
-struct GhafChatChart {
-    enum Style: String { case bar, donut, rose, line }
-    enum Kind: String { case categories, week, compare, trend }
+struct GhafChatChart: Codable {
+    enum Style: String, Codable { case bar, donut, rose, line }
+    enum Kind: String, Codable { case categories, week, compare, trend }
 
-    struct Point: Identifiable { let id = UUID(); let label: String; let value: Double; var highlight = false }
+    struct Point: Identifiable, Codable {
+        var id = UUID()
+        let label: String
+        let value: Double
+        var highlight = false
+        private enum CodingKeys: String, CodingKey { case label, value, highlight }
+        init(label: String, value: Double, highlight: Bool = false) {
+            self.label = label; self.value = value; self.highlight = highlight
+        }
+    }
     let kind: Kind
     let style: Style
     let title: String
@@ -37,6 +47,31 @@ enum GhafChatChartBuilder {
     static func isRestyleOnly(_ question: String) -> Bool {
         let q = question.lowercased()
         return style(in: q) != nil && !has(q, ["week", "month", "today", "categor", "compare", "spend", "أسبوع", "شهر", "فئة", "قارن", "صرف", "اليوم"])
+    }
+
+    /// "From 312 of your transactions · November": what an answer about spending was computed from.
+    /// Nil for questions that aren't about a period of transactions (balances, subscriptions, small talk).
+    static func source(for question: String, transactions: [GhafTransaction], languageCode: String, now: Date = .now) -> String? {
+        let q = question.lowercased()
+        guard !has(q, ["subscri", "اشتراك", "balance", "رصيد", "do i have", "عندي"]) else { return nil }
+        let period = GhafLedgerAnswers.period(for: q, now: now)
+        var used = transactions.filter { period.interval.contains($0.date) && $0.isSpendingOrIncome }
+        // A question about one category or store was answered from that slice only (same order as GhafLedgerAnswers).
+        if let category = GhafLedgerAnswers.matchedCategory(in: q, transactions: transactions, languageCode: languageCode) {
+            used = used.filter { $0.isExpense && $0.category == category }
+        } else if let merchant = GhafLedgerAnswers.matchedMerchant(in: q, transactions: transactions) {
+            used = used.filter { $0.isExpense && SubscriptionDetector.normalize($0.merchant ?? "") == merchant.key }
+        }
+        let count = used.count
+        guard count > 0 else { return nil }
+        let ar = languageCode == "ar"
+        let calendar = GhafCalendar.current
+        let isMonth = calendar.dateInterval(of: .month, for: period.interval.start) == period.interval
+        let label = isMonth
+            ? period.interval.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: ar ? "ar" : "en")))
+            : (ar ? period.ar : period.en)
+        let number = count.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        return ar ? "من \(number) من عملياتك · \(label)" : "From \(number) of your transactions · \(label)"
     }
 
     static func chart(for question: String, transactions: [GhafTransaction], currency: String, languageCode: String) -> GhafChatChart? {

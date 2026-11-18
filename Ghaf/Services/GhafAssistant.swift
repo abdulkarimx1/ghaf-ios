@@ -158,16 +158,16 @@ final class GhafAssistant: ObservableObject {
             return AsyncThrowingStream { continuation in
                 let task = Task {
                     do {
-                        continuation.yield(try await GhafCloudAI.reply(question: question, facts: facts, direct: direct,
-                                                                       history: history, languageCode: languageCode))
+                        await Self.reveal(try await GhafCloudAI.reply(question: question, facts: facts, direct: direct,
+                                                                      history: history, languageCode: languageCode), into: continuation)
                     } catch GhafCloudAI.Failure.dailyLimit {
-                        continuation.yield(fallback + (languageCode == "ar"
+                        await Self.reveal(fallback + (languageCode == "ar"
                             ? "\n\n(وصلت للحد اليومي للذكاء السحابي؛ أجبتك من جهازك.)"
-                            : "\n\n(Daily Cloud AI limit reached, so this answer came from your iPhone.)"))
+                            : "\n\n(Daily Cloud AI limit reached, so this answer came from your iPhone.)"), into: continuation)
                     } catch {
                         // Offline or the server failed: the ledger's answer still comes from the device.
                         Logger(subsystem: "com.ghaf.app", category: "ai").error("Cloud AI failed: \(String(describing: error), privacy: .public)")
-                        continuation.yield(fallback)
+                        await Self.reveal(fallback, into: continuation)
                     }
                     continuation.finish()
                 }
@@ -181,8 +181,25 @@ final class GhafAssistant: ObservableObject {
         }
         #endif
         return AsyncThrowingStream { continuation in
-            continuation.yield(fallback)
-            continuation.finish()
+            let task = Task {
+                await Self.reveal(fallback, into: continuation)
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Shows an answer that arrived whole a few words at a time, as the on-device model's real stream does.
+    /// The text is final before the first word appears; this only paces how it is drawn.
+    static func reveal(_ text: String, into continuation: AsyncThrowingStream<String, Error>.Continuation) async {
+        let words = text.split(separator: " ", omittingEmptySubsequences: false)
+        guard words.count > 6 else { continuation.yield(text); return }
+        var shown = 0
+        while shown < words.count {
+            shown = min(words.count, shown + 2)
+            continuation.yield(words.prefix(shown).joined(separator: " "))
+            if shown < words.count { try? await Task.sleep(for: .milliseconds(28)) }
+            if Task.isCancelled { continuation.yield(text); return }
         }
     }
 
