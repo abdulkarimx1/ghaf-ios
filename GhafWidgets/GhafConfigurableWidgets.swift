@@ -283,7 +283,7 @@ struct GhafRecentView: View {
             ? GhafWidgetSnapshot.Recent(merchant: nil, category: text(s, "Spent today", "صرف اليوم"), symbol: "calendar", amount: s.spentToday,
                                         currency: s.currency, date: s.updated, isCredit: false, account: nil, bank: nil, needsReview: false)
             : latest
-        let amount = (r.isCredit ? "+" : "") + (s.hidden ? "✦✦✦" : r.amount.formatted(.number.precision(.fractionLength(2)).locale(s.locale)))
+        let amount = (r.isCredit ? "+" : "") + (s.hidden ? "✦✦✦" : r.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: r.currency))).locale(s.locale)))
         let detail = [entry.config.showMerchant ? r.merchant : nil, entry.config.showAccount ? r.account : nil]
             .compactMap { $0 }.joined(separator: " · ")
         let label = text(s, "Latest: \(r.category), \(r.currency) \(amount)", "آخر عملية: \(r.category)، \(amount) \(r.currency)")
@@ -600,7 +600,7 @@ struct GhafCategoriesView: View {
                         Text(c.name).font(.system(size: large ? 15 : 12, weight: .semibold)).lineLimit(1)
                         Spacer(minLength: 4)
                         if entry.config.showAmounts {
-                            Text(s.hidden ? "✦✦✦" : c.amount.formatted(.number.precision(.fractionLength(2)).locale(s.locale)))
+                            Text(s.hidden ? "✦✦✦" : c.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency))).locale(s.locale)))
                                 .font(.system(size: large ? 14 : 12, weight: .semibold, design: .monospaced)).privacySensitive()
                         } else {
                             Text((NSDecimalNumber(decimal: c.amount / total).doubleValue).formatted(.percent.precision(.fractionLength(0)).locale(s.locale)))
@@ -659,7 +659,7 @@ struct GhafBillsView: View {
             }
             .foregroundStyle(tile.foreground).ghafLayout(s))
         }
-        let amount = { (b: GhafWidgetSnapshot.Bill) in s.hidden ? "✦✦✦" : b.amount.formatted(.number.precision(.fractionLength(2)).locale(s.locale)) }
+        let amount = { (b: GhafWidgetSnapshot.Bill) in s.hidden ? "✦✦✦" : b.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: b.currency))).locale(s.locale)) }
 
         switch family {
         case .accessoryRectangular:

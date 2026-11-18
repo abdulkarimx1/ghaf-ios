@@ -301,7 +301,7 @@ struct GhafTodayView: View {
                             Circle().fill(tile.palette[i % tile.palette.count]).frame(width: 6, height: 6)
                             Text(c.name).lineLimit(1)
                             Spacer(minLength: 4)
-                            Text(s.hidden ? "✦✦" : c.amount.formatted(.number.precision(.fractionLength(2)))).privacySensitive()
+                            Text(s.hidden ? "✦✦" : c.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency))))).privacySensitive()
                         }
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .foregroundStyle(tile.foreground)
@@ -328,7 +328,7 @@ private extension GhafPurchaseAttributes {
 }
 
 private extension GhafPurchaseAttributes.ContentState {
-    var signedAmount: String { hidden == true ? "✦✦✦" : (isCredit ? "+" : "") + amount.formatted(.number.precision(.fractionLength(2))) }
+    var signedAmount: String { hidden == true ? "✦✦✦" : (isCredit ? "+" : "") + amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: currency)))) }
     /// Fits the compact trailing space: "45", "1.2K".
     var shortAmount: String {
         hidden == true ? "✦✦" : (isCredit ? "+" : "") + (amount >= 1000
@@ -377,7 +377,7 @@ private struct GhafActivityStatus: View {
             if let at = s.recordedAt { Text("· ") + Text(at, style: .time) }
             Spacer(minLength: 6)
             if let balance = s.balance {
-                Text((s.accountName.map { "\($0) · " } ?? "") + "\(s.currency) " + balance.formatted(.number.precision(.fractionLength(2))))
+                Text((s.accountName.map { "\($0) · " } ?? "") + "\(s.currency) " + balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))
                     .lineLimit(1).privacySensitive()
             } else if let name = s.accountName {
                 Text(name).lineLimit(1).privacySensitive()
