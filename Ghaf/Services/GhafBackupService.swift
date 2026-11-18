@@ -261,6 +261,8 @@ enum GhafBackupService {
         try context.fetch(FetchDescriptor<GhafSettings>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<MerchantCategoryRule>()).forEach { context.delete($0) }
         let oldSubscriptions = payload.subscriptions == nil ? [] : try context.fetch(FetchDescriptor<GhafSubscription>())
+        // Read ids now: a deleted model's properties can't be read after the save.
+        let oldReminderIDs = oldSubscriptions.map(\.id)
         oldSubscriptions.forEach { context.delete($0) }
 
         let source = payload.settings
@@ -367,7 +369,7 @@ enum GhafBackupService {
             context.rollback()
             throw error
         }
-        oldSubscriptions.forEach(GhafSubscriptionReminderService.cancel)
+        oldReminderIDs.forEach { GhafSubscriptionReminderService.cancel(id: $0) }
         for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }

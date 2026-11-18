@@ -26,6 +26,10 @@ enum GhafSubscriptionReminderService {
     }
 
     static func cancel(_ subscription: GhafSubscription) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["ghaf.subscription.\(subscription.id.uuidString)"])
+        cancel(id: subscription.id)
+    }
+
+    static func cancel(id: UUID) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["ghaf.subscription.\(id.uuidString)"])
     }
 }

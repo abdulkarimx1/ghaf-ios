@@ -28,7 +28,8 @@ public enum AccountMatcher {
                     let target = normalize(raw)
                     guard !target.isEmpty else { return current }
                     if value == target { return max(current, item.1) }
-                    return min(value.count, target.count) >= 4 && (value.contains(target) || target.contains(value) ? 60 : 0) > current ? 60 : current
+                    let partial = min(value.count, target.count) >= 4 && (value.contains(target) || target.contains(value))
+                    return partial ? max(current, 60) : current
                 })
             }
             return (candidate, score)
