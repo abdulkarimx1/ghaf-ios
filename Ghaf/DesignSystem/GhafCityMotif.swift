@@ -7,12 +7,14 @@ struct GhafCitySkyline: Shape {
     enum Layer: CaseIterable { case back, mid, front }
     let city: String
     var layer: Layer = .mid
+    /// Only this layer's palms and mangroves (they sway in the backdrop); otherwise everything else.
+    var foliage = false
 
     // SwiftUI may draw shapes off the main thread, so the cache is guarded by a lock, not an actor.
     private static let cache = GhafPathCache()
 
     func path(in rect: CGRect) -> Path {
-        let key = "\(city)-\(layer)-\(Int(rect.width))x\(Int(rect.height))"
+        let key = "\(city)-\(layer)-\(foliage)-\(Int(rect.width))x\(Int(rect.height))"
         if let cached = Self.cache[key] {
             return cached.offsetBy(dx: rect.minX, dy: rect.minY)
         }
@@ -41,7 +43,7 @@ struct GhafCitySkyline: Shape {
         case ("Fujairah", .front): scene.fujairahFront()
         default: break
         }
-        let path = scene.path
+        let path = foliage ? scene.foliage : scene.path
         Self.cache[key] = path
         return path.offsetBy(dx: rect.minX, dy: rect.minY)
     }
@@ -62,12 +64,18 @@ private final class GhafPathCache: @unchecked Sendable {
 private struct Scene {
     let size: CGSize
     var path = Path()
+    /// Palms and mangroves, kept apart so they can move without bending buildings.
+    var foliage = Path()
+    private var drawingFoliage = false
 
     var w: CGFloat { size.width }
     var h: CGFloat { size.height }
     func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * w, y: y * h) }
 
-    mutating func add(_ piece: Path) { path = path.isEmpty ? piece : path.union(piece) }
+    mutating func add(_ piece: Path) {
+        if drawingFoliage { foliage = foliage.isEmpty ? piece : foliage.union(piece) }
+        else { path = path.isEmpty ? piece : path.union(piece) }
+    }
     mutating func cut(_ piece: Path) { path = path.subtracting(piece) }
 
     func rect(_ x0: CGFloat, _ x1: CGFloat, top: CGFloat, bottom: CGFloat = 1) -> Path {
@@ -116,6 +124,7 @@ private struct Scene {
         for k in 0..<merlons { add(rect(x0 + CGFloat(2 * k) * step, x0 + CGFloat(2 * k + 1) * step, top: top - 0.05, bottom: top)) }
     }
     mutating func palm(_ x: CGFloat, top: CGFloat, size s: CGFloat = 1) {
+        drawingFoliage = true; defer { drawingFoliage = false }
         var trunk = Path()
         trunk.move(to: p(x - 0.004 * s, 1)); trunk.addQuadCurve(to: p(x + 0.004 * s, top), control: p(x + 0.012 * s, (1 + top) / 2))
         add(trunk.strokedPath(StrokeStyle(lineWidth: 0.018 * h * s, lineCap: .round)))
@@ -142,6 +151,7 @@ private struct Scene {
     }
     mutating func ground() { add(rect(0, 1, top: 0.96)) }
     mutating func mangrove(_ cx: CGFloat, _ r: CGFloat) {
+        drawingFoliage = true; defer { drawingFoliage = false }
         // Rounded canopy clumps over stilt roots.
         add(ellipse(cx, 0.80 - r * 1.1, rx: r * 0.32, ry: r * 1.0))
         add(ellipse(cx - r * 0.28, 0.82 - r * 0.7, rx: r * 0.26, ry: r * 0.8))
@@ -355,10 +365,12 @@ struct GhafCityScene: View {
 
     var body: some View {
         ZStack {
-            GhafCitySkyline(city: city, layer: .back).fill(glow.opacity(0.35 * strength))
-            GhafCitySkyline(city: city, layer: .mid)
-                .fill(LinearGradient(colors: [glow, accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength))
-            GhafCitySkyline(city: city, layer: .front).fill(accent.opacity(strength))
+            ForEach([false, true], id: \.self) { foliage in
+                GhafCitySkyline(city: city, layer: .back, foliage: foliage).fill(glow.opacity(0.35 * strength))
+                GhafCitySkyline(city: city, layer: .mid, foliage: foliage)
+                    .fill(LinearGradient(colors: [glow, accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength))
+                GhafCitySkyline(city: city, layer: .front, foliage: foliage).fill(accent.opacity(strength))
+            }
         }
         // Shapes that rest on the ground (hills) never spill past the scene.
         .clipped()
@@ -376,7 +388,8 @@ struct GhafCityBackdrop: View {
     let theme: GhafTheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private static let coastal: Set<String> = ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain", "Fujairah"]
+    /// Where each coastal scene's water is (x from…to, in scene units), so a dhow rides on it, not in the sky.
+    private static let water: [String: ClosedRange<CGFloat>] = ["Dubai": 0.64...0.86, "Umm Al Quwain": 0.08...0.5, "Fujairah": 0.08...0.6]
 
     var body: some View {
         let city = GhafTheme.canonical(theme.name)
@@ -398,36 +411,87 @@ struct GhafCityBackdrop: View {
 
     private func scene(city: String, t: Double) -> some View {
         let strength = theme.isDark ? 0.2 : 0.15
-        return ZStack {
-            // A soft light behind the landmarks that slowly breathes and wanders.
-            RadialGradient(colors: [theme.glow.opacity(theme.isDark ? 0.35 : 0.28), .clear], center: .center,
-                           startRadius: 0, endRadius: 220)
-                .scaleEffect(1 + 0.08 * sin(t * 0.45))
-                .offset(x: 40 * sin(t * 0.12), y: 30 + 14 * cos(t * 0.17))
-            GhafCitySkyline(city: city, layer: .back)
-                .fill(theme.glow.opacity(0.35 * strength))
-                .offset(x: 10 * sin(t * 0.06))
-            GhafCitySkyline(city: city, layer: .mid)
-                .fill(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength))
-            if Self.coastal.contains(city) {
-                GhafDhow()
-                    .fill(theme.accent.opacity(0.9 * strength))
-                    .frame(width: 64, height: 54)
-                    .rotationEffect(.degrees(2.5 * sin(t * 0.9)), anchor: .bottom)
-                    .offset(y: 3 * sin(t * 1.3))
-                    // Crosses the scene once a minute and comes back around.
-                    .offset(x: CGFloat((t / 60).truncatingRemainder(dividingBy: 1)) * 520 - 260, y: 132)
+        // Only palms and mangroves move; buildings, forts and hills stay exactly as drawn.
+        let sway = 0.03 * sin(t * 0.8) + 0.012 * sin(t * 2.1)
+        return GeometryReader { geometry in
+            let w = geometry.size.width, h = geometry.size.height
+            ZStack {
+                // A soft light behind the landmarks that slowly breathes and wanders.
+                RadialGradient(colors: [theme.glow.opacity(theme.isDark ? 0.35 : 0.28), .clear], center: .center,
+                               startRadius: 0, endRadius: 220)
+                    .scaleEffect(1 + 0.08 * sin(t * 0.45))
+                    .offset(x: 40 * sin(t * 0.12), y: 30 + 14 * cos(t * 0.17))
+                if theme.isDark { stars(t: t, w: w, h: h) }
+                birds(t: t, w: w, h: h).foregroundStyle(theme.accent.opacity(2.5 * strength))
+                layer(city, .back, theme.glow.opacity(0.35 * strength), sway: sway * 0.5)
+                layer(city, .mid, LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength),
+                      sway: sway * 0.75)
+                if let span = Self.water[city] {
+                    // Bobs on the swell and drifts slowly along its stretch of water.
+                    let x = (span.lowerBound + (span.upperBound - span.lowerBound) * (0.5 + 0.4 * sin(t * 0.05))) * w
+                    GhafDhow()
+                        .fill(theme.accent.opacity(0.9 * strength))
+                        .frame(width: h * 0.13, height: h * 0.11)
+                        .rotationEffect(.degrees(2.5 * sin(t * 0.9)), anchor: .bottom)
+                        .position(x: x, y: h * 0.86 + 2.5 * sin(t * 1.3))
+                }
+                layer(city, .front, theme.accent.opacity(strength), sway: sway)
             }
-            GhafCitySkyline(city: city, layer: .front)
-                .fill(theme.accent.opacity(strength))
-                .modifier(GhafWindSway(amount: 0.018 * sin(t * 0.8) + 0.008 * sin(t * 2.1)))
         }
         .clipped()
         .environment(\.layoutDirection, .leftToRight)
     }
+
+    private func layer<S: ShapeStyle>(_ city: String, _ layer: GhafCitySkyline.Layer, _ style: S, sway: Double) -> some View {
+        ZStack {
+            GhafCitySkyline(city: city, layer: layer).fill(style)
+            GhafCitySkyline(city: city, layer: layer, foliage: true).fill(style)
+                .modifier(GhafWindSway(amount: sway))
+        }
+    }
+
+    /// Three birds crossing the sky every couple of minutes, wings beating slowly.
+    private func birds(t: Double, w: CGFloat, h: CGFloat) -> some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { index in
+                let progress = CGFloat(((t + Double(index) * 4) / 110).truncatingRemainder(dividingBy: 1))
+                GhafBird(flap: 0.5 + 0.5 * sin(t * 4 + Double(index)))
+                    .stroke(style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+                    .frame(width: 14 - CGFloat(index) * 2, height: 6)
+                    .position(x: -30 + progress * (w + 60) - CGFloat(index) * 16,
+                              y: h * (0.18 + 0.05 * CGFloat(index)) + 4 * sin(t * 0.6 + Double(index)))
+            }
+        }
+    }
+
+    /// A few stars that twinkle in dark mode.
+    private func stars(t: Double, w: CGFloat, h: CGFloat) -> some View {
+        let spots: [(CGFloat, CGFloat)] = [(0.12, 0.12), (0.3, 0.22), (0.52, 0.08), (0.68, 0.18), (0.86, 0.1), (0.94, 0.28), (0.42, 0.3)]
+        return ZStack {
+            ForEach(Array(spots.enumerated()), id: \.offset) { index, spot in
+                Circle().fill(theme.glow)
+                    .frame(width: 2.5, height: 2.5)
+                    .opacity(0.25 + 0.5 * max(0, sin(t * 0.9 + Double(index) * 1.7)))
+                    .position(x: spot.0 * w, y: spot.1 * h)
+            }
+        }
+    }
 }
 
-/// Leans a layer from its base, so the tops of palms and mangroves move while the ground stays put.
+/// A distant bird: two wing strokes whose tips rise and fall with `flap` (0…1).
+struct GhafBird: Shape {
+    var flap: Double
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let tipY = rect.minY + rect.height * (0.1 + 0.8 * flap)
+        path.move(to: CGPoint(x: rect.minX, y: tipY))
+        path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.maxY), control: CGPoint(x: rect.width * 0.3 + rect.minX, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: tipY), control: CGPoint(x: rect.width * 0.7 + rect.minX, y: rect.minY))
+        return path
+    }
+}
+
+/// Leans palms and mangroves from their base, so their tops move in the wind while their roots stay put.
 struct GhafWindSway: GeometryEffect {
     var amount: CGFloat
     var animatableData: CGFloat {
