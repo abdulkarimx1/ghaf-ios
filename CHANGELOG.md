@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.19 (33)
+
+### English
+- Ghaf AI now looks like the approved design: a big orb, "Hello" with your name, one question, three suggestions and one glass input with a single talk/send button. The menu at the top left shows which AI is answering and holds Read replies aloud and Dictate; the plus starts a new chat.
+- Statistics: a new "Where it went" chart. Tap a category bar to see only its spending on the trend line. Below it, your daily average and number of purchases.
+- New Budget screen (Stats › Budget): your salary or income, days to the next salary, the 50/30/20 auto-allocation, whether you're under or over plan, and six months of spending.
+- Lock Screen widgets: "Spent today", and a ring showing how much of today's budget you've used.
+- Bank automation: a progress bar and a checklist. Ghaf ticks a step only when it has seen it work (a bank message or an Apple Pay purchase arriving).
+- Subscriptions: when a charge for a subscription comes in higher than its set price (for example ChatGPT), Ghaf asks whether to use the new price for future payments. Past payments stay as they are.
+- Subscriptions now show what you've paid this month and what's still due, from your real bank charges.
+
+### العربية
+- غاف AI أصبح مطابقاً للتصميم المعتمد: كرة كبيرة، «أهلاً» باسمك، سؤال واحد، ثلاثة اقتراحات، وحقل زجاجي واحد بزر واحد للتحدث أو الإرسال. القائمة أعلى اليسار تعرض الذكاء الذي يجيب، وفيها قراءة الردود بصوت والإملاء، وزر + يبدأ محادثة جديدة.
+- الإحصائيات: رسم جديد «أين ذهب المال». اضغط شريط فئة لترى صرفها فقط على خط الاتجاه. وتحته متوسط صرفك اليومي وعدد المشتريات.
+- شاشة ميزانية جديدة (الإحصائيات › الميزانية): راتبك أو دخلك، والأيام حتى الراتب القادم، والتوزيع التلقائي ٥٠/٣٠/٢٠، وهل أنت تحت الخطة أو فوقها، وصرف آخر ستة أشهر.
+- ودجت شاشة القفل: «صرف اليوم»، وحلقة تبيّن كم استخدمت من ميزانية اليوم.
+- أتمتة البنك: شريط تقدّم وقائمة خطوات. يعلّم غاف الخطوة فقط عندما يراها تعمل (وصول رسالة بنك أو عملية Apple Pay).
+- الاشتراكات: عندما يصل خصم لاشتراك بمبلغ أعلى من سعره المحدد (مثل ChatGPT)، يسألك غاف هل تعتمد السعر الجديد للدفعات القادمة. الدفعات السابقة تبقى كما هي.
+- الاشتراكات تعرض الآن ما دفعته هذا الشهر وما بقي مستحقاً، من خصوماتك البنكية الفعلية.
+
 ## 1.18 (32)
 
 ### English

@@ -29,6 +29,8 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     /// The city theme's bright accent and glow (0xRRGGBB, dark palette), so widgets match the app.
     var accent: UInt32? = nil
     var glow: UInt32? = nil
+    /// Share of today's budget spent (BudgetCalculator's daily mode), unclamped; nil when no daily budget is set.
+    var dailyBudgetUsed: Double? = nil
 
     struct CategorySpend: Codable, Equatable {
         let name: String

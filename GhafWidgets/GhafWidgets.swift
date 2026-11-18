@@ -168,7 +168,7 @@ struct GhafTodayWidget: Widget {
         }
         .configurationDisplayName("Today")
         .description("What you spent today, by category.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
 }
 
@@ -179,13 +179,27 @@ struct GhafTodayView: View {
     var body: some View {
         let s = entry.snapshot
         if family == .accessoryCircular {
-            Gauge(value: 1) {
+            // Budget ring: how much of today's budget is spent. Without a daily budget it shows today's spend only.
+            let used = s?.dailyBudgetUsed
+            Gauge(value: min(max(used ?? 0, 0), 1)) {
                 Text(s?.currency ?? "AED")
             } currentValueLabel: {
-                Text(s.map { $0.hidden ? "✦✦" : $0.spentToday.formatted(.number.precision(.fractionLength(0))) } ?? "—")
+                Text(used.map { $0.formatted(.percent.precision(.fractionLength(0))) }
+                     ?? s.map { $0.hidden ? "✦✦" : $0.spentToday.formatted(.number.precision(.fractionLength(0))) } ?? "—")
                     .minimumScaleFactor(0.5)
+                    .privacySensitive()
             }
             .gaugeStyle(.accessoryCircularCapacity)
+            .accessibilityLabel(used.map { text(s, "Budget \(Int(($0 * 100).rounded())) percent used", "استُخدم \(Int(($0 * 100).rounded())) بالمئة من الميزانية") }
+                                ?? text(s, "Spent today", "صرف اليوم"))
+        } else if family == .accessoryRectangular {
+            VStack(alignment: .leading, spacing: 1) {
+                Caption(value: text(s, "Spent today", "صرف اليوم")).opacity(0.7)
+                Text(s.map { $0.money($0.spentToday) } ?? "—")
+                    .font(.system(size: 22, weight: .bold)).minimumScaleFactor(0.6).lineLimit(1)
+                    .privacySensitive()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else if let s {
             if family == .systemMedium { medium(s) } else { small(s) }
         } else {

@@ -29,6 +29,7 @@ struct LogBankMessageIntent: AppIntent {
 
         // Reaching this line proves the user's automation runs; Home hides its setup card from now on.
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
+        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.messageRunKey)
         // Rates for a purchase abroad; skipped when the cached ones are fresh, and never blocks long.
         await GhafExchangeRates.refreshIfStale()
         let confirmation = try await MainActor.run {
@@ -63,4 +64,7 @@ struct LogBankMessageIntent: AppIntent {
 /// When an automation last delivered a message to Ghaf (0 = never), so the app knows setup worked.
 enum GhafAutomationStatus {
     static let lastRunKey = "ghaf.automation.lastRun"
+    /// Per-source runs, so the setup checklist ticks only the step that actually worked.
+    static let messageRunKey = "ghaf.automation.lastMessageRun"
+    static let walletRunKey = "ghaf.automation.lastWalletRun"
 }

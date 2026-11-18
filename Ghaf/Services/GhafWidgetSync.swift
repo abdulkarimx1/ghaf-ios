@@ -42,6 +42,10 @@ enum GhafWidgetSync {
                            hidden: GhafFormat.balancesHidden, arabic: settings.languageCode == "ar", updated: .now)
         snapshot.todayCategories = Array(byCategory.prefix(4))
         snapshot.lastSevenDays = week
+        let budget = BudgetCalculator.snapshot(settings: settings, transactions: transactions)
+        if settings.budgetMode != "Category", budget.hasBudget {
+            snapshot.dailyBudgetUsed = NSDecimalNumber(decimal: budget.spent / budget.limit).doubleValue
+        }
         let lit = GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
         snapshot.accent = hex(lit.accent)
         snapshot.glow = hex(lit.glow)

@@ -77,6 +77,22 @@ public enum SubscriptionDetector {
     ) -> Bool {
         guard let merchant, sameService(merchant: merchant, subscriptionName: subscriptionName),
               isSimilar(amount, subscriptionAmount) else { return false }
+        return withinWindow(date, of: dueDate, toleranceDays: toleranceDays)
+    }
+
+    /// The new price when a charge for the same service, inside the due window, costs more than the
+    /// set price: a price rise to offer the user. Over 3x is likely a different purchase, so it's ignored.
+    public static func raisedPrice(
+        merchant: String?, amount: Decimal, date: Date,
+        subscriptionName: String, subscriptionAmount: Decimal, dueDate: Date, toleranceDays: Int
+    ) -> Decimal? {
+        guard let merchant, sameService(merchant: merchant, subscriptionName: subscriptionName),
+              amount - subscriptionAmount > Decimal(string: "0.01")!, amount <= subscriptionAmount * 3,
+              withinWindow(date, of: dueDate, toleranceDays: toleranceDays) else { return nil }
+        return amount
+    }
+
+    private static func withinWindow(_ date: Date, of dueDate: Date, toleranceDays: Int) -> Bool {
         let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: dueDate),
                                                    to: Calendar.current.startOfDay(for: date)).day ?? .max
         return abs(days) <= toleranceDays

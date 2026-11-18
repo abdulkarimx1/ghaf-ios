@@ -197,7 +197,11 @@ final class TransactionIngestionService {
             Task { await GhafWidgetSync.showPurchase(transaction, account: account, balance: balance, needsReview: needsReview, arabic: arabic) }
         }
 
-        let subscriptionNote = paidSubscription.map { " Looks like the \($0.name) payment. Confirm it in Subscriptions." }
+        let subscriptionNote = paidSubscription.map { item in
+            item.proposedAmount != nil
+                ? " \(item.name) charged more than the \(item.amount) \(item.currency) you set. Update the price in Subscriptions."
+                : " Looks like the \(item.name) payment. Confirm it in Subscriptions."
+        }
             ?? detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""
 
         let amount = NSDecimalNumber(decimal: parsed.amount).stringValue
@@ -222,13 +226,24 @@ final class TransactionIngestionService {
         let active = try context.fetch(FetchDescriptor<GhafSubscription>(
             predicate: #Predicate { $0.isActive && $0.currency == currency }
         ))
-        return active.first { item in
-            SubscriptionDetector.isPayment(
+        for item in active {
+            let tolerance = item.cycle == .weekly ? 2 : 5
+            // A higher charge is still this payment; the new price waits for the user's OK in Subscriptions.
+            if let raised = SubscriptionDetector.raisedPrice(
                 merchant: parsed.merchant, amount: parsed.amount, date: parsed.date,
                 subscriptionName: item.name, subscriptionAmount: item.amount, dueDate: item.nextPaymentDate,
-                toleranceDays: item.cycle == .weekly ? 2 : 5
-            )
+                toleranceDays: tolerance) {
+                item.proposedAmount = raised
+                return item
+            }
+            if SubscriptionDetector.isPayment(
+                merchant: parsed.merchant, amount: parsed.amount, date: parsed.date,
+                subscriptionName: item.name, subscriptionAmount: item.amount, dueDate: item.nextPaymentDate,
+                toleranceDays: tolerance) {
+                return item
+            }
         }
+        return nil
     }
 
     /// Suggests a subscription when this debit looks recurring and the merchant is not tracked yet.

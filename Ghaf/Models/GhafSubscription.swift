@@ -58,6 +58,8 @@ final class GhafSubscription {
     var needsConfirmation: Bool = false
     var notes: String?
     var createdAt: Date
+    /// A higher price seen on a real charge, waiting for the user to accept it for future payments.
+    var proposedAmount: Decimal? = nil
 
     init(id: UUID = UUID(), name: String, amount: Decimal, currency: String = "AED",
          billingCycle: GhafBillingCycle = .monthly, nextPaymentDate: Date,

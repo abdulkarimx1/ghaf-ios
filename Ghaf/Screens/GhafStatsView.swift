@@ -4,22 +4,18 @@ import Charts
 import GhafCore
 
 /// The Stats tab: spending over a chosen period, by time and by category, in the main currency.
-/// Every chart is interactive, and the user picks how each one is drawn.
+/// Laid out like the approved canvas: trend hero, "Where it went" bars, two tiles, merchants.
 struct GhafStatsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
     let settings: GhafSettings
 
     enum Period: Int, CaseIterable { case week, month, quarter, year }
-    enum CategoryStyle: String, CaseIterable { case donut, bars, tiles }
 
     @State private var period: Period = .month
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
-    @State private var selectedAngle: Double?
     @State private var showPro = false
-    @State private var budgetBucket: BudgetAllocation.Bucket = .needs
-    @AppStorage("ghaf.stats.categoryStyle") private var categoryStyle = CategoryStyle.donut.rawValue
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -100,13 +96,13 @@ struct GhafStatsView: View {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     GhafScreenTitle(title: ar ? "الإحصائيات" : "Statistics",
-                                    subtitle: ar ? "صرفك بالتفصيل، بعملة \(currency)" : "Your spending in detail, in \(currency)",
+                                    subtitle: nil,
                                     languageCode: lang, theme: theme)
                     // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
                     AnyView(trendHero(buckets(filtered), current: current, previous: previous).ghafEntrance(0))
-                    AnyView(budgetCard.ghafEntrance(1))
-                    AnyView(categoryCard(slices(current)).ghafEntrance(2))
-                    AnyView(metrics(current).ghafEntrance(3))
+                    AnyView(whereItWent(slices(current)).ghafEntrance(1))
+                    AnyView(tiles(current).ghafEntrance(2))
+                    AnyView(budgetLink.ghafEntrance(3))
                     AnyView(merchants(current).ghafEntrance(4))
                     AnyView(proCard.ghafEntrance(5))
                 }
@@ -120,7 +116,6 @@ struct GhafStatsView: View {
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.selection, trigger: period)
-            .task(id: "\(period)-\(transactions.count)-\(theme.isDark)") { refreshColors() }
             .sensoryFeedback(.selection, trigger: selectedCategory)
             .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")) }
         }
@@ -253,371 +248,122 @@ struct GhafStatsView: View {
         .ghafCard(theme: theme, radius: 30)
     }
 
-    private func styleSwitch<Style: RawRepresentable & CaseIterable & Hashable>(_ value: Binding<String>, _ styles: [Style],
-                                                                             icons: [String], names: [String]) -> some View
-    where Style.RawValue == String {
-        HStack(spacing: 4) {
-            ForEach(Array(styles.enumerated()), id: \.offset) { index, style in
-                Button {
-                    withAnimation(.snappy) { value.wrappedValue = style.rawValue }
-                } label: {
-                    Image(systemName: icons[index])
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(value.wrappedValue == style.rawValue ? theme.accentContrast : theme.secondaryText)
-                        .frame(width: 44, height: 36)
-                        .contentShape(Rectangle().inset(by: -4))
-                        .background(value.wrappedValue == style.rawValue ? theme.accent : .clear, in: Capsule())
+    // MARK: Budget entry
+
+    private var budgetLink: some View {
+        NavigationLink { GhafBudgetView(settings: settings) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "chart.pie.fill").font(.system(size: 18, weight: .bold)).foregroundStyle(theme.accentContrast)
+                    .frame(width: 40, height: 40).background(theme.accent, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ar ? "الميزانية" : "Budget").font(GhafTypography.body(15, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
+                    Text(ar ? "الراتب والتوزيع ٥٠/٣٠/٢٠ والوتيرة" : "Salary, 50/30/20 split and pace")
+                        .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
-                .buttonStyle(.ghafPress)
-                .accessibilityLabel(names[index])
-                .accessibilityAddTraits(value.wrappedValue == style.rawValue ? .isSelected : [])
+                Spacer(minLength: 4)
+                Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText)
             }
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .ghafCard(theme: theme, radius: 22)
         }
-        .padding(3)
-        .background(theme.elevatedSurface, in: Capsule())
+        .buttonStyle(.ghafPress)
     }
 
-    // MARK: Budget (50/30/20)
+    // MARK: Where it went
 
-    /// Income for the budget period: the salary when it's set up, else the monthly income from Settings.
-    private var budgetIncome: Decimal {
-        settings.salaryEnabled == true ? (settings.salaryAmount ?? settings.monthlyIncome) : settings.monthlyIncome
-    }
-
-    /// The salary cycle when a salary day is set, else this calendar month (same rule as BudgetCalculator).
-    private var budgetInterval: DateInterval {
-        if settings.salaryEnabled == true, let day = settings.salaryDay {
-            let start = GhafSalaryCycle.startDate(for: .now, salaryDay: day)
-            let days = GhafSalaryCycle.daysInCycle(for: .now, salaryDay: day)
-            return DateInterval(start: start, end: calendar.date(byAdding: .day, value: days, to: start) ?? .now)
-        }
-        return calendar.dateInterval(of: .month, for: .now)!
-    }
-
-    /// Auto-allocation: income split 50/30/20, with what the ledger shows spent in needs and wants this period.
-    private var budgetCard: some View {
-        let income = budgetIncome
-        let range = budgetInterval
-        let spending = expenses(in: range)
-        func spent(_ bucket: BudgetAllocation.Bucket) -> Decimal {
-            spending.filter { BudgetAllocation.bucket(forCategory: $0.category) == bucket }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
-        }
-        let needs = spent(.needs), wants = spent(.wants)
-        let bucket = budgetBucket
-        let planned = income * BudgetAllocation.share(bucket)
-        // Savings "used" is what's actually left of income after needs and wants, against the 20% goal.
-        let used: Decimal = bucket == .needs ? needs : bucket == .wants ? wants : max(income - needs - wants, 0)
-        let ratio = planned > 0 ? min(max(NSDecimalNumber(decimal: used / planned).doubleValue, 0), 1.5) : 0
-        let names = ar ? ["الأساسيات", "الرغبات", "الادخار"] : ["Needs", "Wants", "Savings"]
-        let notes = ar ? ["إيجار، فواتير، بقالة، سيارة", "مطاعم، تسوق، ترفيه", "ما يبقى من دخلك"]
-                       : ["Rent, bills, groceries, car", "Dining, shopping, fun", "What's left of your income"]
-        let colors = [theme.accent, theme.glow, theme.credit]
-        // Pace: spending so far against the 80% for needs and wants, prorated to today.
-        let elapsed = min(max(Date.now.timeIntervalSince(range.start) / range.duration, 0.03), 1)
-        let expected = NSDecimalNumber(decimal: income * 0.8).doubleValue * elapsed
-        let actual = NSDecimalNumber(decimal: needs + wants).doubleValue
-        let pace = expected > 0 ? (actual - expected) / expected : 0
-        return VStack(spacing: 14) {
-            Text(ar ? "التوزيع التلقائي" : "Auto-allocation")
-                .font(GhafTypography.heading(18, languageCode: lang))
-                .foregroundStyle(theme.primaryText)
-            if income <= 0 {
-                Text(ar ? "أضف دخلك الشهري من المزيد › الميزانية والفئات، أو راتبك من دورة الراتب، ليقسّمه غاف ٥٠/٣٠/٢٠."
-                        : "Add your monthly income in More › Budget & categories, or your salary in Salary cycle, and Ghaf splits it 50/30/20.")
-                    .font(GhafTypography.body(14, languageCode: lang))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-            } else {
-                Chart(BudgetAllocation.Bucket.allCases, id: \.self) { item in
-                    SectorMark(angle: .value("Share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
-                               innerRadius: .ratio(0.55), outerRadius: .ratio(item == bucket ? 1 : 0.9), angularInset: 2)
-                        .cornerRadius(6)
-                        .foregroundStyle(colors[item.rawValue].opacity(item == bucket ? 1 : 0.35))
-                }
-                .chartBackground { _ in
-                    VStack(spacing: 0) {
-                        Text("\(Int(truncating: (BudgetAllocation.share(bucket) * 100) as NSNumber))%")
-                            .font(GhafTypography.number(22, weight: .heavy)).foregroundStyle(theme.primaryText)
-                        Text(names[bucket.rawValue]).font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.secondaryText)
-                    }
-                }
-                .frame(height: 170)
-                .accessibilityLabel(ar ? "٥٠٪ أساسيات، ٣٠٪ رغبات، ٢٠٪ ادخار" : "Needs 50 percent, wants 30 percent, savings 20 percent")
-
-                HStack(spacing: 4) {
-                    ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
-                        Button { withAnimation(.snappy) { budgetBucket = item } } label: {
-                            Text(names[item.rawValue])
-                                .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                                .foregroundStyle(item == bucket ? theme.accentContrast : theme.secondaryText)
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(item == bucket ? theme.accent : .clear, in: Capsule())
-                        }
-                        .buttonStyle(.ghafPress)
-                        .accessibilityAddTraits(item == bucket ? .isSelected : [])
-                    }
-                }
-                .padding(4)
-                .background(theme.elevatedSurface, in: Capsule())
-
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(names[bucket.rawValue]).font(GhafTypography.body(16, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
-                            Text(notes[bucket.rawValue]).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        }
-                        Spacer()
-                        GhafMoneyLabel(amount: planned, currency: currency, languageCode: lang, size: 17)
-                            .foregroundStyle(theme.primaryText).environment(\.layoutDirection, .leftToRight)
-                    }
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(theme.elevatedSurface)
-                            Capsule().fill(bucket != .savings && ratio > 1 ? theme.over : colors[bucket.rawValue])
-                                .frame(width: max(6, proxy.size.width * min(ratio, 1)))
-                        }
-                    }
-                    .frame(height: 8)
-                    HStack {
-                        Text(bucket == .savings ? (ar ? "ادّخرت حتى الآن " : "Saved so far ") + GhafFormat.shownMoney(used, currency: currency, languageCode: lang)
-                                                : (ar ? "صرفت " : "Spent ") + GhafFormat.shownMoney(used, currency: currency, languageCode: lang))
-                        Spacer()
-                        Text((ratio).formatted(.percent.precision(.fractionLength(0)).locale(Locale(identifier: lang))))
-                    }
-                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.secondaryText)
-                }
-                .padding(14)
-                .background(theme.elevatedSurface.opacity(0.6), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                Label(pace <= 0 ? (ar ? "أقل من المخطط بـ \(Int(abs(pace) * 100))٪ حتى اليوم" : "You're \(Int(abs(pace) * 100))% under plan so far")
-                                : (ar ? "أعلى من المخطط بـ \(Int(pace * 100))٪ حتى اليوم" : "You're \(Int(pace * 100))% over plan so far"),
-                      systemImage: pace <= 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                    .foregroundStyle(pace <= 0 ? theme.credit : theme.over)
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme)
-        .sensoryFeedback(.selection, trigger: budgetBucket)
-    }
-
-    // MARK: Categories
-
-    /// The donut's slices: anything under 2% joins "Other". Hairline sectors with rounded corners
-    /// produce NaN geometry inside Charts and crash it (seen on Year, where small categories are tiny).
-    private func ring(_ data: [Slice]) -> [Slice] {
-        let sum = data.reduce(0) { $0 + $1.total }
-        guard sum > 0 else { return [] }
-        let big = data.filter { $0.total / sum >= 0.02 }
-        let rest = data.filter { $0.total / sum < 0.02 }.reduce(0) { $0 + $1.total }
-        guard rest > 0 else { return big }
-        if let index = big.firstIndex(where: { $0.category == "Other" }) {
-            var merged = big
-            merged[index] = Slice(category: "Other", total: big[index].total + rest)
-            return merged
-        }
-        return big + [Slice(category: "Other", total: rest)]
-    }
-
-    private func categoryCard(_ data: [Slice]) -> some View {
-        let sum = data.reduce(0) { $0 + $1.total }
-        let ringData = ring(data)
-        let style = CategoryStyle(rawValue: categoryStyle) ?? .donut
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(ar ? "حسب الفئة" : "By category")
-                    .font(GhafTypography.heading(18, languageCode: lang))
+    /// Canvas "Where it went": the five biggest categories as tappable bars; a tap filters the hero line.
+    private func whereItWent(_ data: [Slice]) -> some View {
+        let top = Array(data.prefix(5))
+        let most = top.first?.total ?? 1
+        return VStack(spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(ar ? "أين ذهب المال" : "Where it went")
+                    .font(GhafTypography.heading(16, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
                 Spacer()
-                styleSwitch($categoryStyle, CategoryStyle.allCases, icons: ["chart.pie.fill", "chart.bar.doc.horizontal.fill", "square.grid.2x2.fill"],
-                            names: ar ? ["دائري", "أشرطة", "مربعات"] : ["Donut", "Bars", "Tiles"])
+                Text(ar ? "اضغط شريطاً لتصفية الرسم" : "Tap a bar to filter the chart")
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
             }
-            if data.isEmpty {
+            if top.isEmpty {
                 Text(ar ? "لا يوجد صرف في هذه الفترة." : "No spending in this period.")
                     .font(GhafTypography.body(14, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else {
-                switch style {
-                case .donut: donut(ringData, legendData: data, sum: sum)
-                case .bars: categoryBars(data, sum: sum)
-                case .tiles: tiles(data, sum: sum)
+                HStack(alignment: .bottom, spacing: 10) {
+                    ForEach(top) { slice in
+                        let on = selectedCategory == slice.category
+                        Button { toggle(slice.category) } label: {
+                            VStack(spacing: 6) {
+                                Spacer(minLength: 0)
+                                Text(whole(slice.total))
+                                    .font(GhafTypography.number(11, weight: .bold))
+                                    .foregroundStyle(on ? theme.primaryText : theme.secondaryText)
+                                    .lineLimit(1).minimumScaleFactor(0.7)
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(on ? theme.accent : theme.primaryText.opacity(0.09))
+                                    .frame(height: max(10, 92 * slice.total / most))
+                                Text(GhafLocalization.category(slice.category, languageCode: lang))
+                                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                                    .foregroundStyle(theme.secondaryText)
+                                    .lineLimit(1).minimumScaleFactor(0.7)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.ghafPress)
+                        .accessibilityLabel("\(GhafLocalization.category(slice.category, languageCode: lang)) \(GhafFormat.shownMoney(Decimal(slice.total), currency: currency, languageCode: lang))")
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
                 }
             }
         }
-        .padding(18)
-        .ghafCard(theme: theme)
-        .onChange(of: selectedAngle) { _, angle in
-            guard let angle else { return }
-            var running = 0.0
-            let hit = ((CategoryStyle(rawValue: categoryStyle) ?? .donut) == .donut ? ringData : data).first { running += $0.total; return angle <= running }
-            withAnimation(.snappy) { selectedCategory = hit?.category == selectedCategory ? nil : hit?.category }
-        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .ghafCard(theme: theme, radius: 24)
     }
 
-    @State private var colorMap: [String: Color] = [:]
-    private func color(_ category: String) -> Color { colorMap[category] ?? GhafCategoryIcon.chartColor(category, dark: theme.isDark) }
-    private func refreshColors() {
-        colorMap = GhafCategoryIcon.chartColors(for: slices(expenses(in: interval)).map(\.category), dark: theme.isDark)
+    private func whole(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0)).locale(Locale(identifier: lang)))
     }
 
     private func toggle(_ category: String) {
         withAnimation(.snappy) { selectedCategory = selectedCategory == category ? nil : category }
     }
 
-    private func donut(_ data: [Slice], legendData: [Slice], sum: Double) -> some View {
-        let focus = data.first { $0.category == selectedCategory }
-        return VStack(spacing: 16) {
-            Chart(data) { slice in
-                SectorMark(angle: .value(currency, slice.total), innerRadius: .ratio(0.62),
-                           outerRadius: .ratio(selectedCategory == slice.category ? 1 : 0.92), angularInset: 1.5)
-                    .cornerRadius(5)
-                    .foregroundStyle(color(slice.category).opacity(selectedCategory == nil || selectedCategory == slice.category ? 1 : 0.3))
-            }
-            .chartAngleSelection(value: $selectedAngle)
-            // A new chart per period: Charts animating sectors from one set of slices to another
-            // produces NaN geometry and crashes (seen switching to 3 months and Year).
-            .id(period)
-            .chartBackground { _ in
-                VStack(spacing: 2) {
-                    Text(focus.map { GhafLocalization.category($0.category, languageCode: lang) } ?? (ar ? "المجموع" : "Total"))
-                        .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
-                    GhafMoneyLabel(amount: Decimal(focus?.total ?? sum), currency: currency, languageCode: lang, size: 18)
-                        .foregroundStyle(theme.primaryText)
-                        .environment(\.layoutDirection, .leftToRight)
-                    if let focus, sum > 0 {
-                        Text((focus.total / sum).formatted(.percent.precision(.fractionLength(0))))
-                            .font(GhafTypography.number(12, weight: .bold))
-                            .foregroundStyle(color(focus.category))
-                    }
-                }
-            }
-            .frame(height: 220)
-            legend(legendData, sum: sum)
-        }
-    }
+    // MARK: Tiles and merchants
 
-    private func legend(_ data: [Slice], sum: Double) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            ForEach(data.prefix(8)) { slice in
-                Button { toggle(slice.category) } label: {
-                    HStack(spacing: 8) {
-                        Circle().fill(color(slice.category)).frame(width: 10, height: 10)
-                        Text(GhafLocalization.category(slice.category, languageCode: lang))
-                            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.primaryText).lineLimit(1)
-                        Spacer(minLength: 2)
-                        Text((slice.total / max(sum, 1)).formatted(.percent.precision(.fractionLength(0))))
-                            .font(GhafTypography.number(12, weight: .bold))
-                            .foregroundStyle(theme.secondaryText)
-                    }
-                    .padding(.horizontal, 10).frame(minHeight: 40)
-                    .background(selectedCategory == slice.category ? color(slice.category).opacity(0.14) : theme.elevatedSurface,
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .buttonStyle(.ghafPress)
-            }
-        }
-    }
-
-    private func categoryBars(_ data: [Slice], sum: Double) -> some View {
-        VStack(spacing: 10) {
-            ForEach(data) { slice in
-                Button { toggle(slice.category) } label: {
-                    VStack(spacing: 6) {
-                        HStack(spacing: 10) {
-                            GhafCategoryIcon(category: slice.category, tint: theme.accent).scaleEffect(0.8).frame(width: 36, height: 36)
-                            Text(GhafLocalization.category(slice.category, languageCode: lang))
-                                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                                .foregroundStyle(theme.primaryText)
-                            Spacer()
-                            GhafMoneyLabel(amount: Decimal(slice.total), currency: currency, languageCode: lang, size: 14)
-                                .foregroundStyle(theme.primaryText)
-                        }
-                        GeometryReader { proxy in
-                            Capsule().fill(theme.elevatedSurface)
-                                .overlay(alignment: .leading) {
-                                    Capsule().fill(color(slice.category))
-                                        .frame(width: max(6, proxy.size.width * slice.total / max(sum, 1)))
-                                }
-                        }
-                        .frame(height: 8)
-                    }
-                    .opacity(selectedCategory == nil || selectedCategory == slice.category ? 1 : 0.4)
-                }
-                .buttonStyle(.ghafPress)
-            }
-        }
-    }
-
-    private func tiles(_ data: [Slice], sum: Double) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            ForEach(data.prefix(8)) { slice in
-                Button { toggle(slice.category) } label: {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            GhafCategoryIcon(category: slice.category, tint: theme.accent).scaleEffect(0.8).frame(width: 36, height: 36)
-                            Spacer()
-                            Text((slice.total / max(sum, 1)).formatted(.percent.precision(.fractionLength(0))))
-                                .font(GhafTypography.number(18, weight: .heavy))
-                                .foregroundStyle(color(slice.category))
-                        }
-                        Text(GhafLocalization.category(slice.category, languageCode: lang))
-                            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.secondaryText).lineLimit(1)
-                        GhafMoneyLabel(amount: Decimal(slice.total), currency: currency, languageCode: lang, size: 16)
-                            .foregroundStyle(theme.primaryText)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(color(slice.category).opacity(selectedCategory == slice.category ? 0.2 : 0.08),
-                                in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-                .buttonStyle(.ghafPress)
-            }
-        }
-    }
-
-    // MARK: Metrics and merchants
-
-    private func metrics(_ items: [GhafTransaction]) -> some View {
-        let spent = total(items)
+    private func tiles(_ items: [GhafTransaction]) -> some View {
         let days = max(1, calendar.dateComponents([.day], from: interval.start, to: min(Date.now, interval.end)).day ?? 1)
-        let biggest = items.max { $0.amount < $1.amount }
-        return LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            metric(ar ? "متوسط اليوم" : "Daily average", icon: "calendar") {
-                GhafMoneyLabel(amount: Decimal(spent / Double(days)), currency: currency, languageCode: lang, size: 18)
+        let units = ar ? ["هذا الأسبوع", "هذا الشهر", "آخر ٣ أشهر", "هذه السنة"] : ["this week", "this month", "these 3 months", "this year"]
+        return HStack(spacing: 10) {
+            VStack(spacing: 2) {
+                Text(ar ? "متوسط اليوم" : "Daily average")
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                    .foregroundStyle(theme.accentContrast.opacity(0.65))
+                Text(whole(total(items) / Double(days)))
+                    .font(GhafTypography.number(26, weight: .bold))
+                    .foregroundStyle(theme.accentContrast)
+                Text(ar ? "\(currency) يومياً" : "\(currency) a day")
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.accentContrast.opacity(0.65))
             }
-            metric(ar ? "عدد العمليات" : "Transactions", icon: "number") {
-                Text(items.count.formatted(.number.locale(Locale(identifier: lang)))).font(GhafTypography.number(20, weight: .heavy))
+            .frame(maxWidth: .infinity).padding(14)
+            .background(theme.accent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            VStack(spacing: 2) {
+                Text(ar ? "المشتريات" : "Purchases")
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                    .foregroundStyle(theme.secondaryText)
+                Text(items.count.formatted(.number.locale(Locale(identifier: lang))))
+                    .font(GhafTypography.number(26, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+                Text(units[period.rawValue])
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
             }
-            metric(ar ? "أكبر عملية" : "Biggest purchase", icon: "arrow.up.circle", detail: biggest?.merchant) {
-                GhafMoneyLabel(amount: biggest?.amount ?? 0, currency: currency, languageCode: lang, size: 18)
-            }
-            metric(ar ? "الفئة الأعلى" : "Top category", icon: "crown") {
-                Text(slices(items).first.map { GhafLocalization.category($0.category, languageCode: lang) } ?? "—")
-                    .font(GhafTypography.body(17, languageCode: lang, weight: .bold)).lineLimit(1)
-            }
+            .frame(maxWidth: .infinity).padding(14)
+            .ghafCard(theme: theme, radius: 22)
         }
-    }
-
-    private func metric<Value: View>(_ title: String, icon: String, detail: String? = nil, @ViewBuilder value: () -> Value) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: icon)
-                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
-            value().foregroundStyle(theme.primaryText)
-            if let detail {
-                Text(detail).font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-        .ghafCard(theme: theme, radius: 18)
     }
 
     private func merchants(_ items: [GhafTransaction]) -> some View {
@@ -627,7 +373,7 @@ struct GhafStatsView: View {
             .prefix(5)
         let most = top.first?.total ?? 1
         return VStack(alignment: .leading, spacing: 12) {
-            Text(ar ? "أين صرفت أكثر" : "Where it went")
+            Text(ar ? "أكثر المتاجر" : "Top merchants")
                 .font(GhafTypography.heading(18, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
             if top.isEmpty {

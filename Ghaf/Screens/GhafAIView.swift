@@ -60,10 +60,10 @@ struct GhafAIView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 header
+                if messages.isEmpty { welcome } else {
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: 14) {
-                            if messages.isEmpty { welcome }
                             ForEach($messages) { $message in
                                 bubble($message).id(message.id)
                             }
@@ -78,6 +78,7 @@ struct GhafAIView: View {
                     .onChange(of: messages.last?.text) { _, _ in
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(messages.last?.id, anchor: .bottom) }
                     }
+                }
                 }
                 inputBar
             }
@@ -120,43 +121,74 @@ struct GhafAIView: View {
 
     // MARK: Header
 
+    private func glassCircle(_ symbol: String, tint: Color? = nil) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(tint ?? theme.primaryText)
+            .frame(width: 44, height: 44)
+            .background(.white.opacity(0.06), in: Circle())
+            .overlay(Circle().stroke(.white.opacity(0.14)))
+    }
+
     private var header: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                HStack {
-                    Spacer()
-                    Button {
-                        speakReplies.toggle()
-                        if !speakReplies { synthesizer.stopSpeaking(at: .immediate) }
-                    } label: {
-                        Image(systemName: speakReplies ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(speakReplies ? theme.accent : theme.secondaryText)
-                            .frame(width: 44, height: 44)
-                            .background(.white.opacity(0.07), in: Circle())
-                            .overlay(Circle().stroke(.white.opacity(0.14)))
+        HStack {
+            // Settings for this chat: engine, read-aloud, dictation. There is no saved chat history to list.
+            Menu {
+                Section(engineLabel) {
+                    if engine != .cloud {
+                        Button { offerCloud = true } label: {
+                            Label(ar ? "فعّل الذكاء السحابي" : "Turn on Cloud AI", systemImage: "cloud.fill")
+                        }
                     }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "قراءة الردود بصوت" : "Read replies aloud")
                 }
-                HStack(spacing: 10) {
-                    // The welcome shows the big orb; the header orb appears once a chat starts.
-                    if !messages.isEmpty {
-                        GhafAIOrb(theme: theme, active: (isThinking || recorder.isRecording) && !reduceMotion)
-                            .frame(width: 36, height: 36)
-                    }
+                Button {
+                    speakReplies.toggle()
+                    if !speakReplies { synthesizer.stopSpeaking(at: .immediate) }
+                } label: {
+                    Label(ar ? "قراءة الردود بصوت" : "Read replies aloud",
+                          systemImage: speakReplies ? "checkmark" : "speaker.slash")
+                }
+                Button { startVoice() } label: {
+                    Label(ar ? "إملاء رسالة" : "Dictate a message", systemImage: "mic.fill")
+                }
+                .disabled(isThinking || recorder.isRecording)
+            } label: {
+                glassCircle("line.3.horizontal")
+            }
+            .accessibilityLabel(ar ? "خيارات غاف" : "Ghaf AI options")
+            Spacer()
+            if !messages.isEmpty {
+                HStack(spacing: 8) {
+                    GhafAIOrb(theme: theme, active: (isThinking || recorder.isRecording) && !reduceMotion)
+                        .frame(width: 24, height: 24)
                     Text("Ghaf AI")
-                        .font(GhafTypography.heading(22, languageCode: "en"))
+                        .font(GhafTypography.heading(17, languageCode: "en"))
                         .foregroundStyle(theme.primaryText)
                 }
+                Spacer()
             }
-            Label(engineLabel, systemImage: engine == .onDevice ? "lock.shield.fill" : engine == .cloud ? "cloud.fill" : "bolt.horizontal.fill")
-                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
+            Button {
+                replyTask?.cancel()
+                synthesizer.stopSpeaking(at: .immediate)
+                isThinking = false
+                withAnimation(.spring(duration: 0.35)) { messages.removeAll() }
+            } label: {
+                glassCircle("plus")
+            }
+            .buttonStyle(.ghafPress)
+            .disabled(messages.isEmpty)
+            .accessibilityLabel(ar ? "محادثة جديدة" : "New chat")
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 6)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .confirmationDialog(ar ? "الذكاء السحابي" : "Cloud AI", isPresented: $offerCloud, titleVisibility: .visible) {
+            Button(ar ? "تفعيل" : "Turn On") {
+                UserDefaults.standard.set(true, forKey: GhafCloudAI.enabledKey)
+                engine = assistant.engine
+            }
+        } message: {
+            Text(GhafCloudAI.disclosure(ar: ar) + (ar ? " يمكنك إيقافه من «ما تعلّمه غاف»." : " Turn it off anytime in What Ghaf learned."))
+        }
     }
 
     private var engineLabel: String {
@@ -170,68 +202,43 @@ struct GhafAIView: View {
     // MARK: Welcome
 
     private var welcome: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             GhafAIOrb(theme: theme, active: false)
                 .frame(width: 150, height: 150)
-                .padding(.top, 28).padding(.bottom, 12)
+                .padding(.top, 40)
             let name = settings.userName.split(separator: " ").first.map(String.init) ?? ""
-            if !name.isEmpty {
-                Text(ar ? "أهلاً \(name)" : "Hello \(name)")
-                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
-            }
-            Text(ar ? "كيف أساعدك في أموالك؟" : "How can I help with your money?")
-                .font(GhafTypography.display(30, languageCode: settings.languageCode))
+            Text(name.isEmpty ? (ar ? "أهلاً" : "Hello") : (ar ? "أهلاً \(name)" : "Hello \(name)"))
+                .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .padding(.top, 34)
+            Text(ar ? "كيف أساعدك\nفي أموالك؟" : "How can I help\nwith your money?")
+                .font(GhafTypography.display(32, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.center)
-            Text(ar ? "المصروف والميزانية والاشتراكات، أو قل ما اشتريت وأسجّله لك."
-                    : "Spending, budgets, subscriptions. Or just say what you bought and I'll log it.")
-                .font(GhafTypography.body(15, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-                .multilineTextAlignment(.center)
+                .padding(.top, 2)
             let chips = ar
-                ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "كم رصيدي؟", "ما الاشتراكات القادمة؟", "٣٥ درهم غداء", "قارن هذا الشهر بالماضي", "ارسم مصروفي حسب الفئة"]
-                : ["How much did I spend this week?", "Where did most of my money go?", "What's my balance?", "Which subscriptions are due?", "35 AED lunch", "Compare this month to last month", "Chart my spending by category"]
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "ما الاشتراكات القادمة؟"]
+                : ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"]
+            VStack(spacing: 8) {
                 ForEach(chips, id: \.self) { chip in
                     Button { send(chip) } label: {
                         Text(chip)
-                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                            .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity, minHeight: 58)
-                            .padding(.horizontal, 12)
-                            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.14)))
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 40)
+                            .background(.ultraThinMaterial.opacity(0.6), in: Capsule())
+                            .background(.white.opacity(0.07), in: Capsule())
+                            .overlay(Capsule().stroke(.white.opacity(0.14)))
                     }
                     .buttonStyle(.ghafPress)
                 }
             }
-            if engine != .cloud {
-                Button { offerCloud = true } label: {
-                    Label(ar ? "فعّل الذكاء السحابي لإجابات أذكى" : "Turn on Cloud AI for smarter answers", systemImage: "cloud.fill")
-                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
-                        .padding(.horizontal, 16).padding(.vertical, 10)
-                        .background(theme.accent.opacity(0.12), in: Capsule())
-                        .foregroundStyle(theme.accent)
-                }
-                .buttonStyle(.ghafPress)
-                .confirmationDialog(ar ? "الذكاء السحابي" : "Cloud AI", isPresented: $offerCloud, titleVisibility: .visible) {
-                    Button(ar ? "تفعيل" : "Turn On") {
-                        UserDefaults.standard.set(true, forKey: GhafCloudAI.enabledKey)
-                        engine = assistant.engine
-                    }
-                } message: {
-                    Text(GhafCloudAI.disclosure(ar: ar) + (ar ? " يمكنك إيقافه من «ما تعلّمه غاف»." : " Turn it off anytime in What Ghaf learned."))
-                }
-            }
-            Label(ar ? "يتعلم غاف من تصحيحاتك: غيّر الفئة مرة وسيتذكرها." : "Ghaf learns from you: change a category once and it remembers.",
-                  systemImage: "brain.head.profile")
-                .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
-                .multilineTextAlignment(.center)
+            .padding(.top, 26)
+            Spacer(minLength: 12)
         }
-        .padding(.top, 8)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
     }
 
     // MARK: Messages
@@ -392,13 +399,13 @@ struct GhafAIView: View {
                     .foregroundStyle(theme.over)
             }
             HStack(alignment: .bottom, spacing: 8) {
-                TextField(ar ? "اسأل غاف أو اكتب مصروفاً…" : "Ask Ghaf or type a purchase…", text: $prompt, axis: .vertical)
+                TextField(messages.isEmpty ? (ar ? "اسأل أي شيء…" : "Ask anything…") : (ar ? "اسأل سؤالاً آخر…" : "Ask a follow-up…"), text: $prompt, axis: .vertical)
                     .font(GhafTypography.body(15, languageCode: settings.languageCode))
                     .lineLimit(1...4)
                     .focused($inputFocused)
                     .submitLabel(.send)
                     .onSubmit { send(prompt) }
-                    .padding(.leading, 18).padding(.vertical, 12)
+                    .padding(.leading, 14).padding(.vertical, 12)
 
                 // A multi-line field turns Return into a new line, so closing the keyboard needs its own button.
                 if inputFocused {
@@ -412,27 +419,16 @@ struct GhafAIView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
 
-                if !hasText && !recorder.isRecording {
-                    Button { enterVoiceMode() } label: {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundStyle(theme.accent)
-                            .frame(width: 44, height: 44)
-                            .background(theme.accent.opacity(0.12), in: Circle())
-                    }
-                    .buttonStyle(.ghafPress)
-                    .disabled(isThinking)
-                    .accessibilityLabel(ar ? "وضع المحادثة الصوتية" : "Voice mode")
-                }
+                // One light button, as on the canvas: voice chat when empty, send with text, stop while dictating.
                 Button {
                     if recorder.isRecording { finishVoice() }
                     else if hasText { send(prompt) }
-                    else { startVoice() }
+                    else { enterVoiceMode() }
                 } label: {
-                    Image(systemName: recorder.isRecording ? "stop.fill" : (hasText ? "arrow.up" : "mic.fill"))
-                        .font(.system(size: 19, weight: .bold))
+                    Image(systemName: recorder.isRecording ? "stop.fill" : (hasText ? "arrow.up" : "waveform"))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(recorder.isRecording ? .white : GhafAIView.night)
-                        .frame(width: 46, height: 46)
+                        .frame(width: 48, height: 48)
                         .background(recorder.isRecording ? theme.over : theme.primaryText, in: Circle())
                         .symbolEffect(.pulse, isActive: recorder.isRecording)
                         .contentTransition(.symbolEffect(.replace))
@@ -440,25 +436,21 @@ struct GhafAIView: View {
                 .buttonStyle(.ghafPress)
                 .disabled(isThinking && !recorder.isRecording)
                 .accessibilityLabel(recorder.isRecording ? (ar ? "إيقاف وإرسال" : "Stop and send")
-                                    : hasText ? (ar ? "إرسال" : "Send") : (ar ? "رسالة صوتية" : "Voice message"))
+                                    : hasText ? (ar ? "إرسال" : "Send") : (ar ? "تحدث مع غاف" : "Talk to Ghaf"))
             }
-            .padding(5)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(6)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
             .overlay {
-                // Gradient rim that glows while Ghaf listens, thinks or the field is focused.
                 let lit = recorder.isRecording || isThinking || inputFocused
-                RoundedRectangle(cornerRadius: 27, style: .continuous)
-                    .strokeBorder(AngularGradient(colors: [theme.accent, theme.glow, theme.accent.opacity(0.4), theme.accent],
-                                                  center: .center), lineWidth: lit ? 1.5 : 0.8)
-                    .opacity(lit ? 1 : 0.45)
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(lit ? theme.accent.opacity(0.8) : .white.opacity(0.28), lineWidth: lit ? 1.5 : 1)
                     .allowsHitTesting(false)
             }
-            .shadow(color: theme.accent.opacity(recorder.isRecording || isThinking ? 0.35 : 0.14), radius: 14)
+            .shadow(color: theme.accent.opacity(recorder.isRecording || isThinking ? 0.35 : 0), radius: 14)
             .animation(.easeInOut(duration: 0.35), value: recorder.isRecording || isThinking || inputFocused)
-            .overlay { RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(.white.opacity(0.22)) }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 20)
         .padding(.top, 8)
         .padding(.bottom, 10)
     }

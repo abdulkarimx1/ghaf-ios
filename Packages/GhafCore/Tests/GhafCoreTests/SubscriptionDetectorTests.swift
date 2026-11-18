@@ -49,4 +49,18 @@ final class SubscriptionPaymentMatchTests: XCTestCase {
         XCTAssertFalse(pays("Netflix", 120, 0))
         XCTAssertFalse(pays("Netflix", 56, 12))
     }
+
+    func testHigherChargeInDueWindowIsAPriceRise() {
+        func raised(_ merchant: String, _ amount: Decimal, _ offset: Int) -> Decimal? {
+            SubscriptionDetector.raisedPrice(merchant: merchant, amount: amount, date: day(offset),
+                subscriptionName: "ChatGPT", subscriptionAmount: 75, dueDate: due, toleranceDays: 5)
+        }
+        XCTAssertEqual(raised("CHATGPT SUBSCRIPTION", 79.5, 1), 79.5)
+        XCTAssertEqual(raised("ChatGPT", 110, 0), 110)
+        XCTAssertNil(raised("ChatGPT", 75, 0))      // same price: a normal payment
+        XCTAssertNil(raised("ChatGPT", 60, 0))      // cheaper: not a rise
+        XCTAssertNil(raised("ChatGPT", 400, 0))     // over 3x: a different purchase
+        XCTAssertNil(raised("ChatGPT", 90, 12))     // outside the due window
+        XCTAssertNil(raised("Spotify", 90, 0))
+    }
 }

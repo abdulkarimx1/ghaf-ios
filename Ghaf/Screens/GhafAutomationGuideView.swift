@@ -14,7 +14,14 @@ struct GhafAutomationGuideView: View {
     }
 
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
+    @AppStorage(GhafAutomationStatus.messageRunKey) private var messageLastRun: Double = 0
+    @AppStorage(GhafAutomationStatus.walletRunKey) private var walletLastRun: Double = 0
     @State private var step = 0
+
+    /// Which steps Ghaf has seen work. "Run Immediately" lives in iOS settings Ghaf can't read, so it never ticks itself.
+    private var stepDone: [Bool] {
+        [automationLastRun > 0, walletLastRun > 0, messageLastRun > 0, false]
+    }
 
     private var steps: [(title: String, detail: String)] {
         [(localized("Install the automation", "ثبّت الأتمتة"),
@@ -33,6 +40,7 @@ struct GhafAutomationGuideView: View {
                 heading
                 shortcutReadyCard
                 AnyView(stepCards)
+                AnyView(checklist)
 
                 privacyCard
             }
@@ -64,9 +72,62 @@ struct GhafAutomationGuideView: View {
                  : "Set it up once. After that, purchases log themselves.")
                 .font(GhafTypography.body(14, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
+            let done = stepDone.filter { $0 }.count
+            Text(localized("\(done) of \(steps.count) steps done. Ghaf ticks each one itself the first time it works.",
+                           "\(done) من \(steps.count) خطوات تمت. يعلّم غاف كل خطوة بنفسه أول مرة تعمل."))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+                .padding(.top, 4)
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(theme.primaryText.opacity(0.08))
+                    Capsule().fill(theme.credit)
+                        .frame(width: proxy.size.width * CGFloat(done) / CGFloat(max(steps.count, 1)))
+                }
+            }
+            .frame(height: 8)
+            .environment(\.layoutDirection, settings.languageCode == "ar" ? .rightToLeft : .leftToRight)
+            .accessibilityElement()
+            .accessibilityLabel(localized("\(done) of \(steps.count) steps done", "\(done) من \(steps.count) خطوات تمت"))
+            .padding(.top, 4)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
+    }
+
+    /// Canvas checklist: one row per step, ticked only when Ghaf detected it; a tap jumps to that card.
+    private var checklist: some View {
+        let waits = [localized("Waits for a run", "بانتظار تشغيل"), localized("Waits for a purchase", "بانتظار عملية شراء"),
+                     localized("Waits for a bank alert", "بانتظار رسالة بنك"), localized("Check in Shortcuts", "تحقق في الاختصارات")]
+        return VStack(spacing: 0) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, item in
+                let done = stepDone[index]
+                Button { withAnimation(.snappy) { step = index } } label: {
+                    HStack(spacing: 12) {
+                        Text(done ? "✓" : "\(index + 1)")
+                            .font(GhafTypography.number(13, weight: .bold))
+                            .foregroundStyle(done ? .white : theme.primaryText)
+                            .frame(width: 26, height: 26)
+                            .background(done ? theme.credit : theme.primaryText.opacity(0.08), in: Circle())
+                        Text(item.title)
+                            .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 6)
+                        Text(done ? localized("Done", "تم") : waits[index])
+                            .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    .frame(minHeight: 46)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.ghafPress)
+                .accessibilityLabel(item.title + ", " + (done ? localized("done", "تم") : waits[index]))
+                if index < steps.count - 1 { Divider().overlay(theme.primaryText.opacity(0.06)) }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 4)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var shortcutReadyCard: some View {
@@ -130,8 +191,8 @@ struct GhafAutomationGuideView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
                         // Only a real run proves setup worked; Ghaf records that, so step 1 can say so.
-                        if index == 0 && automationLastRun > 0 {
-                            Label(localized("Done · Ghaf saw it run", "تم · غاف رآها تعمل"), systemImage: "checkmark.circle.fill")
+                        if stepDone[index] {
+                            Label(localized("Done · detected by Ghaf", "تم · رصده غاف"), systemImage: "checkmark.circle.fill")
                                 .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
                                 .foregroundStyle(theme.inkCredit)
                         }

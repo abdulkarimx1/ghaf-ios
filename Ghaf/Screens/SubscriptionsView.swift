@@ -7,6 +7,7 @@ struct GhafSubscriptionsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \GhafSubscription.nextPaymentDate) private var subscriptions: [GhafSubscription]
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
+    @Query(filter: #Predicate<GhafTransaction> { $0.direction == "debit" && !$0.isReversal }) private var debits: [GhafTransaction]
     /// One value drives the sheet, so it always opens on the tapped subscription (not a stale or blank one).
     private struct EditorTarget: Identifiable { let id = UUID(); let subscription: GhafSubscription? }
     @State private var editorTarget: EditorTarget?
@@ -37,6 +38,8 @@ struct GhafSubscriptionsView: View {
                                     languageCode: lang, theme: theme)
                         .ghafEntrance(0)
                     costCard.ghafEntrance(1)
+                    monthTiles.ghafEntrance(1)
+                    if !priceChanges.isEmpty { priceChangeCard.ghafEntrance(2) }
                     if let next = active.filter({ !$0.needsConfirmation }).min(by: { $0.nextPaymentDate < $1.nextPaymentDate }) {
                         nextUpCard(next).ghafEntrance(2)
                     }
@@ -201,6 +204,86 @@ struct GhafSubscriptionsView: View {
                 .lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: This month, from the ledger
+
+    /// Paid: real bank charges this month for tracked subscriptions. Still due: renewals left this month.
+    /// Both in the preferred currency only; other currencies are never added in.
+    private var monthTiles: some View {
+        let month = Calendar.current.dateInterval(of: .month, for: .now)!
+        let live = active.filter { !$0.needsConfirmation && $0.currency == settings.currency }
+        let paid = debits.filter { item in
+            item.currency == settings.currency && month.contains(item.date)
+                && live.contains { SubscriptionDetector.sameService(merchant: item.merchant ?? "", subscriptionName: $0.name) }
+        }.reduce(Decimal.zero) { $0 + $1.amount }
+        let due = live.filter { $0.nextPaymentDate < month.end }.reduce(Decimal.zero) { $0 + $1.amount }
+        return HStack(spacing: 10) {
+            monthTile(ar ? "دُفع هذا الشهر" : "Paid this month", paid, symbol: "arrow.up.right", tint: theme.over)
+            monthTile(ar ? "متبقٍ هذا الشهر" : "Still due this month", due, symbol: "calendar", tint: theme.accent)
+        }
+    }
+
+    private func monthTile(_ title: String, _ amount: Decimal, symbol: String, tint: Color) -> some View {
+        VStack(spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 20)
+                .foregroundStyle(theme.primaryText)
+                .environment(\.layoutDirection, .leftToRight)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(14)
+        .ghafCard(theme: theme, radius: 22)
+    }
+
+    // MARK: Price changes
+
+    /// A real charge came in higher than the set price. The user decides whether future payments use it.
+    private var priceChanges: [GhafSubscription] { subscriptions.filter { $0.proposedAmount != nil } }
+
+    private var priceChangeCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(ar ? "تغيّر السعر" : "Price went up", systemImage: "arrow.up.circle.fill")
+                .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
+                .foregroundStyle(theme.accent)
+            ForEach(priceChanges) { item in
+                let new = item.proposedAmount ?? item.amount
+                let newText = GhafFormat.shownMoney(new, currency: item.currency, languageCode: lang)
+                let oldText = GhafFormat.shownMoney(item.amount, currency: item.currency, languageCode: lang)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(ar ? "خُصم من \(item.name) \(newText) بدلاً من \(oldText). هل تريد اعتماد السعر الجديد للدفعات القادمة؟"
+                            : "\(item.name) charged \(newText) instead of \(oldText). Use the new price for future payments?")
+                        .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 10) {
+                        Button(ar ? "أبقِ \(oldText)" : "Keep \(oldText)") { resolvePrice(item, accept: false) }
+                            .ghafGlassButton(theme: theme, languageCode: lang)
+                        Button(ar ? "حدّث إلى \(newText)" : "Update to \(newText)") { resolvePrice(item, accept: true) }
+                            .ghafProminentButton(theme: theme, languageCode: lang)
+                    }
+                }
+            }
+            Text(ar ? "الدفعات السابقة تبقى كما هي في السجل." : "Past payments stay as they are in your ledger.")
+                .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+        }
+        .padding(16).ghafCard(theme: theme)
+    }
+
+    private func resolvePrice(_ item: GhafSubscription, accept: Bool) {
+        if accept, let new = item.proposedAmount {
+            item.amount = new
+        }
+        item.proposedAmount = nil
+        confirmedCount += 1
+        do {
+            try context.save()
+            if accept && item.isActive { GhafSubscriptionReminderService.schedule(item, language: lang) }
+        } catch { context.rollback() }
     }
 
     /// Subscriptions found in bank messages. Nothing is tracked or reminded until the user confirms.
