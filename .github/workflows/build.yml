@@ -142,6 +142,11 @@ jobs:
           rm -rf Payload
           mkdir -p Payload
           ditto "$APP_PATH" Payload/Ghaf.app
+          # Ad-hoc sign with the entitlements so sideloaders can read the App Group the widgets need
+          # (they take entitlements from the binary's signature; an unsigned binary declares none).
+          codesign --force --sign - --entitlements Config/GhafWidgets.entitlements Payload/Ghaf.app/PlugIns/GhafWidgets.appex
+          codesign --force --sign - --entitlements Config/Ghaf.entitlements Payload/Ghaf.app
+          codesign -d --entitlements - Payload/Ghaf.app/PlugIns/GhafWidgets.appex 2>&1 | grep -q group.com.ghaf.app
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload Ghaf.ipa
           unzip -t Ghaf.ipa
 

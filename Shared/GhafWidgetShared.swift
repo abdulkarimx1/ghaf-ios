@@ -22,7 +22,17 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     var arabic: Bool
     var updated: Date
 
-    static let groupID = "group.com.ghaf.app"
+    /// The App Group to use. Sideloaders such as AltStore and SideStore rename the group (adding the
+    /// signing team) and list the real names under `ALTAppGroups` in Info.plist, so try those first.
+    static let groupID: String = {
+        let fallback = "group.com.ghaf.app"
+        // In the widget, Bundle.main is the extension; its app is two folders up (Ghaf.app/PlugIns/x.appex).
+        let app = Bundle(url: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent())
+        let listed = [Bundle.main, app].compactMap { $0?.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] }.flatMap { $0 }
+        return (listed + [fallback]).first {
+            FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil
+        } ?? fallback
+    }()
     private static let key = "ghaf.widget.snapshot"
 
     static func load() -> GhafWidgetSnapshot? {
@@ -59,7 +69,22 @@ struct GhafPurchaseAttributes: ActivityAttributes {
         var accountName: String?
         var balance: Decimal?
         var needsReview: Bool
+        /// SF Symbol for the category, so the activity shows what kind of purchase it was.
+        var symbol: String = "bag.fill"
+        var category: String = ""
     }
     var arabic: Bool
+    /// The user's theme colours (0xRRGGBB), so the activity looks like Ghaf.
+    var accent: UInt32 = 0x1B6B66
+    var glow: UInt32 = 0x6FD0CC
+}
+#endif
+
+#if canImport(SwiftUI)
+import SwiftUI
+extension Color {
+    init(ghafHex hex: UInt32) {
+        self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
 }
 #endif

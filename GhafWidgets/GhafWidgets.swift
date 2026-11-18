@@ -166,43 +166,94 @@ struct GhafTodayView: View {
 
 // MARK: Live Activity: a purchase just recorded
 
+/// The theme's Ghaf tree mark in its gradient, without a container (HIG: logo marks stand alone).
+private struct GhafActivityMark: View {
+    let attributes: GhafPurchaseAttributes
+    var size: CGFloat = 16
+    var body: some View {
+        Image(systemName: "tree.fill")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(LinearGradient(colors: [Color(ghafHex: attributes.glow), Color(ghafHex: attributes.accent)],
+                                            startPoint: .top, endPoint: .bottom))
+    }
+}
+
+private struct GhafCategoryBadge: View {
+    let state: GhafPurchaseAttributes.ContentState
+    let attributes: GhafPurchaseAttributes
+    var size: CGFloat = 44
+    var body: some View {
+        Image(systemName: state.symbol)
+            .font(.system(size: size * 0.42, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(LinearGradient(colors: [Color(ghafHex: attributes.glow), Color(ghafHex: attributes.accent)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing), in: Circle())
+    }
+}
+
 struct GhafPurchaseLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: GhafPurchaseAttributes.self) { context in
             GhafPurchaseLockView(context: context)
                 .activityBackgroundTint(nil)
-                .activitySystemActionForegroundColor(ghafGreen)
+                .activitySystemActionForegroundColor(Color(ghafHex: context.attributes.accent))
         } dynamicIsland: { context in
             let s = context.state
             let ar = context.attributes.arabic
+            let tint = Color(ghafHex: context.attributes.glow)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label { Text(s.merchant).lineLimit(1) } icon: { Image(systemName: "tree.fill").foregroundStyle(.green) }
-                        .font(.headline)
+                    GhafCategoryBadge(state: s, attributes: context.attributes, size: 46)
+                        .padding(.leading, 4)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(spacing: 1) {
+                        Text(s.merchant).font(.headline).lineLimit(1)
+                        Text(s.category).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(amount(s)).font(.headline.weight(.heavy)).foregroundStyle(s.isCredit ? .green : .white)
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text((s.isCredit ? "+" : "−") + s.amount.formatted(.number.precision(.fractionLength(2))))
+                            .font(.system(size: 20, weight: .heavy, design: .rounded))
+                            .foregroundStyle(s.isCredit ? .green : .white)
+                            .minimumScaleFactor(0.6).lineLimit(1)
+                        Text(s.currency).font(.caption2.weight(.bold)).foregroundStyle(tint)
+                    }
+                    .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        if let name = s.accountName {
-                            Text(name).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if let balance = s.balance {
+                    HStack(spacing: 8) {
+                        GhafActivityMark(attributes: context.attributes, size: 12)
+                        if let name = s.accountName { Text(name).lineLimit(1) }
+                        Spacer(minLength: 6)
+                        if s.needsReview {
+                            Text(ar ? "تحتاج مراجعة" : "Needs review")
+                                .font(.caption.weight(.bold)).foregroundStyle(.orange)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(.orange.opacity(0.18), in: Capsule())
+                        } else if let balance = s.balance {
                             Text((ar ? "الرصيد " : "Balance ") + money(balance, s.currency)).privacySensitive()
                         }
                     }
-                    .font(.subheadline)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
                 }
             } compactLeading: {
-                Image(systemName: "tree.fill").foregroundStyle(.green)
+                GhafActivityMark(attributes: context.attributes, size: 14)
             } compactTrailing: {
-                Text(shortAmount(s)).font(.caption.weight(.heavy)).foregroundStyle(s.isCredit ? .green : .white)
+                Text((s.isCredit ? "+" : "−") + shortAmount(s))
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .foregroundStyle(s.isCredit ? .green : tint)
             } minimal: {
-                Text(shortAmount(s)).font(.system(size: 11, weight: .heavy)).minimumScaleFactor(0.5)
+                Text(shortAmount(s))
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(tint)
+                    .minimumScaleFactor(0.5)
             }
-            .keylineTint(.green)
+            .keylineTint(tint)
         }
     }
 }
@@ -223,29 +274,34 @@ struct GhafPurchaseLockView: View {
     var body: some View {
         let s = context.state
         let ar = context.attributes.arabic
-        HStack(spacing: 14) {
-            Image(systemName: s.isCredit ? "arrow.down.circle.fill" : "bag.fill")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(ghafGreen, in: Circle())
-            VStack(alignment: .leading, spacing: 3) {
-                Text(s.isCredit ? (ar ? "وصلك مبلغ" : "Money received") : (ar ? "تم تسجيل عملية" : "Purchase recorded"))
-                    .font(.headline.weight(.bold))
-                HStack(spacing: 6) {
-                    Text(amount(s)).font(.subheadline.weight(.semibold))
-                    Text("·").foregroundStyle(.secondary)
-                    Text(s.merchant).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                GhafCategoryBadge(state: s, attributes: context.attributes, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(s.merchant).font(.headline.weight(.bold)).lineLimit(1)
+                    Text(s.isCredit ? (ar ? "وصلك مبلغ" : "Money received") : s.category)
+                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
-                if let balance = s.balance, let name = s.accountName {
-                    Text((ar ? "رصيد \(name): " : "\(name) balance: ") + money(balance, s.currency))
-                        .font(.caption).foregroundStyle(.secondary).privacySensitive()
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text((s.isCredit ? "+" : "−") + s.amount.formatted(.number.precision(.fractionLength(2))))
+                        .font(.system(size: 24, weight: .heavy, design: .rounded))
+                        .foregroundStyle(s.isCredit ? .green : .primary)
+                        .minimumScaleFactor(0.6).lineLimit(1)
+                    Text(s.currency).font(.caption.weight(.bold)).foregroundStyle(Color(ghafHex: context.attributes.accent))
                 }
             }
-            Spacer(minLength: 0)
-            Image(systemName: s.needsReview ? "exclamationmark.circle" : "checkmark.circle")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(s.needsReview ? .orange : ghafGreen)
+            HStack(spacing: 6) {
+                GhafActivityMark(attributes: context.attributes, size: 11)
+                Text(s.needsReview ? (ar ? "سُجّلت · تحتاج مراجعة في غاف" : "Recorded · needs a quick review in Ghaf")
+                                   : (ar ? "سُجّلت في غاف" : "Recorded in Ghaf"))
+                Spacer(minLength: 6)
+                if let balance = s.balance, let name = s.accountName {
+                    Text("\(name) · " + money(balance, s.currency)).lineLimit(1).privacySensitive()
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(s.needsReview ? .orange : .secondary)
         }
         .padding(14)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)

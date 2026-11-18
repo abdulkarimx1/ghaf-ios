@@ -2,6 +2,8 @@ import Foundation
 import SwiftData
 import WidgetKit
 import ActivityKit
+import SwiftUI
+import UIKit
 
 /// Keeps the widgets and the purchase Live Activity in step with the ledger.
 @MainActor
@@ -40,9 +42,20 @@ enum GhafWidgetSync {
         let state = GhafPurchaseAttributes.ContentState(
             merchant: transaction.merchant ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en"),
             amount: transaction.amount, currency: transaction.currency, isCredit: transaction.direction == "credit",
-            accountName: account?.name, balance: GhafFormat.balancesHidden ? nil : balance, needsReview: needsReview)
-        _ = try? Activity.request(attributes: GhafPurchaseAttributes(arabic: arabic),
+            accountName: account?.name, balance: GhafFormat.balancesHidden ? nil : balance, needsReview: needsReview,
+            symbol: GhafCategoryIcon.builtIn(transaction.category)?.symbol ?? (transaction.direction == "credit" ? "arrow.down" : "bag.fill"),
+            category: GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en"))
+        // The Dynamic Island is always dark, so it takes the theme's dark-mode colours.
+        let settings = try? GhafPersistence.settings(in: GhafPersistence.shared().mainContext)
+        let theme = GhafTheme.resolve(name: settings?.themeName ?? "Abu Dhabi", appearanceMode: "Dark", systemIsDark: true)
+        _ = try? Activity.request(attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
                                   content: .init(state: state, staleDate: .now.addingTimeInterval(15 * 60)))
+    }
+
+    private static func hex(_ color: Color) -> UInt32 {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return UInt32(max(0, min(255, r * 255))) << 16 | UInt32(max(0, min(255, g * 255))) << 8 | UInt32(max(0, min(255, b * 255)))
     }
 
     /// Purchases are moments, not ongoing events: clear old ones when Ghaf opens or a new one arrives.
