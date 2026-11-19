@@ -103,8 +103,7 @@ struct GhafWalletStack: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 56, height: 56)
-                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
-                    .shadow(color: theme.shadow, radius: 8, y: 3)
+                    .background(theme.surface, in: Circle())
                 Text(title)
                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
@@ -144,7 +143,7 @@ private struct GhafWalletCarousel: View {
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
     private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
-    private var step: CGFloat { width * 0.208 }
+    private var step: CGFloat { width * 0.1 }
     private var cardHeight: CGFloat { width / 1.586 }
 
     var body: some View {
@@ -181,6 +180,8 @@ private struct GhafWalletCarousel: View {
         let delta = itemIndex - index
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
+            .scaleEffect(1 - 0.06 * CGFloat(min(abs(delta), 3)))
+            .rotationEffect(.degrees(delta < 0 ? 4 : (delta > 0 ? -4 : 0)))
             .frame(width: width, height: cardHeight)
             .frame(width: width, height: cardHeight + 50)
             .id(account.id)
