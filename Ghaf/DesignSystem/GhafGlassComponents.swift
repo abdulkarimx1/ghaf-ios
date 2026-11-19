@@ -47,11 +47,17 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
     func body(content: Content) -> some View {
         content.background {
             if glass.enabled && !reduceTransparency {
+                let trueGlass = theme.name == "Graphite"
                 let opacity: Double = glass.intensity == .subtle ? 0.35 : glass.intensity == .balanced ? 0.45 : 0.55
                 let material: Material = glass.intensity == .subtle ? .ultraThin : glass.intensity == .balanced ? .thin : .regular
                 ZStack {
-                    shape.fill(material)
-                    shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
+                    if trueGlass {
+                        shape.fill(material)
+                        shape.fill(fallback.opacity(opacity))
+                    } else {
+                        shape.fill(fallback)
+                        shape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))
+                    }
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
                 .overlay { GhafShapeRim(theme: theme, shape: shape, contrast: contrast) }
@@ -83,8 +89,8 @@ private struct GhafGlassGlowBlobs: View {
     let theme: GhafTheme
     var body: some View {
         ZStack {
-            Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
-            Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
+            Circle().fill(theme.accent.opacity(theme.isDark ? 0.11 : 0.07)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
+            Circle().fill(theme.glow.opacity(theme.isDark ? 0.08 : 0.05)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
         }
     }
 }
@@ -120,7 +126,7 @@ private struct GhafControlGlass: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         if enabled {
-            if #available(iOS 26, *), !prominent {
+            if #available(iOS 26, *), !prominent, theme.name == "Graphite" {
                 content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
                     .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
             } else {
@@ -171,8 +177,10 @@ struct GhafPillButton: View {
                 if prominent {
                     Capsule().fill(theme.accent)
                 } else if glass.enabled && !reduceTransparency {
-                    if #available(iOS 26, *) { Capsule().fill(.clear) }
-                    else { Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.3))) }
+                    if theme.name == "Graphite" {
+                        if #available(iOS 26, *) { Capsule().fill(.clear) }
+                        else { Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.3))) }
+                    } else { Capsule().fill(theme.surface).overlay(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))) }
                 } else {
                     Capsule().fill(theme.surface).shadow(color: theme.shadow, radius: 10, x: 0, y: 4)
                 }

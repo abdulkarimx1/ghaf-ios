@@ -93,13 +93,19 @@ struct GhafGlassSurface: ViewModifier {
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
     func body(content: Content) -> some View {
         let active = glass.enabled && !reduceTransparency
+        let trueGlass = theme.name == "Graphite"
         let opacity: Double = glass.intensity == .subtle ? 0.35 : glass.intensity == .balanced ? 0.45 : 0.55
         let material: Material = glass.intensity == .subtle ? .ultraThin : glass.intensity == .balanced ? .thin : .regular
         content.background {
             if active {
                 ZStack {
-                    shape.fill(material)
-                    shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
+                    if trueGlass {
+                        shape.fill(material)
+                        shape.fill((fallback ?? (theme.isDark ? theme.surface : Color.white)).opacity(fallback == nil ? opacity : 0.82))
+                    } else {
+                        shape.fill(fallback ?? theme.surface)
+                        shape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))
+                    }
                     if hero { LinearGradient(colors: [theme.accent.opacity(0.55), .clear], startPoint: .bottom, endPoint: .top).frame(height: 100).frame(maxHeight: .infinity, alignment: .bottom).clipShape(shape) }
                     GhafGlassSheen(theme: theme).clipShape(shape)
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
@@ -121,11 +127,11 @@ private struct GhafGlassRim: View {
     private var motion: GhafTiltMotion { .shared }
     var body: some View {
         let tilt = motion.tilt
-        let angle = Double.pi / 4 + Double(tilt.x) * 40 * .pi / 180
-        let shift = CGFloat(tilt.y) * 0.18
+        let angle = Double.pi / 2 + Double(tilt.x) * 60 * .pi / 180
+        let shift = CGFloat(tilt.y) * 0.3
         let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shift, y: 0.5 - sin(angle) * 0.5)
         let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shift, y: 0.5 + sin(angle) * 0.5)
-        shape.strokeBorder(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.6 : 1)
+        shape.strokeBorder(LinearGradient(colors: theme.isDark ? [.white.opacity(0.75), .white.opacity(0.12), .white.opacity(0.03), .white.opacity(0.25)] : [.white, .black.opacity(0.08), .black.opacity(0.03), .white.opacity(0.6)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.8 : 1.2)
     }
 }
 
@@ -149,18 +155,22 @@ struct GhafShapeRim<S: Shape>: View {
     private var motion: GhafTiltMotion { .shared }
     var body: some View {
         let tilt = motion.tilt
-        let angle = Double.pi / 4 + Double(tilt.x) * 40 * .pi / 180
-        let shift = CGFloat(tilt.y) * 0.18
+        let angle = Double.pi / 2 + Double(tilt.x) * 60 * .pi / 180
+        let shift = CGFloat(tilt.y) * 0.3
         let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shift, y: 0.5 - sin(angle) * 0.5)
         let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shift, y: 0.5 + sin(angle) * 0.5)
-        shape.stroke(LinearGradient(colors: isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.6 : 1)
+        shape.stroke(LinearGradient(colors: isDark ? [.white.opacity(0.75), .white.opacity(0.12), .white.opacity(0.03), .white.opacity(0.25)] : [.white, .black.opacity(0.08), .black.opacity(0.03), .white.opacity(0.6)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.8 : 1.2)
     }
 }
 
 private struct GhafGlassSheen: View {
     let theme: GhafTheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    private var motion: GhafTiltMotion { .shared }
     var body: some View {
-        RadialGradient(colors: [.white.opacity(theme.isDark ? 0.06 : 0.18), .clear], center: .topLeading, startRadius: 0, endRadius: 150)
+        let tilt = motion.tilt
+        RadialGradient(colors: [.white.opacity(theme.isDark ? 0.10 : 0.24), .clear],
+                       center: UnitPoint(x: 0.5 + tilt.x * 0.35, y: 0.0 + tilt.y * 0.2), startRadius: 0, endRadius: 220)
     }
 }
 
