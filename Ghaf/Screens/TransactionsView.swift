@@ -12,11 +12,17 @@ struct GhafTransactionsView: View {
     private var accounts: [GhafAccount]
 
     @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
+    @State private var transactionDetailHeight: CGFloat = 0
+    @State private var transactionDetailDetent: PresentationDetent = .large
     @State private var sortOrder = "Newest"
     @State private var transactionToDelete: GhafTransaction?
     @State private var showDeleteConfirmation = false
+#if DEBUG
+    @State private var fixtureDetailOpened = false
+#endif
 
     let settings: GhafSettings
 
@@ -177,9 +183,27 @@ struct GhafTransactionsView: View {
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
+#if DEBUG
+            .onAppear {
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.tab == "transactions",
+                   GhafScreenshotFixture.selection == "transaction-detail", !fixtureDetailOpened,
+                   let transaction = transactions.first(where: { $0.merchant == "Lunch" }) ?? transactions.first {
+                    fixtureDetailOpened = true
+                    selectedTransaction = transaction
+                }
+            }
+#endif
             .sheet(item: $selectedTransaction) { transaction in
-                GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
-                    .presentationDetents([.large])
+                GhafTransactionDetailView(transaction: transaction, settings: settings,
+                                          accounts: accounts.filter { !$0.isArchived }) {
+                    transactionDetailHeight = $0
+                    transactionDetailDetent = $0 > UIScreen.main.bounds.height * 0.85 ? .large : .height($0)
+                }
+                    .presentationDetents(transactionDetailHeight == 0 ? [.large]
+                                         : transactionDetailHeight > UIScreen.main.bounds.height * 0.85
+                                            ? [.height(transactionDetailHeight), .large] : [.height(transactionDetailHeight)],
+                                         selection: $transactionDetailDetent)
+                    .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .confirmationDialog(
