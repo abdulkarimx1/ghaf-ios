@@ -817,6 +817,14 @@ struct GhafQuickAddView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(ar ? "إلغاء" : "Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .principal) {
+                    Text(ar ? "عملية جديدة" : "New transaction")
+                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Color.clear.frame(width: 48, height: 44).accessibilityHidden(true)
+                }
             }
         }
         .tint(theme.accent)
