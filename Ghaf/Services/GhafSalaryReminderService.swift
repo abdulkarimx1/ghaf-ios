@@ -109,13 +109,13 @@ struct GhafSalaryCheckInView: View {
                         .tracking(1.1)
                         .foregroundStyle(theme.secondaryText)
 
-                    Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
-                        ForEach(activeAccounts, id: \.id) { account in
-                            Text(account.name).tag(Optional(account.id))
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "الحساب" : "Account", value: activeAccounts.first(where: { $0.id == selectedAccountID })?.name ?? "", theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
+                            ForEach(activeAccounts, id: \.id) { account in
+                                Text(account.name).tag(Optional(account.id))
+                            }
                         }
                     }
-                    .pickerStyle(.menu)
-                    .tint(theme.accent)
                 }
 
                 if showError {
@@ -247,88 +247,80 @@ struct GhafSalarySettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                Toggle(
-                    settings.languageCode == "ar" ? "تفعيل دورة الراتب" : "Track my salary cycle",
-                    isOn: $enabled
-                )
-                .tint(theme.accent)
-            } footer: {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                GhafFormCard(theme: theme) {
+                    GhafFormToggleRow(icon: "calendar.badge.clock", tint: theme.accent,
+                                      title: settings.languageCode == "ar" ? "تفعيل دورة الراتب" : "Track my salary cycle",
+                                      isOn: $enabled, theme: theme, languageCode: settings.languageCode)
+                }
                 Text(settings.languageCode == "ar"
                      ? "سيطلب منك غاف تأكيد وصول الراتب في يوم الاستحقاق."
                      : "Ghaf will ask you to confirm whether your salary arrived on its scheduled day.")
-            }
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText).padding(.horizontal, 4).padding(.bottom, 12)
 
-            if enabled {
-                Section(settings.languageCode == "ar" ? "تفاصيل الراتب" : "SALARY DETAILS") {
-                    Picker(
-                        settings.languageCode == "ar" ? "يوم الراتب" : "Salary day",
-                        selection: $salaryDay
-                    ) {
-                        ForEach(1...31, id: \.self) { day in
-                            Text("\(day)").tag(day)
+                if enabled {
+                    GhafFormCard(theme: theme) {
+                        GhafFormMenuRow(icon: "calendar", tint: theme.accent,
+                                        title: settings.languageCode == "ar" ? "يوم الراتب" : "Salary day",
+                                        value: "\(salaryDay)", theme: theme, languageCode: settings.languageCode) {
+                            Picker(settings.languageCode == "ar" ? "يوم الراتب" : "Salary day", selection: $salaryDay) {
+                                ForEach(1...31, id: \.self) { Text("\($0)").tag($0) }
+                            }
                         }
-                    }
-
-                    GhafAmountField(value: $amountText, currency: activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency,
-                                    label: settings.languageCode == "ar" ? "المبلغ المتوقع (اختياري)" : "Expected amount (optional)",
-                                    theme: theme, languageCode: settings.languageCode)
-
-                    Picker(
-                        settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account",
-                        selection: $accountID
-                    ) {
-                        ForEach(activeAccounts, id: \.id) { account in
-                            Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                        GhafFormDivider(theme: theme)
+                        GhafFormRow(icon: "banknote", tint: theme.comfortable,
+                                    title: settings.languageCode == "ar" ? "المبلغ المتوقع" : "Expected",
+                                    theme: theme, languageCode: settings.languageCode) {
+                            GhafAmountField(value: $amountText,
+                                            currency: activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency,
+                                            label: "", theme: theme, languageCode: settings.languageCode, fontSize: 15, chromeless: true)
+                                .frame(width: 132)
                         }
+                        GhafFormDivider(theme: theme)
+                        GhafFormMenuRow(icon: "wallet.pass", tint: theme.accent,
+                                        title: settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account",
+                                        value: activeAccounts.first(where: { $0.id == accountID })?.name ?? "",
+                                        theme: theme, languageCode: settings.languageCode) {
+                            Picker(settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account", selection: $accountID) {
+                                ForEach(activeAccounts, id: \.id) { Text($0.name).tag(Optional($0.id)) }
+                            }
+                        }
+                        if let account = activeAccounts.first(where: { $0.id == accountID }) {
+                            GhafFormDivider(theme: theme)
+                            GhafFormRow(icon: "dollarsign.circle", tint: theme.accent,
+                                        title: settings.languageCode == "ar" ? "عملة الراتب" : "Salary currency",
+                                        theme: theme, languageCode: settings.languageCode) { Text(account.currency) }
+                        }
+                        GhafFormDivider(theme: theme)
+                        GhafFormToggleRow(icon: "bell.badge", tint: theme.close,
+                                          title: settings.languageCode == "ar" ? "تذكيري في يوم الراتب" : "Notify me on salary day",
+                                          isOn: $reminderEnabled, theme: theme, languageCode: settings.languageCode)
                     }
-
-                    if let selectedAccount = activeAccounts.first(where: { $0.id == accountID }) {
-                        LabeledContent(
-                            settings.languageCode == "ar" ? "عملة الراتب" : "Salary currency",
-                            value: selectedAccount.currency
-                        )
-                    }
-
-                    Toggle(
-                        settings.languageCode == "ar" ? "تذكيري في يوم الراتب" : "Notify me on salary day",
-                        isOn: $reminderEnabled
-                    )
-                    .tint(theme.accent)
-                }
-
-                if activeAccounts.isEmpty {
-                    Section {
-                        Text(settings.languageCode == "ar"
-                             ? "أضف حساباً بنكياً أولاً من صفحة الحسابات."
-                             : "Add a bank account first from Accounts.")
-                            .foregroundStyle(theme.secondaryText)
+                    if activeAccounts.isEmpty {
+                        Text(settings.languageCode == "ar" ? "أضف حساباً بنكياً أولاً من صفحة الحسابات." : "Add a bank account first from Accounts.")
+                            .foregroundStyle(theme.secondaryText).padding(.horizontal, 4)
                     }
                 }
-            }
-
-            if !errorMessage.isEmpty {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(theme.over)
-                }
-            }
-
-            Section {
+                if !errorMessage.isEmpty { Text(errorMessage).foregroundStyle(theme.over).padding(.horizontal, 4) }
                 Button(settings.languageCode == "ar" ? "حفظ إعدادات الراتب" : "Save salary settings", action: save)
-                    .fontWeight(.semibold)
+                    .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
             }
+            .ghafScreenPadding().padding(.bottom, 40)
         }
-        .scrollContentBackground(.hidden)
-        .background(theme.background)
-        .tint(theme.accent)
+        .ghafBackground(theme: theme).tint(theme.accent)
         .ghafPageTitle(settings.languageCode == "ar" ? "إعداد الراتب" : "Salary settings", languageCode: settings.languageCode, theme: theme)
         .onAppear(perform: load)
     }
 
     private func load() {
+#if DEBUG
+        enabled = GhafScreenshotFixture.enabled && GhafScreenshotFixture.screen == "salary-settings"
+            ? true : (settings.salaryEnabled ?? false)
+#else
         enabled = settings.salaryEnabled ?? false
+#endif
         salaryDay = settings.salaryDay ?? 28
         amountText = settings.salaryAmount.map(GhafFormat.decimal)
             ?? GhafFormat.decimal(settings.monthlyIncome)

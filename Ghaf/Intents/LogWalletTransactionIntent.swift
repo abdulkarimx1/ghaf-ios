@@ -5,7 +5,7 @@ import GhafCore
 
 /// Receives Apple Pay purchases from the Shortcuts "Transaction" (Wallet) automation. The bank's
 /// message for the same purchase is then recognised as a duplicate, not a second purchase.
-struct LogWalletTransactionIntent: AppIntent {
+struct LogWalletTransactionIntent: AppIntent, LiveActivityIntent {
     static var title: LocalizedStringResource = "Add Apple Pay purchase"
     static var description = IntentDescription("Add an Apple Pay purchase to Ghaf from the Wallet transaction automation.")
     static var openAppWhenRun: Bool = false
@@ -32,7 +32,7 @@ struct LogWalletTransactionIntent: AppIntent {
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.walletRunKey)
         GhafAutomationStatus.recordRun(source: .wallet)
         // Rates for a purchase abroad; skipped when the cached ones are fresh, and never blocks long.
-        await GhafExchangeRates.refreshIfStale()
+        await GhafExchangeRates.prepareForIngestion()
         let result = try await MainActor.run {
             let context = try GhafPersistence.shared().mainContext
             // Phrased like a card message so the same parser and validation apply.
@@ -45,6 +45,7 @@ struct LogWalletTransactionIntent: AppIntent {
         if let spot = location?.location, let id = result.transactionID {
             await GhafPlaces.rememberPurchaseSpot(spot, merchant: cleanMerchant, transactionID: id)
         }
+        if let id = result.transactionID { try? await GhafWidgetSync.showPurchase(transactionID: id) }
         return .result(value: result.confirmation)
     }
 }

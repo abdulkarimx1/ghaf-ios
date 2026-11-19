@@ -44,6 +44,14 @@ enum GhafTypography {
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight == .regular ? .medium : weight, design: .rounded)
     }
+
+    static func userContent(_ text: String, size: CGFloat, languageCode: String, weight: Font.Weight = .regular, heading: Bool = false) -> Font {
+        let scalars = text.unicodeScalars
+        let containsLatin = scalars.contains { (0x0041...0x005A).contains($0.value) || (0x0061...0x007A).contains($0.value) }
+        let containsArabic = scalars.contains { (0x0600...0x06FF).contains($0.value) || (0x0750...0x077F).contains($0.value) || (0x08A0...0x08FF).contains($0.value) }
+        let scriptLanguage = containsLatin ? "en" : containsArabic ? "ar" : languageCode
+        return heading ? self.heading(size, languageCode: scriptLanguage) : body(size, languageCode: scriptLanguage, weight: weight)
+    }
 }
 
 struct GhafScreenTitle: View {
@@ -76,8 +84,7 @@ struct GhafScreenTitle: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 44, height: 44)
-                        .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
-                        .shadow(color: theme.shadow, radius: 8, y: 3)
+                        .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
                 }
                 .buttonStyle(.ghafPress)
                 .accessibilityLabel(languageCode == "ar" ? "إغلاق" : "Close")
@@ -141,6 +148,7 @@ extension View {
     func ghafPageTitle(_ title: String, languageCode: String, theme: GhafTheme) -> some View {
         navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+            .contentMargins(.top, 40, for: .scrollContent)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(title)
@@ -150,6 +158,31 @@ extension View {
                         .accessibilityAddTraits(.isHeader)
                 }
             }
+            .modifier(GhafPageTitleScrollEffect(theme: theme))
+    }
+}
+
+private struct GhafPageTitleScrollEffect: ViewModifier {
+    let theme: GhafTheme
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        // The system soft edge alone didn't hide content under a custom background, so the same fade
+        // Ghaf uses under the status bar also covers the bar here (it sits below the toolbar items).
+        if #available(iOS 26, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .top).ghafStatusBarFade(theme: theme)
+        } else {
+            content
+                .toolbarBackground(
+                    LinearGradient(stops: [
+                        .init(color: theme.background, location: 0),
+                        .init(color: theme.background.opacity(0.94), location: 0.55),
+                        .init(color: theme.background.opacity(0), location: 1)
+                    ], startPoint: .top, endPoint: .bottom),
+                    for: .navigationBar
+                )
+                .toolbarBackground(.visible, for: .navigationBar)
+        }
     }
 }
 

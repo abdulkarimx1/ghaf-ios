@@ -9,9 +9,14 @@ struct GhafNotificationSettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+    @Query private var subscriptions: [GhafSubscription]
     let settings: GhafSettings
 
-    @AppStorage(GhafDigestNotifications.autoTransactionKey) private var autoTransaction = true
+    @AppStorage(GhafEventNotifications.transactionReviewKey) private var transactionReview = true
+    @AppStorage(GhafEventNotifications.detectedSubscriptionKey) private var detectedSubscription = true
+    @AppStorage(GhafEventNotifications.budgetThresholdKey) private var budgetThreshold = true
+    @AppStorage(GhafEventNotifications.subscriptionDueKey) private var subscriptionDue = true
     @AppStorage(GhafDigestNotifications.morningKey) private var morning = false
     @AppStorage(GhafDigestNotifications.eveningKey) private var evening = false
     @AppStorage(GhafDigestNotifications.weeklyKey) private var weekly = false
@@ -49,56 +54,89 @@ struct GhafNotificationSettingsView: View {
                               systemImage: "bell.slash.fill")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.over)
-                            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(GhafMetrics.cardPadding).frame(maxWidth: .infinity, alignment: .leading)
                             .background(theme.over.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .buttonStyle(.ghafPress)
                 }
 
-                VStack(spacing: 0) {
-                    row(ar ? "عند إضافة عملية تلقائياً" : "When a transaction is added",
-                        ar ? "المبلغ والمكان ورصيد الحساب المحدّث" : "Amount, place and the account's updated balance",
-                        icon: "bolt.fill", isOn: $autoTransaction)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(ar ? "تنبيهات الأحداث" : "Event alerts")
+                        .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 16).padding(.bottom, 12)
+                    row(ar ? "عملية تحتاج مراجعتك" : "Transaction needs review",
+                        ar ? "عندما تُحفظ عملية آلية لتراجع تفاصيلها." : "When an automatic transaction is saved for review.",
+                        icon: "tray.full.fill", isOn: $transactionReview)
+                    Divider().overlay(theme.outline)
+                    row(ar ? "اشتراك متكرر مرصود" : "Recurring charge detected",
+                        ar ? "عندما تبدو عملية بنكية اشتراكاً متكرراً." : "When a bank charge looks like a recurring subscription.",
+                        icon: "repeat", isOn: $detectedSubscription)
+                    Divider().overlay(theme.outline)
+                    row(ar ? "حدود الميزانية" : "Budget thresholds",
+                        ar ? "عند بلوغ ٨٠٪ و١٠٠٪ من ميزانية الفئة هذا الشهر." : "When a category reaches 80% and 100% of its monthly budget.",
+                        icon: "chart.bar.fill", isOn: $budgetThreshold)
+                    Divider().overlay(theme.outline)
+                    row(ar ? "موعد دفع اشتراك" : "Subscription due date",
+                        ar ? "تذكير قبل الموعد. لا يؤكد الدفع ولا يسجّله." : "A reminder before the date; it doesn't confirm or record payment.",
+                        icon: "calendar", isOn: $subscriptionDue)
                     Divider().overlay(theme.outline)
                     row(ar ? "النشاط المباشر للعمليات" : "Live Activity for purchases",
-                        ar ? "آخر عملية على شاشة القفل وفي Dynamic Island لمدة ١٥ دقيقة" : "The latest purchase on the Lock Screen and Dynamic Island for 15 minutes",
+                        ar ? "آخر عملية على شاشة القفل وفي الجزيرة الديناميكية لمدة ٥ دقائق" : "The latest purchase on the Lock Screen and Dynamic Island for 5 minutes",
                         icon: "bolt.badge.clock.fill", isOn: $liveActivity)
-                    Divider().overlay(theme.outline)
-                    row(ar ? "صباحاً · ٨:٠٠" : "Morning · 8:00",
-                        ar ? "كم صرفت أمس" : "What you spent yesterday", icon: "sunrise.fill", isOn: $morning)
-                    Divider().overlay(theme.outline)
-                    row(ar ? "مساءً · ٩:٠٠" : "Evening · 9:00 pm",
-                        ar ? "ملخص صرف اليوم" : "Today's spending in one line", icon: "moon.stars.fill", isOn: $evening)
-                    Divider().overlay(theme.outline)
-                    row(ar ? "أسبوعياً · أول يوم في أسبوعك" : "Weekly · first day of your week",
-                        ar ? "صرف الأسبوع الماضي مقارنة بالذي قبله" : "Last week's spending against the week before",
-                        icon: "calendar", isOn: $weekly)
                 }
                 .padding(.horizontal, 16)
                 .ghafCard(theme: theme)
 
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(ar ? "ملخصات مجدولة" : "Scheduled summaries")
+                        .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 16).padding(.bottom, 12)
+                    row(ar ? "صباحاً · ٨:٠٠" : "Morning · 8:00",
+                        ar ? "مصروفات أمس" : "Yesterday's spending", icon: "sunrise.fill", isOn: $morning)
+                    Divider().overlay(theme.outline)
+                    row(ar ? "مساءً · ٩:٠٠" : "Evening · 9:00 pm",
+                        ar ? "ملخص مصروفات اليوم" : "Today's spending", icon: "moon.stars.fill", isOn: $evening)
+                    Divider().overlay(theme.outline)
+                    row(ar ? "أسبوعياً · أول يوم في أسبوعك" : "Weekly · first day of your week",
+                        ar ? "مصروفات الأسبوع الماضي ومقارنتها" : "Last week's spending and comparison",
+                        icon: "calendar", isOn: $weekly)
+                }
+                .padding(.horizontal, 16).ghafCard(theme: theme)
+
                 widgetStatus
 
-                Text(ar ? "iOS يطلب إذنك مرة واحدة لعرض الإشعارات. التذكيرات لا تسجّل أي عملية ولا تغيّر رصيدك. إشعار «تشغيل الأتمتة» من iOS نفسه؛ أوقفه من الاختصارات › الأتمتة › «الإشعار عند التشغيل»."
-                        : "iOS asks once before Ghaf can show notifications. Summaries never record transactions or change balances. The \"automation ran\" banner comes from iOS: turn it off in Shortcuts › Automation › Notify When Run.")
+                Text(ar ? "لا يسجّل تذكير الاشتراك عملية دفع ولا يغيّر الرصيد. ملخصات الصباح والمساء والأسبوع اختيارية ومتوقفة افتراضياً."
+                        : "A subscription reminder doesn't record a payment or change a balance. Morning, evening and weekly summaries are optional and off by default.")
                     .font(GhafTypography.body(12, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
             }
-            .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 12)
+            .ghafScreenPadding().padding(.vertical, 12)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
         .ghafPageTitle(ar ? "الإشعارات" : "Notifications", languageCode: settings.languageCode, theme: theme)
-        .task { await refreshPermission() }
+        .task { GhafEventNotifications.configure(); await refreshPermission() }
         .sheet(item: $proFeature) { GhafProSheet(settings: settings, feature: ($0.en, $0.ar)).ghafDirection(settings.languageCode) }
         .onChange(of: liveActivity) { _, on in if on { proFeature = ProFeature(en: "Live Activities", ar: "النشاط المباشر") } }
-        .onChange(of: [autoTransaction, morning, evening, weekly]) { _, values in
+        .onChange(of: [transactionReview, detectedSubscription, budgetThreshold, subscriptionDue, morning, evening, weekly]) { oldValues, values in
             Task {
-                if values.contains(true) { _ = await GhafDigestNotifications.requestPermission() }
+                if zip(oldValues, values).contains(where: { !$0.0 && $0.1 }) {
+                    _ = await GhafDigestNotifications.requestPermission()
+                }
                 await refreshPermission()
+                if oldValues[3] != values[3] {
+                    if values[3] {
+                        subscriptions.filter(\.isActive).forEach { GhafSubscriptionReminderService.schedule($0, language: lang) }
+                    } else {
+                        await GhafSubscriptionReminderService.cancelAll()
+                    }
+                }
                 GhafDigestNotifications.reschedule(context: modelContext)
             }
         }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await refreshPermission() } } }
     }
 
     /// Whether the widgets can read Ghaf's data on this install. Sideload tools sometimes drop the App Group,
@@ -113,6 +151,9 @@ struct GhafNotificationSettingsView: View {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(ar ? "حالة الودجت" : "Widget status").font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                    GhafStatusChip(kind: (!channels.group && !channels.keychain) ? .notSetUp : (snapshot == nil ? .waiting : .working),
+                                   title: (!channels.group && !channels.keychain) ? (ar ? "غير مُعد" : "Not set up") : (snapshot == nil ? (ar ? "بانتظار لقطة" : "Waiting for snapshot") : (ar ? "الودجت متصل" : "Widget connected")),
+                                   theme: theme, languageCode: lang)
                     Text((ar ? "آخر حفظ: " : "Last snapshot: ") + (snapshot?.updated.formatted(dateStyle) ?? (ar ? "لا يوجد" : "None")) + " · " + (ar ? "مجموعة التطبيق " : "App Group ") + (channels.group ? "✓" : "✗") + " · " + (ar ? "سلسلة المفاتيح " : "Keychain ") + (channels.keychain ? "✓" : "✗"))
                     Text((ar ? "مجموعة التطبيق: " : "App Group: ") + GhafWidgetSnapshot.groupID + " (" + (ar ? (GhafWidgetSnapshot.hasSharedContainer ? "متاحة" : "غير متاحة") : (GhafWidgetSnapshot.hasSharedContainer ? "reachable" : "unavailable")) + ")")
                     Text((ar ? "مجموعة سلسلة المفاتيح: " : "Keychain group: ") + (GhafWidgetKeychain.accessGroup ?? (ar ? "غير متاحة" : "unavailable")))
@@ -223,8 +264,8 @@ struct GhafNotificationSettingsView: View {
                     .frame(width: 34, height: 34)
                     .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
-                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                    Text(title).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
+                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

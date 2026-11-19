@@ -28,8 +28,8 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.23"
-        CFBundleVersion: "37"
+        CFBundleShortVersionString: "1.24"
+        CFBundleVersion: "38"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
@@ -51,6 +51,10 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - ghaf
+            CFBundleURLName: com.ghaf.app.transaction
         # iOS OAuth client ID from Google Cloud Console (Drive backup). Empty = Drive sign-in hidden behind a setup note.
         GHAF_GOOGLE_CLIENT_ID: ""
         LSRequiresIPhoneOS: true
@@ -80,8 +84,8 @@ targets:
       path: BuildConfig/GhafWidgets-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.23"
-        CFBundleVersion: "37"
+        CFBundleShortVersionString: "1.24"
+        CFBundleVersion: "38"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

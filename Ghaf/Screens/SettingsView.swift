@@ -57,6 +57,13 @@ struct GhafSettingsView: View {
     @State private var editingCategory: String?
     @State private var categoryDraftName = ""
     @State private var showCategories = false
+    @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+#if DEBUG
+    @State private var fixtureGlassPresented = false
+    @State private var fixtureProfilePresented = false
+    @State private var fixtureProPresented = false
+    @State private var fixtureAboutPresented = false
+#endif
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -74,26 +81,36 @@ struct GhafSettingsView: View {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     profileHeader
 
-                    // One quiet Pro card; the plans, the reason Ghaf is paid and the terms all live on its page.
-                    NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "sparkles").font(.system(size: 20, weight: .bold)).foregroundStyle(theme.accentContrast)
-                                .frame(width: 48, height: 48)
-                                .background(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Ghaf Pro").font(GhafTypography.heading(17, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                                Text(ar ? "ادعم غاف واحصل على المزيد" : "Support Ghaf and get more")
-                                    .font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: ar ? "chevron.left" : "chevron.right")
-                                .font(.system(size: 13, weight: .bold)).foregroundStyle(theme.secondaryText)
+                    if proUnlocked {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sparkles").foregroundStyle(theme.accent)
+                            Text(ar ? "أنت مشترك في Pro" : "You're on Pro")
+                                .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                            Spacer()
                         }
-                        .padding(14)
+                        .padding(GhafMetrics.cardPadding)
                         .ghafCard(theme: theme)
+                    } else {
+                        NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Ghaf Pro")
+                                    .font(GhafTypography.heading(22, languageCode: languageCode).weight(.bold))
+                                    .foregroundStyle(theme.primaryText)
+                                Text(ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.")
+                                    .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                                Text(ar ? "عرض الخطط" : "See plans")
+                                    .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
+                                    .foregroundStyle(theme.accentContrast)
+                                    .frame(maxWidth: .infinity, minHeight: 56)
+                                    .background(theme.accent, in: Capsule())
+                            }
+                            .padding(GhafMetrics.cardPadding)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(theme.accent.opacity(theme.isDark ? 0.12 : 0.07), in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+                            .ghafCard(theme: theme)
+                        }
+                        .buttonStyle(.ghafPress)
                     }
-                    .buttonStyle(.ghafPress)
 
                     menuGroup(ar ? "المال" : "Money") {
                         menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
@@ -111,6 +128,7 @@ struct GhafSettingsView: View {
                             subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
+                        menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
                         menuRow(ar ? "الأمان والخصوصية" : "Security & privacy", icon: "lock.fill") { subpage(ar ? "الأمان" : "Security") { securityCard } }
                     }
 
@@ -123,7 +141,7 @@ struct GhafSettingsView: View {
                         Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
                             .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                             .foregroundStyle(theme.over)
-                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                             .background(theme.over.opacity(0.1), in: Capsule())
                     }
                     .buttonStyle(.ghafPress)
@@ -135,8 +153,8 @@ struct GhafSettingsView: View {
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
-                .padding(.top, 12)
+                .ghafScreenPadding()
+                .padding(.top, 40)
                 .padding(.bottom, 32)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
@@ -147,8 +165,36 @@ struct GhafSettingsView: View {
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
             .tint(theme.accent)
+#if DEBUG
+            .navigationDestination(isPresented: $fixtureGlassPresented) {
+                subpage(ar ? "الزجاج" : "Glass") { glassSettings }
+            }
+            .navigationDestination(isPresented: $fixtureProfilePresented) {
+                subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
+            }
+            .navigationDestination(isPresented: $fixtureProPresented) {
+                GhafProView(settings: settings, showsClose: false)
+            }
+            .navigationDestination(isPresented: $fixtureAboutPresented) {
+                GhafAboutView(settings: settings)
+            }
+#endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
-            .onAppear(perform: loadSettings)
+            .onAppear {
+                loadSettings()
+                proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+#if DEBUG
+                if GhafScreenshotFixture.enabled {
+                    switch GhafScreenshotFixture.destination {
+                    case "settings-glass": fixtureGlassPresented = true
+                    case "profile-proof": fixtureProfilePresented = true
+                    case "pro-page-proof": fixtureProPresented = true
+                    case "about-proof": fixtureAboutPresented = true
+                    default: break
+                    }
+                }
+#endif
+            }
             .onChange(of: glassEnabled) { _, _ in GhafWidgetSync.refresh(context: modelContext) }
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }
@@ -239,9 +285,8 @@ struct GhafSettingsView: View {
                 }
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 16).frame(minHeight: 44)
-                .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
-                .shadow(color: theme.shadow, radius: 8, y: 3)
+                .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
+                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
@@ -249,24 +294,7 @@ struct GhafSettingsView: View {
         .buttonStyle(.ghafPress)
     }
 
-    private var profilePage: some View {
-        VStack(spacing: 16) {
-            profileCard
-            VStack(spacing: 6) {
-                Label(ar ? "تسجيل الدخول عبر Apple أو Google" : "Sign in with Apple or Google", systemImage: "person.badge.key.fill")
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                    .foregroundStyle(theme.secondaryText)
-                Text(ar ? "قريباً مع المزامنة بين أجهزتك. حتى ذلك الحين تبقى بياناتك على هذا الـ iPhone فقط."
-                        : "Coming with sync across your devices. Until then, your data stays on this iPhone only.")
-                    .font(GhafTypography.body(12, languageCode: languageCode))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .ghafCard(theme: theme, radius: 20)
-        }
-    }
+    private var profilePage: some View { profileCard }
 
     private func menuGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -294,7 +322,7 @@ struct GhafSettingsView: View {
     private func subpage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         ScrollView {
             VStack(spacing: 16) { content() }
-                .padding(.horizontal, GhafMetrics.gutter).padding(.top, 8).padding(.bottom, 32)
+                .ghafScreenPadding().padding(.top, 8).padding(.bottom, 32)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
         }
@@ -372,8 +400,9 @@ struct GhafSettingsView: View {
 
     private var profileCard: some View {
         let activeAccountCount = accounts.filter { !$0.isArchived }.count
-        return VStack(spacing: 16) {
-            VStack(spacing: 8) {
+        let streak = GhafLoggingStreak.count(transactions.filter { !$0.needsReview }.map(\.date), through: .now, calendar: Calendar.current)
+        return VStack(spacing: 24) {
+            VStack(spacing: 10) {
                 PhotosPicker(selection: $photoItem, matching: .images) {
                     GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
                         .overlay(alignment: .bottomTrailing) {
@@ -384,6 +413,8 @@ struct GhafSettingsView: View {
                                 .background(theme.accent, in: Circle())
                                 .overlay(Circle().stroke(theme.surface, lineWidth: 3))
                         }
+                        .frame(width: 104, height: 104)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.ghafPress)
                 .accessibilityLabel(ar ? "اختيار صورة الملف الشخصي" : "Choose profile photo")
@@ -399,51 +430,62 @@ struct GhafSettingsView: View {
                         GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
                     }
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                 }
-                Text(name.isEmpty ? (ar ? "مرحباً بك في غاف" : "Welcome to Ghaf") : name)
+                TextField(ar ? "اسمك" : "Your name", text: $name)
                     .font(GhafTypography.display(26, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
+                    .multilineTextAlignment(.center)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
                 Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
-                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
                     .foregroundStyle(theme.secondaryText)
             }
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 8) {
-                profileMetric(icon: "wallet.pass.fill", value: "\(activeAccountCount)", title: ar ? "الحسابات" : "ACCOUNTS")
-                profileMetric(icon: "arrow.left.arrow.right", value: "\(transactions.count)", title: ar ? "العمليات" : "TRANSACTIONS")
+                profileMetric(value: "\(streak)", title: ar ? "أيام متتالية" : "Logging streak")
+                profileMetric(value: "\(transactions.count)", title: ar ? "العمليات" : "Transactions")
+                profileMetric(value: "\(activeAccountCount)", title: ar ? "الحسابات" : "Accounts")
             }
 
-            settingsCard(ar ? "بياناتك" : "Your details", subtitle: ar ? "تُستخدم لتخصيص غاف" : "Used to personalise Ghaf") {
-                settingsLabel(ar ? "اسمك" : "Your name")
-                settingsField(ar ? "الاسم" : "Name", text: $name)
+            VStack(spacing: 12) {
+                Text(ar ? "الإنجازات" : "Milestones")
+                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 12) {
+                    ForEach([7, 30, 100], id: \.self) { days in
+                        VStack(spacing: 6) {
+                            Text("\(days)")
+                                .font(GhafTypography.number(16, weight: .bold))
+                                .foregroundStyle(streak >= days ? theme.accentContrast : theme.secondaryText)
+                                .frame(width: 56, height: 56)
+                                .background(streak >= days ? theme.accent : theme.secondaryText.opacity(0.12), in: Circle())
+                            Text(ar ? "يوم" : "days")
+                                .font(GhafTypography.body(12, languageCode: languageCode))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
             }
+            .padding(GhafMetrics.cardPadding)
+            .ghafCard(theme: theme)
         }
     }
 
-    private func profileMetric(icon: String, value: String, title: String) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 36, height: 36)
-                .background(theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 11))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(GhafTypography.number(17, weight: .bold))
-                    .foregroundStyle(theme.primaryText)
-                Text(title)
-                    .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
-                    .tracking(languageCode == "ar" ? 0 : 0.8)
-                    .foregroundStyle(theme.secondaryText)
-            }
-            Spacer(minLength: 0)
+    private func profileMetric(value: String, title: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value).font(GhafTypography.number(19, weight: .bold)).foregroundStyle(theme.primaryText)
+            Text(title).font(GhafTypography.body(11, languageCode: languageCode, weight: .medium))
+                .foregroundStyle(theme.secondaryText).multilineTextAlignment(.center).lineLimit(2)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 68)
+        .padding(.horizontal, 5)
+        .background(theme.surface, in: Capsule())
+        .accessibilityElement(children: .combine)
     }
 
     private var currencyCard: some View {
@@ -582,29 +624,41 @@ HStack(spacing: 8) {
 
     private var glassSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingsLabel(ar ? "الزجاج" : "Glass")
             GhafGlassPreview(theme: theme)
-            Toggle(isOn: $glassEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ar ? "تأثير الزجاج" : "Glass effect").foregroundStyle(theme.primaryText)
-                    Text(ar ? "أسطح زجاجية مع ملمس ناعم" : "Frosted glass surfaces with a soft grain").font(.caption).foregroundStyle(theme.secondaryText)
+            VStack(spacing: 0) {
+                Toggle(ar ? "تأثير الزجاج" : "Glass effect", isOn: $glassEnabled)
+                    .frame(minHeight: 56)
+                glassDivider
+                HStack {
+                    Text(ar ? "الشدة" : "Intensity").foregroundStyle(theme.primaryText)
+                    Spacer(minLength: 12)
+                    GhafSegmented(options: [("subtle", ar ? "خفيف" : "Subtle"), ("balanced", ar ? "متوازن" : "Balanced"), ("bold", ar ? "قوي" : "Bold")], selection: $glassIntensity, theme: theme, languageCode: languageCode)
                 }
-            }
+                .frame(minHeight: 64)
+                .disabled(!glassEnabled)
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
-                Picker(ar ? "الشدة" : "Intensity", selection: $glassIntensity) {
-                    Text(ar ? "خفيف" : "Subtle").tag("subtle"); Text(ar ? "متوازن" : "Balanced").tag("balanced"); Text(ar ? "قوي" : "Bold").tag("bold")
-                }.pickerStyle(.segmented).frame(minHeight: 56)
+                glassDivider
                 Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
+                    .frame(minHeight: 56)
+                glassDivider
                 Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
+                    .frame(minHeight: 56)
+                glassDivider
                 Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
-                Text(ar ? "يتوقف في نمط الطاقة المنخفضة وعند تفعيل تقليل الحركة. يستخدم مستشعر الحركة فقط أثناء فتح غاف." : "Pauses in Low Power Mode and when Reduce Motion is on. Uses the motion sensor only while Ghaf is open.")
-                    .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                    .frame(minHeight: 56)
             }
+            }
+            .padding(16)
+            .ghafCard(theme: theme)
+            Text(ar ? "يتوقف في نمط الطاقة المنخفضة وعند تفعيل تقليل الحركة. يستخدم مستشعر الحركة فقط أثناء فتح غاف." : "Pauses in Low Power Mode and when Reduce Motion is on. Uses the motion sensor only while Ghaf is open.")
+                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
         }
-        .toggleStyle(.switch)
+        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
         .disabled(reduceTransparency)
     }
+
+    private var glassDivider: some View { Divider().overlay(theme.outline) }
 
     private func themeTitle(_ name: String) -> String {
         guard ar else { return name }
@@ -719,7 +773,7 @@ HStack(spacing: 8) {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
-            .padding(14)
+            .padding(GhafMetrics.cardPadding)
             .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
             .background(selected ? theme.accent : theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
@@ -795,7 +849,7 @@ HStack(spacing: 8) {
         let builtIn = CategoryTaxonomy.category(named: category) != nil
         return VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                GhafCategoryIcon(category: category, tint: theme.accent)
+                GhafCategoryIcon(category: category, tint: theme.accent, theme: theme)
                 Text(GhafLocalization.category(category, languageCode: languageCode))
                     .font(GhafTypography.heading(20, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
@@ -871,7 +925,7 @@ HStack(spacing: 8) {
     private func categoryTile(_ category: String, spent: Decimal) -> some View {
         let subs = settings.subcategories(of: category)
         return VStack(alignment: .leading, spacing: 10) {
-            GhafCategoryIcon(category: category, tint: theme.accent)
+            GhafCategoryIcon(category: category, tint: theme.accent, theme: theme)
             Text(GhafLocalization.category(category, languageCode: languageCode))
                 .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                 .foregroundStyle(theme.primaryText)
@@ -886,7 +940,7 @@ HStack(spacing: 8) {
             .font(GhafTypography.body(12, languageCode: languageCode))
             .foregroundStyle(theme.secondaryText)
         }
-        .padding(14)
+        .padding(GhafMetrics.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .contextMenu {

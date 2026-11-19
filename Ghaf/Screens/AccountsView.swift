@@ -33,44 +33,52 @@ struct GhafAccountsView: View {
     var body: some View {
         // One pass over transactions for every account, not one per row.
         let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
-        ScrollView {
-            VStack(spacing: GhafMetrics.sectionSpacing) {
-                if activeAccounts.isEmpty {
-                    emptyState
-                    Button {
-                        editorTarget = EditorTarget(account: nil)
-                    } label: {
-                        Label(lang == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet", systemImage: "plus")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .ghafProminentButton(theme: theme, languageCode: lang)
-                } else {
-                    GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
-                                    theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
-                                    onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
-                        .ghafEntrance(1)
-                }
-
-                if accounts.contains(where: \.isArchived) {
-                    archivedAccounts(balances)
-                }
+        Group {
+            if accounts.contains(where: \.isArchived) {
+                ScrollView { walletContent(balances) }
+            } else {
+                walletContent(balances)
             }
-            .padding(.horizontal, GhafMetrics.gutter)
-            .padding(.top, 4)
-            .padding(.bottom, 30)
-            .frame(maxWidth: 620)
-            .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 32).allowsHitTesting(false)
+        }
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
             }.ghafDirection(settings.languageCode)
         }
         .modifier(WalletZoomDestination(namespace: zoomNamespace))
+    }
+
+    private func walletContent(_ balances: [UUID: Decimal]) -> some View {
+        VStack(spacing: GhafMetrics.sectionSpacing) {
+            if activeAccounts.isEmpty {
+                emptyState
+                Button { editorTarget = EditorTarget(account: nil) } label: {
+                    Label(lang == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .ghafProminentButton(theme: theme, languageCode: lang)
+            } else {
+                GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
+                                theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
+                                onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
+                    .ghafEntrance(1)
+            }
+            if accounts.contains(where: \.isArchived) { archivedAccounts(balances) }
+        }
+        .ghafScreenPadding()
+        .padding(.top, 4)
+        .padding(.bottom, 30)
+        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity)
     }
 
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
@@ -105,7 +113,7 @@ struct GhafAccountsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            GhafIconBadge(symbol: "wallet.pass.fill", tint: theme.accent, size: 60)
+            GhafIconBadge(symbol: "wallet.pass.fill", tint: theme.accent, size: 60, theme: theme)
             Text(settings.languageCode == "ar" ? "ابدأ بإضافة حسابك الأول" : "Add your first account")
                 .font(GhafTypography.heading(18, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
@@ -185,6 +193,7 @@ struct GhafAccountEditorView: View {
     }
     private var shownDesign: GhafCardDesign? { plainChosen ? nil : (cardDesign ?? defaultDesign) }
     @State private var showCardRequest = false
+    @FocusState private var nameFocused: Bool
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -209,75 +218,67 @@ struct GhafAccountEditorView: View {
                     .animation(.spring(duration: 0.4), value: shownDesign)
                     .ghafEntrance(0)
                 designStrip.ghafEntrance(1)
+                TextField(ar ? "اسم الحساب" : "Account name", text: $name,
+                          prompt: Text(ar ? "اسم الحساب" : "Account name").foregroundStyle(theme.secondaryText))
+                    .font(GhafTypography.heading(24, languageCode: lang)).foregroundStyle(theme.primaryText)
+                    .tint(theme.accent).multilineTextAlignment(.center).focused($nameFocused).submitLabel(.done)
+                    .frame(minHeight: 40).overlay(alignment: .bottom) {
+                        if nameFocused { Rectangle().fill(theme.accent).frame(width: max(160, min(340, CGFloat(max(name.count, 10)) * 13 + 24)), height: 1.5) }
+                    }
+                GhafAmountField(value: $balanceText, currency: currency, label: ar ? "الرصيد الافتتاحي" : "Opening balance",
+                                theme: theme, languageCode: lang, fontSize: 48, chromeless: true)
+                    .padding(.top, 6)
 
-                group(ar ? "الحساب" : "Account") {
-                    fieldRow(ar ? "الاسم" : "Name") {
-                        GhafTextField(text: $name, placeholder: ar ? "مثال: المشرق" : "e.g. Mashreq", theme: theme, languageCode: lang)
-                    }
-                    if !isCash {
-                    fieldRow(ar ? "البنك" : "Bank") {
-                        HStack(spacing: 6) {
-                            GhafTextField(text: $institution, placeholder: ar ? "البنك أو الجهة" : "Bank or institution", theme: theme, languageCode: lang)
-                            Menu {
-                                ForEach(GhafUAEBank.all) { bank in
-                                    Button(ar ? bank.ar : bank.en) { institution = bank.en }
-                                }
-                            } label: {
-                                Image(systemName: "list.bullet").foregroundStyle(theme.accent)
-                            }
-                            .accessibilityLabel(ar ? "اختر بنكاً" : "Choose a bank")
-                        }
-                    }
-                    }
-                    fieldRow(ar ? "النوع" : "Type") {
-                        Picker("", selection: $accountType) {
+                GhafFormCard(theme: theme) {
+                    GhafFormMenuRow(icon: "creditcard", tint: theme.accent, title: ar ? "النوع" : "Type",
+                                    value: accountTypeTitle(accountType), theme: theme, languageCode: lang) {
+                        Picker(ar ? "النوع" : "Type", selection: $accountType) {
                             ForEach(GhafAccountType.allCases) { type in Text(accountTypeTitle(type)).tag(type) }
                         }
-                        .labelsHidden()
                     }
-                    Text(isCash ? (ar ? "محفظة كاش: النقود التي معك. تسجّل مصروفاتها بنفسك أو بصوتك، ولا ترتبط ببنك أو بطاقة."
-                                     : "Cash wallet: the money in your pocket. You log its spending yourself or by voice; no bank or card.")
-                                : (ar ? "حساب بنكي: يُحدَّث تلقائياً من رسائل البنك وApple Pay عبر الأتمتة."
-                                      : "Bank account: updated automatically from bank messages and Apple Pay through the automation."))
-                        .font(GhafTypography.body(12, languageCode: lang))
-                        .foregroundStyle(theme.secondaryText)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    fieldRow(ar ? "العملة" : "Currency", divider: false) {
-                        GhafCurrencyPicker(selection: $currency, currencies: currencies, languageCode: lang, tint: theme.accent)
+                    GhafFormDivider(theme: theme)
+                    if !isCash {
+                        GhafFormRow(icon: "building.columns", tint: theme.accent, title: ar ? "البنك" : "Bank", theme: theme, languageCode: lang) {
+                            HStack(spacing: 6) {
+                                TextField(ar ? "البنك أو الجهة" : "Bank or institution", text: $institution).multilineTextAlignment(.trailing)
+                                Menu {
+                                    ForEach(GhafUAEBank.all) { bank in Button(ar ? bank.ar : bank.en) { institution = bank.en } }
+                                } label: { Image(systemName: "chevron.forward").foregroundStyle(theme.secondaryText) }
+                                .accessibilityLabel(ar ? "اختر بنكاً" : "Choose a bank")
+                            }
+                        }
+                        GhafFormDivider(theme: theme)
                     }
-                }.ghafEntrance(2)
-
-                group(ar ? "الرصيد" : "Balance") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(ar ? "الرصيد المتاح الآن" : "Available right now")
-                            .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        GhafAmountField(value: $balanceText, currency: currency,
-                                        label: ar ? "الرصيد المتاح الآن" : "Available balance",
-                                        theme: theme, languageCode: lang)
+                    GhafFormMenuRow(icon: "dollarsign.circle", tint: theme.accent, title: ar ? "العملة" : "Currency",
+                                    value: currency, theme: theme, languageCode: lang) {
+                        Picker(ar ? "العملة" : "Currency", selection: $currency) {
+                            ForEach(currencies, id: \.self) { Text($0).tag($0) }
+                        }
                     }
-                    .padding(.vertical, 12)
-                    .overlay(alignment: .bottom) { Divider().overlay(theme.outline) }
                     if accountType == .credit {
+                        GhafFormDivider(theme: theme)
                         fieldRow(ar ? "الحد الائتماني" : "Credit limit") {
-                            GhafAmountField(value: $creditLimitText, currency: currency,
-                                            label: ar ? "الحد الائتماني" : "Credit limit",
-                                            theme: theme, languageCode: lang)
+                            GhafAmountField(value: $creditLimitText, currency: currency, label: "", theme: theme, languageCode: lang, fontSize: 20, chromeless: true)
                         }
                     }
                     if !isCash {
+                        GhafFormDivider(theme: theme)
                         fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
-                            GhafAmountField(value: $lastFourDigits, currency: nil,
-                                            label: ar ? "آخر ٤ أرقام" : "Last 4 digits",
-                                            theme: theme, languageCode: lang, integerMode: true, maxDigits: 4)
+                            GhafAmountField(value: $lastFourDigits, currency: nil, label: "", theme: theme, languageCode: lang, integerMode: true, maxDigits: 4, fontSize: 20, chromeless: true)
                                 .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
                         }
                     }
-                    toggleRow(ar ? "الحساب الرئيسي" : "Primary account", isOn: $isPrimary, divider: account != nil)
+                    GhafFormDivider(theme: theme)
+                    GhafFormToggleRow(icon: "checkmark.circle", tint: theme.comfortable, title: ar ? "الحساب الرئيسي" : "Primary account", isOn: $isPrimary, theme: theme, languageCode: lang)
                     if let account {
-                        toggleRow(ar ? "ضمن الرصيد الإجمالي" : "Include in total balance", isOn: Bindable(account).includeInTotal, divider: false)
+                        GhafFormDivider(theme: theme)
+                        GhafFormToggleRow(icon: "sum", tint: theme.comfortable, title: ar ? "ضمن الرصيد الإجمالي" : "Include in total balance", isOn: Bindable(account).includeInTotal, theme: theme, languageCode: lang)
                     }
-                }.ghafEntrance(3)
+                }
+                Text(isCash ? (ar ? "محفظة كاش: تسجّل مصروفاتها بنفسك أو بصوتك." : "Cash wallet: log spending yourself or by voice.")
+                              : (ar ? "حساب بنكي: يُحدَّث تلقائياً من رسائل البنك وApple Pay عبر الأتمتة." : "Bank account: updated through bank messages and Apple Pay automation."))
+                    .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.top, -8)
 
                 if errorMessage {
                     Label(ar ? "تحقق من اسم الحساب والرصيد." : "Check the account name and balance.", systemImage: "exclamationmark.circle.fill")
@@ -292,26 +293,51 @@ struct GhafAccountEditorView: View {
                         .multilineTextAlignment(.center)
                 }
             }
-            .padding(.horizontal, GhafMetrics.gutter)
-            .padding(.bottom, 20)
+            .ghafScreenPadding()
+            .padding(.bottom, 120)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
         .ghafBackground(theme: theme)
         .tint(theme.accent)
         .safeAreaInset(edge: .bottom) {
-            GhafDetailActionBar(theme: theme, languageCode: lang,
-                                secondarySymbol: account == nil ? nil : "archivebox",
-                                secondaryLabel: ar ? "أرشفة الحساب" : "Archive account",
-                                secondaryAction: { showArchiveConfirmation = true },
-                                primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
-                                primaryAction: save)
+            ZStack(alignment: .leading) {
+                GhafDetailActionBar(theme: theme, languageCode: lang,
+                                    secondarySymbol: account == nil ? nil : "archivebox",
+                                    secondaryLabel: ar ? "أرشفة الحساب" : "Archive account",
+                                    secondaryAction: { showArchiveConfirmation = true },
+                                    primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
+                                    primaryAction: save)
+                if account != nil {
+                    Color.clear.frame(width: 104, height: 88).allowsHitTesting(false)
+                        .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
+                                            titleVisibility: .visible) {
+                            Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
+                            Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
+                        } message: {
+                            Text(ar ? "يختفي الحساب ويبقى سجل عملياته." : "The account is hidden and its transaction history is kept.")
+                        }
+                }
+            }
         }
         .navigationTitle(account == nil ? (ar ? "إضافة حساب" : "Add account") : (ar ? "تعديل الحساب" : "Edit account"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(ar ? "إلغاء" : "Cancel") { dismiss() }
+            ToolbarItem(placement: .principal) {
+                ZStack {
+                    Text(account == nil ? (ar ? "إضافة حساب" : "Add account") : (ar ? "تعديل الحساب" : "Edit account"))
+                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                    HStack {
+                        Button(ar ? "إلغاء" : "Cancel") { dismiss() }
+                            .foregroundStyle(theme.accent)
+                            .frame(width: 64, alignment: .leading)
+                        Spacer()
+                        Color.clear.frame(width: 64)
+                    }
+                    .padding(.horizontal, GhafMetrics.gutter)
+                }
+                .frame(width: UIScreen.main.bounds.width, height: 44)
             }
         }
         .ghafKeyboardDone()
@@ -321,24 +347,13 @@ struct GhafAccountEditorView: View {
             if let design = cardDesign, design.bank != "cash", design.bank != bank { cardDesign = nil }
         }
         // Banknotes are for cash wallets only, and cards for the others.
-        .onChange(of: accountType) { old, type in
+        .onChange(of: accountType) { _, type in
             if type == .cash { institution = ""; lastFourDigits = "" }
-            if account == nil {
-                if type == .cash { name = cashWalletName }
-                else if old == .cash, name.hasPrefix(ar ? "محفظة كاش" : "Cash wallet") { name = "" }
-            }
             if let design = cardDesign, (design.bank == "cash") != (type == .cash) { cardDesign = nil }
         }
         .sheet(isPresented: $showCardRequest) {
             GhafCardRequestView(settings: settings,
                                 bank: GhafUAEBank.match([institution, name]).map { ar ? $0.ar : $0.en } ?? institution).ghafDirection(settings.languageCode)
-        }
-        .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
-                            titleVisibility: .visible) {
-            Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
-            Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
-        } message: {
-            Text(ar ? "يختفي الحساب ويبقى سجل عملياته." : "The account is hidden and its transaction history is kept.")
         }
     }
 
@@ -398,41 +413,45 @@ struct GhafAccountEditorView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func group<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 .foregroundStyle(theme.secondaryText)
                 .padding(.horizontal, 6)
-            VStack(spacing: 0) { content() }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-                .ghafCard(theme: theme)
+            GhafFormCard(theme: theme) { content() }
         }
     }
 
-    private func fieldRow<Field: View>(_ label: String, divider: Bool = true, @ViewBuilder field: () -> Field) -> some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(GhafTypography.body(15, languageCode: lang))
-                .foregroundStyle(theme.secondaryText)
-                .frame(minWidth: 96, alignment: .leading)
-            field()
-                .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.primaryText)
-                .multilineTextAlignment(.trailing)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+    private func fieldRow<Field: View>(_ label: String, divider: Bool = true, @ViewBuilder field: @escaping () -> Field) -> some View {
+        VStack(spacing: 0) {
+            GhafFormRow(icon: fieldIcon(label), tint: theme.accent, title: label, theme: theme, languageCode: lang) {
+                field().font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.primaryText).multilineTextAlignment(.trailing)
+            }
+            if divider { GhafFormDivider(theme: theme) }
         }
-        .frame(minHeight: 56)
-        .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
     }
 
     private func toggleRow(_ label: String, isOn: Binding<Bool>, divider: Bool) -> some View {
-        Toggle(label, isOn: isOn)
-            .font(GhafTypography.body(15, languageCode: lang, weight: .medium))
-            .foregroundStyle(theme.primaryText)
-            .frame(minHeight: 56)
-            .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
+        VStack(spacing: 0) {
+            GhafFormToggleRow(icon: "checkmark.circle", tint: theme.comfortable, title: label, isOn: isOn,
+                              theme: theme, languageCode: lang)
+            if divider { GhafFormDivider(theme: theme) }
+        }
+    }
+
+    private func fieldIcon(_ label: String) -> String {
+        switch label {
+        case "Name", "الاسم": "person.crop.circle"
+        case "Bank", "البنك": "building.columns"
+        case "Type", "النوع": "creditcard"
+        case "Currency", "العملة": "dollarsign.circle"
+        case "Available right now", "الرصيد المتاح الآن": "wallet.pass"
+        case "Credit limit", "الحد الائتماني": "creditcard"
+        case "Last 4 digits", "آخر ٤ أرقام": "number"
+        default: "square.grid.2x2"
+        }
     }
 
     private func accountTypeTitle(_ type: GhafAccountType) -> String {
@@ -447,16 +466,9 @@ struct GhafAccountEditorView: View {
         }
     }
 
-    /// "Cash wallet 1", "Cash wallet 2"…: the next free number among existing cash wallets.
-    private var cashWalletName: String {
-        let base = ar ? "محفظة كاش" : "Cash wallet"
-        let taken = Set(accounts.filter { $0.type == .cash }.map(\.name))
-        return (1...).lazy.map { "\(base) \($0)" }.first { !taken.contains($0) }!
-    }
-
     private func load() {
         guard let account else {
-            name = cashWalletName
+            name = ""
             accountType = .cash
             currency = settings.currency
             isPrimary = accounts.isEmpty
@@ -632,8 +644,8 @@ struct GhafCardRequestView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
-                .padding(.bottom, 20)
+                .ghafScreenPadding()
+                .padding(.bottom, 120)
             }
             .scrollDismissesKeyboard(.interactively)
             .ghafBackground(theme: theme)

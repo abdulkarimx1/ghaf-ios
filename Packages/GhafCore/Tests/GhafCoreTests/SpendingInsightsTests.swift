@@ -28,4 +28,34 @@ final class SpendingInsightsTests: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.typical, 23)
     }
+
+    func testLoggingStreakStopsAtGaps() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = date("2024-01-04T12:00:00Z")
+        XCTAssertEqual(GhafLoggingStreak.count([date("2024-01-04T08:00:00Z"), date("2024-01-02T08:00:00Z")], through: now, calendar: calendar), 1)
+    }
+
+    func testLoggingStreakContinuesThroughYesterdayWhenTodayHasNoTransaction() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = date("2024-01-04T12:00:00Z")
+        XCTAssertEqual(GhafLoggingStreak.count([date("2024-01-03T08:00:00Z"), date("2024-01-02T08:00:00Z")], through: now, calendar: calendar), 2)
+    }
+
+    func testLoggingStreakUsesCalendarTimezoneForDayBoundaries() {
+        let now = date("2024-01-02T00:30:00Z")
+        let logs = [date("2024-01-01T23:30:00Z"), date("2024-01-01T05:00:00Z")]
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        var losAngeles = Calendar(identifier: .gregorian)
+        losAngeles.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        XCTAssertEqual(GhafLoggingStreak.count(logs, through: now, calendar: utc), 1)
+        XCTAssertEqual(GhafLoggingStreak.count(logs, through: now, calendar: losAngeles), 2)
+    }
+
+    private func date(_ value: String) -> Date {
+        ISO8601DateFormatter().date(from: value)!
+    }
+
 }

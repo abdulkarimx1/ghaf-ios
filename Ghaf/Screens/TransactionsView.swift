@@ -12,11 +12,17 @@ struct GhafTransactionsView: View {
     private var accounts: [GhafAccount]
 
     @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
+    @State private var transactionDetailHeight: CGFloat = 0
+    @State private var transactionDetailDetent: PresentationDetent = .large
     @State private var sortOrder = "Newest"
     @State private var transactionToDelete: GhafTransaction?
     @State private var showDeleteConfirmation = false
+#if DEBUG
+    @State private var fixtureDetailOpened = false
+#endif
 
     let settings: GhafSettings
 
@@ -30,6 +36,14 @@ struct GhafTransactionsView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
+    private var sortOrderTitle: String {
+        switch sortOrder {
+        case "Oldest": ar ? "الأقدم" : "Oldest"
+        case "Highest": ar ? "الأعلى" : "Highest"
+        case "Lowest": ar ? "الأقل" : "Lowest"
+        default: ar ? "الأحدث" : "Newest"
+        }
+    }
 
     /// Filtered once per render; search reads account names from a dictionary, not a scan per row.
     private func filtered() -> [GhafTransaction] {
@@ -120,7 +134,7 @@ struct GhafTransactionsView: View {
                         searchField
                         filterBar(count: list.count)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 4, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 8, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
@@ -135,9 +149,13 @@ struct GhafTransactionsView: View {
                             ForEach(section.items) { transaction in
                                 Button { selectedTransaction = transaction } label: {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 4)
                                 }
                                 .buttonStyle(.ghafPress)
-                                .listRowBackground(theme.surface)
+                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
+                                .listRowBackground(Color.clear)
+                                .background(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).fill(theme.surface))
                                 .listRowSeparatorTint(theme.outline)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
@@ -153,20 +171,39 @@ struct GhafTransactionsView: View {
                                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                                 .foregroundStyle(theme.secondaryText)
                                 .textCase(nil)
+                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 0, trailing: GhafMetrics.gutter))
                         }
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
+#if DEBUG
+            .onAppear {
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.tab == "transactions",
+                   GhafScreenshotFixture.selection == "transaction-detail", !fixtureDetailOpened,
+                   let transaction = transactions.first(where: { $0.merchant == "Lunch" }) ?? transactions.first {
+                    fixtureDetailOpened = true
+                    selectedTransaction = transaction
+                }
+            }
+#endif
             .sheet(item: $selectedTransaction) { transaction in
-                GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
-                    .presentationDetents([.large])
+                GhafTransactionDetailView(transaction: transaction, settings: settings,
+                                          accounts: accounts.filter { !$0.isArchived }) {
+                    transactionDetailHeight = $0
+                    transactionDetailDetent = $0 > UIScreen.main.bounds.height * 0.85 ? .large : .height($0)
+                }
+                    .presentationDetents(transactionDetailHeight == 0 ? [.large]
+                                         : transactionDetailHeight > UIScreen.main.bounds.height * 0.85
+                                            ? [.height(transactionDetailHeight), .large] : [.height(transactionDetailHeight)],
+                                         selection: $transactionDetailDetent)
+                    .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .confirmationDialog(
@@ -199,19 +236,40 @@ struct GhafTransactionsView: View {
     private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color, icon: String) -> some View {
         VStack(spacing: 6) {
             Label(title, systemImage: icon)
-                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 20)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 24)
                 .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
         }
         .frame(maxWidth: .infinity)
     }
 
     private var searchField: some View {
-        GhafTextField(text: $searchText, placeholder: ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank",
-                      theme: theme, languageCode: lang, icon: "magnifyingglass", autocorrection: false,
-                      capitalization: .never, submitLabel: .search)
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(theme.secondaryText).accessibilityHidden(true)
+            TextField(ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank", text: $searchText)
+                .font(GhafTypography.userContent(searchText, size: 17, languageCode: lang))
+                .foregroundStyle(theme.primaryText)
+                .tint(theme.accent)
+                .focused($searchFocused)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(theme.secondaryText).frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ar ? "مسح البحث" : "Clear search")
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 48)
+        .background(theme.primaryText.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityLabel(ar ? "بحث" : "Search")
     }
 
     private func filterBar(count: Int) -> some View {
@@ -224,21 +282,23 @@ struct GhafTransactionsView: View {
                     filterButton("Review", label: ar ? "مراجعة" : "Review")
                 }
             }
-            .scrollClipDisabled()
-            Menu {
-                Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
-                    Text(ar ? "الأحدث أولاً" : "Newest first").tag("Newest")
-                    Text(ar ? "الأقدم أولاً" : "Oldest first").tag("Oldest")
-                    Text(ar ? "الأعلى مبلغاً" : "Highest amount").tag("Highest")
-                    Text(ar ? "الأقل مبلغاً" : "Lowest amount").tag("Lowest")
-                }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(theme.primaryText)
-                    .frame(width: 44, height: 44)
-                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
+            .contentMargins(.trailing, 12, for: .scrollContent)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .trailing) {
+                LinearGradient(colors: [theme.background.opacity(0), theme.background],
+                               startPoint: ar ? .trailing : .leading, endPoint: ar ? .leading : .trailing)
+                    .frame(width: 16)
+                    .allowsHitTesting(false)
             }
+            GhafMenuRow(title: ar ? "ترتيب" : "Sort", value: sortOrderTitle, theme: theme, languageCode: lang, compact: true) {
+                Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
+                    Text(ar ? "الأحدث" : "Newest").tag("Newest")
+                    Text(ar ? "الأقدم" : "Oldest").tag("Oldest")
+                    Text(ar ? "الأعلى" : "Highest").tag("Highest")
+                    Text(ar ? "الأقل" : "Lowest").tag("Lowest")
+                }
+            }
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
         }
     }
@@ -251,8 +311,8 @@ struct GhafTransactionsView: View {
             Text(label)
                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 .lineLimit(1)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
+                .padding(.horizontal, 12)
+                .frame(minHeight: GhafMetrics.compactButtonHeight)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.primaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
         }
@@ -263,7 +323,7 @@ struct GhafTransactionsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            GhafIconBadge(symbol: "magnifyingglass", tint: theme.secondaryText, size: 56)
+            GhafIconBadge(symbol: "magnifyingglass", tint: theme.secondaryText, size: 56, theme: theme)
             Text(ar ? "لا توجد عمليات" : "No transactions found")
                 .font(GhafTypography.heading(18, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
@@ -367,12 +427,7 @@ struct GhafTransactionEditor: View {
                     editorField("Merchant", text: $merchant)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
-                    Picker(languageCode == "ar" ? "النوع" : "Direction", selection: $direction) {
-                        Text(languageCode == "ar" ? "مصروف" : "Expense").tag("debit")
-                        Text(languageCode == "ar" ? "دخل" : "Income").tag("credit")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(minHeight: 56)
+                    GhafSegmented(options: [("debit", languageCode == "ar" ? "مصروف" : "Expense"), ("credit", languageCode == "ar" ? "دخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
                     GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: languageCode, tint: theme.accent)
@@ -383,16 +438,14 @@ struct GhafTransactionEditor: View {
 
                     if !accounts.isEmpty {
                         editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
-                        Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
-                            Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
-                            // Menu pickers draw images at their full asset size, so the currency stays text.
-                            ForEach(accounts, id: \.id) { account in
-                                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                        GhafMenuRow(title: languageCode == "ar" ? "الحساب" : "Account", value: accounts.first(where: { $0.id == accountID }).map { "\($0.name) · \($0.currency)" } ?? (languageCode == "ar" ? "غير محدد" : "Unassigned"), theme: theme, languageCode: languageCode) {
+                            Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
+                                Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
+                                ForEach(accounts, id: \.id) { account in
+                                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                                }
                             }
                         }
-                        .pickerStyle(.menu)
-                        .tint(theme.accent)
-                        .frame(minHeight: 56)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -454,14 +507,14 @@ struct GhafTransactionEditor: View {
                             .font(GhafTypography.body(12, languageCode: languageCode))
                             .tint(theme.accent)
                         }
-                        .padding(14)
+                        .padding(GhafMetrics.cardPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
                         .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))
                     }
 
                     editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
-                    DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    GhafDateRow(title: languageCode == "ar" ? "التاريخ" : "Date", selection: $date, components: [.date, .hourAndMinute], theme: theme, languageCode: languageCode)
                         .tint(theme.accent)
 
                     editorLabel(languageCode == "ar" ? "ملاحظة" : "NOTE")

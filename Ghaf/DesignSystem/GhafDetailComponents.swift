@@ -40,6 +40,7 @@ struct GhafDetailRow<Value: View>: View {
                 .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 11)
+        .frame(minHeight: GhafMetrics.rowHeight)
         .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
         .accessibilityElement(children: .combine)
     }
@@ -82,19 +83,23 @@ struct GhafDetailActionBar: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 64, height: 56)
-                        .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
+                        .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                 }
                 .buttonStyle(.ghafPress)
                 .accessibilityLabel(secondaryLabel)
             }
-            Button(action: primaryAction) {
-                Text(primaryTitle).frame(maxWidth: .infinity)
-            }
-            .ghafProminentButton(theme: theme, languageCode: languageCode)
+            GhafPrimaryButton(title: primaryTitle, theme: theme, languageCode: languageCode, action: primaryAction)
         }
-        .padding(.horizontal, GhafMetrics.gutter)
-        .padding(.top, 10)
+        .ghafScreenPadding()
+        .padding(.top, 12)
         .padding(.bottom, 6)
-        .background(theme.background.opacity(0.94))
+        .background {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [theme.background.opacity(0), theme.background], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 24)
+                theme.background
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
     }
 }

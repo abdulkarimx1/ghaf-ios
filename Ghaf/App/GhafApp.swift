@@ -14,9 +14,15 @@ struct GhafApp: App {
         UIScrollView.appearance().showsVerticalScrollIndicator = false
 
         do {
-
+#if DEBUG
+            if GhafScreenshotFixture.enabled {
+                modelContainer = try GhafScreenshotFixture.makeContainer()
+            } else {
+                modelContainer = try GhafPersistence.shared()
+            }
+#else
             modelContainer = try GhafPersistence.shared()
-
+#endif
         } catch {
 
             fatalError(

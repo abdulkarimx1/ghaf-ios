@@ -1,5 +1,13 @@
 import SwiftUI
 import SwiftData
+import os
+
+private let transactionDetailLayoutLog = OSLog(subsystem: "com.ghaf.app", category: "TransactionDetailLayout")
+
+private struct GhafTransactionDetailHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
 
 /// Receipt for one transaction: what happened, from where to where, when, and where it came from.
 /// Editing opens the existing editor on top; the receipt updates live from the model.
@@ -10,8 +18,10 @@ struct GhafTransactionDetailView: View {
     let transaction: GhafTransaction
     let settings: GhafSettings
     let accounts: [GhafAccount]
+    var onContentHeightChange: (CGFloat) -> Void = { _ in }
 
     @State private var editing = false
+    @State private var lastMeasuredHeight: CGFloat = 0
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -43,40 +53,50 @@ struct GhafTransactionDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 18) {
-                    header.ghafEntrance(0)
-                    receipt.ghafEntrance(1)
-                    if transaction.needsReview { reviewBanner }
-                    GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang)
-                    bankContact
-                }
-                .padding(.horizontal, GhafMetrics.gutter)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
-                .frame(maxWidth: 620)
-                .frame(maxWidth: .infinity)
-            }
-            .ghafBackground(theme: theme)
-            .safeAreaInset(edge: .bottom) {
-                GhafDetailActionBar(theme: theme, languageCode: lang,
-                                    secondarySymbol: "pencil", secondaryLabel: ar ? "تعديل" : "Edit",
-                                    secondaryAction: { editing = true },
-                                    primaryTitle: ar ? "تم" : "Done", primaryAction: { dismiss() })
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: receiptText) { Image(systemName: "square.and.arrow.up") }
-                        .accessibilityLabel(ar ? "مشاركة الإيصال" : "Share receipt")
+        ScrollView {
+            VStack(spacing: 18) {
+                header.ghafEntrance(0)
+                receipt.ghafEntrance(1)
+                if transaction.needsReview { reviewBanner }
+                GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang)
+                bankContact
+                HStack(spacing: 12) {
+                    Button { editing = true } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .frame(width: 56, height: 56)
+                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(ar ? "تعديل" : "Edit")
+                    GhafPrimaryButton(title: ar ? "تم" : "Done", theme: theme, languageCode: lang) { dismiss() }
                 }
             }
-            .sheet(isPresented: $editing) {
-                GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName,
-                                      appearanceMode: settings.appearanceMode, languageCode: lang, accounts: accounts)
-                    .presentationDragIndicator(.visible).ghafDirection(lang)
+            .ghafScreenPadding()
+            .padding(.top, 12)
+            .padding(.bottom, 12)
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: GhafTransactionDetailHeightKey.self, value: proxy.size.height + 36)
+                }
             }
+            .onPreferenceChange(GhafTransactionDetailHeightKey.self) { height in
+                guard height > 0, abs(lastMeasuredHeight - height) > 1 else { return }
+                lastMeasuredHeight = height
+                os_signpost(.event, log: transactionDetailLayoutLog, name: "MeasuredContentHeight", "%{public}.1f pt", height)
+                onContentHeightChange(height)
+            }
+        }
+        .scrollIndicators(.hidden)
+        .ghafBackground(theme: theme)
+        .sheet(isPresented: $editing) {
+            GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName,
+                                  appearanceMode: settings.appearanceMode, languageCode: lang, accounts: accounts)
+                .presentationDragIndicator(.visible).ghafDirection(lang)
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
@@ -85,10 +105,10 @@ struct GhafTransactionDetailView: View {
         VStack(spacing: 18) {
             // Who and when, like a receipt's first line.
             HStack(spacing: 12) {
-                GhafBrandBadge(name: merchantName, fallbackTint: theme.accent, size: 46)
+                GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(merchantName)
-                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .font(GhafTypography.userContent(merchantName, size: 17, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(1)
                     Text(transaction.date.formatted(.dateTime.weekday(.wide).day().month().hour().minute().locale(Locale(identifier: lang))))
@@ -96,6 +116,12 @@ struct GhafTransactionDetailView: View {
                         .foregroundStyle(theme.secondaryText)
                 }
                 Spacer(minLength: 0)
+                    ShareLink(item: receiptText) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(theme.primaryText)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel(ar ? "مشاركة الإيصال" : "Share receipt")
             }
             VStack(spacing: 4) {
                 HStack(spacing: 3) {
@@ -112,8 +138,9 @@ struct GhafTransactionDetailView: View {
             Label(status.title, systemImage: status.symbol + ".circle.fill")
                 .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                 .foregroundStyle(status.tint)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(status.tint.opacity(0.12), in: Capsule())
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(status.tint.opacity(theme.isDark ? 0.22 : 0.14), in: Capsule())
+                .overlay(Capsule().stroke(status.tint.opacity(0.35), lineWidth: 1))
         }
         .padding(18)
         .ghafCard(theme: theme)

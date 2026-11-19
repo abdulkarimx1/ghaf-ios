@@ -5,6 +5,42 @@ import GhafCore
 /// rephrase them, but every number comes from here. Amounts stay in one currency at a time.
 enum GhafLedgerAnswers {
 
+    struct ProgressQuery {
+        let transactionCount: Int
+        let purchaseCount: Int?
+        let period: String
+    }
+
+    static func progressQuery(for question: String, transactions: [GhafTransaction], currency: String,
+                              languageCode: String, now: Date = .now) -> ProgressQuery? {
+        let q = question.lowercased()
+        let words = ["spen", "cost", "expense", "purchase", "transaction", "income", "earn", "salary",
+                     "where", "most", "top", "categor", "breakdown", "chart", "graph", "صرف", "مصروف",
+                     "مشتري", "عملية", "دخل", "راتب", "وين", "أكثر", "اكثر", "فئة", "رسم"]
+        guard words.contains(where: { q.contains($0) }),
+              !["subscri", "اشتراك", "balance", "رصيد", "do i have", "عندي"].contains(where: { q.contains($0) }) else { return nil }
+        let period = period(for: q, now: now)
+        var items = transactions.filter { $0.currency == currency && period.interval.contains($0.date) && $0.isSpendingOrIncome }
+        if let category = matchedCategory(in: q, transactions: transactions, languageCode: languageCode) {
+            items = items.filter { $0.isExpense && $0.category == category }
+        } else if let merchant = matchedMerchant(in: q, transactions: transactions) {
+            items = items.filter { $0.isExpense && SubscriptionDetector.normalize($0.merchant ?? "") == merchant.key }
+        }
+        let purchaseQuery = ["spen", "cost", "expense", "purchase", "where", "most", "top", "categor", "breakdown", "chart", "graph",
+                             "صرف", "مصروف", "مشتري", "دفعت", "وين", "أكثر", "اكثر", "فئة", "رسم"].contains { q.contains($0) }
+        let purchases = purchaseQuery ? items.filter { $0.isExpense && $0.direction == "debit" && !$0.isReversal }.count : nil
+        let calendar = GhafCalendar.current
+        let end = min(now, period.interval.end.addingTimeInterval(-1))
+        let locale = Locale(identifier: languageCode == "ar" ? "ar" : "en")
+        let startMonth = period.interval.start.formatted(.dateTime.month(.abbreviated).locale(locale))
+        let endMonth = end.formatted(.dateTime.month(.abbreviated).locale(locale))
+        let startDay = period.interval.start.formatted(.dateTime.day().locale(locale))
+        let endDay = end.formatted(.dateTime.day().locale(locale))
+        let range = calendar.isDate(period.interval.start, equalTo: end, toGranularity: .month)
+            ? "\(startDay)–\(endDay) \(startMonth)" : "\(startDay) \(startMonth)–\(endDay) \(endMonth)"
+        return ProgressQuery(transactionCount: items.count, purchaseCount: purchases, period: range)
+    }
+
     struct Period {
         let interval: DateInterval
         let previous: DateInterval?

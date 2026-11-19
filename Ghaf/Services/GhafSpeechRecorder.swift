@@ -101,6 +101,9 @@ final class GhafSpeechRecorder: ObservableObject {
         silenceTask?.cancel()
         silenceTask = nil
         level = 0
+        if GhafAIProgress.shared.stage == .listening || GhafAIProgress.shared.stage == .transcribing {
+            GhafAIProgress.shared.stage = nil
+        }
         guard isRecording || audioEngine.isRunning else { return }
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
@@ -147,6 +150,9 @@ final class GhafSpeechRecorder: ObservableObject {
                             result.bestTranscription.formattedString,
                             confidence / Float(count)
                         )
+                        if self.isRecording && !result.bestTranscription.formattedString.isEmpty {
+                            GhafAIProgress.shared.stage = .transcribing
+                        }
                         let before = self.transcript
                         self.updateChosenTranscript()
                         if self.transcript != before {
@@ -182,6 +188,7 @@ final class GhafSpeechRecorder: ObservableObject {
         audioEngine.prepare()
         try audioEngine.start()
         isRecording = true
+        GhafAIProgress.shared.stage = .listening
         watchForSilence()
     }
 

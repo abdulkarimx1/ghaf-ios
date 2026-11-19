@@ -10,34 +10,30 @@ struct GhafAmountField: View {
     /// Longest number allowed, e.g. 4 for a card's last four digits.
     var maxDigits = 12
     var fontSize: CGFloat = 24
+    var chromeless = false
     /// Opens the pad as soon as the field appears (quick add).
     var presentOnAppear = false
 
     @State private var presented = false
     @State private var keyPress = 0
-    @Environment(\.locale) private var locale
+    @State private var replaceOnNextKey = true
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
-    private var separator: String { (languageCode == "ar" ? Locale(identifier: "ar_AE") : locale).decimalSeparator ?? "." }
+    private var separator: String { GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency ?? "AED").decimalSeparator ?? "." }
 
     var body: some View {
-        Button { presented = true } label: {
-            HStack(spacing: 12) {
-                if let currency { GhafCurrencyIcon(currency: currency, size: 22) }
-                Text(value.isEmpty ? placeholder : localized(value))
-                    .font(GhafTypography.number(fontSize, weight: .bold))
-                    .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "number")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(theme.secondaryText)
-                    .accessibilityHidden(true)
+        Button { openPad() } label: {
+            Group {
+              if chromeless {
+                amountContent
+                    .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
+              } else {
+                amountContent
+                    .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
+                    .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+              }
             }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: max(56, fontSize + 32))
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -50,26 +46,73 @@ struct GhafAmountField: View {
                 .presentationCornerRadius(28)
         }
         .sensoryFeedback(.impact(weight: .light), trigger: keyPress)
-        .onAppear { if presentOnAppear { presented = true } }
+        .onAppear { if presentOnAppear { openPad() } }
+        .onChange(of: presented) { _, isPresented in if isPresented { replaceOnNextKey = true } }
+    }
+
+    private var amountContent: some View {
+            VStack(spacing: 4) {
+                if !label.isEmpty {
+                    Text(label).font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                }
+                HStack(spacing: 8) {
+                    if let currency { GhafCurrencyIcon(currency: currency, size: fontSize * 0.82).foregroundStyle(theme.primaryText) }
+                    let display = amountDisplay(value.isEmpty ? placeholder : paddedAmount(value))
+                    Group {
+                        if languageCode == "ar" {
+                            Text(display)
+                        } else if fontSize >= 28, let split = display.range(of: separator, options: .backwards) {
+                            HStack(spacing: 0) {
+                                Text(String(display[..<split.lowerBound]))
+                                Text(String(display[split.lowerBound...])).opacity(0.45)
+                            }
+                        } else { Text(display) }
+                    }
+                    .font(languageCode == "ar"
+                          ? GhafTypography.body(fontSize, languageCode: languageCode, weight: .bold)
+                          : GhafTypography.number(fontSize, weight: .bold))
+                    .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
+                }
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .environment(\.layoutDirection, .leftToRight)
+            }
+            .padding(.horizontal, chromeless ? 0 : 16)
+            .environment(\.layoutDirection, .leftToRight)
     }
 
     private var placeholder: String { localized("0" + (digits > 0 ? "." + String(repeating: "0", count: digits) : "")) }
 
+    private func paddedAmount(_ value: String) -> String {
+        guard digits > 0, !integerMode else { return value }
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        let fraction = parts.count > 1 ? String(parts[1]) : ""
+        return String(parts[0]) + "." + fraction + String(repeating: "0", count: max(0, digits - fraction.count))
+    }
+
     private var keypad: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                // The live value sits on the pad itself, so the field behind the sheet never needs scrolling into view.
-                VStack(alignment: .leading, spacing: 2) {
+                Color.clear.frame(width: 48, height: 44).accessibilityHidden(true)
+                Spacer()
+                VStack(alignment: .center, spacing: 2) {
                     Text(label).font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
                     HStack(spacing: 8) {
                         if let currency { GhafCurrencyIcon(currency: currency, size: 20) }
-                        Text(value.isEmpty ? placeholder : localized(value))
-                            .font(GhafTypography.number(30, weight: .bold))
+                        Text(amountDisplay(value.isEmpty ? placeholder : value))
+                            .font(languageCode == "ar"
+                                  ? GhafTypography.body(fontSize, languageCode: languageCode, weight: .bold)
+                                  : GhafTypography.number(fontSize, weight: .bold))
                             .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
                             .lineLimit(1).minimumScaleFactor(0.6)
                             .contentTransition(.numericText())
                     }
                 }
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .environment(\.layoutDirection, .leftToRight)
                 .accessibilityElement(children: .combine)
                 Spacer()
                 Button { presented = false } label: {
@@ -94,7 +137,10 @@ struct GhafAmountField: View {
                             .font(GhafTypography.number(23, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .frame(maxWidth: .infinity, minHeight: 64)
-                            .background(theme.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .background {
+                                let keyShape = RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                keyShape.fill(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
+                            }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(key == "delete" ? (languageCode == "ar" ? "حذف" : "Delete") : localized(key))
@@ -105,31 +151,45 @@ struct GhafAmountField: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(.ultraThinMaterial)
-        .background(theme.background.opacity(0.86))
+        .background(theme.background)
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
     }
 
-    private func press(_ key: String) {
-        if key == "delete" {
-            if !value.isEmpty { value.removeLast() }
-        } else if key == separator {
-            guard digits > 0, !value.contains(".") else { return }
-            value = value.isEmpty ? "0." : value + "."
-        } else {
-            let fraction = value.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first?.count ?? 0
-            let integral = value.split(separator: ".", omittingEmptySubsequences: false).first?.count ?? 0
-            guard fraction < digits || !value.contains("."), value.contains(".") || integral < maxDigits else { return }
-            value += key
+    private func openPad() {
+        #if DEBUG
+        assert(Self.applying("7", to: "125.50", replace: true, digits: 2, maxDigits: 12, separator: ",") == "7")
+        assert(Self.applying("delete", to: "125.50", replace: true, digits: 2, maxDigits: 12, separator: ".").isEmpty)
+        #endif
+        replaceOnNextKey = true
+        presented = true
+    }
+
+    static func applying(_ key: String, to current: String, replace: Bool, digits: Int, maxDigits: Int, separator: String) -> String {
+        var value = replace ? "" : current
+        if key == "delete" { if !replace && !value.isEmpty { value.removeLast() }; return value }
+        if key == separator {
+            guard digits > 0, !value.contains(".") else { return value }
+            return value.isEmpty ? "0." : value + "."
         }
+        let fraction = value.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first?.count ?? 0
+        let integral = value.split(separator: ".", omittingEmptySubsequences: false).first?.count ?? 0
+        guard fraction < digits || !value.contains("."), value.contains(".") || integral < maxDigits else { return value }
+        value += key
+        return value
+    }
+
+    private func press(_ key: String) {
+        value = Self.applying(key, to: value, replace: replaceOnNextKey, digits: digits, maxDigits: maxDigits, separator: separator)
+        replaceOnNextKey = false
         keyPress += 1
     }
 
     private func localized(_ text: String) -> String {
-        guard languageCode == "ar" else { return text.replacingOccurrences(of: ".", with: separator) }
-        return text.replacingOccurrences(of: ".", with: separator).map { char in
-            guard let digit = char.wholeNumberValue, (0...9).contains(digit) else { return char }
-            return Character(UnicodeScalar(0x0660 + digit)!)
-        }.map(String.init).joined()
+        text.replacingOccurrences(of: ".", with: separator)
+    }
+
+    private func amountDisplay(_ text: String) -> String {
+        let display = localized(text)
+        return languageCode == "ar" ? "\u{2066}\(display)\u{2069}" : display
     }
 }

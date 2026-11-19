@@ -25,6 +25,7 @@ struct GhafHomeView: View {
     private var transactions: [GhafTransaction]
     @Query(sort: \GhafAccount.sortOrder)
     private var accounts: [GhafAccount]
+    @Query private var subscriptions: [GhafSubscription]
 
     @State private var showQuickAdd = false
     @State private var showVoiceEntry = false
@@ -34,7 +35,11 @@ struct GhafHomeView: View {
     @State private var showBackupImporter = false
     @State private var backupImportError: String?
     @State private var showInsights = false
-    @State private var showReview = false
+    @State private var showInbox = false
+#if DEBUG
+    @State private var showNotificationSettings = false
+#endif
+    @State private var inboxTargetID: String?
     @State private var selectedTransaction: GhafTransaction?
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
     @AppStorage(GhafAutomationStatus.walletRunKey) private var walletLastRun: Double = 0
@@ -58,6 +63,12 @@ struct GhafHomeView: View {
         )
     }
 
+    private var inboxCount: Int {
+        transactions.filter(\.needsReview).count
+            + subscriptions.filter(\.needsConfirmation).count
+            + GhafEventNotifications.events.count
+    }
+
     /// Everything Home shows, derived in one pass per render instead of once per view.
     private struct Summary {
         var accountBalances: [UUID: Decimal] = [:]
@@ -69,7 +80,6 @@ struct GhafHomeView: View {
         var topCategory: (name: String, amount: Decimal)?
         /// Spending by category, largest first.
         var categories: [(name: String, amount: Decimal)] = []
-        var reviewCount = 0
         /// The selected period, and spending in the one before it (same currency rules).
         var interval: DateInterval?
         var previousSpent: Decimal = 0
@@ -102,7 +112,6 @@ struct GhafHomeView: View {
         summary.interval = interval
         var byCategory: [String: Decimal] = [:]
         for transaction in transactions {
-            if transaction.needsReview { summary.reviewCount += 1 }
             guard let interval else { continue }
             let date = transaction.date
             if date >= interval.end { continue }
@@ -132,20 +141,19 @@ struct GhafHomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
-                    header.ghafEntrance(0)
                     if automationNeedsAttention && Date.now.timeIntervalSince1970 >= automationWarningDismissedUntil {
                         automationWarningCard
                     }
                     if accounts.contains(where: { !$0.isArchived }) {
                         balanceCard(summary).ghafEntrance(1)
-                        actionRow(summary).ghafEntrance(2)
+                        actionRow().ghafEntrance(2)
                         insightCard(summary).ghafEntrance(3)
                         recentActivity.ghafEntrance(4)
                     } else {
                         emptyAccountsState
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 8)
                 .padding(.bottom, 28)
                 .frame(maxWidth: 560)
@@ -154,6 +162,27 @@ struct GhafHomeView: View {
             .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
             .ghafStatusBarFade(theme: theme)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                header
+                    .ghafScreenPadding()
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .background {
+                        LinearGradient(stops: [
+                            .init(color: theme.background, location: 0),
+                            .init(color: theme.background, location: 0.62),
+                            .init(color: theme.background.opacity(0), location: 1)
+                        ], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 44 + 12 + 28, alignment: .top)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .accessibilityHidden(true)
+                    }
+            }
+#if DEBUG
+            .onAppear {
+                if GhafScreenshotFixture.enabled, ["amount-pad", "new-transaction"].contains(GhafScreenshotFixture.screen ?? "") { showQuickAdd = true }
+            }
+#endif
             .onChange(of: router.homeReselects) { _, _ in
                 withAnimation(.spring(duration: 0.45, bounce: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
             }
@@ -170,9 +199,15 @@ struct GhafHomeView: View {
             .sheet(isPresented: $showInsights) {
                 GhafInsightsView(settings: settings).presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showReview) {
-                GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            .sheet(isPresented: $showInbox) {
+                GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
+#if DEBUG
+            .sheet(isPresented: $showNotificationSettings) {
+                NavigationStack { GhafNotificationSettingsView(settings: settings) }
+                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            }
+#endif
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
@@ -184,6 +219,31 @@ struct GhafHomeView: View {
                 } catch {
                     backupImportError = error.localizedDescription
                 }
+            }
+            .onAppear {
+                GhafEventNotifications.configure()
+                if let target = GhafEventNotifications.consumePendingTarget(), !target.isEmpty {
+                    inboxTargetID = target
+                    router.selectedTab = 0
+                    showInbox = true
+                }
+#if DEBUG
+                switch GhafScreenshotFixture.screen {
+                case "inbox-proof", "inbox-empty", "home-inbox-count":
+                    GhafScreenshotFixture.configureInbox(context: modelContext, settings: settings)
+                    showInbox = GhafScreenshotFixture.screen != "home-inbox-count"
+                case "notification-settings": showNotificationSettings = true
+                default: break
+                }
+                if ProcessInfo.processInfo.arguments.contains("-ghafDebugEvent") {
+                    GhafEventNotifications.scheduleDebugEvent()
+                }
+#endif
+            }
+            .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.openInboxItem)) { note in
+                inboxTargetID = note.object as? String
+                router.selectedTab = 0
+                showInbox = true
             }
             .alert(ar ? "تعذر استيراد النسخة" : "Could not import backup", isPresented: Binding(
                 get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
@@ -241,7 +301,7 @@ struct GhafHomeView: View {
             }
             .ghafGlassButton(theme: theme, languageCode: lang)
         }
-        .padding(24)
+        .padding(GhafMetrics.heroPadding)
         .frame(maxWidth: .infinity, minHeight: 320)
         .ghafGlassHero(theme: theme, radius: 28)
         .multilineTextAlignment(.center)
@@ -283,7 +343,7 @@ struct GhafHomeView: View {
     // MARK: Header: greeting, accounts pill, hide-balances eye
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(greeting)
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
@@ -303,7 +363,7 @@ struct GhafHomeView: View {
                         Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
                     }
                     .foregroundStyle(theme.primaryText)
-                    .padding(.horizontal, 14).frame(height: 40)
+                    .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
                     .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                     .shadow(color: theme.shadow, radius: 8, y: 3)
                 }
@@ -476,15 +536,46 @@ struct GhafHomeView: View {
 
     // MARK: Big pill actions
 
-    private func actionRow(_ summary: Summary) -> some View {
+    private func actionRow() -> some View {
+        ViewThatFits(in: .horizontal) {
+            actionPills(compactNotifications: false)
+            actionPills(compactNotifications: true)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionPills(compactNotifications: Bool) -> some View {
         HStack(spacing: 10) {
             GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
                            prominent: true) { showQuickAdd = true }
             GhafPillButton(title: ar ? "اشتراكات" : "Subs", icon: "repeat", theme: theme,
                            languageCode: lang) { showSubscriptions = true }
-            GhafPillButton(title: ar ? "مراجعة" : "Review", icon: "tray.full.fill", theme: theme,
-                           languageCode: lang, badge: summary.reviewCount) { showReview = true }
+            Button { showInbox = true } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "tray.full.fill").font(.system(size: 14, weight: .bold))
+                    if !compactNotifications {
+                        Text(ar ? "الإشعارات" : "Notifications")
+                            .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
+                            .lineLimit(1)
+                    }
+                    if inboxCount > 0 {
+                        Text("\(inboxCount)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                            .padding(.horizontal, 5).frame(minHeight: 20)
+                            .background(theme.accent.opacity(0.14), in: Capsule())
+                    }
+                }
+                .foregroundStyle(theme.primaryText)
+                .frame(minHeight: 48)
+                .padding(.horizontal, 16)
+                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.ghafPress)
+            .accessibilityLabel(ar ? "الإشعارات، \(inboxCount)" : "Notifications, \(inboxCount)")
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: Dark insight card
@@ -656,11 +747,11 @@ struct GhafTransactionRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            GhafCategoryIcon(category: transaction.category, tint: theme.accent)
+            GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(merchantTitle)
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.userContent(merchantTitle, size: 16, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
 
@@ -729,6 +820,8 @@ struct GhafQuickAddView: View {
     @State private var direction = "debit"
     @State private var note = ""
     @State private var date = Date()
+    @State private var dateExpanded = false
+    @State private var noteExpanded = false
     @State private var errorMessage = ""
 
     private var theme: GhafTheme {
@@ -745,47 +838,61 @@ struct GhafQuickAddView: View {
     @State private var toAccountID: UUID?
     private var isTransfer: Bool { direction == "transfer" }
     private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
+    private var presentAmountPadOnAppear: Bool {
+        #if DEBUG
+        GhafScreenshotFixture.screen != "new-transaction"
+        #else
+        true
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     amountHeader
-                    VStack(spacing: 0) {
+                    GhafFormCard(theme: theme) {
                       if isTransfer {
-                        row(ar ? "من" : "From", icon: "arrow.up.forward.circle") { accountPicker($selectedAccountID) }
+                        accountPicker($selectedAccountID, title: ar ? "من" : "From", icon: "arrow.up.forward.circle")
                         divider
-                        row(ar ? "إلى" : "To", icon: "arrow.down.forward.circle") { accountPicker($toAccountID) }
+                        accountPicker($toAccountID, title: ar ? "إلى" : "To", icon: "arrow.down.forward.circle")
                         divider
                       } else {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
-                            TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
-                                .multilineTextAlignment(.trailing)
+                            HStack(spacing: 7) {
+                                TextField(ar ? "اسم المتجر" : "Store name", text: $merchant).multilineTextAlignment(.trailing)
+                                Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                            }
                         }
                         divider
                         row(ar ? "الفئة" : "Category", icon: "square.grid.2x2") {
                             GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
                         }
                         divider
-                        row(ar ? "الحساب" : "Account", icon: "wallet.pass") { accountPicker($selectedAccountID) }
+                        accountPicker($selectedAccountID, title: ar ? "الحساب" : "Account", icon: "wallet.pass")
                         divider
                       }
-                        row(ar ? "التاريخ" : "Date", icon: "calendar") {
-                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden()
-                        }
+                        dateRow
                         divider
-                        row(ar ? "ملاحظة" : "Note", icon: "text.alignleft") {
-                            TextField(ar ? "اختياري" : "Optional", text: $note).multilineTextAlignment(.trailing)
+                        VStack(spacing: 0) {
+                            GhafFormActionRow(icon: "text.alignleft", tint: theme.accent, title: ar ? "ملاحظة" : "Note",
+                                              value: note.isEmpty ? (ar ? "اختياري" : "Optional") : note,
+                                              theme: theme, languageCode: lang) { noteExpanded.toggle() }
+                            if noteExpanded {
+                                TextField(ar ? "اكتب ملاحظة" : "Write a note", text: $note, axis: .vertical)
+                                    .font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.primaryText)
+                                    .padding(16).frame(minHeight: 56, alignment: .leading)
+                                    .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18))
+                                    .padding(.leading, 52).padding(.bottom, 10)
+                            }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .ghafCard(theme: theme)
 
                     NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
                         Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.accent)
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                     }
                     .buttonStyle(.ghafPress)
 
@@ -795,8 +902,8 @@ struct GhafQuickAddView: View {
                             .foregroundStyle(theme.over)
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
-                .padding(.top, 8).padding(.bottom, 20)
+                .ghafScreenPadding()
+                .padding(.top, 8).padding(.bottom, 120)
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)
             }
@@ -809,13 +916,27 @@ struct GhafQuickAddView: View {
             .navigationTitle(ar ? "عملية جديدة" : "New transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(ar ? "إلغاء" : "Cancel") { dismiss() }
+                ToolbarItem(placement: .principal) {
+                    ZStack {
+                        Text(ar ? "عملية جديدة" : "New transaction")
+                            .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                        HStack {
+                            Button(ar ? "إلغاء" : "Cancel") { dismiss() }
+                                .foregroundStyle(theme.accent)
+                                .frame(width: 64, alignment: .leading)
+                            Spacer()
+                            Color.clear.frame(width: 64)
+                        }
+                        .padding(.horizontal, GhafMetrics.gutter)
+                    }
+                    .frame(width: UIScreen.main.bounds.width, height: 44)
                 }
             }
         }
         .tint(theme.accent)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        .preferredColorScheme(theme.isDark ? .dark : .light)
         .onAppear {
             selectedAccountID = presetAccountID
                 ?? accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
@@ -828,64 +949,56 @@ struct GhafQuickAddView: View {
     /// Expense or income, then the amount, large and centred like the rest of Ghaf's money.
     private var amountHeader: some View {
         let currency = accounts.first { $0.id == selectedAccountID }?.currency ?? settings.currency
-        return VStack(spacing: 14) {
-            HStack(spacing: 8) {
-                directionChip("debit", ar ? "مصروف" : "Expense", "arrow.down.right")
-                directionChip("credit", ar ? "دخل" : "Income", "arrow.up.right")
-                if activeAccounts.count > 1 {
-                    directionChip("transfer", ar ? "تحويل" : "Transfer", "arrow.left.arrow.right")
+        return VStack(spacing: 24) {
+            GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
+                            theme: theme, languageCode: lang, fontSize: 48, chromeless: true, presentOnAppear: presentAmountPadOnAppear)
+            GhafSegmented(options: [("debit", ar ? "مصروف" : "Expense"), ("credit", ar ? "دخل" : "Income"), ("transfer", ar ? "تحويل" : "Transfer")],
+                          selection: $direction, theme: theme, languageCode: lang)
+        }
+        .padding(.top, 14)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var dateRow: some View {
+        VStack(spacing: 0) {
+            GhafFormActionRow(icon: "calendar", tint: theme.accent, title: ar ? "التاريخ" : "Date",
+                              value: date.formatted(.dateTime.month(.abbreviated).day().year().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))) + " · " +
+                                date.formatted(.dateTime.hour().minute().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))),
+                              theme: theme, languageCode: lang) { dateExpanded.toggle() }
+            if dateExpanded {
+                DatePicker(ar ? "التاريخ" : "Date", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
+                    .environment(\.colorScheme, theme.isDark ? .dark : .light)
+                DatePicker(ar ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.compact).labelsHidden().tint(theme.accent)
+                    .padding(.horizontal, 12).padding(.bottom, 12)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String) -> some View {
+        let value = activeAccounts.first(where: { $0.id == selection.wrappedValue }).map { "\($0.name) · \($0.currency)" } ?? (ar ? "اختر" : "Choose")
+        return Menu {
+            Picker(ar ? "الحساب" : "Account", selection: selection) {
+                if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
+                ForEach(activeAccounts, id: \.id) { account in
+                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                 }
             }
-            GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
-                            theme: theme, languageCode: lang, fontSize: 44, presentOnAppear: true)
-                .padding(.horizontal, 16)
-        }
-        .padding(.vertical, 22)
-        .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme)
-    }
-
-    private func directionChip(_ value: String, _ title: String, _ icon: String) -> some View {
-        let selected = direction == value
-        return Button { withAnimation(.snappy) { direction = value } } label: {
-            Label(title, systemImage: icon)
-                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
-                .padding(.horizontal, 16).frame(minHeight: 38)
-                .background(selected ? theme.accent : theme.primaryText.opacity(0.06), in: Capsule())
-        }
-        .buttonStyle(.ghafPress)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    private func accountPicker(_ selection: Binding<UUID?>) -> some View {
-        Picker(ar ? "الحساب" : "Account", selection: selection) {
-            if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
-            ForEach(activeAccounts, id: \.id) { account in
-                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+        } label: {
+            row(title, icon: icon) {
+                HStack(spacing: 7) { Text(value); Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)) }
             }
         }
-        .labelsHidden()
     }
 
-    private var divider: some View { Divider().overlay(theme.outline).padding(.leading, 38) }
+    private var divider: some View { GhafFormDivider(theme: theme) }
 
-    private func row<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 26)
-            Text(title)
-                .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.primaryText)
-                .fixedSize()
-            Spacer(minLength: 12)
-            content()
-                .font(GhafTypography.body(15, languageCode: lang))
-                .tint(theme.accent)
+    private func row<Content: View>(_ title: String, icon: String, @ViewBuilder content: @escaping () -> Content) -> some View {
+        GhafFormRow(icon: icon, tint: theme.accent, title: title, theme: theme, languageCode: lang) {
+            content().tint(theme.accent).foregroundStyle(theme.primaryText)
         }
-        .frame(minHeight: 54)
     }
 
     /// Money moved between the user's own accounts: out of one, into the other, both as Transfers, so

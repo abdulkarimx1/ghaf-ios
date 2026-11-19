@@ -7,8 +7,6 @@ struct GhafCitySkyline: Shape {
     enum Layer: CaseIterable { case back, mid, front }
     let city: String
     var layer: Layer = .mid
-    /// Only this layer's palms and mangroves (they sway in the backdrop); otherwise everything else.
-    var foliage = false
 
     // SwiftUI may draw shapes off the main thread, so the cache is guarded by a lock, not an actor.
     private static let cache = GhafPathCache()
@@ -17,7 +15,7 @@ struct GhafCitySkyline: Shape {
         // SwiftUI can measure a shape with an unbounded size first; there is nothing to draw then,
         // and Int(infinity) would crash.
         guard rect.width.isFinite, rect.height.isFinite, rect.width > 0, rect.height > 0 else { return Path() }
-        let key = "\(city)-\(layer)-\(foliage)-\(Int(rect.width))x\(Int(rect.height))"
+        let key = "\(city)-\(layer)-\(Int(rect.width))x\(Int(rect.height))"
         if let cached = Self.cache[key] {
             return cached.offsetBy(dx: rect.minX, dy: rect.minY)
         }
@@ -46,7 +44,7 @@ struct GhafCitySkyline: Shape {
         case ("Fujairah", .front): scene.fujairahFront()
         default: break
         }
-        let path = foliage ? scene.foliage : scene.path
+        let path = scene.path
         Self.cache[key] = path
         return path.offsetBy(dx: rect.minX, dy: rect.minY)
     }
@@ -67,17 +65,13 @@ private final class GhafPathCache: @unchecked Sendable {
 private struct Scene {
     let size: CGSize
     var path = Path()
-    /// Palms and mangroves, kept apart so they can move without bending buildings.
-    var foliage = Path()
-    private var drawingFoliage = false
 
     var w: CGFloat { size.width }
     var h: CGFloat { size.height }
     func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * w, y: y * h) }
 
     mutating func add(_ piece: Path) {
-        if drawingFoliage { foliage = foliage.isEmpty ? piece : foliage.union(piece) }
-        else { path = path.isEmpty ? piece : path.union(piece) }
+        path = path.isEmpty ? piece : path.union(piece)
     }
     mutating func cut(_ piece: Path) { path = path.subtracting(piece) }
 
@@ -126,18 +120,6 @@ private struct Scene {
         let step = (x1 - x0) / CGFloat(merlons * 2 - 1)
         for k in 0..<merlons { add(rect(x0 + CGFloat(2 * k) * step, x0 + CGFloat(2 * k + 1) * step, top: top - 0.05, bottom: top)) }
     }
-    mutating func palm(_ x: CGFloat, top: CGFloat, size s: CGFloat = 1) {
-        drawingFoliage = true; defer { drawingFoliage = false }
-        var trunk = Path()
-        trunk.move(to: p(x - 0.004 * s, 1)); trunk.addQuadCurve(to: p(x + 0.004 * s, top), control: p(x + 0.012 * s, (1 + top) / 2))
-        add(trunk.strokedPath(StrokeStyle(lineWidth: 0.018 * h * s, lineCap: .round)))
-        for (dx, dy) in [(-0.05, 0.05), (-0.035, -0.05), (0, -0.07), (0.035, -0.05), (0.05, 0.05)] as [(CGFloat, CGFloat)] {
-            var frond = Path()
-            frond.move(to: p(x, top))
-            frond.addQuadCurve(to: p(x + dx * s, top + (dy + 0.04) * s), control: p(x + dx * 0.6 * s, top + (dy - 0.06) * s))
-            add(frond.strokedPath(StrokeStyle(lineWidth: 0.022 * h * s, lineCap: .round)))
-        }
-    }
     mutating func water(from x0: CGFloat = 0, to x1: CGFloat = 1) {
         add(rect(x0, x1, top: 0.95))
         for (k, y) in [0.86, 0.91].enumerated() {
@@ -153,14 +135,6 @@ private struct Scene {
         }
     }
     mutating func ground() { add(rect(0, 1, top: 0.96)) }
-    mutating func mangrove(_ cx: CGFloat, _ r: CGFloat) {
-        drawingFoliage = true; defer { drawingFoliage = false }
-        // Rounded canopy clumps over stilt roots.
-        add(ellipse(cx, 0.80 - r * 1.1, rx: r * 0.32, ry: r * 1.0))
-        add(ellipse(cx - r * 0.28, 0.82 - r * 0.7, rx: r * 0.26, ry: r * 0.8))
-        add(ellipse(cx + r * 0.28, 0.82 - r * 0.6, rx: r * 0.25, ry: r * 0.75))
-        for dx in [-0.02, -0.007, 0.007, 0.02] as [CGFloat] { add(line((cx + dx * 0.5, 0.80), (cx + dx * 1.6, 0.96), width: 0.01)) }
-    }
     mutating func mountains(_ peaks: [(CGFloat, CGFloat)]) {
         add(poly([(0, 1)] + peaks + [(1, 1)]))
     }
@@ -188,7 +162,6 @@ private struct Scene {
         add(circle(0.59, 0.40, 0.02))
         cut(rect(0.665, 0.705, top: 0.76, bottom: 0.96))
         cut(Path(ellipseIn: CGRect(x: 0.665 * w, y: 0.72 * h, width: 0.04 * w, height: 0.08 * h)))
-        palm(0.88, top: 0.52); palm(0.95, top: 0.6, size: 0.8)
         ground()
     }
 
@@ -259,12 +232,11 @@ private struct Scene {
         ground()
     }
 
-    // MARK: Ajman — corniche towers, Ajman Museum and wind tower, a dhow among mangroves
+    // MARK: Ajman — corniche towers, Ajman Museum and wind tower, a dhow along the creek
 
     mutating func ajmanBack() {
         for (x0, x1, top) in [(0.60, 0.64, 0.46), (0.65, 0.69, 0.36), (0.70, 0.74, 0.52), (0.76, 0.80, 0.40), (0.82, 0.86, 0.56)]
             as [(CGFloat, CGFloat, CGFloat)] { add(rect(x0, x1, top: top)) }
-        mangrove(0.93, 0.18)
     }
     mutating func ajmanMid() {
         fortTower(0.06, 0.16, top: 0.40, merlons: 3)
@@ -285,7 +257,6 @@ private struct Scene {
         var sail = Path()
         sail.move(to: p(0.44, 0.74)); sail.addQuadCurve(to: p(0.62, 0.24), control: p(0.47, 0.36)); sail.addLine(to: p(0.60, 0.74)); sail.closeSubpath()
         add(sail)
-        mangrove(0.86, 0.2)
         water()
     }
 
@@ -293,7 +264,6 @@ private struct Scene {
 
     mutating func uaqBack() {
         for (cx, rx) in [(0.62, 0.12), (0.84, 0.09), (0.97, 0.06)] as [(CGFloat, CGFloat)] { add(ellipse(cx, 0.84, rx: rx, ry: 0.05)) }
-        mangrove(0.70, 0.14); mangrove(0.86, 0.12)
     }
     mutating func uaqMid() {
         // The fort's round watchtower and its walls.
@@ -333,11 +303,10 @@ private struct Scene {
         add(ellipse(0.74, 1.0, rx: 0.16, ry: 0.22))
         fortTower(0.70, 0.76, top: 0.62, merlons: 3)
         add(rect(0.76, 0.80, top: 0.72))
-        palm(0.10, top: 0.58); palm(0.18, top: 0.66, size: 0.8)
         ground()
     }
 
-    // MARK: Fujairah — Hajar mountains, Al Bidyah Mosque, Fujairah Fort, palms by the sea
+    // MARK: Fujairah — Hajar mountains, Al Bidyah Mosque, Fujairah Fort and the sea
 
     mutating func fujairahBack() {
         mountains([(0.0, 0.50), (0.14, 0.24), (0.28, 0.44), (0.42, 0.18), (0.58, 0.40), (0.74, 0.28), (0.88, 0.46), (1.0, 0.36)])
@@ -353,7 +322,6 @@ private struct Scene {
         ground()
     }
     mutating func fujairahFront() {
-        palm(0.78, top: 0.46); palm(0.86, top: 0.56, size: 0.85); palm(0.93, top: 0.50, size: 0.9)
         water(from: 0, to: 0.72)
         ground()
     }
@@ -368,12 +336,10 @@ struct GhafCityScene: View {
 
     var body: some View {
         ZStack {
-            ForEach([false, true], id: \.self) { foliage in
-                GhafCitySkyline(city: city, layer: .back, foliage: foliage).fill(glow.opacity(0.35 * strength))
-                GhafCitySkyline(city: city, layer: .mid, foliage: foliage)
-                    .fill(LinearGradient(colors: [glow, accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength))
-                GhafCitySkyline(city: city, layer: .front, foliage: foliage).fill(accent.opacity(strength))
-            }
+            GhafCitySkyline(city: city, layer: .back).fill(glow.opacity(0.35 * strength))
+            GhafCitySkyline(city: city, layer: .mid)
+                .fill(LinearGradient(colors: [glow, accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength))
+            GhafCitySkyline(city: city, layer: .front).fill(accent.opacity(strength))
         }
         // Shapes that rest on the ground (hills) never spill past the scene.
         .clipped()
@@ -383,9 +349,7 @@ struct GhafCityScene: View {
     }
 }
 
-/// The city behind every screen: a tall, faint scene in the middle of the background that is
-/// always slightly alive. A glow breathes, the near layer sways like wind through palms and
-/// mangroves, the far layer drifts, and coastal cities have a dhow riding the swell.
+/// The city behind every screen: a tall, faint scene in the middle of the background.
 /// Still when Reduce Motion is on. Hidden for Graphite, which has no city.
 struct GhafCityBackdrop: View {
     let theme: GhafTheme
@@ -414,8 +378,6 @@ struct GhafCityBackdrop: View {
 
     private func scene(city: String, t: Double) -> some View {
         let strength = theme.isDark ? 0.2 : 0.15
-        // Only palms and mangroves move; buildings, forts and hills stay exactly as drawn.
-        let sway = 0.03 * sin(t * 0.8) + 0.012 * sin(t * 2.1)
         return GeometryReader { geometry in
             let w = geometry.size.width, h = geometry.size.height
             ZStack {
@@ -426,9 +388,8 @@ struct GhafCityBackdrop: View {
                     .offset(x: 40 * sin(t * 0.12), y: 30 + 14 * cos(t * 0.17))
                 if theme.isDark { stars(t: t, w: w, h: h) }
                 birds(t: t, w: w, h: h).foregroundStyle(theme.accent.opacity(2.5 * strength))
-                layer(city, .back, theme.glow.opacity(0.35 * strength), sway: sway * 0.5)
-                layer(city, .mid, LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength),
-                      sway: sway * 0.75)
+                layer(city, .back, theme.glow.opacity(0.35 * strength), sway: 0)
+                layer(city, .mid, LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom).opacity(0.75 * strength), sway: 0)
                 if let span = Self.water[city] {
                     // Bobs on the swell and drifts slowly along its stretch of water.
                     let x = (span.lowerBound + (span.upperBound - span.lowerBound) * (0.5 + 0.4 * sin(t * 0.05))) * w
@@ -438,7 +399,7 @@ struct GhafCityBackdrop: View {
                         .rotationEffect(.degrees(2.5 * sin(t * 0.9)), anchor: .bottom)
                         .position(x: x, y: h * 0.86 + 2.5 * sin(t * 1.3))
                 }
-                layer(city, .front, theme.accent.opacity(strength), sway: sway)
+                layer(city, .front, theme.accent.opacity(strength), sway: 0)
             }
         }
         .clipped()
@@ -446,11 +407,7 @@ struct GhafCityBackdrop: View {
     }
 
     private func layer<S: ShapeStyle>(_ city: String, _ layer: GhafCitySkyline.Layer, _ style: S, sway: Double) -> some View {
-        ZStack {
-            GhafCitySkyline(city: city, layer: layer).fill(style)
-            GhafCitySkyline(city: city, layer: layer, foliage: true).fill(style)
-                .modifier(GhafWindSway(amount: sway))
-        }
+        GhafCitySkyline(city: city, layer: layer).fill(style)
     }
 
     /// Three birds crossing the sky every couple of minutes, wings beating slowly.
@@ -491,18 +448,6 @@ struct GhafBird: Shape {
         path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.maxY), control: CGPoint(x: rect.width * 0.3 + rect.minX, y: rect.minY))
         path.addQuadCurve(to: CGPoint(x: rect.maxX, y: tipY), control: CGPoint(x: rect.width * 0.7 + rect.minX, y: rect.minY))
         return path
-    }
-}
-
-/// Leans palms and mangroves from their base, so their tops move in the wind while their roots stay put.
-struct GhafWindSway: GeometryEffect {
-    var amount: CGFloat
-    var animatableData: CGFloat {
-        get { amount }
-        set { amount = newValue }
-    }
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(CGAffineTransform(a: 1, b: 0, c: amount, d: 1, tx: -amount * size.height, ty: 0))
     }
 }
 

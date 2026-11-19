@@ -33,7 +33,7 @@ struct GhafMerchantDetailView: View {
                     Label(ar ? "حدّد المكان" : "Choose place", systemImage: "mappin.and.ellipse")
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(14)
+                        .padding(GhafMetrics.cardPadding)
                         .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
                         .foregroundStyle(theme.accent)
                 }
@@ -41,7 +41,10 @@ struct GhafMerchantDetailView: View {
             }
             if history.count > 1 { historyCard }
         }
-        .task(id: transaction.id) { await load() }
+        .task(id: transaction.id) {
+            await Task.yield()
+            await load()
+        }
         .sheet(isPresented: $choosingPlace) {
             GhafPlacePicker(initialQuery: GhafPlaces.isGeneric(merchant ?? "") ? "" : (merchant ?? ""),
                             theme: theme, languageCode: languageCode) { item in
@@ -89,7 +92,7 @@ struct GhafMerchantDetailView: View {
                     .font(GhafTypography.body(11, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             }
-            .padding(14)
+            .padding(GhafMetrics.cardPadding)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .ghafCard(theme: theme)
@@ -188,7 +191,8 @@ struct GhafPlacePicker: View {
                     }
                 }
                 .frame(height: 220)
-                List {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
                     if results.isEmpty && !searching {
                         Text(query.isEmpty ? (ar ? "اكتب اسم المتجر أو المطعم كما في الرسالة." : "Type the shop or restaurant name as it appears in the message.")
                                            : (ar ? "لا نتائج. جرّب جزءاً من الاسم أو اسم المنطقة." : "No results. Try part of the name, or add the area."))
@@ -216,11 +220,17 @@ struct GhafPlacePicker: View {
                                         .foregroundStyle(theme.secondaryText)
                                 }
                             }
-                            .frame(minHeight: 44)
+                            .frame(minHeight: GhafMetrics.rowHeight)
                         }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 14)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .ghafBackground(theme: theme)
             }
             .overlay { if searching { ProgressView() } }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),

@@ -42,16 +42,17 @@ struct GhafAboutView: View {
     }
 
     var body: some View {
-        ScrollView {
+        ScrollViewReader { proxy in
+            ScrollView {
             VStack(spacing: 18) {
                 hero
                 featureCarousel.ghafEntrance(1)
                 story.ghafEntrance(2)
-                actions.ghafEntrance(3)
+                actions.ghafEntrance(3).id("about-actions")
                 socials.ghafEntrance(4)
                 footer
             }
-            .padding(.horizontal, GhafMetrics.gutter)
+            .ghafScreenPadding()
             .padding(.top, 8).padding(.bottom, 28)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
@@ -60,6 +61,15 @@ struct GhafAboutView: View {
         .environment(\.locale, Locale(identifier: lang))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .onAppear { withAnimation(.spring(duration: 0.8, bounce: 0.3)) { appeared = true } }
+#if DEBUG
+            .task {
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.destination == "about-proof" {
+                    await Task.yield()
+                    proxy.scrollTo("about-actions", anchor: .bottom)
+                }
+            }
+#endif
+        }
     }
 
     private var hero: some View {
@@ -163,6 +173,8 @@ struct GhafAboutView: View {
             Link(destination: GhafLinks.appStore) { row(ar ? "قيّم غاف" : "Rate Ghaf", "star.fill") }
             Divider().overlay(theme.outline).padding(.leading, 58)
             Link(destination: GhafLinks.feedback) { row(ar ? "أرسل ملاحظاتك" : "Send feedback", "bubble.left.and.text.bubble.right.fill") }
+            Divider().overlay(theme.outline).padding(.leading, 58)
+            NavigationLink { GhafTermsView(settings: settings) } label: { row(ar ? "شروط الاشتراك" : "Terms of subscription", "doc.text.fill") }
             Divider().overlay(theme.outline).padding(.leading, 58)
             NavigationLink { GhafPrivacyPolicyView(settings: settings) } label: { row(ar ? "سياسة الخصوصية" : "Privacy policy", "hand.raised.fill") }
         }

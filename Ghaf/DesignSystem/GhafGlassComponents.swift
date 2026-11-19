@@ -1,6 +1,10 @@
 import SwiftUI
 
 extension View {
+    func ghafScreenPadding() -> some View {
+        padding(.horizontal, GhafMetrics.gutter)
+    }
+
     /// White rounded card with a soft shadow (hairline outline instead in dark mode).
     func ghafCard(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
         modifier(GhafGlassSurface(theme: theme, radius: radius))
@@ -19,11 +23,11 @@ extension View {
     }
 
     func ghafGlassHero(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius, fallback: Color? = nil) -> some View {
-        modifier(GhafGlassSurface(theme: theme, radius: radius, hero: true, fallback: fallback))
+        modifier(GhafGlassSurface(theme: theme, radius: radius, fallback: fallback))
     }
 
     func ghafGlassShape<S: Shape>(theme: GhafTheme, shape: S, fallback: Color) -> some View {
-        modifier(GhafGlassShapeSurface(theme: theme, shape: shape, fallback: fallback))
+        modifier(GhafGlassShapeSurface(shape: shape, fallback: fallback))
     }
 
     /// Full-width primary action: a bold accent capsule.
@@ -38,25 +42,10 @@ extension View {
 }
 
 private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
-    let theme: GhafTheme
     let shape: S
     let fallback: Color
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
-        content.background {
-            if glass.enabled && !reduceTransparency {
-                let opacity: Double = glass.intensity == .subtle ? 0.35 : glass.intensity == .balanced ? 0.45 : 0.55
-                let material: Material = glass.intensity == .subtle ? .ultraThin : glass.intensity == .balanced ? .thin : .regular
-                ZStack {
-                    shape.fill(material)
-                    shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
-                    if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
-                }
-                .overlay { GhafShapeRim(theme: theme, shape: shape, contrast: contrast) }
-            } else { shape.fill(fallback) }
-        }
+        content.background(shape.fill(fallback))
     }
 }
 
@@ -82,9 +71,10 @@ private struct GhafGlassGlowBlobs: View {
     let size: CGSize
     let theme: GhafTheme
     var body: some View {
+        let colorTheme = theme.name != "Graphite"
         ZStack {
-            Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
-            Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
+            Circle().fill(theme.accent.opacity(theme.isDark ? (colorTheme ? 0.11 : 0.22) : (colorTheme ? 0.07 : 0.14))).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
+            Circle().fill(theme.glow.opacity(theme.isDark ? (colorTheme ? 0.08 : 0.16) : (colorTheme ? 0.05 : 0.1))).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
         }
     }
 }
@@ -95,38 +85,18 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
     let prominent: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(GhafTypography.body(17, languageCode: languageCode, weight: .bold))
+            .font(GhafTypography.body(17, languageCode: languageCode, weight: prominent ? .semibold : .bold))
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 56)
             .padding(.horizontal, 18)
-            .background(prominent ? theme.accent : (glass.enabled && !reduceTransparency ? Color.clear : theme.elevatedSurface), in: Capsule())
-            .modifier(GhafControlGlass(theme: theme, enabled: glass.enabled && !reduceTransparency, prominent: prominent))
+            .background(prominent ? theme.accent : theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
             .sensoryFeedback(.impact(weight: prominent ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
-    }
-}
-
-private struct GhafControlGlass: ViewModifier {
-    let theme: GhafTheme
-    let enabled: Bool
-    let prominent: Bool
-    @Environment(\.colorSchemeContrast) private var contrast
-    func body(content: Content) -> some View {
-        if enabled {
-            if #available(iOS 26, *), !prominent {
-                content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
-            } else {
-                content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
-            }
-        } else { content }
     }
 }
 
@@ -140,20 +110,18 @@ struct GhafPillButton: View {
     var badge = 0
     let action: () -> Void
     @State private var taps = 0
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         Button {
             taps += 1
             action()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .symbolEffect(.bounce, value: taps)
                 Text(title)
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 if badge > 0 {
@@ -165,20 +133,15 @@ struct GhafPillButton: View {
                 }
             }
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .padding(.horizontal, 10)
+            .frame(minHeight: 48)
+            .padding(.horizontal, 16)
             .background {
                 if prominent {
                     Capsule().fill(theme.accent)
-                } else if glass.enabled && !reduceTransparency {
-                    if #available(iOS 26, *) { Capsule().fill(.clear) }
-                    else { Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.3))) }
                 } else {
-                    Capsule().fill(theme.surface).shadow(color: theme.shadow, radius: 10, x: 0, y: 4)
+                    Capsule().fill(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
                 }
             }
-            .overlay { if (theme.isDark && !prominent && !(glass.enabled && !reduceTransparency)) { Capsule().stroke(theme.outline, lineWidth: 1) } }
-            .modifier(GhafControlGlass(theme: theme, enabled: glass.enabled && !reduceTransparency, prominent: prominent))
             .contentShape(Capsule())
         }
         .buttonStyle(.ghafPress)
@@ -206,7 +169,8 @@ struct GhafSectionHeader: View {
                 Button(actionTitle, action: action)
                     .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                     .foregroundStyle(theme.accent)
-                    .frame(minHeight: 44)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: GhafMetrics.compactButtonHeight)
                     .buttonStyle(.ghafPress)
             }
         }
@@ -219,10 +183,7 @@ struct GhafIconBadge: View {
     let symbol: String
     let tint: Color
     var size: CGFloat = 44
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    var theme: GhafTheme? = nil
 
     var body: some View {
         Image(systemName: symbol)
@@ -230,10 +191,7 @@ struct GhafIconBadge: View {
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background {
-                if glass.enabled && !reduceTransparency {
-                    Circle().fill(.thinMaterial).overlay(Circle().fill(tint.opacity(0.12)))
-                        .overlay { GhafShapeRim(isDark: colorScheme == .dark, shape: Circle(), contrast: contrast) }
-                } else { Circle().fill(tint.opacity(0.14)) }
+                Circle().fill(tint.opacity(0.14))
             }
             .accessibilityHidden(true)
     }
@@ -261,11 +219,11 @@ struct GhafListRow<Trailing: View>: View {
             } else if let brandName {
                 GhafBrandBadge(name: brandName, fallbackTint: tint)
             } else {
-                GhafIconBadge(symbol: icon, tint: tint)
+                GhafIconBadge(symbol: icon, tint: tint, theme: theme)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.userContent(title, size: 16, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
                 if let subtitle, !subtitle.isEmpty {
@@ -324,18 +282,19 @@ extension EnvironmentValues {
 struct GhafCategoryIcon: View {
     let category: String
     let tint: Color
+    var theme: GhafTheme? = nil
     @Environment(\.ghafCategoryMeta) private var meta
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Earthy palette drawn from the UAE (saffron, palm, Gulf water, dates, henna), each with a
+    /// Earthy palette drawn from the UAE (saffron, green, Gulf water, dates, henna), each with a
     /// lighter shade for dark mode so glyphs stay readable on dark cards.
     enum Palette: String {
-        case saffron, palm, gulf, ember, date, rose, coral, henna, sea, mint, stone, lavender
+        case saffron, green, gulf, ember, date, rose, coral, henna, sea, mint, stone, lavender
 
         var pair: (light: UInt32, dark: UInt32) {
             switch self {
             case .saffron: (0xC4741F, 0xF2A65A)
-            case .palm: (0x3E7B4C, 0x7FC48D)
+            case .green: (0x3E7B4C, 0x7FC48D)
             case .gulf: (0x2B68A0, 0x7EB4E8)
             case .ember: (0xB3452D, 0xF08A70)
             case .date: (0xA87A22, 0xE6BE66)
@@ -359,7 +318,7 @@ struct GhafCategoryIcon: View {
     private func color(named name: String?) -> Color? {
         switch name?.lowercased() {
         case "orange": color(.saffron)
-        case "green": color(.palm)
+        case "green": color(.green)
         case "blue": color(.gulf)
         case "red": color(.coral)
         case "yellow": color(.date)
@@ -374,7 +333,7 @@ struct GhafCategoryIcon: View {
     /// Built-in categories: symbol and palette colour.
     static func builtIn(_ category: String) -> (symbol: String, palette: Palette)? {
         switch category {
-        case "Groceries": ("basket.fill", .palm)
+        case "Groceries": ("basket.fill", .green)
         case "Dining": ("fork.knife", .saffron)
         case "Transport": ("car.fill", .gulf)
         case "Fuel": ("fuelpump.fill", .ember)
@@ -392,7 +351,7 @@ struct GhafCategoryIcon: View {
 
     /// One stable colour per category for charts: its own, else a palette colour picked from its name.
     static func chartColor(_ category: String, dark: Bool) -> Color {
-        let all: [Palette] = [.saffron, .gulf, .palm, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
+        let all: [Palette] = [.saffron, .gulf, .green, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
         let palette = builtIn(category)?.palette ?? all[abs(category.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % all.count]
         let hex = dark ? palette.pair.dark : palette.pair.light
         return Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
@@ -401,7 +360,7 @@ struct GhafCategoryIcon: View {
     /// Distinct colours for the categories shown together in one chart: built-in ones keep their own,
     /// the rest take palette colours nobody else in the chart uses.
     static func chartColors(for categories: [String], dark: Bool) -> [String: Color] {
-        let all: [Palette] = [.saffron, .gulf, .palm, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
+        let all: [Palette] = [.saffron, .gulf, .green, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
         var used = Set(categories.compactMap { builtIn($0)?.palette })
         var result: [String: Color] = [:]
         for category in categories {
@@ -421,6 +380,6 @@ struct GhafCategoryIcon: View {
     var body: some View {
         let custom = meta[category]
         GhafIconBadge(symbol: custom?.icon ?? style.symbol,
-                      tint: color(named: custom?.color) ?? style.color)
+                      tint: color(named: custom?.color) ?? style.color, theme: theme)
     }
 }

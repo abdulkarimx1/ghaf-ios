@@ -6,8 +6,36 @@ import Foundation
 public enum BudgetAllocation {
     public enum Bucket: Int, CaseIterable, Sendable { case needs, wants, savings }
 
+    public enum Preset: String, CaseIterable, Sendable {
+        case balanced, highRentCity, essentialsFirst
+
+        public var shares: [Bucket: Decimal] {
+            switch self {
+            case .balanced: [.needs: 0.5, .wants: 0.3, .savings: 0.2]
+            case .highRentCity: [.needs: 0.6, .wants: 0.2, .savings: 0.2]
+            case .essentialsFirst: [.needs: 0.6, .wants: 0.3, .savings: 0.1]
+            }
+        }
+
+        public var title: String {
+            switch self { case .balanced: "50/30/20"; case .highRentCity: "60/20/20"; case .essentialsFirst: "60/30/10" }
+        }
+
+        public var description: String {
+            switch self {
+            case .balanced: "For fixed costs under half your pay"
+            case .highRentCity: "When rent and bills take 55% or more"
+            case .essentialsFirst: "When bills are high and savings start small"
+            }
+        }
+
+        public func share(_ bucket: Bucket) -> Decimal { shares[bucket] ?? 0 }
+
+        public func amount(for bucket: Bucket, income: Decimal) -> Decimal { income * share(bucket) }
+    }
+
     public static func share(_ bucket: Bucket) -> Decimal {
-        switch bucket { case .needs: 0.5; case .wants: 0.3; case .savings: 0.2 }
+        Preset.balanced.share(bucket)
     }
 
     /// Built-in categories that are essentials.

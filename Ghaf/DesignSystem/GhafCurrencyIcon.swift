@@ -97,6 +97,7 @@ struct GhafMoneyLabel: View {
     let currency: String
     let languageCode: String
     var size: CGFloat = 17
+    var weight: Font.Weight = .heavy
     var hidden = false
     /// The eye toggle on Home hides every amount in the app, not just Home's.
     @AppStorage(GhafFormat.hideBalancesKey) private var hiddenEverywhere = false
@@ -116,9 +117,21 @@ struct GhafMoneyLabel: View {
     }
 
     private var number: String {
-        let digits = GhafCurrencyDigits.fractionDigits(for: currency)
-        let formatter = Self.formatters[languageCode == "ar" ? "ar" : "en"]![digits]!
-        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+        return Self.formatter(languageCode: languageCode, currency: currency).string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
+
+    static func formatter(languageCode: String, currency: String) -> NumberFormatter {
+        formatters[languageCode == "ar" ? "ar" : "en"]![GhafCurrencyDigits.fractionDigits(for: currency)]!
+    }
+
+    @ViewBuilder private var numberText: some View {
+        let separator = Self.formatters[languageCode == "ar" ? "ar" : "en"]![GhafCurrencyDigits.fractionDigits(for: currency)]!.decimalSeparator ?? "."
+        if size >= 28, let split = number.range(of: separator, options: .backwards), !number[split.upperBound...].isEmpty {
+            HStack(spacing: 0) {
+                Text(String(number[..<split.lowerBound]))
+                Text(String(number[split.lowerBound...])).opacity(0.45)
+            }
+        } else { Text(number) }
     }
 
     var body: some View {
@@ -127,17 +140,17 @@ struct GhafMoneyLabel: View {
                 GhafCurrencyIcon(currency: currency, size: size * 0.82)
             } else {
                 Text(currency.uppercased())
-                    .font(GhafTypography.number(size * 0.55, weight: .heavy))
+                    .font(GhafTypography.number(size * 0.55, weight: weight))
             }
             // Hiding blurs the digits into stars (and back); a value change still rolls its digits.
             if hidden || hiddenEverywhere {
                 Text(Self.mask)
-                    .font(GhafTypography.number(size * 0.7, weight: .heavy))
+                    .font(GhafTypography.number(size * 0.7, weight: weight))
                     .tracking(size * 0.08)
                     .transition(.blurReplace.combined(with: .scale(0.6)))
             } else {
-                Text(number)
-                    .font(GhafTypography.number(size, weight: .heavy))
+                numberText
+                    .font(GhafTypography.number(size, weight: weight))
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .transition(.blurReplace.combined(with: .scale(1.15)))

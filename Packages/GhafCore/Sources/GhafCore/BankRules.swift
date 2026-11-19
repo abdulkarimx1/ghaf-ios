@@ -2,8 +2,8 @@ import Foundation
 
 private enum BankPatterns {
     static let merchants = [
-        #"(?i)\bat\s+(.+?)(?=\s+(?:available\s+balance|balance|on\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,4}[/-]\d|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)))|[.;\n]|$)"#,
-        #"(?:لدى|عند)\s+(.+?)(?=\s+(?:الرصيد|بتاريخ|في\s+\d)|[.،;\n]|$)"#,
+        #"(?i)\bat\s+(.+?)(?=\s+(?:(?:using|via)\s+(?:[\w-]+\s+){0,4}?(?:card|account)\b|with\s+(?:your\s+)?(?:[\w-]+\s+){0,1}?card\b|available\s+balance|balance|on\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,4}[/-]\d|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)))|[.;\n]|$)"#,
+        #"(?:لدى|عند)\s+(.+?)(?=\s+(?:(?:باستخدام|بواسطة|ب)\s*بطاقة|الرصيد|بتاريخ|في\s+\d)|[.،;\n]|$)"#,
         #"(?i)\bmerchant(?:\s+name)?\s*[:\-]\s*(.+?)(?=\s+(?:available\s+balance|balance|on\s+\d{1,4}[/-]\d)|[.;\n]|$)"#
     ]
 
