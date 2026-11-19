@@ -7,6 +7,8 @@ import GhafCore
 enum GhafScreenshotFixture {
     private static let arguments = ProcessInfo.processInfo.arguments
     static var enabled: Bool { value("GhafFixture") == "1" }
+    static var launchProof: Bool { enabled && value("GhafLaunchProof") == "1" }
+    static var launchNewUser: Bool { launchProof && value("GhafLaunchNewUser") == "1" }
     static var autoSelect: Bool { enabled && value("GhafAutoSelect") == "1" }
     static var theme: String { value("GhafTheme") ?? "Graphite" }
     static var appearance: String { value("GhafAppearance") ?? "Light" }
@@ -67,8 +69,10 @@ enum GhafScreenshotFixture {
 
     private static func seed(_ context: ModelContext) {
         let settings = GhafSettings(languageCode: language, currency: "AED", monthlyIncome: 12000, themeName: theme,
-                                    appearanceMode: appearance, hasCompletedOnboarding: true)
+                                    appearanceMode: appearance, hasCompletedOnboarding: !launchNewUser)
+        if !launchNewUser { settings.userName = "Amina" }
         context.insert(settings)
+        if launchNewUser { try? context.save(); return }
         let mashreq = GhafAccount(name: "Mashreq Current", institution: "Mashreq", accountType: .current,
                                   currency: "AED", openingBalance: 8500, isPrimary: true, sortOrder: 0)
         let cash = GhafAccount(name: "Cash wallet", accountType: .cash, currency: "AED",
