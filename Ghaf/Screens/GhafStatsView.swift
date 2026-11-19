@@ -209,7 +209,7 @@ struct GhafStatsView: View {
         let before = total(previous)
         let change = before > 0 ? (spent - before) / before : nil
         let accent = theme.accent
-        let periods = ar ? ["أ", "ش", "٣ش", "س"] : ["W", "M", "3M", "Y"]
+        let periods = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["W", "M", "3M", "Y"]
         let periodNames = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]
         let heading = selected.map { bucketLabel($0.start) }
             ?? selectedCategory.map { GhafLocalization.category($0, languageCode: lang) }
