@@ -10,7 +10,18 @@ public enum MerchantName {
 
     public static func clean(_ raw: String) -> String {
         var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tail = #"(?:\s+(?:(?:on|at|dated|بتاريخ|في|يوم)\s+)?(?:"# + weekdays + "|" + months + #"|"# + numericDate + "|" + time + #"|(?:card\s+ending|ending\s+with|xx|ref\b|auth\b|avl\.?\s*bal\b|available\s+balance\b).*)).*?$"#
+        // A weekday or month only counts as a date after a preposition or next to a number, and only as a whole
+        // word, so names like "AL MAYA", "DUBAI MARINA" or "ابو علي" stay intact.
+        let prep = #"(?:on|at|dated|بتاريخ|في|يوم)\s+"#
+        let word = "(?![\\p{L}])"
+        let dated = "(?:" + prep + "(?:" + weekdays + "|" + months + ")" + word
+            + "|(?:" + prep + ")?(?:" + weekdays + word + #"[\s,]+(?="# + digit + ")"
+            + "|" + months + word + #"\s*(?="# + digit + ")"
+            + "|" + digit + #"{1,2}\s+"# + months + word
+            + "|" + numericDate + "(?!" + digit + ")"
+            + "|" + time + "))"
+        let noise = #"(?:card\s+ending|ending\s+with|xx[0-9*]|ref\b|auth\b|avl\.?\s*bal\b|available\s+balance\b)"#
+        let tail = #"\s+(?:"# + dated + "|" + noise + ").*$"
         if let regex = try? NSRegularExpression(pattern: tail, options: [.caseInsensitive]) {
             let range = NSRange(value.startIndex..<value.endIndex, in: value)
             if let match = regex.firstMatch(in: value, range: range), let swiftRange = Range(match.range, in: value) {
