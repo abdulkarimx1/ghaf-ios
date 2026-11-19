@@ -116,12 +116,12 @@ struct GhafPillButton: View {
             taps += 1
             action()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .symbolEffect(.bounce, value: taps)
                 Text(title)
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 if badge > 0 {
@@ -133,8 +133,8 @@ struct GhafPillButton: View {
                 }
             }
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .padding(.horizontal, 10)
+            .frame(minHeight: 48)
+            .padding(.horizontal, 16)
             .background {
                 if prominent {
                     Capsule().fill(theme.accent)
