@@ -18,7 +18,20 @@ enum GhafScreenshotFixture {
 
     static func applyAutomation() {
         let defaults = UserDefaults.standard
-        GhafAutomationBanks.save(["Mashreq", "iVestor", "ruya"], defaults: defaults)
+        let banks = automationState == "none" ? [] : ["Mashreq", "iVestor", "ruya"]
+        GhafAutomationBanks.save(banks, defaults: defaults)
+        for name in ["Mashreq", "iVestor", "ruya"] where !banks.contains(name) {
+            defaults.removeObject(forKey: "ghaf.automation.bankEnabled.\(name)")
+            defaults.removeObject(forKey: "ghaf.automation.skipped.\(name)")
+            defaults.removeObject(forKey: "ghaf.automation.lastSeen.\(name)")
+        }
+        guard !banks.isEmpty else {
+            for key in [GhafAutomationStatus.messageRunKey, GhafAutomationStatus.walletRunKey,
+                        GhafAutomationStatus.testRunKey, GhafAutomationStatus.lastRunKey] {
+                defaults.removeObject(forKey: key)
+            }
+            return
+        }
         defaults.set(true, forKey: "ghaf.automation.bankEnabled.Mashreq")
         defaults.set(false, forKey: "ghaf.automation.bankEnabled.iVestor")
         defaults.set(3, forKey: "ghaf.automation.skipped.iVestor")
