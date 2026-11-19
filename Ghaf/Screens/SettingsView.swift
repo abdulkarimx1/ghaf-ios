@@ -44,6 +44,12 @@ struct GhafSettingsView: View {
     @State private var pickedImportURL: URL?
     /// Weekly totals everywhere follow this; the region's first weekday until the user picks one.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = Calendar.current.firstWeekday
+    @AppStorage("ghaf.glass.enabled") private var glassEnabled = true
+    @AppStorage("ghaf.glass.intensity") private var glassIntensity = "balanced"
+    @AppStorage("ghaf.glass.grain") private var glassGrain = true
+    @AppStorage("ghaf.glass.glow") private var glassGlow = true
+    @AppStorage("ghaf.glass.tilt") private var glassTilt = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var prompt: GhafSettingsPrompt?
@@ -144,6 +150,7 @@ struct GhafSettingsView: View {
             .tint(theme.accent)
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear(perform: loadSettings)
+            .onChange(of: glassEnabled) { _, _ in GhafWidgetSync.refresh(context: modelContext) }
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }
             .onChange(of: name) { _, _ in persistSettings() }
@@ -561,7 +568,35 @@ HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 6).fill(theme.comfortable).frame(width: 24, height: 16)
             }
             .padding(.top, 4)
+
+            glassSettings
         }
+    }
+
+    private var glassSettings: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            settingsLabel(ar ? "الزجاج" : "Glass")
+            GhafGlassPreview(theme: theme)
+            Toggle(isOn: $glassEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ar ? "تأثير الزجاج" : "Glass effect").foregroundStyle(theme.primaryText)
+                    Text(ar ? "أسطح زجاجية مع ملمس ناعم" : "Frosted glass surfaces with a soft grain").font(.caption).foregroundStyle(theme.secondaryText)
+                }
+            }
+            if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
+            if glassEnabled {
+                Picker(ar ? "الشدة" : "Intensity", selection: $glassIntensity) {
+                    Text(ar ? "خفيف" : "Subtle").tag("subtle"); Text(ar ? "متوازن" : "Balanced").tag("balanced"); Text(ar ? "قوي" : "Bold").tag("bold")
+                }.pickerStyle(.segmented)
+                Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
+                Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
+                Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
+                Text(ar ? "يتوقف في نمط الطاقة المنخفضة وعند تفعيل تقليل الحركة. يستخدم مستشعر الحركة فقط أثناء فتح غاف." : "Pauses in Low Power Mode and when Reduce Motion is on. Uses the motion sensor only while Ghaf is open.")
+                    .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+            }
+        }
+        .toggleStyle(.switch)
+        .disabled(reduceTransparency)
     }
 
     private func themeTitle(_ name: String) -> String {

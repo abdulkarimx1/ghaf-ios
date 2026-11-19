@@ -10,6 +10,15 @@ private struct GhafBackupPayload: Codable {
     var merchantRules: [GhafMerchantRuleBackup]
     var accounts: [GhafAccountBackup]?
     var subscriptions: [GhafSubscriptionBackup]?
+    var glass: GhafGlassBackup?
+}
+
+private struct GhafGlassBackup: Codable {
+    var enabled: Bool
+    var intensity: String
+    var grain: Bool
+    var glow: Bool
+    var tilt: Bool
 }
 
 private struct GhafSubscriptionBackup: Codable {
@@ -214,7 +223,12 @@ enum GhafBackupService {
                                        category: $0.category, accountID: $0.accountID, reminderDays: $0.reminderDays,
                                        isActive: $0.isActive, needsConfirmation: $0.needsConfirmation, notes: $0.notes,
                                        proposedAmount: $0.proposedAmount)
-            }
+            },
+            glass: GhafGlassBackup(enabled: UserDefaults.standard.object(forKey: "ghaf.glass.enabled") as? Bool ?? true,
+                                   intensity: UserDefaults.standard.string(forKey: "ghaf.glass.intensity") ?? "balanced",
+                                   grain: UserDefaults.standard.object(forKey: "ghaf.glass.grain") as? Bool ?? true,
+                                   glow: UserDefaults.standard.object(forKey: "ghaf.glass.glow") as? Bool ?? true,
+                                   tilt: UserDefaults.standard.object(forKey: "ghaf.glass.tilt") as? Bool ?? true)
         )
 
         let encoder = JSONEncoder()
@@ -266,6 +280,13 @@ enum GhafBackupService {
         oldSubscriptions.forEach { context.delete($0) }
 
         let source = payload.settings
+        if let glass = payload.glass {
+            UserDefaults.standard.set(glass.enabled, forKey: "ghaf.glass.enabled")
+            UserDefaults.standard.set(glass.intensity, forKey: "ghaf.glass.intensity")
+            UserDefaults.standard.set(glass.grain, forKey: "ghaf.glass.grain")
+            UserDefaults.standard.set(glass.glow, forKey: "ghaf.glass.glow")
+            UserDefaults.standard.set(glass.tilt, forKey: "ghaf.glass.tilt")
+        }
         let settings = GhafSettings(
             userName: source.userName,
             languageCode: source.languageCode ?? "en",
