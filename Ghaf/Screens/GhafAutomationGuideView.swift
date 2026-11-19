@@ -245,14 +245,14 @@ struct GhafAutomationGuideView: View {
         HStack(spacing: 12) {
             GhafIconBadge(symbol: symbol, tint: theme.accent, size: 40, theme: theme)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Text(title).font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
                 Text(hint).font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
-            runChip(timestamp)
+            automationMark(rowStatus(timestamp))
         }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 64)
+        .padding(.horizontal, 16).padding(.vertical, 16)
+        .frame(minHeight: 72)
         .contentShape(Rectangle())
     }
 
@@ -271,10 +271,10 @@ struct GhafAutomationGuideView: View {
                             .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
                     }
                     Spacer(minLength: 4)
-                    runChip(defaults.double(forKey: automation == .bank ? GhafAutomationStatus.messageRunKey : GhafAutomationStatus.walletRunKey))
+                    automationMark(rowStatus(defaults.double(forKey: automation == .bank ? GhafAutomationStatus.messageRunKey : GhafAutomationStatus.walletRunKey)))
                 }
-                .padding(.horizontal, 16)
-                .frame(minHeight: 64)
+                .padding(.horizontal, 16).padding(.vertical, 16)
+                .frame(minHeight: 72)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -317,7 +317,8 @@ struct GhafAutomationGuideView: View {
         .padding(.horizontal, 16)
         .padding(.leading, 52)
         .padding(.trailing, 16)
-        .padding(.bottom, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
     }
 
     private var testSection: some View {
@@ -330,15 +331,15 @@ struct GhafAutomationGuideView: View {
                     GhafIconBadge(symbol: "checkmark.shield", tint: theme.accent, size: 40, theme: theme)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(text("Send a test", "إرسال اختبار"))
-                            .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                            .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
                         Text(text("Run Ghaf’s action in Shortcuts with the text GHAF TEST", "شغّل إجراء غاف في الاختصارات بالنص GHAF TEST"))
                             .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
                     }
                     Spacer(minLength: 4)
-                    runChip(defaults.double(forKey: GhafAutomationStatus.testRunKey), waiting: text("Waiting", "بانتظار الاختبار"))
+                    automationMark(rowStatus(defaults.double(forKey: GhafAutomationStatus.testRunKey)))
                 }
-                .padding(.horizontal, 16)
-                .frame(minHeight: 64)
+                .padding(.horizontal, 16).padding(.vertical, 16)
+                .frame(minHeight: 72)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -407,12 +408,27 @@ struct GhafAutomationGuideView: View {
         Rectangle().fill(theme.outline.opacity(0.55)).frame(height: 0.5).padding(.leading, 68)
     }
 
-    private func runChip(_ timestamp: Double, waiting: String? = nil) -> some View {
-        let working = timestamp > 0
-        return GhafStatusChip(kind: working ? .working : .waiting,
-                              title: working ? text("Working", "يعمل") : (waiting ?? text("Waiting", "بانتظار التشغيل")),
-                              theme: theme, languageCode: settings.languageCode)
-            .fixedSize()
+    private func automationMark(_ kind: GhafStatusChip.Kind) -> some View {
+        let color: Color = switch kind {
+        case .working: theme.comfortable
+        case .waiting: theme.close
+        case .notSetUp: theme.secondaryText
+        case .failed: theme.over
+        }
+        let symbol: String = switch kind {
+        case .working: "checkmark"
+        case .waiting: "clock"
+        case .notSetUp: "circle.dashed"
+        case .failed: "exclamationmark"
+        }
+        let label = statusTitle(kind)
+        return Image(systemName: symbol)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(color.opacity(0.14)))
+            .overlay(Circle().stroke(color.opacity(0.35), lineWidth: 1))
+            .accessibilityLabel(label)
     }
 
     private func statusTitle(_ status: GhafStatusChip.Kind) -> String {
@@ -421,6 +437,15 @@ struct GhafAutomationGuideView: View {
         case .waiting: text("Waiting", "بانتظار التشغيل")
         default: text("Not set up", "غير مُعدّ")
         }
+    }
+
+    private func rowStatus(_ timestamp: Double) -> GhafStatusChip.Kind {
+        if timestamp > 0 { return .working }
+#if DEBUG
+        if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "automation",
+           GhafScreenshotFixture.automationState == "none" { return .notSetUp }
+#endif
+        return .waiting
     }
 
     private func bankStatus(enabled: Bool, lastSeen: Double, skipped: Int) -> String {
