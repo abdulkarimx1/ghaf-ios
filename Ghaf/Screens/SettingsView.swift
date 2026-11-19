@@ -595,27 +595,41 @@ HStack(spacing: 8) {
 
     private var glassSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingsLabel(ar ? "الزجاج" : "Glass")
             GhafGlassPreview(theme: theme)
-            Toggle(isOn: $glassEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ar ? "تأثير الزجاج" : "Glass effect").foregroundStyle(theme.primaryText)
-                    Text(ar ? "أسطح زجاجية مع ملمس ناعم" : "Frosted glass surfaces with a soft grain").font(.caption).foregroundStyle(theme.secondaryText)
+            VStack(spacing: 0) {
+                Toggle(ar ? "تأثير الزجاج" : "Glass effect", isOn: $glassEnabled)
+                    .frame(minHeight: 56)
+                glassDivider
+                HStack {
+                    Text(ar ? "الشدة" : "Intensity").foregroundStyle(theme.primaryText)
+                    Spacer(minLength: 12)
+                    GhafSegmented(options: [("subtle", ar ? "خفيف" : "Subtle"), ("balanced", ar ? "متوازن" : "Balanced"), ("bold", ar ? "قوي" : "Bold")], selection: $glassIntensity, theme: theme, languageCode: languageCode)
                 }
-            }
+                .frame(minHeight: 64)
+                .disabled(!glassEnabled)
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
-                GhafSegmented(options: [("subtle", ar ? "خفيف" : "Subtle"), ("balanced", ar ? "متوازن" : "Balanced"), ("bold", ar ? "قوي" : "Bold")], selection: $glassIntensity, theme: theme, languageCode: languageCode)
+                glassDivider
                 Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
+                    .frame(minHeight: 56)
+                glassDivider
                 Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
+                    .frame(minHeight: 56)
+                glassDivider
                 Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
-                Text(ar ? "يتوقف في نمط الطاقة المنخفضة وعند تفعيل تقليل الحركة. يستخدم مستشعر الحركة فقط أثناء فتح غاف." : "Pauses in Low Power Mode and when Reduce Motion is on. Uses the motion sensor only while Ghaf is open.")
-                    .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                    .frame(minHeight: 56)
             }
+            }
+            .padding(16)
+            .ghafCard(theme: theme)
+            Text(ar ? "يتوقف في نمط الطاقة المنخفضة وعند تفعيل تقليل الحركة. يستخدم مستشعر الحركة فقط أثناء فتح غاف." : "Pauses in Low Power Mode and when Reduce Motion is on. Uses the motion sensor only while Ghaf is open.")
+                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
         }
         .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
         .disabled(reduceTransparency)
     }
+
+    private var glassDivider: some View { Divider().overlay(theme.outline) }
 
     private func themeTitle(_ name: String) -> String {
         guard ar else { return name }
