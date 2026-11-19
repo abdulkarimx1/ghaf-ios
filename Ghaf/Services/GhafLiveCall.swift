@@ -89,6 +89,11 @@ final class GhafLiveCall: ObservableObject {
         inputLevel = 0; outputLevel = 0
     }
 
+    func sendText(_ text: String) {
+        guard !stopping, !text.isEmpty, let message = try? LiveEncoder.text(text) else { return }
+        Task { try? await send(message) }
+    }
+
     func setMuted(_ muted: Bool) { isMuted = muted }
 
     private struct SetupRejected: Error {}
@@ -133,7 +138,7 @@ final class GhafLiveCall: ObservableObject {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self else { return }
                 self.elapsed = Date().timeIntervalSince(self.startedAt)
-                if self.elapsed >= 1800 { self.onOutputTranscript?(self.language == "ar" ? "انتهى وقت المكالمة." : "The call time limit has ended.", true); self.end(reason: "time_limit"); return }
+                if self.elapsed >= 1800 { self.end(reason: "time_limit"); return }
             }
         } }
     }

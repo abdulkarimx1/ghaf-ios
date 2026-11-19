@@ -22,8 +22,8 @@ enum GhafCloudAI {
     }
 
     static func liveDisclosure(ar: Bool) -> String {
-        ar ? "في المكالمة المباشرة، يُرسل صوتك مباشرةً إلى Google للتحدث مع غاف."
-           : "For live calls, your voice is streamed to Google so Ghaf can talk with you."
+        ar ? "في المحادثة الصوتية، يُرسل صوتك مباشرةً إلى Google للتحدث مع غاف."
+           : "In voice chat, your voice is streamed to Google so Ghaf can talk with you."
     }
 
     /// Random, not tied to the user or the device hardware; survives reinstall so the daily limit holds.
