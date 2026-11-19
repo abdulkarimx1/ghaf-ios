@@ -164,6 +164,8 @@ struct GhafAboutView: View {
             Divider().overlay(theme.outline).padding(.leading, 58)
             Link(destination: GhafLinks.feedback) { row(ar ? "أرسل ملاحظاتك" : "Send feedback", "bubble.left.and.text.bubble.right.fill") }
             Divider().overlay(theme.outline).padding(.leading, 58)
+            NavigationLink { GhafTermsView(settings: settings) } label: { row(ar ? "شروط الاشتراك" : "Terms of subscription", "doc.text.fill") }
+            Divider().overlay(theme.outline).padding(.leading, 58)
             NavigationLink { GhafPrivacyPolicyView(settings: settings) } label: { row(ar ? "سياسة الخصوصية" : "Privacy policy", "hand.raised.fill") }
         }
         .buttonStyle(.ghafPress)
