@@ -317,7 +317,7 @@ struct GhafAutomationGuideView: View {
                 GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”.", "اضغط على “Apps”.")),
                 GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
                 GuideStep(screen: "Ghaf", controls: ["Add Apple Pay purchase"], highlight: "Add Apple Pay purchase", caption: text("Choose “Add Apple Pay purchase”.", "اختر “Add Apple Pay purchase”.")),
-                GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Set “Amount”, “Merchant”, and “Card” to the matching Wallet details, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card” بتفاصيل Wallet المناسبة، ثم اضغط “Done”.")),
+                GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Map “Amount”, “Merchant”, and “Card”, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card”، ثم اضغط “Done”.")),
             ]
         }
         return [
@@ -344,6 +344,12 @@ struct GhafAutomationGuideView: View {
                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                 Spacer()
+            }
+            if automationPage == 1 {
+                Text(text("If you already have automations, tap “+” at the top instead.", "إذا سبق أن أنشأت أتمتة، فاضغط على “+” أعلى الشاشة."))
+                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
             }
             TabView(selection: $automationPage) {
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
