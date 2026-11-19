@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.23 (37)
+
+### English
+- Ghaf's own number pad for every amount: big keys, a ✓ to close it, and the currency shown in the field.
+- Wallet cards swipe one by one: the front card follows your finger and the next ones rise from the stack.
+- Glass highlights now move only along the edges of each box as you tilt your phone.
+- A fresh start shows no balance or cards until you add an account, with a new welcome screen and an option to import a Ghaf backup right away.
+- Automation setup is now one step per screen, checks that Ghaf really receives your messages, and tells you when something seems to be missing.
+- Reset Ghaf now erases everything on this iPhone, and backups now include all settings, themes, wallets and AI memory.
+- Bigger buttons and fields across the app.
+- Widget status explains exactly why widgets can't load on your install, with a report you can copy.
+
+### العربية
+- لوحة أرقام غاف الخاصة لكل مبلغ: أزرار كبيرة، وعلامة ✓ لإغلاقها، والعملة ظاهرة في الحقل.
+- بطاقات المحفظة تتنقل واحدة تلو الأخرى: البطاقة الأمامية تتبع إصبعك والتالية ترتفع من المجموعة.
+- لمعة الزجاج تتحرك الآن على حواف كل مربع فقط عند إمالة الهاتف.
+- البداية الجديدة لا تعرض رصيداً أو بطاقات حتى تضيف حساباً، مع شاشة ترحيب جديدة وخيار لاستيراد نسخة غاف الاحتياطية مباشرة.
+- إعداد الأتمتة أصبح خطوة في كل شاشة، ويتحقق من وصول رسائلك فعلاً، وينبهك عند وجود نقص.
+- إعادة ضبط غاف تحذف الآن كل شيء من هذا الـ iPhone، والنسخ الاحتياطية تشمل كل الإعدادات والسمات والمحافظ وذاكرة الذكاء الاصطناعي.
+- أزرار وحقول أكبر في كل التطبيق.
+- حالة الأدوات تشرح سبب عدم تحميل الأدوات في جهازك، مع تقرير يمكن نسخه.
+
 ## 1.22 (36)
 
 ### English
