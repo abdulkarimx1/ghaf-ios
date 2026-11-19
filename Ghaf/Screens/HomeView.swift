@@ -37,6 +37,7 @@ struct GhafHomeView: View {
     @State private var showReview = false
     @State private var selectedTransaction: GhafTransaction?
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
+    @AppStorage(GhafAutomationStatus.walletRunKey) private var walletLastRun: Double = 0
     @AppStorage(GhafAutomationStatus.setupCompletedKey) private var automationSetupCompleted: Double = 0
     @AppStorage(GhafAutomationStatus.warningDismissedUntilKey) private var automationWarningDismissedUntil: Double = 0
     /// Observed so the weekly figures redraw as soon as the week start changes.
@@ -250,8 +251,8 @@ struct GhafHomeView: View {
         let now = Date.now.timeIntervalSince1970
         guard automationSetupCompleted > 0 else { return false }
         if automationLastRun == 0 { return now - automationSetupCompleted >= 24 * 60 * 60 }
-        if !walletRunHistory.isEmpty, now - walletRunHistory.last! >= 14 * 24 * 60 * 60 { return true }
-        let runs = messageRunHistory.sorted().suffix(10)
+        if walletLastRun > 0, now - walletLastRun >= 14 * 24 * 60 * 60 { return true }
+        let runs = (messageRunHistory + walletRunHistory).sorted().suffix(10)
         let gaps = zip(runs, runs.dropFirst()).map { $1 - $0 }.sorted()
         guard !gaps.isEmpty, automationLastRun > 0 else { return false }
         let median = gaps[gaps.count / 2]

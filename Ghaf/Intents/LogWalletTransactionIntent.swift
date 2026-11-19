@@ -30,6 +30,7 @@ struct LogWalletTransactionIntent: AppIntent {
         }
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.lastRunKey)
         UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.walletRunKey)
+        GhafAutomationStatus.recordRun(source: .wallet)
         // Rates for a purchase abroad; skipped when the cached ones are fresh, and never blocks long.
         await GhafExchangeRates.refreshIfStale()
         let result = try await MainActor.run {
