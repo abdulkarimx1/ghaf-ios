@@ -185,7 +185,7 @@ struct GhafRootView: View {
         if GhafScreenshotFixture.enabled, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
             case "insights": GhafStatsView(settings: currentSettings)
-            case "subscriptions", "subscription-editor": GhafSubscriptionsView(settings: currentSettings)
+            case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
             case "amount-pad": GhafTabView(settings: currentSettings)
             case nil where GhafScreenshotFixture.tab == "subscriptions": GhafSubscriptionsView(settings: currentSettings)

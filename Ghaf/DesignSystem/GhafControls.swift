@@ -1,5 +1,44 @@
 import SwiftUI
 
+struct GhafFormCard<Content: View>: View {
+    let theme: GhafTheme
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(spacing: 0, content: content)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .ghafCard(theme: theme, radius: 24)
+    }
+}
+
+struct GhafFormRow<Trailing: View>: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let theme: GhafTheme
+    let languageCode: String
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(spacing: 12) {
+            GhafIconBadge(symbol: icon, tint: tint, size: 40, theme: theme)
+            Text(title).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                .lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity, alignment: .leading)
+            trailing().font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .lineLimit(1).minimumScaleFactor(0.7).frame(maxWidth: 155, alignment: .trailing)
+        }
+        .frame(minHeight: 64)
+        .contentShape(Rectangle())
+    }
+}
+
+struct GhafFormDivider: View {
+    let theme: GhafTheme
+    var inset: CGFloat = 58
+    var body: some View { Divider().overlay(theme.outline).padding(.leading, inset) }
+}
+
 struct GhafToggleStyle: ToggleStyle {
     let theme: GhafTheme
     let languageCode: String
@@ -65,7 +104,7 @@ struct GhafSegmented<Value: Hashable>: View {
                 .accessibilityAddTraits(selection == option.0 ? .isSelected : [])
             }
         }
-        .padding(4)
+        .padding(2)
         .background {
             Capsule().fill(theme.elevatedSurface)
             if theme.name != "Graphite" { Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04)) }

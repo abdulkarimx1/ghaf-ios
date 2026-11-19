@@ -100,13 +100,14 @@ struct GhafSubscriptionsView: View {
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .sheet(item: $editorTarget) { target in
-                GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription).ghafDirection(settings.languageCode)
+                GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription)
+                    .ghafDirection(settings.languageCode).presentationDetents([.large])
             }
             .onAppear {
 #if DEBUG
-                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "subscription-editor", !fixtureEditorOpened {
+                if GhafScreenshotFixture.enabled, ["subscription-editor", "subscription-editor-filled"].contains(GhafScreenshotFixture.screen ?? ""), !fixtureEditorOpened {
                     fixtureEditorOpened = true
-                    editorTarget = EditorTarget(subscription: nil)
+                    editorTarget = EditorTarget(subscription: GhafScreenshotFixture.screen == "subscription-editor-filled" ? subscriptions.first : nil)
                 }
 #endif
             }
@@ -408,90 +409,177 @@ private struct GhafSubscriptionEditor: View {
     @State private var reminderDays = 2
     @State private var active = true
     @State private var saveFailed = false
+    @State private var showDatePicker = false
+    @FocusState private var nameFocused: Bool
 
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
 
     var body: some View {
+        let ar = settings.languageCode == "ar"
+        let valid = !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (Decimal(string: amount) ?? 0) > 0
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                Text(settings.languageCode == "ar" ? "تفاصيل الاشتراك" : "Subscription details")
-                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
-                    .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
-                    GhafTextField(text: $name, placeholder: settings.languageCode == "ar" ? "اسم الخدمة" : "Service name", theme: theme, languageCode: settings.languageCode)
-                    GhafAmountField(value: $amount, currency: currency,
-                                    label: settings.languageCode == "ar" ? "المبلغ" : "Amount",
-                                    theme: theme, languageCode: settings.languageCode)
-                    GhafMenuRow(title: settings.languageCode == "ar" ? "العملة" : "Currency", value: currency, theme: theme, languageCode: settings.languageCode) {
-                        Picker(settings.languageCode == "ar" ? "العملة" : "Currency", selection: $currency) {
-                            ForEach(["AED","SAR","KWD","BHD","OMR","QAR"], id: \.self) { Text($0).tag($0) }
-                        }
-                    }
-                    GhafMenuRow(title: settings.languageCode == "ar" ? "دورة الفوترة" : "Billing cycle", value: cycle.title(language: settings.languageCode), theme: theme, languageCode: settings.languageCode) {
-                        Picker(settings.languageCode == "ar" ? "دورة الفوترة" : "Billing cycle", selection: $cycle) {
-                            ForEach(GhafBillingCycle.allCases) { Text($0.title(language: settings.languageCode)).tag($0) }
-                        }
-                    }
-                    GhafDateRow(title: settings.languageCode == "ar" ? "موعد التجديد القادم" : "Next renewal", selection: $nextDate, components: .date, theme: theme, languageCode: settings.languageCode)
-                Text(settings.languageCode == "ar" ? "التذكير والحساب" : "Reminder & account")
-                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
-                    .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
-                    GhafMenuRow(title: settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", value: reminderName, theme: theme, languageCode: settings.languageCode) {
-                        Picker(settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", selection: $reminderDays) {
-                            Text(settings.languageCode == "ar" ? "في نفس اليوم" : "Same day").tag(0)
-                            Text(settings.languageCode == "ar" ? "قبل يوم" : "1 day before").tag(1)
-                            Text(settings.languageCode == "ar" ? "قبل يومين" : "2 days before").tag(2)
-                            Text(settings.languageCode == "ar" ? "قبل أسبوع" : "1 week before").tag(7)
-                        }
-                    }
-                    GhafMenuRow(title: settings.languageCode == "ar" ? "الحساب" : "Payment account", value: accounts.first(where: { $0.id == accountID })?.name ?? (settings.languageCode == "ar" ? "غير محدد" : "Not specified"), theme: theme, languageCode: settings.languageCode) {
-                        Picker(settings.languageCode == "ar" ? "الحساب" : "Payment account", selection: $accountID) {
-                            Text(settings.languageCode == "ar" ? "غير محدد" : "Not specified").tag(UUID?.none)
-                            ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
-                        }
-                    }
-                    Toggle(settings.languageCode == "ar" ? "نشط" : "Active", isOn: $active)
-                        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: settings.languageCode))
-                        .padding(.horizontal, 16).frame(minHeight: 56).ghafCard(theme: theme, radius: 16)
-                if subscription != nil {
-                    VStack {
-                        Button(settings.languageCode == "ar" ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
-                            guard let subscription else { return dismiss() }
-                            context.delete(subscription)
-                            do {
-                                try context.save()
-                                GhafSubscriptionReminderService.cancel(subscription)
-                                dismiss()
-                            } catch {
-                                context.rollback()
-                                saveFailed = true
+                VStack(spacing: 0) {
+                    Text(name.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init) ?? "+")
+                        .font(GhafTypography.number(26, weight: .bold)).foregroundStyle(theme.accent)
+                        .frame(width: 64, height: 64).background(theme.accent.opacity(0.14), in: Circle())
+                        .padding(.top, 8)
+                    TextField(ar ? "اسم الخدمة" : "Service name", text: $name, prompt: Text(ar ? "اسم الخدمة" : "Service name").foregroundStyle(theme.secondaryText))
+                        .font(GhafTypography.heading(24, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.primaryText).tint(theme.accent).multilineTextAlignment(.center)
+                        .focused($nameFocused).submitLabel(.done)
+                        .frame(minWidth: 160, maxWidth: .infinity, minHeight: 40)
+                        .overlay(alignment: .bottom) {
+                            if nameFocused {
+                                Rectangle().fill(theme.accent).frame(width: max(160, min(340, CGFloat(max(name.count, ar ? 10 : 12)) * 13 + 24)), height: 1.5)
                             }
                         }
-                    }.padding(.top, 8)
+                        .padding(.top, 12)
+                    GhafAmountField(value: $amount, currency: currency, label: "", theme: theme,
+                                    languageCode: settings.languageCode, fontSize: 48, chromeless: true)
+                        .padding(.top, 20)
+                    Menu {
+                        Picker(ar ? "العملة" : "Currency", selection: $currency) {
+                            ForEach(["AED", "SAR", "KWD", "BHD", "OMR", "QAR"], id: \.self) { Text($0).tag($0) }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(currency).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
+                            Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(theme.primaryText).padding(.horizontal, 14).frame(height: 36)
+                        .background(theme.elevatedSurface, in: Capsule())
+                    }
+                    .padding(.top, 8)
+                    GhafSegmented(options: GhafBillingCycle.allCases.map { ($0, cycleTitle($0, arabic: ar)) },
+                                  selection: $cycle, theme: theme, languageCode: settings.languageCode)
+                        .padding(.top, 24)
+                    if cycle != .monthly, let estimate = monthlyEstimate {
+                        HStack(spacing: 5) {
+                            Text("≈")
+                            GhafMoneyLabel(amount: estimate, currency: currency, languageCode: settings.languageCode, size: 14)
+                            Text(ar ? "شهرياً · تقديري" : "a month · estimate")
+                        }
+                        .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity)
+                        .padding(.top, 8)
+                    }
+
+                    GhafFormCard(theme: theme) {
+                        Button { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showDatePicker.toggle() } } label: {
+                            GhafFormRow(icon: "calendar", tint: theme.accent, title: ar ? "التجديد القادم" : "Next renewal",
+                                        theme: theme, languageCode: settings.languageCode) {
+                                HStack(spacing: 7) {
+                                    Text(nextDate.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: settings.languageCode))))
+                                    Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                                }
+                            }.buttonStyle(.plain)
+                        }
+                        if showDatePicker {
+                            DatePicker(ar ? "موعد التجديد" : "Next renewal", selection: $nextDate, displayedComponents: .date)
+                                .datePickerStyle(.graphical).tint(theme.accent).labelsHidden()
+                                .environment(\.colorScheme, theme.isDark ? .dark : .light)
+                                .padding(.horizontal, 4).padding(.bottom, 12)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                        GhafFormDivider(theme: theme)
+                        Menu {
+                            Picker(ar ? "التذكير" : "Reminder", selection: $reminderDays) {
+                                Text(ar ? "في نفس اليوم" : "Same day").tag(0)
+                                Text(ar ? "قبل يوم" : "1 day before").tag(1)
+                                Text(ar ? "قبل يومين" : "2 days before").tag(2)
+                                Text(ar ? "قبل أسبوع" : "1 week before").tag(7)
+                            }
+                        } label: {
+                            GhafFormRow(icon: "bell.badge", tint: theme.close, title: ar ? "التذكير" : "Reminder",
+                                        theme: theme, languageCode: settings.languageCode) {
+                                HStack(spacing: 7) { Text(reminderName); Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7) }
+                            }
+                        }
+                        GhafFormDivider(theme: theme)
+                        Menu {
+                            Picker(ar ? "حساب الدفع" : "Paid from", selection: $accountID) {
+                                Text(ar ? "غير محدد" : "Not specified").tag(UUID?.none)
+                                ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                            }
+                        } label: {
+                            GhafFormRow(icon: "creditcard", tint: theme.accent, title: ar ? "حساب الدفع" : "Paid from",
+                                        theme: theme, languageCode: settings.languageCode) {
+                                HStack(spacing: 7) {
+                                    Text(accounts.first(where: { $0.id == accountID })?.name ?? (ar ? "غير محدد" : "Not specified"))
+                                    Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                                }
+                            }
+                        }
+                        GhafFormDivider(theme: theme)
+                        Toggle(isOn: $active) {
+                            HStack(spacing: 12) {
+                                GhafIconBadge(symbol: "power", tint: theme.comfortable, size: 40, theme: theme)
+                                Text(ar ? "نشط" : "Active").font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                            }
+                        }
+                        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: settings.languageCode))
+                    }
+                    .padding(.top, 24)
+                    if subscription != nil {
+                        Button(ar ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
+                            guard let subscription else { return dismiss() }
+                            context.delete(subscription)
+                            do { try context.save(); GhafSubscriptionReminderService.cancel(subscription); dismiss() }
+                            catch { context.rollback(); saveFailed = true }
+                        }
+                        .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
+                        .foregroundStyle(theme.over).frame(maxWidth: .infinity, minHeight: 44).padding(.top, 20)
+                    }
                 }
-                }
-                .ghafScreenPadding()
-                .padding(.bottom, 40)
+                .ghafScreenPadding().padding(.bottom, 24).frame(maxWidth: 620).frame(maxWidth: .infinity)
             }
-            .ghafBackground(theme: theme)
-            .ghafKeyboardDone()
-            .navigationTitle(settings.languageCode == "ar" ? "الاشتراك" : "Subscription")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(settings.languageCode == "ar" ? "إلغاء" : "Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(settings.languageCode == "ar" ? "حفظ" : "Save") { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || Decimal(string: amount) == nil) }
-            }
+            .safeAreaInset(edge: .top, spacing: 0) { editorToolbar(ar: ar, valid: valid) }
+            .ghafBackground(theme: theme).ghafKeyboardDone()
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear(perform: load)
-            .alert(settings.languageCode == "ar" ? "تعذر حفظ التغيير" : "Couldn't save the change",
-                   isPresented: $saveFailed) {
-                Button(settings.languageCode == "ar" ? "حسناً" : "OK", role: .cancel) {}
-            } message: {
-                Text(settings.languageCode == "ar" ? "لم يتغير شيء. حاول مرة أخرى." : "Nothing was changed. Please try again.")
-            }
+            .alert(ar ? "تعذر حفظ التغيير" : "Couldn't save the change", isPresented: $saveFailed) {
+                Button(ar ? "حسناً" : "OK", role: .cancel) {}
+            } message: { Text(ar ? "لم يتغير شيء. حاول مرة أخرى." : "Nothing was changed. Please try again.") }
         }
-        .ghafDirection(settings.languageCode)
+        .ghafDirection(settings.languageCode).preferredColorScheme(theme.isDark ? .dark : .light)
+    }
+
+    private var monthlyEstimate: Decimal? {
+        guard let value = Decimal(string: amount), value > 0 else { return nil }
+        return value * cycle.monthlyFactor
+    }
+
+    private func editorToolbar(ar: Bool, valid: Bool) -> some View {
+        let title = subscription == nil ? (ar ? "اشتراك جديد" : "New subscription") : (ar ? "تعديل الاشتراك" : "Edit subscription")
+        return ZStack {
+            HStack {
+                Button(ar ? "إلغاء" : "Cancel") { dismiss() }
+                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.accent).buttonStyle(.plain)
+                Spacer()
+                Button { save() } label: {
+                    Text(ar ? "حفظ" : "Save").font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
+                        .foregroundStyle(valid ? theme.accentContrast : theme.secondaryText)
+                        .padding(.horizontal, 14).frame(height: 34)
+                        .background(valid ? theme.accent : theme.accent.opacity(0.10), in: Capsule())
+                }
+                .buttonStyle(.plain).disabled(!valid)
+            }
+            .padding(.horizontal, 16)
+            Text(title).font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .semibold))
+                .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
+        }
+        .frame(height: 56).background(theme.background)
+    }
+
+    private func cycleTitle(_ cycle: GhafBillingCycle, arabic: Bool) -> String {
+        if arabic { return cycle.title(language: "ar") }
+        return switch cycle { case .weekly: "Weekly"; case .monthly: "Monthly"; case .quarterly: "Quarterly"; case .yearly: "Yearly" }
     }
 
     private var reminderName: String {
@@ -590,7 +678,8 @@ private struct GhafSubscriptionDetailView: View {
                 // Deleted from the editor: close this page instead of showing a removed record.
                 if subscription.isDeleted || subscription.modelContext == nil { dismiss() } else { load() }
             }) {
-                GhafSubscriptionEditor(settings: settings, accounts: accounts, subscription: subscription).ghafDirection(settings.languageCode)
+                GhafSubscriptionEditor(settings: settings, accounts: accounts, subscription: subscription)
+                    .ghafDirection(settings.languageCode).presentationDetents([.large])
             }
             .onAppear(perform: load)
         }

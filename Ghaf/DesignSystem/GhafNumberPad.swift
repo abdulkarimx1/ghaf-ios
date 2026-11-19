@@ -10,6 +10,7 @@ struct GhafAmountField: View {
     /// Longest number allowed, e.g. 4 for a card's last four digits.
     var maxDigits = 12
     var fontSize: CGFloat = 24
+    var chromeless = false
     /// Opens the pad as soon as the field appears (quick add).
     var presentOnAppear = false
 
@@ -25,6 +26,34 @@ struct GhafAmountField: View {
 
     var body: some View {
         Button { openPad() } label: {
+            Group {
+              if chromeless {
+                amountContent
+                    .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
+              } else {
+                amountContent
+                    .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
+                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
+              }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(value.isEmpty ? placeholder : localized(value))
+        .accessibilityHint(languageCode == "ar" ? "يفتح لوحة إدخال الأرقام" : "Opens the number pad")
+        .sheet(isPresented: $presented) {
+            keypad
+                .presentationDetents([.height(440)])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: keyPress)
+        .onAppear { if presentOnAppear { openPad() } }
+        .onChange(of: presented) { _, isPresented in if isPresented { replaceOnNextKey = true } }
+    }
+
+    private var amountContent: some View {
             VStack(spacing: 4) {
                 if !label.isEmpty {
                     Text(label).font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
@@ -41,24 +70,8 @@ struct GhafAmountField: View {
                 .multilineTextAlignment(.center)
                 .environment(\.layoutDirection, .leftToRight)
             }
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityValue(value.isEmpty ? placeholder : localized(value))
-        .accessibilityHint(languageCode == "ar" ? "يفتح لوحة إدخال الأرقام" : "Opens the number pad")
-        .sheet(isPresented: $presented) {
-            keypad
-                .presentationDetents([.height(440)])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: keyPress)
-        .onAppear { if presentOnAppear { openPad() } }
-        .onChange(of: presented) { _, isPresented in if isPresented { replaceOnNextKey = true } }
+            .padding(.horizontal, chromeless ? 0 : 16)
+            .environment(\.layoutDirection, .leftToRight)
     }
 
     private var placeholder: String { localized("0" + (digits > 0 ? "." + String(repeating: "0", count: digits) : "")) }
