@@ -62,10 +62,12 @@ struct GhafWalletStack: View {
 
     // MARK: Cards
 
-    /// Apple Pay style: the chosen card in front, its neighbours tucked behind and peeking on each side.
+    /// Flat, view-aligned cards; native scrolling tracks the finger and settles on the nearest account.
     private var deck: some View {
-        GhafWalletCarousel(accounts: accounts, selectedID: $selectedID, languageCode: languageCode,
-                          reduceMotion: reduceMotion, theme: theme, onEdit: onEdit, onMove: onMove)
+        GhafWalletCarousel(cards: accounts.map(GhafWalletCardSnapshot.init), selectedID: $selectedID,
+                          languageCode: languageCode, reduceMotion: reduceMotion, theme: theme,
+                          onEdit: { id in if let account = accounts.first(where: { $0.id == id }) { onEdit(account) } },
+                          onMove: { id, offset in if let account = accounts.first(where: { $0.id == id }) { onMove(account, offset) } })
     }
 
     private var pageIndicator: some View {
@@ -134,72 +136,73 @@ struct GhafWalletStack: View {
     }
 }
 
-/// Owns high-frequency drag state so swiping doesn't reevaluate the balance and transaction rows.
+private struct GhafWalletCardSnapshot: Identifiable {
+    let id: UUID
+    let name: String
+    let institution: String
+    let lastFour: String
+    let design: GhafCardDesign?
+
+    init(_ account: GhafAccount) {
+        id = account.id
+        name = account.name
+        institution = account.institution ?? ""
+        lastFour = account.lastFourDigits ?? ""
+        design = GhafCardDesign.forAccount(account)
+    }
+}
+
 private struct GhafWalletCarousel: View {
-    let accounts: [GhafAccount]
+    let cards: [GhafWalletCardSnapshot]
     @Binding var selectedID: UUID?
     let languageCode: String
     let reduceMotion: Bool
     let theme: GhafTheme
-    let onEdit: (GhafAccount) -> Void
-    let onMove: (GhafAccount, Int) -> Void
-    @GestureState private var dragOffset: CGFloat = 0
+    let onEdit: (UUID) -> Void
+    let onMove: (UUID, Int) -> Void
     private var ar: Bool { languageCode == "ar" }
-    private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
-    private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
-    private var step: CGFloat { width * 0.1 }
+    private var index: Int { cards.firstIndex { $0.id == selectedID } ?? 0 }
+    private var width: CGFloat { min(UIScreen.main.bounds.width * 0.78, 360) }
     private var cardHeight: CGFloat { width / 1.586 }
 
     var body: some View {
-        ZStack {
-            Ellipse()
-                .fill(theme.accent.opacity(0.55))
-                .frame(width: width * 0.8, height: 60)
-                .blur(radius: 22)
-                .offset(y: cardHeight / 2 + 6)
-            GeometryReader { geometry in
-                HStack(spacing: step) {
-                    ForEach(Array(accounts.enumerated()), id: \.element.id) { itemIndex, account in
-                        walletCard(account, at: itemIndex)
-                    }
+        GeometryReader { geometry in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 16) {
+                    ForEach(cards) { card in walletCard(card) }
                 }
-                .offset(x: (geometry.size.width - width) / 2 - CGFloat(index) * (width + step) + dragOffset)
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 12)
-                    .updating($dragOffset) { value, state, _ in state = value.translation.width }
-                    .onEnded { value in
-                        guard abs(value.translation.width) > width * 0.18 else { return }
-                        let next = min(max(index + (value.translation.width < 0 ? 1 : -1), 0), accounts.count - 1)
-                        withAnimation(deckAnimation) { selectedID = accounts[next].id }
-                    })
+                .scrollTargetLayout()
             }
-            .frame(height: cardHeight + 50)
-            .clipped()
-        }
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $selectedID, anchor: .center)
+            .contentMargins(.horizontal, max(0, (geometry.size.width - width) / 2), for: .scrollContent)
+            .frame(height: cardHeight)
             .accessibilityElement()
-            .accessibilityLabel(accounts.indices.contains(index) ? accounts[index].name : "")
-            .accessibilityValue(ar ? "بطاقة \(index + 1) من \(accounts.count)" : "Card \(index + 1) of \(accounts.count)")
+            .accessibilityLabel(cards.indices.contains(index) ? cards[index].name : "")
+            .accessibilityValue(ar ? "بطاقة \(index + 1) من \(cards.count)" : "Card \(index + 1) of \(cards.count)")
             .accessibilityAdjustableAction { direction in
-                let next = min(max(index + (direction == .increment ? 1 : -1), 0), accounts.count - 1)
-                withAnimation(deckAnimation) { selectedID = accounts[next].id }
+                let next = min(max(index + (direction == .increment ? 1 : -1), 0), cards.count - 1)
+                withAnimation(deckAnimation) { selectedID = cards[next].id }
             }
+        }
+        .onChange(of: cards.map(\.id)) { _, ids in
+            if selectedID.map(ids.contains) != true { selectedID = ids.first }
+        }
     }
 
-    private func walletCard(_ account: GhafAccount, at itemIndex: Int) -> some View {
-        let delta = itemIndex - index
-        return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
-                            lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
-            .scaleEffect(1 - 0.06 * CGFloat(min(abs(delta), 3)))
+    private func walletCard(_ card: GhafWalletCardSnapshot) -> some View {
+        return GhafCardFace(account: nil, name: card.name, institution: card.institution,
+                            lastFour: card.lastFour, design: card.design, width: width)
             .frame(width: width, height: cardHeight)
-            .frame(width: width, height: cardHeight + 50)
-            .id(account.id)
-            .onTapGesture { withAnimation(deckAnimation) { selectedID = account.id } }
+            .id(card.id)
+            .onTapGesture { withAnimation(deckAnimation) { selectedID = card.id } }
             .contextMenu {
-                Button { onEdit(account) } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
-                Button { onMove(account, -1) } label: { Label(ar ? "نقل للأمام" : "Move earlier", systemImage: "arrow.backward") }
-                    .disabled(account.id == accounts.first?.id)
-                Button { onMove(account, 1) } label: { Label(ar ? "نقل للخلف" : "Move later", systemImage: "arrow.forward") }
-                    .disabled(account.id == accounts.last?.id)
+                Button { onEdit(card.id) } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
+                Button { onMove(card.id, -1) } label: { Label(ar ? "نقل للأمام" : "Move earlier", systemImage: "arrow.backward") }
+                    .disabled(card.id == cards.first?.id)
+                Button { onMove(card.id, 1) } label: { Label(ar ? "نقل للخلف" : "Move later", systemImage: "arrow.forward") }
+                    .disabled(card.id == cards.last?.id)
             }
             .accessibilityHidden(true)
     }
