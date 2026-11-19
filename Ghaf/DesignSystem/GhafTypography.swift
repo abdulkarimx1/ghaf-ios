@@ -148,6 +148,7 @@ extension View {
     func ghafPageTitle(_ title: String, languageCode: String, theme: GhafTheme) -> some View {
         navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+            .contentMargins(.top, 40, for: .scrollContent)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(title)
@@ -157,6 +158,29 @@ extension View {
                         .accessibilityAddTraits(.isHeader)
                 }
             }
+            .modifier(GhafPageTitleScrollEffect(theme: theme))
+    }
+}
+
+private struct GhafPageTitleScrollEffect: ViewModifier {
+    let theme: GhafTheme
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+                .toolbarBackground(
+                    LinearGradient(stops: [
+                        .init(color: theme.background, location: 0),
+                        .init(color: theme.background.opacity(0.94), location: 0.55),
+                        .init(color: theme.background.opacity(0), location: 1)
+                    ], startPoint: .top, endPoint: .bottom),
+                    for: .navigationBar
+                )
+                .toolbarBackground(.visible, for: .navigationBar)
+        }
     }
 }
 
