@@ -7,6 +7,8 @@ struct GhafAmountField: View {
     let theme: GhafTheme
     let languageCode: String
     var integerMode = false
+    /// Longest number allowed, e.g. 4 for a card's last four digits.
+    var maxDigits = 12
 
     @State private var presented = false
     @State private var keyPress = 0
@@ -40,7 +42,7 @@ struct GhafAmountField: View {
         .accessibilityHint(languageCode == "ar" ? "يفتح لوحة إدخال الأرقام" : "Opens the number pad")
         .sheet(isPresented: $presented) {
             keypad
-                .presentationDetents([.height(390)])
+                .presentationDetents([.height(440)])
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(28)
         }
@@ -51,8 +53,20 @@ struct GhafAmountField: View {
 
     private var keypad: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text(label).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            HStack(spacing: 12) {
+                // The live value sits on the pad itself, so the field behind the sheet never needs scrolling into view.
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label).font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                    HStack(spacing: 8) {
+                        if let currency { GhafCurrencyIcon(currency: currency, size: 20) }
+                        Text(value.isEmpty ? placeholder : localized(value))
+                            .font(GhafTypography.number(30, weight: .bold))
+                            .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                            .contentTransition(.numericText())
+                    }
+                }
+                .accessibilityElement(children: .combine)
                 Spacer()
                 Button { presented = false } label: {
                     Image(systemName: "checkmark")
@@ -101,7 +115,7 @@ struct GhafAmountField: View {
         } else {
             let fraction = value.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first?.count ?? 0
             let integral = value.split(separator: ".", omittingEmptySubsequences: false).first?.count ?? 0
-            guard fraction < digits || !value.contains("."), integral < 12 else { return }
+            guard fraction < digits || !value.contains("."), value.contains(".") || integral < maxDigits else { return }
             value += key
         }
         keyPress += 1

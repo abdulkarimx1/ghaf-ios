@@ -269,7 +269,7 @@ struct GhafAccountEditorView: View {
                         fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
                             GhafAmountField(value: $lastFourDigits, currency: nil,
                                             label: ar ? "آخر ٤ أرقام" : "Last 4 digits",
-                                            theme: theme, languageCode: lang, integerMode: true)
+                                            theme: theme, languageCode: lang, integerMode: true, maxDigits: 4)
                                 .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
                         }
                     }

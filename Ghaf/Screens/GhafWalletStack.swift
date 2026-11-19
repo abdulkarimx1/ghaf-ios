@@ -56,6 +56,7 @@ struct GhafWalletStack: View {
             if selectedID == nil { selectedID = accounts.first?.id }
             deckPosition = Double(index)
         }
+        .onChange(of: selectedID) { _, _ in if !isDragging { deckPosition = Double(index) } }
         .sheet(item: $quickAdd) { item in
             GhafQuickAddView(settings: settings, presetAccountID: item.account, startAsTransfer: item.transfer).ghafDirection(settings.languageCode)
         }
@@ -68,6 +69,7 @@ struct GhafWalletStack: View {
         // Canvas: a 250pt card on a 390pt screen, neighbours shifted 52pt and scaled to 0.86.
         let width = min((UIScreen.main.bounds.width) * 0.64, 300)
         let step = width * 0.208
+        let travel = width * 0.9
         let sign: CGFloat = ar ? -1 : 1
         return ZStack {
             Ellipse()
@@ -77,18 +79,19 @@ struct GhafWalletStack: View {
                 .offset(y: width / 1.586 / 2 + 6)
             ForEach(Array(accounts.enumerated()), id: \.element.id) { k, account in
                 let d = Double(k) - deckPosition
-                if abs(d) < 3.5 {
-                    let distance = abs(d)
-                    let front = distance < 1
-                    let stackDistance = min(distance, 3)
+                // Cards already passed follow the finger 1:1 off to the side; upcoming cards stay stacked
+                // behind and rise into place, so the crossover has no jump.
+                if d > -1.6 && d < 3.5 {
+                    let ahead = max(d, 0)
+                    let stacked = min(ahead, 3)
                     GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                                  lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
-                        .brightness(front ? 0 : -0.14)
-                        .scaleEffect(1 - 0.06 * stackDistance)
-                        .rotationEffect(.degrees(front ? 4 * d : 0))
-                        .offset(x: front ? CGFloat(-d) * step : CGFloat(d.sign == .minus ? -1 : 1) * 18 * CGFloat(stackDistance))
-                        .opacity(1 - 0.25 * max(distance - 2, 0))
-                        .zIndex(10 - distance)
+                        .brightness(-0.14 * min(ahead, 1))
+                        .scaleEffect(1 - 0.06 * stacked)
+                        .rotationEffect(.degrees(d < 0 ? 4 * d : 0))
+                        .offset(x: d < 0 ? CGFloat(d) * travel : step * CGFloat(min(ahead, 1)) + 8 * CGFloat(max(stacked - 1, 0)))
+                        .opacity(d < 0 ? 1 - max(-d - 0.6, 0) : 1 - 0.5 * max(ahead - 2, 0))
+                        .zIndex(d <= 0 ? 10 + d * 0.01 : 10 - d)
                         .onTapGesture {
                             withAnimation(deckAnimation) { deckPosition = Double(k); selectedID = account.id }
                         }
@@ -111,7 +114,7 @@ struct GhafWalletStack: View {
                 .onChanged { value in
                     guard abs(value.translation.width) > abs(value.translation.height) else { return }
                     if !isDragging { isDragging = true; dragStartPosition = Double(index) }
-                    let position = dragStartPosition - Double(sign * value.translation.width / step)
+                    let position = dragStartPosition - Double(sign * value.translation.width / travel)
                     let high = Double(max(accounts.count - 1, 0))
                     deckPosition = position < 0 ? -abs(position) / (1 + abs(position) * 3) : position > high ? high + (position - high) / (1 + (position - high) * 3) : position
                     let visibleIndex = min(max(Int(deckPosition.rounded()), 0), accounts.count - 1)
@@ -119,7 +122,7 @@ struct GhafWalletStack: View {
                 }
                 .onEnded { value in
                     let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
-                    let velocity = Double(sign * (value.predictedEndTranslation.width - value.translation.width) / step)
+                    let velocity = Double(sign * (value.predictedEndTranslation.width - value.translation.width) / travel)
                     let target = isHorizontal ? min(max(Int((deckPosition - velocity * 0.35).rounded()), 0), accounts.count - 1) : index
                     withAnimation(deckAnimation) {
                         deckPosition = Double(target)
