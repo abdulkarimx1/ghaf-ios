@@ -40,6 +40,7 @@ struct GhafSubscriptionsView: View {
                     GhafScreenTitle(title: ar ? "الاشتراكات" : "Subscriptions",
                                     subtitle: ar ? "التجديدات القادمة وتكلفتها" : "Renewals, costs and reminders",
                                     languageCode: lang, theme: theme, onClose: { dismiss() })
+                        .padding(.top, 16)
                         .ghafEntrance(0)
                     costCard.ghafEntrance(1)
                     monthTiles.ghafEntrance(1)
