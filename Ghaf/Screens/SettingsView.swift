@@ -18,24 +18,6 @@ private enum GhafSettingsPrompt: Identifiable {
     }
 }
 
-/// Consecutive calendar days with a confirmed ledger transaction, ending today or yesterday.
-enum GhafLoggingStreak {
-    static func count(_ dates: [Date], through now: Date, calendar: Calendar) -> Int {
-        let loggedDays = Set(dates.map { calendar.startOfDay(for: $0) })
-        let today = calendar.startOfDay(for: now)
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
-        var day = loggedDays.contains(today) ? today : yesterday
-        guard loggedDays.contains(day) else { return 0 }
-        var streak = 0
-        while loggedDays.contains(day) {
-            streak += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
-            day = previous
-        }
-        return streak
-    }
-}
-
 struct GhafSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
@@ -80,6 +62,7 @@ struct GhafSettingsView: View {
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
     @State private var fixtureProPresented = false
+    @State private var fixtureAboutPresented = false
 #endif
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
@@ -191,6 +174,9 @@ struct GhafSettingsView: View {
             .navigationDestination(isPresented: $fixtureProPresented) {
                 GhafProView(settings: settings, showsClose: false)
             }
+            .navigationDestination(isPresented: $fixtureAboutPresented) {
+                GhafAboutView(settings: settings)
+            }
 #endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear {
@@ -202,6 +188,7 @@ struct GhafSettingsView: View {
                     case "settings-glass": fixtureGlassPresented = true
                     case "profile-proof": fixtureProfilePresented = true
                     case "pro-page-proof": fixtureProPresented = true
+                    case "about-proof": fixtureAboutPresented = true
                     default: break
                     }
                 }
