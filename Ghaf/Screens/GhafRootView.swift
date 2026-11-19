@@ -184,6 +184,7 @@ struct GhafRootView: View {
 #if DEBUG
         if GhafScreenshotFixture.enabled, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
+            case "automation": GhafAutomationGuideView(settings: currentSettings)
             case "insights": GhafStatsView(settings: currentSettings)
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)

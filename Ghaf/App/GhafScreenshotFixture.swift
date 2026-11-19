@@ -12,6 +12,36 @@ enum GhafScreenshotFixture {
     static var language: String { value("GhafLanguage") ?? "en" }
     static var tab: String { value("GhafTab") ?? "home" }
     static var screen: String? { value("GhafScreen") }
+    static var automationExpanded: Bool { value("GhafAutomationExpanded") == "bank" }
+    static var automationButtonProof: Bool { value("GhafAutomationButtonProof") == "1" }
+    static var automationState: String { ["none", "waiting", "working"].contains(value("GhafAutomationState") ?? "none") ? (value("GhafAutomationState") ?? "none") : "none" }
+
+    static func applyAutomation() {
+        let defaults = UserDefaults.standard
+        let banks = automationState == "none" ? [] : ["Mashreq", "iVestor", "ruya"]
+        GhafAutomationBanks.save(banks, defaults: defaults)
+        for name in ["Mashreq", "iVestor", "ruya"] where !banks.contains(name) {
+            defaults.removeObject(forKey: "ghaf.automation.bankEnabled.\(name)")
+            defaults.removeObject(forKey: "ghaf.automation.skipped.\(name)")
+            defaults.removeObject(forKey: "ghaf.automation.lastSeen.\(name)")
+        }
+        guard !banks.isEmpty else {
+            for key in [GhafAutomationStatus.messageRunKey, GhafAutomationStatus.walletRunKey,
+                        GhafAutomationStatus.testRunKey, GhafAutomationStatus.lastRunKey] {
+                defaults.removeObject(forKey: key)
+            }
+            return
+        }
+        defaults.set(true, forKey: "ghaf.automation.bankEnabled.Mashreq")
+        defaults.set(false, forKey: "ghaf.automation.bankEnabled.iVestor")
+        defaults.set(3, forKey: "ghaf.automation.skipped.iVestor")
+        defaults.set(Date.now.addingTimeInterval(-2 * 60 * 60).timeIntervalSince1970, forKey: "ghaf.automation.lastSeen.Mashreq")
+        defaults.removeObject(forKey: "ghaf.automation.lastSeen.ruya")
+        let run = automationState == "working" ? Date.now.timeIntervalSince1970 : 0
+        for key in [GhafAutomationStatus.messageRunKey, GhafAutomationStatus.walletRunKey, GhafAutomationStatus.testRunKey, GhafAutomationStatus.lastRunKey] {
+            defaults.set(run, forKey: key)
+        }
+    }
 
     private static func value(_ key: String) -> String? {
         guard let index = arguments.firstIndex(of: "-\(key)"), arguments.indices.contains(index + 1) else { return nil }
@@ -25,6 +55,7 @@ enum GhafScreenshotFixture {
                                                 isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: [configuration])
         seed(container.mainContext)
+        if arguments.contains("-GhafAutomationProof") { try GhafAutomationIntentHarness.assertBehavior(in: container.mainContext) }
         return container
     }
 

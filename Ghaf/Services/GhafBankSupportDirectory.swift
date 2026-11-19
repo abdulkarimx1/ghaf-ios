@@ -10,6 +10,22 @@ struct GhafBankSupportContact: Identifiable {
     let internationalPhone: String
     let website: URL
     let aliases: [String]
+    /// Only populated when the bank publishes a custom URL scheme that can be queried by iOS.
+    let urlScheme: String?
+
+    init(id: String, name: String, nameArabic: String, countryName: String, countryNameArabic: String,
+         localPhone: String, internationalPhone: String, website: URL, aliases: [String], urlScheme: String? = nil) {
+        self.id = id
+        self.name = name
+        self.nameArabic = nameArabic
+        self.countryName = countryName
+        self.countryNameArabic = countryNameArabic
+        self.localPhone = localPhone
+        self.internationalPhone = internationalPhone
+        self.website = website
+        self.aliases = aliases
+        self.urlScheme = urlScheme
+    }
 
     var localDialString: String {
         localPhone.filter { $0.isNumber || $0 == "+" }
