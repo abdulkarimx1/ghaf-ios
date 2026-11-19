@@ -2,7 +2,7 @@ import Foundation
 
 private enum BankPatterns {
     static let merchants = [
-        #"(?i)\bat\s+(.+?)(?=\s+(?:available\s+balance|balance|on\s+\d{1,4}[/-]\d)|[.;\n]|$)"#,
+        #"(?i)\bat\s+(.+?)(?=\s+(?:available\s+balance|balance|on\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,4}[/-]\d|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)))|[.;\n]|$)"#,
         #"(?:لدى|عند)\s+(.+?)(?=\s+(?:الرصيد|بتاريخ|في\s+\d)|[.،;\n]|$)"#,
         #"(?i)\bmerchant(?:\s+name)?\s*[:\-]\s*(.+?)(?=\s+(?:available\s+balance|balance|on\s+\d{1,4}[/-]\d)|[.;\n]|$)"#
     ]
@@ -151,18 +151,20 @@ private enum TransactionExtractor {
             let value = groups[1].trimmingCharacters(
                 in: .whitespacesAndNewlines.union(.punctuationCharacters)
             )
-            if !value.isEmpty { return value }
+            if !value.isEmpty { return MerchantName.clean(value) }
         }
         return nil
     }
 
     static func date(_ message: String, fallback: Date) -> (Date, Bool) {
-        guard let groups = Regex.captures(BankPatterns.dates[0], in: message),
-              groups.count > 1, !groups[1].isEmpty else {
-            return (fallback, false)
-        }
-
+        let spelled = #"(?i)((?:(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+)?(?:\d{1,2}\s+[a-z]{3,9}\s+\d{4}|[a-z]{3,9}\s+\d{1,2},?\s+\d{4})(?:,?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)?)"#
+        let rawDate = Regex.captures(BankPatterns.dates[0], in: message).flatMap { $0.count > 1 ? $0[1] : nil }
+            ?? Regex.captures(spelled, in: message).flatMap { $0.count > 1 ? $0[1] : nil }
+        guard let rawDate, !rawDate.isEmpty else { return (fallback, false) }
         let formats = [
+            "EEEE, d MMMM yyyy, h:mm a", "d MMMM yyyy HH:mm", "d MMMM yyyy HH:mm:ss",
+            "d MMM yyyy h:mm a", "d MMM yyyy HH:mm", "MMM d, yyyy h:mma", "MMM d, yyyy h:mm a",
+            "d MMMM yyyy", "d MMM yyyy", "MMM d, yyyy",
             "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss",
             "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
             "dd/MM/yyyy HH:mm", "d/M/yyyy HH:mm",
@@ -176,10 +178,9 @@ private enum TransactionExtractor {
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.timeZone = TimeZone.current
         formatter.isLenient = false
-
         for format in formats {
             formatter.dateFormat = format
-            if let value = formatter.date(from: groups[1]) { return (value, true) }
+            if let value = formatter.date(from: rawDate) { return (value, true) }
         }
         return (fallback, false)
     }
