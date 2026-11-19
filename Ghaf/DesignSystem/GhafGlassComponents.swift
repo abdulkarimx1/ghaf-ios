@@ -90,9 +90,10 @@ private struct GhafGlassGlowBlobs: View {
     let size: CGSize
     let theme: GhafTheme
     var body: some View {
+        let colorTheme = theme.name != "Graphite"
         ZStack {
-            Circle().fill(theme.accent.opacity(theme.isDark ? 0.11 : 0.07)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
-            Circle().fill(theme.glow.opacity(theme.isDark ? 0.08 : 0.05)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
+            Circle().fill(theme.accent.opacity(theme.isDark ? (colorTheme ? 0.11 : 0.22) : (colorTheme ? 0.07 : 0.14))).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
+            Circle().fill(theme.glow.opacity(theme.isDark ? (colorTheme ? 0.08 : 0.16) : (colorTheme ? 0.05 : 0.1))).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
         }
     }
 }
