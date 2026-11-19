@@ -626,7 +626,7 @@ private struct GhafSubscriptionDetailView: View {
                     reminderRow.ghafEntrance(3)
                 }
                 .ghafScreenPadding()
-                .padding(.top, 8).padding(.bottom, 20)
+                .padding(.top, 8).padding(.bottom, 120)
                 .frame(maxWidth: 620).frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)

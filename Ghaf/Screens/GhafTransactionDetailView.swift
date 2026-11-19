@@ -54,7 +54,7 @@ struct GhafTransactionDetailView: View {
                 }
                 .ghafScreenPadding()
                 .padding(.top, 8)
-                .padding(.bottom, 20)
+                .padding(.bottom, 120)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
             }

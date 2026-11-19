@@ -91,8 +91,15 @@ struct GhafDetailActionBar: View {
             GhafPrimaryButton(title: primaryTitle, theme: theme, languageCode: languageCode, action: primaryAction)
         }
         .ghafScreenPadding()
-        .padding(.top, 10)
+        .padding(.top, 12)
         .padding(.bottom, 6)
-        .background(theme.background.opacity(0.94))
+        .background {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [theme.background.opacity(0), theme.background], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 24)
+                theme.background
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
     }
 }
