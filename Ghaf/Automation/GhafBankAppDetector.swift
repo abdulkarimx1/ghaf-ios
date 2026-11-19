@@ -34,6 +34,11 @@ enum GhafAutomationCapturePolicy {
     static func assertPolicy() {
         assert(shouldSkip(bankName: "Mashreq", chosenBanks: ["Mashreq"], captureEnabled: false))
         assert(!shouldSkip(bankName: "Unknown", chosenBanks: ["Mashreq"], captureEnabled: false))
+        let defaults = UserDefaults(suiteName: "GhafAutomationCapturePolicy")!
+        defaults.removePersistentDomain(forName: "GhafAutomationCapturePolicy")
+        recordSkip(for: "Mashreq", defaults: defaults)
+        assert(skippedCount(for: "Mashreq", defaults: defaults) == 1)
+        defaults.removePersistentDomain(forName: "GhafAutomationCapturePolicy")
     }
 #endif
 
