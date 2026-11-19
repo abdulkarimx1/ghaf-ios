@@ -139,7 +139,7 @@ struct GhafSettingsView: View {
                         .padding(.top, 4)
                 }
                 .ghafScreenPadding()
-                .padding(.top, 12)
+                .padding(.top, 40)
                 .padding(.bottom, 32)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
