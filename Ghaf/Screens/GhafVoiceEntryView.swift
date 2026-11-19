@@ -69,7 +69,7 @@ struct GhafVoiceEntryView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
-                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 22))
+                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 22), fallback: theme.surface)
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.outline, lineWidth: 1))
                 }
                 .buttonStyle(.ghafPress)
@@ -96,7 +96,7 @@ struct GhafVoiceEntryView: View {
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 104)
                         .padding(10)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 15))
+                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 15), fallback: theme.surface)
                         .overlay(RoundedRectangle(cornerRadius: 15).stroke(theme.outline, lineWidth: 1))
                         .onChange(of: transcript) { _, value in updateDrafts(from: value) }
                     Text(isArabic
@@ -157,7 +157,7 @@ struct GhafVoiceEntryView: View {
                                     .tint(theme.accent)
                             }
                             .padding(13)
-                            .background(theme.surface, in: RoundedRectangle(cornerRadius: 15))
+                            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 15), fallback: theme.surface)
                             .overlay(RoundedRectangle(cornerRadius: 15).stroke(theme.outline, lineWidth: 1))
                         }
 

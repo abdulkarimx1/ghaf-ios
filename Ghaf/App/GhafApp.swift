@@ -30,6 +30,7 @@ struct GhafApp: App {
         WindowGroup {
 
             GhafRootView()
+                .modifier(GhafTiltLifecycle())
                 .onAppear { DispatchQueue.main.async { GhafKeyboardDismisser.shared.install() } }
                 // Widgets and Live Activities show purchase details, so they follow the hide toggle at once.
                 .onChange(of: hideBalances) { _, hidden in

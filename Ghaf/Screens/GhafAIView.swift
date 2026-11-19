@@ -88,6 +88,7 @@ struct GhafAIView: View {
     @State private var offerCloud = false
     @State private var offerLiveConsent = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.ghafGlass) private var glassStyle
 
     let settings: GhafSettings
     private var ar: Bool { settings.languageCode == "ar" }
@@ -352,8 +353,11 @@ struct GhafAIView: View {
                             .foregroundStyle(theme.primaryText)
                             .padding(.horizontal, 16)
                             .frame(minHeight: 40)
-                            .background(.ultraThinMaterial.opacity(0.6), in: Capsule())
-                            .background(.white.opacity(0.07), in: Capsule())
+                            .background {
+                                if glassStyle.enabled { Capsule().fill(Color.clear) }
+                                else { Capsule().fill(.ultraThinMaterial.opacity(0.6)).overlay(Capsule().fill(.white.opacity(0.07))) }
+                            }
+                            .ghafGlassShape(theme: theme, shape: Capsule(), fallback: .clear)
                             .overlay(Capsule().stroke(.white.opacity(0.14)))
                     }
                     .buttonStyle(.ghafPress)
@@ -468,7 +472,11 @@ struct GhafAIView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .frame(maxWidth: 340, alignment: .leading)
-        .background { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.08))).overlay(shape.stroke(.white.opacity(0.14))) }
+        .background {
+            if glassStyle.enabled { shape.fill(Color.clear) }
+            else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.08))).overlay(shape.stroke(.white.opacity(0.14))) }
+        }
+        .ghafGlassHero(theme: theme, radius: 22, fallback: .clear)
         .contextMenu {
             Button { UIPasteboard.general.string = item.text } label: { Label(ar ? "نسخ" : "Copy", systemImage: "doc.on.doc") }
             ShareLink(item: item.text) { Label(ar ? "مشاركة" : "Share", systemImage: "square.and.arrow.up") }
@@ -608,8 +616,12 @@ struct GhafAIView: View {
                 .accessibilityLabel(voiceMode ? (ar ? "إيقاف المحادثة الصوتية" : "Stop talking") : (ar ? "تحدث مع غاف" : "Talk with Ghaf"))
             }
             .padding(6)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .background {
+                let shape = RoundedRectangle(cornerRadius: 30, style: .continuous)
+                if glassStyle.enabled { shape.fill(Color.clear) }
+                else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.12))) }
+            }
+            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 30, style: .continuous), fallback: .clear)
             .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .stroke((recorder.isRecording || isThinking || inputFocused) ? theme.accent.opacity(0.8) : .white.opacity(0.28),
                         lineWidth: (recorder.isRecording || isThinking || inputFocused) ? 1.5 : 1)

@@ -174,7 +174,7 @@ struct GhafWalletStack: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 56, height: 56)
-                    .background(theme.surface, in: Circle())
+                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
                     .shadow(color: theme.shadow, radius: 8, y: 3)
                 Text(title)
                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))

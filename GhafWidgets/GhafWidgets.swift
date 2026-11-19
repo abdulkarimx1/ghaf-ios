@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 import ActivityKit
+import UIKit
 
 @main
 struct GhafWidgetBundle: WidgetBundle {
@@ -64,6 +65,31 @@ extension GhafWidgetSnapshot {
 // Near-black tiles lit by the user's city theme (sent by the app); sand-gold until the app has written one.
 let ink = Color(red: 0.05, green: 0.05, blue: 0.06)
 let paper = Color(red: 0.95, green: 0.95, blue: 0.95)
+
+struct GhafWidgetBackground: View {
+    let tile: GhafTile
+    let enabled: Bool
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    private static let grain: UIImage = {
+        let n = 64
+        var seed: UInt32 = 0x47484146
+        let data = (0..<(n * n)).map { _ -> UInt8 in seed = 1664525 &* seed &+ 1013904223; return UInt8(seed >> 24) }
+        let provider = CGDataProvider(data: Data(data) as CFData)!
+        return UIImage(cgImage: CGImage(width: n, height: n, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: n, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)!)
+    }()
+    var body: some View {
+        let glass = enabled && renderingMode == .fullColor
+        ZStack(alignment: .bottom) {
+            tile.background
+            if glass {
+                LinearGradient(colors: [tile.background.opacity(0.65), tile.background.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                LinearGradient(colors: [.clear, tile.highlight.opacity(0.38)], startPoint: .top, endPoint: .bottom).frame(height: 40)
+                Image(uiImage: Self.grain).resizable(resizingMode: .tile).opacity(0.035).blendMode(.overlay).allowsHitTesting(false)
+                RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.42), .white.opacity(0.05), .white.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+            }
+        }
+    }
+}
 
 extension GhafWidgetSnapshot {
     var accentColor: Color { Color(ghafHex: accent ?? 0xE0B472) }
@@ -129,7 +155,7 @@ struct GhafBalanceWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBalanceConfig.self, provider: GhafConfigProvider<GhafBalanceConfig>(kind: Self.kind)) { entry in
             GhafBalanceView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
-                .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+                .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.snapshot?.glass ?? false) }
         }
         .configurationDisplayName("Balance")
         .description("Your total balance and this week's spending.")
@@ -200,7 +226,7 @@ struct GhafTodayWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>(kind: Self.kind)) { entry in
             GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
-                .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+                .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.snapshot?.glass ?? false) }
         }
         .configurationDisplayName("Today")
         .description("What you spent today, by category.")

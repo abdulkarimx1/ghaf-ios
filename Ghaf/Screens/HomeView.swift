@@ -213,7 +213,7 @@ struct GhafHomeView: View {
                 }
                 .foregroundStyle(theme.primaryText)
                 .padding(.horizontal, 14).frame(height: 40)
-                .background(theme.surface, in: Capsule())
+                .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                 .shadow(color: theme.shadow, radius: 8, y: 3)
             }
             .buttonStyle(.ghafPress)
@@ -226,7 +226,7 @@ struct GhafHomeView: View {
                     .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
-                    .background(theme.surface, in: Circle())
+                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
                     .shadow(color: theme.shadow, radius: 8, y: 3)
             }
             .buttonStyle(.ghafPress)
@@ -332,7 +332,7 @@ struct GhafHomeView: View {
         .padding(.vertical, 22)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme, radius: 28)
+        .ghafGlassHero(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
@@ -372,7 +372,7 @@ struct GhafHomeView: View {
                             .lineLimit(1)
                             .fixedSize()
                             .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 14, style: .continuous), fallback: theme.elevatedSurface)
                         }
                         .buttonStyle(.ghafPress)
                     }

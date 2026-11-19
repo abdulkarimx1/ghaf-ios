@@ -170,12 +170,12 @@ struct GhafBudgetView: View {
                     .foregroundStyle(theme.secondaryText)
                 }
                 .padding(14)
-                .background(theme.elevatedSurface.opacity(0.6), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 18, style: .continuous), fallback: theme.elevatedSurface.opacity(0.6))
             }
         }
         .padding(18)
         .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme, radius: 28)
+        .ghafGlassHero(theme: theme, radius: 28)
     }
 
     // MARK: Pace

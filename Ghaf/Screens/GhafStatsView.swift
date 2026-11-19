@@ -7,6 +7,7 @@ import GhafCore
 /// Laid out like the approved canvas: trend hero, "Where it went" bars, two tiles, merchants.
 struct GhafStatsView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.ghafGlass) private var glass
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
     let settings: GhafSettings
 
@@ -189,6 +190,11 @@ struct GhafStatsView: View {
                     .padding(.vertical, 5)
             }
             Chart(data) { bucket in
+                if glass.enabled {
+                    LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                        .foregroundStyle(accent.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 6, lineCap: .round)).blur(radius: 6)
+                        .interpolationMethod(.monotone)
+                }
                 AreaMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
                     .foregroundStyle(LinearGradient(colors: [accent.opacity(0.4), accent.opacity(0)], startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.monotone)
@@ -196,6 +202,11 @@ struct GhafStatsView: View {
                     .foregroundStyle(accent)
                     .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                if glass.enabled, bucket.id == data.max(by: { $0.total < $1.total })?.id {
+                    PointMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                        .foregroundStyle(.white).symbolSize(110)
+                        .shadow(color: accent.opacity(0.85), radius: 8)
+                }
                 if let selected, selected.id == bucket.id {
                     RuleMark(x: .value("Date", axisLabel(bucket.start)))
                         .foregroundStyle(theme.secondaryText.opacity(0.5))
@@ -215,7 +226,11 @@ struct GhafStatsView: View {
             // A new chart per period, faded in: Charts animating between different label sets produces NaN geometry.
             .id(period)
             .transition(.opacity)
-            .chartYAxis(.hidden)
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine().foregroundStyle(glass.enabled ? Color.white.opacity(0.05) : .clear)
+                }
+            }
             .chartXAxis {
                 AxisMarks(values: data.map { axisLabel($0.start) }.filter { shown.contains($0) }) { _ in
                     AxisValueLabel().foregroundStyle(theme.secondaryText)
@@ -247,7 +262,7 @@ struct GhafStatsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16).padding(.vertical, 20)
-        .ghafCard(theme: theme, radius: 30)
+        .ghafGlassHero(theme: theme, radius: 30)
     }
 
     // MARK: Budget entry

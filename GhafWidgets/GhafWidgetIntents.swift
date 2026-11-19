@@ -68,6 +68,7 @@ struct GhafRecentConfig: WidgetConfigurationIntent {
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show merchant", default: true) var showMerchant: Bool
     @Parameter(title: "Show account", default: true) var showAccount: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafSpendingConfig: WidgetConfigurationIntent {
@@ -78,6 +79,7 @@ struct GhafSpendingConfig: WidgetConfigurationIntent {
     @Parameter(title: "Font", default: .rounded) var font: GhafWidgetFont
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Compare with last period", default: true) var compare: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafBudgetConfig: WidgetConfigurationIntent {
@@ -88,6 +90,7 @@ struct GhafBudgetConfig: WidgetConfigurationIntent {
     @Parameter(title: "Font", default: .serif) var font: GhafWidgetFont
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show last 7 days", default: true) var showWeek: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafCategoriesConfig: WidgetConfigurationIntent {
@@ -98,6 +101,7 @@ struct GhafCategoriesConfig: WidgetConfigurationIntent {
     @Parameter(title: "Font", default: .mono) var font: GhafWidgetFont
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show amounts", default: true) var showAmounts: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafBillsConfig: WidgetConfigurationIntent {
@@ -108,6 +112,7 @@ struct GhafBillsConfig: WidgetConfigurationIntent {
     @Parameter(title: "Font", default: .rounded) var font: GhafWidgetFont
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show total", default: true) var showTotal: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafBalanceConfig: WidgetConfigurationIntent {
@@ -117,6 +122,7 @@ struct GhafBalanceConfig: WidgetConfigurationIntent {
     @Parameter(title: "Font", default: .standard) var font: GhafWidgetFont
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
     @Parameter(title: "Show last 7 days", default: true) var showWeek: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafTodayConfig: WidgetConfigurationIntent {
@@ -125,6 +131,7 @@ struct GhafTodayConfig: WidgetConfigurationIntent {
     @Parameter(title: "Colour", default: .theme) var style: GhafWidgetStyle
     @Parameter(title: "Font", default: .standard) var font: GhafWidgetFont
     @Parameter(title: "When tapped", default: .open) var onTap: GhafWidgetTap
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 struct GhafTrendsConfig: WidgetConfigurationIntent {
@@ -136,6 +143,7 @@ struct GhafTrendsConfig: WidgetConfigurationIntent {
     @Parameter(title: "When tapped", default: .switchView) var onTap: GhafWidgetTap
     @Parameter(title: "Show change", default: true) var showChange: Bool
     @Parameter(title: "Fill under the line", default: true) var showFill: Bool
+    @Parameter(title: "Glass effect", default: false) var glass: Bool
 }
 
 // MARK: Button actions

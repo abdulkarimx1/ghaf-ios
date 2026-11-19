@@ -229,7 +229,7 @@ struct GhafTransactionsView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 50)
-        .background(theme.surface, in: Capsule())
+        .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
         .shadow(color: theme.shadow, radius: 8, y: 3)
     }
 
@@ -256,7 +256,7 @@ struct GhafTransactionsView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
-                    .background(theme.surface, in: Circle())
+                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
             }
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
         }
@@ -382,7 +382,7 @@ struct GhafTransactionEditor: View {
                         .font(GhafTypography.number(30, weight: .bold))
                         .keyboardType(.decimalPad)
                         .padding(15)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 15))
+                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 15), fallback: theme.surface)
 
                     editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
                     editorField("Merchant", text: $merchant)
@@ -399,7 +399,7 @@ struct GhafTransactionEditor: View {
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .padding(13)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
 
                     if !accounts.isEmpty {
                         editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
@@ -429,7 +429,7 @@ struct GhafTransactionEditor: View {
                     }
                     .padding(13)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
 
                     let selectedAccount = accounts.first(where: { $0.id == accountID })
                     if let contact = GhafBankSupportDirectory.contact(
@@ -475,7 +475,7 @@ struct GhafTransactionEditor: View {
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
                         .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))
                     }
 
@@ -522,7 +522,7 @@ struct GhafTransactionEditor: View {
         TextField(placeholder, text: text)
             .font(GhafTypography.body(15, languageCode: languageCode))
             .padding(13)
-            .background(theme.surface, in: RoundedRectangle(cornerRadius: 13))
+            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
             .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))
     }
 
