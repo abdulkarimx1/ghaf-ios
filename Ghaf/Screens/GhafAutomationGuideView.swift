@@ -238,6 +238,7 @@ struct GhafAutomationGuideView: View {
                 disclosureRow(.wallet)
             }
             .ghafCard(theme: theme)
+            .environment(\.ghafGlass, .off)
         }
     }
 
@@ -397,7 +398,7 @@ struct GhafAutomationGuideView: View {
                                         .multilineTextAlignment(.center)
                                 }
                                 .frame(width: 88, height: 88)
-                                .background(theme.surface, in: RoundedRectangle(cornerRadius: 18))
+                                .ghafCard(theme: theme, radius: 18)
                                 .contentShape(RoundedRectangle(cornerRadius: 18))
                             }
                             .buttonStyle(.plain)
