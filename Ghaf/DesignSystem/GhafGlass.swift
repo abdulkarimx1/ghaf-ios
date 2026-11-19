@@ -27,6 +27,7 @@ final class GhafTiltMotion {
     private var filtered = CGPoint.zero
     private var running = false
     private var requested = false
+    private let deadZone = 0.0262 // 1.5 degrees
     private var powerObserver: NSObjectProtocol?
     private init() {
         powerObserver = NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.reevaluate() } }
@@ -34,6 +35,16 @@ final class GhafTiltMotion {
     }
     func update(enabled: Bool) {
         requested = enabled
+#if DEBUG
+        if enabled, let fixture = Self.debugAttitude {
+            manager.stopDeviceMotionUpdates()
+            running = false
+            reference = nil
+            filtered = fixture
+            tilt = fixture
+            return
+        }
+#endif
         reevaluate()
     }
     private func reevaluate() {
@@ -43,18 +54,23 @@ final class GhafTiltMotion {
         guard shouldRun != running else { return }
         running = shouldRun
         if shouldRun {
-            manager.deviceMotionUpdateInterval = 1.0 / 30.0
+            manager.deviceMotionUpdateInterval = 1.0 / 60.0
             manager.startDeviceMotionUpdates(to: queue) { [weak self] motion, _ in
                 guard let motion else { return }
-                if self?.reference == nil { self?.reference = motion.attitude.copy() as? CMAttitude }
-                let attitude = motion.attitude
-                if let reference = self?.reference { attitude.multiply(byInverseOf: reference) }
-                let target = CGPoint(x: max(-0.25, min(0.25, attitude.roll)), y: max(-0.25, min(0.25, attitude.pitch)))
                 Task { @MainActor [weak self] in
                     guard let self, self.running else { return }
-                    let next = CGPoint(x: self.filtered.x + (target.x - self.filtered.x) * 0.15, y: self.filtered.y + (target.y - self.filtered.y) * 0.15)
-                    if abs(next.x - self.filtered.x) > 0.02 || abs(next.y - self.filtered.y) > 0.02 {
-                        self.filtered = next; self.tilt = CGPoint(x: next.x / 0.25, y: next.y / 0.25)
+                    guard let attitude = motion.attitude.copy() as? CMAttitude else { return }
+                    if self.reference == nil { self.reference = attitude.copy() as? CMAttitude }
+                    if let reference = self.reference { attitude.multiply(byInverseOf: reference) }
+                    let target = CGPoint(x: Self.normalized(attitude.roll, deadZone: self.deadZone),
+                                         y: Self.normalized(attitude.pitch, deadZone: self.deadZone))
+                    let next = CGPoint(x: self.filtered.x + (target.x - self.filtered.x) * 0.12,
+                                       y: self.filtered.y + (target.y - self.filtered.y) * 0.12)
+                    if abs(next.x - self.filtered.x) > 0.003 || abs(next.y - self.filtered.y) > 0.003 {
+                        self.filtered = next
+                        let magnitude = hypot(next.x, next.y)
+                        let scale = magnitude > 1 ? 1 / magnitude : 1
+                        self.tilt = CGPoint(x: next.x * scale, y: next.y * scale)
                     }
                 }
             }
@@ -64,6 +80,27 @@ final class GhafTiltMotion {
             Logger.ghafGlass.debug("Tilt motion stopped")
         }
     }
+
+    private static func normalized(_ angle: Double, deadZone: Double) -> Double {
+        let magnitude = abs(angle)
+        guard magnitude > deadZone else { return 0 }
+        return copysign(min((magnitude - deadZone) / (Double.pi / 6 - deadZone), 1), angle)
+    }
+
+#if DEBUG
+    private static var debugAttitude: CGPoint? {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("-GhafTiltFixture"),
+              let rollIndex = args.firstIndex(of: "-GhafTiltRoll"), args.indices.contains(rollIndex + 1),
+              let pitchIndex = args.firstIndex(of: "-GhafTiltPitch"), args.indices.contains(pitchIndex + 1),
+              let roll = Double(args[rollIndex + 1]), let pitch = Double(args[pitchIndex + 1]) else { return nil }
+        let vector = CGPoint(x: normalized(roll * .pi / 180, deadZone: 0.0262),
+                             y: normalized(pitch * .pi / 180, deadZone: 0.0262))
+        let magnitude = hypot(vector.x, vector.y)
+        let scale = magnitude > 1 ? 1 / magnitude : 1
+        return CGPoint(x: vector.x * scale, y: vector.y * scale)
+    }
+#endif
 }
 
 private extension Logger {
@@ -123,10 +160,11 @@ private struct GhafGlassRim: View {
     private var motion: GhafTiltMotion { .shared }
     var body: some View {
         let tilt = motion.tilt
-        let angle = Double.pi / 2 + Double(tilt.x) * 60 * .pi / 180
-        let shift = CGFloat(tilt.y) * 0.3
-        let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shift, y: 0.5 - sin(angle) * 0.5)
-        let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shift, y: 0.5 + sin(angle) * 0.5)
+        let angle = Double.pi / 2 + Double(tilt.x) * 30 * .pi / 180
+        let shiftX = CGFloat(tilt.x) * 0.3
+        let shiftY = CGFloat(tilt.y) * 0.3
+        let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shiftX, y: 0.5 - sin(angle) * 0.5 + shiftY)
+        let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shiftX, y: 0.5 + sin(angle) * 0.5 + shiftY)
         shape.strokeBorder(LinearGradient(colors: theme.isDark ? [.white, .white.opacity(0.12), .white.opacity(0.03), .white.opacity(0.25)] : [theme.glow, theme.glow.opacity(0.18), theme.outline], startPoint: start, endPoint: end), lineWidth: 1.2)
     }
 }
@@ -143,10 +181,11 @@ struct GhafShapeRim<S: Shape>: View {
     private var motion: GhafTiltMotion { .shared }
     var body: some View {
         let tilt = motion.tilt
-        let angle = Double.pi / 2 + Double(tilt.x) * 60 * .pi / 180
-        let shift = CGFloat(tilt.y) * 0.3
-        let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shift, y: 0.5 - sin(angle) * 0.5)
-        let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shift, y: 0.5 + sin(angle) * 0.5)
+        let angle = Double.pi / 2 + Double(tilt.x) * 30 * .pi / 180
+        let shiftX = CGFloat(tilt.x) * 0.3
+        let shiftY = CGFloat(tilt.y) * 0.3
+        let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shiftX, y: 0.5 - sin(angle) * 0.5 + shiftY)
+        let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shiftX, y: 0.5 + sin(angle) * 0.5 + shiftY)
         shape.stroke(LinearGradient(colors: theme.isDark ? [.white, .white.opacity(0.12), .white.opacity(0.03), .white.opacity(0.25)] : [theme.glow, theme.glow.opacity(0.18), theme.outline], startPoint: start, endPoint: end), lineWidth: 1.2)
     }
 }
