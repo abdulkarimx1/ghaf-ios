@@ -37,6 +37,7 @@ struct GhafAmountField: View {
                 }
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
+                .environment(\.layoutDirection, .leftToRight)
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
@@ -70,7 +71,7 @@ struct GhafAmountField: View {
                     HStack(spacing: 8) {
                         if let currency { GhafCurrencyIcon(currency: currency, size: 20) }
                         Text(value.isEmpty ? placeholder : localized(value))
-                            .font(GhafTypography.number(30, weight: .bold))
+                            .font(GhafTypography.number(fontSize, weight: .bold))
                             .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
                             .lineLimit(1).minimumScaleFactor(0.6)
                             .contentTransition(.numericText())
@@ -78,6 +79,7 @@ struct GhafAmountField: View {
                 }
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
+                .environment(\.layoutDirection, .leftToRight)
                 .accessibilityElement(children: .combine)
                 Spacer()
                 Button { presented = false } label: {
