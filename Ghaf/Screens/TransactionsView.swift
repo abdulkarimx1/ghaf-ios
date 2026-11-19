@@ -210,19 +210,40 @@ struct GhafTransactionsView: View {
     private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color, icon: String) -> some View {
         VStack(spacing: 6) {
             Label(title, systemImage: icon)
-                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 20)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 24)
                 .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
         }
         .frame(maxWidth: .infinity)
     }
 
     private var searchField: some View {
-        GhafTextField(text: $searchText, placeholder: ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank",
-                      theme: theme, languageCode: lang, icon: "magnifyingglass", autocorrection: false,
-                      capitalization: .never, submitLabel: .search)
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(theme.secondaryText).accessibilityHidden(true)
+            TextField(ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank", text: $searchText)
+                .font(GhafTypography.userContent(searchText, size: 17, languageCode: lang))
+                .foregroundStyle(theme.primaryText)
+                .tint(theme.accent)
+                .focused($searchFocused)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(theme.secondaryText).frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ar ? "مسح البحث" : "Clear search")
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 48)
+        .background(theme.primaryText.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityLabel(ar ? "بحث" : "Search")
     }
 
     private func filterBar(count: Int) -> some View {
