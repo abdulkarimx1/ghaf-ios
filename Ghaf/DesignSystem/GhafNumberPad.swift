@@ -9,6 +9,9 @@ struct GhafAmountField: View {
     var integerMode = false
     /// Longest number allowed, e.g. 4 for a card's last four digits.
     var maxDigits = 12
+    var fontSize: CGFloat = 24
+    /// Opens the pad as soon as the field appears (quick add).
+    var presentOnAppear = false
 
     @State private var presented = false
     @State private var keyPress = 0
@@ -22,7 +25,7 @@ struct GhafAmountField: View {
             HStack(spacing: 12) {
                 if let currency { GhafCurrencyIcon(currency: currency, size: 22) }
                 Text(value.isEmpty ? placeholder : localized(value))
-                    .font(GhafTypography.number(24, weight: .bold))
+                    .font(GhafTypography.number(fontSize, weight: .bold))
                     .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -32,7 +35,7 @@ struct GhafAmountField: View {
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 56)
+            .frame(maxWidth: .infinity, minHeight: max(56, fontSize + 32))
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
         }
@@ -47,6 +50,7 @@ struct GhafAmountField: View {
                 .presentationCornerRadius(28)
         }
         .sensoryFeedback(.impact(weight: .light), trigger: keyPress)
+        .onAppear { if presentOnAppear { presented = true } }
     }
 
     private var placeholder: String { localized("0" + (digits > 0 ? "." + String(repeating: "0", count: digits) : "")) }

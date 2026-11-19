@@ -1032,11 +1032,10 @@ struct GhafOnboardingView: View {
                             Spacer()
 
                             if balanceSetupMode == "manual" {
-                                TextField(localized("0.00", "٠٫٠٠"), text: $draft.startingBalance)
-                                    .font(GhafTypography.number(15, weight: .semibold))
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(width: 110)
+                                GhafAmountField(value: $draft.startingBalance, currency: draft.currency,
+                                                label: localized("Starting balance", "الرصيد الافتتاحي"),
+                                                theme: theme, languageCode: languageCode, fontSize: 18)
+                                    .frame(width: 170)
                             } else {
                                 HStack(spacing: 7) {
                                     GhafCurrencyIcon(currency: draft.currency, size: 16)
@@ -1106,14 +1105,9 @@ struct GhafOnboardingView: View {
                         .tint(theme.accent)
                     }
 
-                    TextField(
-                        languageCode == "ar" ? "قيمة الراتب (اختياري)" : "Expected salary amount (optional)",
-                        text: $salaryAmountText
-                    )
-                    .font(GhafTypography.body(14, languageCode: languageCode))
-                    .keyboardType(.decimalPad)
-                    .padding(12)
-                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 12), fallback: theme.surface)
+                    GhafAmountField(value: $salaryAmountText, currency: currency,
+                                    label: languageCode == "ar" ? "قيمة الراتب (اختياري)" : "Expected salary amount (optional)",
+                                    theme: theme, languageCode: languageCode)
 
                     Picker(
                         languageCode == "ar" ? "إيداع الراتب في" : "Salary is deposited into",

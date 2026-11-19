@@ -741,7 +741,6 @@ struct GhafQuickAddView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
-    @FocusState private var amountFocused: Bool
     @State private var subcategory: String?
     @State private var toAccountID: UUID?
     private var isTransfer: Bool { direction == "transfer" }
@@ -823,7 +822,6 @@ struct GhafQuickAddView: View {
                 ?? accounts.first(where: { !$0.isArchived })?.id
             if startAsTransfer { direction = "transfer" }
             toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
-            amountFocused = true
         }
     }
 
@@ -838,20 +836,9 @@ struct GhafQuickAddView: View {
                     directionChip("transfer", ar ? "تحويل" : "Transfer", "arrow.left.arrow.right")
                 }
             }
-            HStack(alignment: .center, spacing: 8) {
-                GhafCurrencyIcon(currency: currency, size: 28)
-                    .foregroundStyle(theme.secondaryText)
-                TextField("0", text: $amount)
-                    .font(GhafTypography.number(52, weight: .heavy))
-                    .keyboardType(.decimalPad)
-                    .focused($amountFocused)
-                    .fixedSize()
-                    .foregroundStyle(direction == "credit" ? theme.credit : theme.primaryText)
-            }
-            .environment(\.layoutDirection, .leftToRight)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .onTapGesture { amountFocused = true }
+            GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
+                            theme: theme, languageCode: lang, fontSize: 44, presentOnAppear: true)
+                .padding(.horizontal, 16)
         }
         .padding(.vertical, 22)
         .frame(maxWidth: .infinity)
