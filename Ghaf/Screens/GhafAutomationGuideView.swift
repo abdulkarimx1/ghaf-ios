@@ -11,6 +11,7 @@ struct GhafAutomationGuideView: View {
     @State private var detectedBanks: [GhafBankSupportContact] = []
     @State private var chosenBanks: [String] = []
     @State private var showingBankPicker = false
+    @State private var bankSearch = ""
     @State private var expandedAutomation: Automation?
     @State private var refreshTick = false
 
@@ -106,6 +107,27 @@ struct GhafAutomationGuideView: View {
                         .multilineTextAlignment(.trailing)
                 }
             }
+            if chosenBanks.isEmpty {
+                VStack(spacing: 16) {
+                    Text(text("Choose the banks you get messages from", "اختر البنوك التي تصلك رسائل منها"))
+                        .font(GhafTypography.body(15, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    Button { showingBankPicker = true } label: {
+                        Label(text("Add a bank", "إضافة بنك"), systemImage: "plus")
+                            .font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .medium))
+                            .foregroundStyle(theme.primaryText)
+                            .padding(.horizontal, 20)
+                            .frame(height: 48)
+                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity)
+                .ghafCard(theme: theme)
+            } else {
             VStack(spacing: 0) {
                 ForEach(Array(chosenBanks.enumerated()), id: \.element) { index, name in
                     if let bank = GhafBankSupportDirectory.contacts.first(where: { $0.name == name }) {
@@ -132,6 +154,7 @@ struct GhafAutomationGuideView: View {
                 .buttonStyle(.plain)
             }
             .ghafCard(theme: theme)
+            }
         }
     }
 
@@ -144,13 +167,13 @@ struct GhafAutomationGuideView: View {
             GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: 40)
             VStack(alignment: .leading, spacing: 3) {
                 Text(ar ? bank.nameArabic : bank.name)
-                    .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
+                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
                 Text(bankStatus(enabled: enabled, lastSeen: lastSeen, skipped: skipped))
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Spacer(minLength: 4)
             Toggle(isOn: Binding(
@@ -192,8 +215,8 @@ struct GhafAutomationGuideView: View {
         HStack(spacing: 12) {
             GhafIconBadge(symbol: symbol, tint: theme.accent, size: 40, theme: theme)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
-                Text(hint).font(GhafTypography.body(12, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(1)
+                Text(title).font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
+                Text(hint).font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
             }
             Spacer(minLength: 4)
             runChip(timestamp)
@@ -213,9 +236,9 @@ struct GhafAutomationGuideView: View {
                     GhafIconBadge(symbol: automation == .bank ? "bell.badge" : "apple.logo", tint: theme.accent, size: 40, theme: theme)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(automation == .bank ? text("Bank notifications", "إشعارات البنك") : text("Apple Pay purchases", "مشتريات Apple Pay"))
-                            .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
+                            .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
                         Text(automation == .bank ? text("Pass supported alerts to Ghaf", "مرر التنبيهات المدعومة إلى غاف") : text("Capture Wallet transactions", "سجل معاملات المحفظة"))
-                            .font(GhafTypography.body(12, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(1)
+                            .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
                     }
                     Spacer(minLength: 4)
                     runChip(defaults.double(forKey: automation == .bank ? GhafAutomationStatus.messageRunKey : GhafAutomationStatus.walletRunKey))
@@ -237,29 +260,29 @@ struct GhafAutomationGuideView: View {
             : [text("Shortcuts › Automation › + › Transaction", "الاختصارات › الأتمتة › + › Transaction"),
                text("Choose all cards", "اختر كل البطاقات"),
                text("Add Ghaf › Add Apple Pay purchase", "أضف غاف › Add Apple Pay purchase")]
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                 HStack(alignment: .top, spacing: 10) {
                     Text("\(index + 1)")
-                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .bold))
+                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
                         .foregroundStyle(theme.accentContrast)
-                        .frame(width: 22, height: 22)
+                        .frame(width: 28, height: 28)
                         .background(theme.accent, in: Circle())
                     Text(line)
-                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
+                        .font(GhafTypography.body(15, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Button(action: openShortcuts) {
                 Text(text("Open Shortcuts", "فتح الاختصارات"))
-                    .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .bold))
-                    .foregroundStyle(theme.accentContrast)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                    .background(theme.accent, in: Capsule())
+                    .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.surface)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .background(theme.primaryText, in: Capsule())
             }
             .buttonStyle(.plain)
-            .padding(.top, 3)
+            .padding(.top, 8)
         }
         .padding(.horizontal, 16)
         .padding(.leading, 52)
@@ -277,9 +300,9 @@ struct GhafAutomationGuideView: View {
                     GhafIconBadge(symbol: "checkmark.shield", tint: theme.accent, size: 40, theme: theme)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(text("Send a test", "إرسال اختبار"))
-                            .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                            .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
                         Text(text("Run Ghaf’s action in Shortcuts with the text GHAF TEST", "شغّل إجراء غاف في الاختصارات بالنص GHAF TEST"))
-                            .font(GhafTypography.body(12, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
+                            .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
                     }
                     Spacer(minLength: 4)
                     runChip(defaults.double(forKey: GhafAutomationStatus.testRunKey), waiting: text("Waiting", "بانتظار الاختبار"))
@@ -294,31 +317,55 @@ struct GhafAutomationGuideView: View {
     }
 
     private var bankPicker: some View {
-        NavigationStack {
-            List(GhafBankSupportDirectory.contacts.sorted { $0.name < $1.name }) { bank in
-                Button {
-                    if chosenBanks.contains(bank.name) { chosenBanks.removeAll { $0 == bank.name } }
-                    else { chosenBanks.append(bank.name) }
-                    GhafAutomationBanks.save(chosenBanks)
-                } label: {
-                    HStack(spacing: 12) {
-                        GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: 36)
-                        Text(ar ? bank.nameArabic : bank.name).foregroundStyle(theme.primaryText)
-                        Spacer()
-                        if chosenBanks.contains(bank.name) { Image(systemName: "checkmark").foregroundStyle(theme.accent) }
+        let banks = GhafBankSupportDirectory.contacts.sorted { $0.name < $1.name }.filter { bank in
+            bankSearch.isEmpty || bank.name.localizedCaseInsensitiveContains(bankSearch) || bank.nameArabic.localizedCaseInsensitiveContains(bankSearch)
+        }
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+        return NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    TextField(text("Search banks", "ابحث عن بنك"), text: $bankSearch)
+                        .font(GhafTypography.body(17, languageCode: settings.languageCode))
+                        .padding(.horizontal, 16)
+                        .frame(height: 56)
+                        .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18))
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(banks) { bank in
+                            let isChosen = chosenBanks.contains(bank.name)
+                            Button {
+                                if isChosen { chosenBanks.removeAll { $0 == bank.name } }
+                                else { chosenBanks.append(bank.name) }
+                                GhafAutomationBanks.save(chosenBanks)
+                            } label: {
+                                VStack(spacing: 8) {
+                                    ZStack(alignment: .topTrailing) {
+                                        GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: 44)
+                                        if isChosen { Image(systemName: "checkmark.circle.fill").font(.system(size: 17)).foregroundStyle(theme.comfortable) }
+                                    }
+                                    Text(ar ? bank.nameArabic : bank.name)
+                                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .medium))
+                                        .foregroundStyle(theme.primaryText)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(width: 88, height: 88)
+                                .background(theme.surface, in: RoundedRectangle(cornerRadius: 18))
+                                .contentShape(RoundedRectangle(cornerRadius: 18))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(ar ? bank.nameArabic : bank.name)
+                            .accessibilityAddTraits(isChosen ? .isSelected : [])
+                        }
                     }
-                    .contentShape(Rectangle())
                 }
-                .listRowBackground(theme.surface)
-                .buttonStyle(.plain)
+                .padding(20)
             }
-            .scrollContentBackground(.hidden)
             .background(theme.background)
-            .navigationTitle(text("Add a bank", "إضافة بنك"))
+            .navigationTitle(text("Choose banks", "اختر البنوك"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(text("Done", "تم")) { showingBankPicker = false }
+                    Button(text("Done", "تم")) { showingBankPicker = false; bankSearch = "" }
                 }
             }
             .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
@@ -335,7 +382,6 @@ struct GhafAutomationGuideView: View {
         return GhafStatusChip(kind: working ? .working : .waiting,
                               title: working ? text("Working", "يعمل") : (waiting ?? text("Waiting", "بانتظار التشغيل")),
                               theme: theme, languageCode: settings.languageCode)
-            .scaleEffect(0.78, anchor: ar ? .leading : .trailing)
             .fixedSize()
     }
 
@@ -351,7 +397,7 @@ struct GhafAutomationGuideView: View {
         if !enabled { return text("Capture off · \(skipped) skipped", "التسجيل متوقف · تم تجاوز \(skipped)") }
         guard lastSeen > 0 else { return text("No messages yet", "لا توجد رسائل بعد") }
         let date = Date(timeIntervalSince1970: lastSeen)
-        return text("Last purchase \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))",
+        return text("Last message \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))",
                     "آخر عملية \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))")
     }
 
