@@ -54,7 +54,7 @@ struct GhafStatsView: View {
     }
 
     private var bucketUnit: Calendar.Component {
-        switch period { case .week, .month: .day; case .quarter: .weekOfYear; case .year: .month }
+        switch period { case .week, .month: .day; case .quarter, .year: .month }
     }
 
     private func expenses(in range: DateInterval) -> [GhafTransaction] {
@@ -131,19 +131,21 @@ struct GhafStatsView: View {
     private func axisLabel(_ date: Date) -> String {
         let locale = Locale(identifier: lang)
         switch period {
-        case .week: return date.formatted(.dateTime.weekday(.abbreviated).locale(locale))
+        case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
         case .month: return date.formatted(.dateTime.day().locale(locale))
-        case .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .quarter: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
         case .year: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
         }
     }
+
+    private func chartKey(_ date: Date) -> String { String(Int(date.timeIntervalSince1970)) }
 
     private func bucketLabel(_ date: Date) -> String {
         let locale = Locale(identifier: lang)
         switch period {
         case .week: return date.formatted(.dateTime.weekday(.wide).locale(locale))
         case .month: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
-        case .quarter: return (ar ? "أسبوع " : "Week of ") + date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .quarter: return date.formatted(.dateTime.month(.wide).locale(locale))
         case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
         }
     }
@@ -154,8 +156,10 @@ struct GhafStatsView: View {
         // Days that haven't happened yet aren't zero spending: the line stops at today, like Stocks.
         let data = all.filter { $0.start <= .now }
         // Plotted by a short label per bucket, not by date: date-unit marks by week or month crash Charts (NaN).
-        let selected = selectedLabel.flatMap { label in data.first { axisLabel($0.start) == label } }
-        let shown = Set(data.enumerated().filter { $0.offset % max(1, data.count / 6) == 0 }.map { axisLabel($0.element.start) })
+        let selected = selectedLabel.flatMap { key in data.first { chartKey($0.start) == key } }
+        let shown = Set(data.enumerated().filter { index, _ in
+            switch period { case .week, .quarter: true; case .month: index % 7 == 0; case .year: index % 3 == 0 }
+        }.map { chartKey($0.element.start) })
         let spent = total(current)
         let before = total(previous)
         let change = before > 0 ? (spent - before) / before : nil
