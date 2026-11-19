@@ -33,4 +33,5 @@ struct GhafStoredChatMessage: Codable {
     var isVoice = false
     var source: String?
     var chart: GhafChatChart?
+    var memoryID: UUID?
 }

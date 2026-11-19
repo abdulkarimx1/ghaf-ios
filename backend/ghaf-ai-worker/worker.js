@@ -4,14 +4,15 @@
 // GLOBAL_DAILY_LIMIT across all devices, counted in KV. Only those daily counters are stored;
 // questions and replies are not. The developer's APP_TOKEN (X-Ghaf-Token) skips the limits.
 //
-// Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, GLOBAL_DAILY_LIMIT.
+// Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, GLOBAL_DAILY_LIMIT,
+// LIVE_DAILY_CALLS, LIVE_GLOBAL_DAILY_CALLS, LIVE_VOICE_AR, LIVE_VOICE_EN.
 
 const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary, never full history
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
-    if (request.method !== "POST" || !["/chat", "/speak"].includes(path)) {
+    if (request.method !== "POST" || !["/chat", "/speak", "/live-token"].includes(path)) {
       return json({ error: "not_found" }, 404);
     }
     const developer = env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN;
@@ -24,6 +25,7 @@ export default {
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
     if (path === "/speak") return speak(body, env, developer, device);
+    if (path === "/live-token") return liveToken(body, env, developer, device);
     const { question, facts = "", direct = "", language = "en", history = [], mode = "chat" } = body;
     if (typeof question !== "string" || !question.trim()) return json({ error: "missing_question" }, 400);
 
@@ -99,6 +101,30 @@ export default {
   }
 };
 
+async function liveToken(body, env, developer, device) {
+  if (body.language !== "ar" && body.language !== "en") return json({ error: "bad_language" }, 400);
+  if (!developer) {
+    const limited = await overLimit(env, device, "l", Number(env.LIVE_DAILY_CALLS || 10), Number(env.LIVE_GLOBAL_DAILY_CALLS || 300));
+    if (limited) return json({ error: "daily_limit" }, 429);
+  }
+  if (!env.GEMINI_API_KEY) return json({ error: "upstream" }, 502);
+  const expires = new Date(Date.now() + 30 * 60_000).toISOString();
+  let response;
+  try { response = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      uses: 1, expireTime: expires, newSessionExpireTime: new Date(Date.now() + 60_000).toISOString(),
+      liveConnectConstraints: { model: "models/gemini-3.8-live", config: { responseModalities: ["AUDIO"], sessionResumption: {} } }
+    })
+  }); } catch { return json({ error: "upstream" }, 502); }
+  if (!response.ok) return json({ error: "upstream" }, 502);
+  const data = await response.json().catch(() => null);
+  if (!data?.name) return json({ error: "upstream" }, 502);
+  return json({ token: data.name, model: "models/gemini-3.8-live", expiresAt: expires,
+    voice: body.language === "ar" ? env.LIVE_VOICE_AR || "Orus" : env.LIVE_VOICE_EN || "Puck" });
+}
+
 // Text to speech for Ghaf AI's voice mode. Gemini's speech model first (Arabic and English);
 // Deepgram Aura on Workers AI for English when Gemini is unavailable. Returns audio bytes.
 async function speak(body, env, developer, device) {
@@ -116,11 +142,11 @@ async function speak(body, env, developer, device) {
       body: JSON.stringify({
         // The style line steers delivery: Gulf-friendly Arabic, like a friend talking, not a newsreader.
         contents: [{ parts: [{ text: (arabic
-          ? "اقرأ النص التالي بصوت دافئ وهادئ ولهجة خليجية خفيفة، كأنك صديق يتكلم بطبيعية وليس مذيع أخبار: "
+          ? "اقرأ النص التالي بصوت شاب إماراتي من أبوظبي، دافئ وعفوي، بلهجة ونطق خليجي إماراتي (مثل شلونك، إن شاء الله، زين، وايد)، وليس مصرياً أو شامياً أو فصحى مذيع أخبار: "
           : "Read this like a friendly, relaxed person talking, warm and natural, not like an announcer: ") + text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: arabic ? "Kore" : "Aoede" } } }
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: arabic ? env.TTS_VOICE_AR || "Orus" : "Aoede" } } }
         }
       })
     });
@@ -133,7 +159,8 @@ async function speak(body, env, developer, device) {
   }
   if (!arabic && env.AI) {
     try {
-      const audio = await env.AI.run("@cf/deepgram/aura-1", { text, speaker: "asteria" }, { returnRawResponse: true });
+      // Deepgram Aura is English-only.
+      const audio = await env.AI.run("@cf/deepgram/aura-1", { text, speaker: "orion" }, { returnRawResponse: true });
       const bytes = audio instanceof Response ? await audio.arrayBuffer() : audio;
       if (bytes && bytes.byteLength > 0) return new Response(bytes, { headers: { "Content-Type": "audio/mpeg", "X-Ghaf-Voice": "aura" } });
     } catch (error) { /* fall through */ }
@@ -154,13 +181,13 @@ function wav(pcm) {
 
 // Counts this request and reports which daily limit, if any, it would exceed.
 // KV is eventually consistent, so a burst can overshoot slightly; good enough for a free-quota guard.
-async function overLimit(env, device, kind = "d", deviceLimit = Number(env.FREE_DAILY_LIMIT || 20)) {
+async function overLimit(env, device, kind = "d", deviceLimit = Number(env.FREE_DAILY_LIMIT || 20), globalLimit = Number(env.GLOBAL_DAILY_LIMIT || 1000)) {
   const day = new Date().toISOString().slice(0, 10);
-  const deviceKey = `${kind}:${day}:${device}`, globalKey = `g:${day}`;
+  const deviceKey = `${kind}:${day}:${device}`, globalKey = kind === "l" ? `gl:${day}` : `g:${day}`;
   const [used, all] = await Promise.all([env.USAGE.get(deviceKey), env.USAGE.get(globalKey)]);
   const deviceCount = Number(used || 0), globalCount = Number(all || 0);
   if (deviceCount >= deviceLimit) return "device";
-  if (globalCount >= Number(env.GLOBAL_DAILY_LIMIT || 1000)) return "global";
+  if (globalCount >= globalLimit) return "global";
   const ttl = { expirationTtl: 172800 };
   await Promise.all([env.USAGE.put(deviceKey, String(deviceCount + 1), ttl), env.USAGE.put(globalKey, String(globalCount + 1), ttl)]);
   return null;

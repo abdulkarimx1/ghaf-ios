@@ -21,6 +21,7 @@ private struct GhafChatMessage: Identifiable {
     var savedIDs: [UUID] = []
     /// "From 312 of your transactions · November", on answers computed from the ledger.
     var source: String?
+    var memoryID: UUID?
 
     init(isUser: Bool, text: String, isVoice: Bool = false, isStreaming: Bool = false,
          drafts: [GhafVoiceTransactionDraft] = [], chart: GhafChatChart? = nil, suggestions: [String] = []) {
@@ -31,10 +32,11 @@ private struct GhafChatMessage: Identifiable {
     init(_ stored: GhafStoredChatMessage) {
         self.init(isUser: stored.isUser, text: stored.text, isVoice: stored.isVoice, chart: stored.chart)
         source = stored.source
+        memoryID = stored.memoryID
     }
 
     var stored: GhafStoredChatMessage {
-        GhafStoredChatMessage(isUser: isUser, text: text, isVoice: isVoice, source: source, chart: chart)
+        GhafStoredChatMessage(isUser: isUser, text: text, isVoice: isVoice, source: source, chart: chart, memoryID: memoryID)
     }
 }
 
@@ -47,28 +49,44 @@ struct GhafAIView: View {
     @Query private var subscriptions: [GhafSubscription]
     @Query(sort: \MerchantCategoryRule.hits, order: .reverse) private var rules: [MerchantCategoryRule]
     @Query(sort: \GhafChat.updatedAt, order: .reverse) private var chats: [GhafChat]
+    @Query(sort: \GhafMemory.updatedAt, order: .reverse) private var memories: [GhafMemory]
     /// The saved chat the open conversation belongs to; nil until its first message is kept.
     @State private var chatID: UUID?
     @State private var showHistory = false
 
     @StateObject private var assistant = GhafAssistant()
     @StateObject private var recorder = GhafSpeechRecorder()
+    @StateObject private var liveCall = GhafLiveCall()
     @State private var prompt = ""
     @State private var messages: [GhafChatMessage] = []
     @State private var isThinking = false
     @State private var replyTask: Task<Void, Never>?
     @AppStorage("ghaf.ai.speakReplies") private var speakReplies = false
+    @AppStorage(GhafMemoryStore.enabledKey) private var memoryEnabled = GhafMemoryStore.defaultEnabled
+    @AppStorage("ghaf.ai.liveConsentAccepted") private var liveConsentAccepted = false
     @State private var synthesizer = AVSpeechSynthesizer()
     @State private var speechDone = GhafSpeechDone()
     /// Set when Ghaf asked something out loud: it listens for the answer once it stops speaking.
     @State private var listenAfterSpeaking = false
     /// Hands-free conversation: listen, answer aloud, listen again, until the user ends it.
     @State private var voiceMode = false
+    @State private var liveCallActive = false
+    @State private var fallbackMuted = false
+    @State private var callStartedAt = Date()
+    @State private var localCallElapsed = 0
+    @State private var fallbackTimer: Task<Void, Never>?
+    @State private var liveInputMessageID: UUID?
+    @State private var liveOutputMessageID: UUID?
+    @State private var liveInputText = ""
+    @State private var liveOutputText = ""
+    @State private var liveGroundingSources: [String] = []
+    @State private var liveFacts = ""
     @FocusState private var inputFocused: Bool
     @State private var savedCount = 0
     /// Model availability is costly to query; read it when the tab appears, not on every render.
     @State private var engine: GhafAssistant.Engine = .basic
     @State private var offerCloud = false
+    @State private var offerLiveConsent = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let settings: GhafSettings
@@ -102,7 +120,11 @@ struct GhafAIView: View {
                     }
                 }
                 }
-                inputBar
+                Group {
+                    if voiceMode { callBar.transition(.opacity) }
+                    else { inputBar.transition(.opacity) }
+                }
+                .animation(.easeInOut(duration: 0.2), value: voiceMode)
             }
             .background {
                 ZStack(alignment: .bottom) {
@@ -122,11 +144,6 @@ struct GhafAIView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .environment(\.colorScheme, .dark)
-            .overlay {
-                if voiceMode {
-                    AnyView(voiceModeView).transition(.opacity.combined(with: .scale(scale: 1.04)))
-                }
-            }
             .sensoryFeedback(.success, trigger: savedCount)
             .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
             .onChange(of: recorder.finishedSpeakingCount) { _, _ in finishVoice() }
@@ -137,10 +154,20 @@ struct GhafAIView: View {
             .onDisappear {
                 recorder.reset()
                 stopSpeaking()
+                liveCall.end()
                 persistChat()
             }
             .onChange(of: isThinking) { _, thinking in if !thinking { persistChat() } }
             .onChange(of: messages.count) { _, _ in if !isThinking { persistChat() } }
+            .onChange(of: liveCall.phase) { _, phase in
+                if case .ended(let reason) = phase, liveCallActive {
+                    liveCallActive = false
+                    if reason == "audio_interruption" || reason == "connection_lost" {
+                        appendCallNote(ar ? "انتهت المكالمة الصوتية." : "The voice call ended.")
+                    }
+                    exitVoiceMode()
+                }
+            }
         }
     }
 
@@ -199,13 +226,21 @@ struct GhafAIView: View {
                     .accessibilityLabel(ar ? "محادثة جديدة، المحادثة محفوظة" : "New chat, this one is saved")
             }
             Spacer()
-            if !messages.isEmpty {
+            if !messages.isEmpty || voiceMode {
                 HStack(spacing: 8) {
                     GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                        .frame(width: 26, height: 26)
-                    Text("Ghaf AI")
-                        .font(GhafTypography.heading(17, languageCode: "en"))
-                        .foregroundStyle(theme.primaryText)
+                        .frame(width: voiceMode ? 64 : 26, height: voiceMode ? 64 : 26)
+                        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.72), value: voiceMode)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Ghaf AI")
+                            .font(GhafTypography.heading(17, languageCode: "en"))
+                            .foregroundStyle(theme.primaryText)
+                        if voiceMode {
+                            Text(liveStatus)
+                                .font(GhafTypography.body(11, languageCode: settings.languageCode))
+                                .foregroundStyle(theme.accent)
+                        }
+                    }
                 }
                 Spacer()
             }
@@ -230,6 +265,12 @@ struct GhafAIView: View {
             }
         } message: {
             Text(GhafCloudAI.disclosure(ar: ar) + (ar ? " يمكنك إيقافه من «ما تعلّمه غاف»." : " Turn it off anytime in What Ghaf learned."))
+        }
+        .confirmationDialog(ar ? "مكالمة غاف المباشرة" : "Ghaf Live call", isPresented: $offerLiveConsent, titleVisibility: .visible) {
+            Button(ar ? "بدء المكالمة" : "Start call") { liveConsentAccepted = true; Task { await beginVoiceCall() } }
+            Button(ar ? "إلغاء" : "Cancel", role: .cancel) { exitVoiceMode() }
+        } message: {
+            Text(GhafCloudAI.liveDisclosure(ar: ar))
         }
     }
 
@@ -299,7 +340,8 @@ struct GhafAIView: View {
             GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
                 .frame(width: 150, height: 150)
                 .padding(.top, 40)
-            let name = settings.userName.split(separator: " ").first.map(String.init) ?? ""
+            let name = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
+                ?? settings.userName.split(separator: " ").first.map(String.init) ?? ""
             Text(name.isEmpty ? (ar ? "أهلاً" : "Hello") : (ar ? "أهلاً \(name)" : "Hello \(name)"))
                 .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .medium))
                 .foregroundStyle(theme.secondaryText)
@@ -395,6 +437,19 @@ struct GhafAIView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             if !item.drafts.isEmpty { draftCard(message) }
+            if let memoryID = item.memoryID {
+                Button {
+                    if let memory = memories.first(where: { $0.id == memoryID }) { modelContext.delete(memory) }
+                    message.wrappedValue.memoryID = nil
+                    try? modelContext.save()
+                    persistChat()
+                } label: {
+                    Label(ar ? "انحفظ في الذاكرة · تراجع" : "Saved to memory · Undo", systemImage: "brain.head.profile")
+                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .medium))
+                        .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity, alignment: item.isUser ? .trailing : .leading)
         .padding(item.isUser ? .leading : .trailing, 40)
@@ -567,12 +622,10 @@ struct GhafAIView: View {
             .padding(6)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
             .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-            .overlay {
-                let lit = recorder.isRecording || isThinking || inputFocused
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .stroke(lit ? theme.accent.opacity(0.8) : .white.opacity(0.28), lineWidth: lit ? 1.5 : 1)
-                    .allowsHitTesting(false)
-            }
+            .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke((recorder.isRecording || isThinking || inputFocused) ? theme.accent.opacity(0.8) : .white.opacity(0.28),
+                        lineWidth: (recorder.isRecording || isThinking || inputFocused) ? 1.5 : 1)
+                .allowsHitTesting(false))
             .shadow(color: theme.accent.opacity(recorder.isRecording || isThinking ? 0.35 : 0), radius: 14)
             .animation(.easeInOut(duration: 0.35), value: recorder.isRecording || isThinking || inputFocused)
         }
@@ -602,6 +655,7 @@ struct GhafAIView: View {
         let letters = text.filter(\.isLetter).count
         let understood = GhafMessageIntent.isQuestion(text)
             || !GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).isEmpty
+            || MemoryIntent.parse(text) != nil
             || ChatCorrection.parse(text, recent: recentDraftRefs().map(\.name)) != nil
             || ChatEdit.parse(text, recent: recentDraftRefs().map(\.name)) != nil
         if (letters >= 2 || ChatEdit.parse(text, recent: []) == .confirm) && understood {
@@ -718,6 +772,16 @@ struct GhafAIView: View {
         guard !text.isEmpty, !isThinking else { return }
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
+        if let intent = MemoryIntent.parse(text) {
+            if memoryEnabled {
+                handleMemoryIntent(intent, source: "said")
+            } else {
+                let note = ar ? "الذاكرة متوقفة. يمكنك تشغيلها من المزيد ← ما تعلّمه غاف." : "Memory is off. Turn it on in More → What Ghaf learned."
+                messages.append(GhafChatMessage(isUser: false, text: note))
+                if voiceMode && !liveCallActive { listenAfterSpeaking = true; speak(note, force: true) }
+            }
+            return
+        }
         if applyEdit(text, isVoice: isVoice) { return }
         if applyCorrection(text) { return }
 
@@ -780,7 +844,8 @@ struct GhafAIView: View {
         }
 
         let history = messages.dropLast().filter { !$0.text.isEmpty }.map { (isUser: $0.isUser, text: $0.text) }
-        let facts = GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions)
+        let facts = GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions,
+                                              memories: memoryEnabled ? memories : [])
         isThinking = true
         let direct = GhafLedgerAnswers.answer(to: resolved, accounts: accounts, transactions: transactions,
                                               subscriptions: subscriptions, currency: settings.currency,
@@ -793,6 +858,7 @@ struct GhafAIView: View {
                 GhafLedgerContext.subscriptions = subscriptions
                 GhafLedgerContext.currency = settings.currency
                 GhafLedgerContext.languageCode = settings.languageCode
+                GhafLedgerContext.modelContext = modelContext
                 GhafLedgerContext.requestedChart = nil
                 for try await partial in assistant.reply(to: text, facts: facts, direct: direct, history: Array(history), languageCode: settings.languageCode) {
                     if let index {
@@ -824,6 +890,33 @@ struct GhafAIView: View {
                 speak(messages[index].text, force: isVoice)
             }
             isThinking = false
+        }
+    }
+
+    private func handleMemoryIntent(_ intent: MemoryIntent, source: String) {
+        switch intent {
+        case .remember(let text), .name(let text):
+            let kind = intent.isName ? "name" : "fact"
+            do {
+                let memory = try GhafMemoryStore.remember(text, kind: kind, source: source, in: modelContext)
+                var answer = GhafChatMessage(isUser: false, text: ar ? "تمام، بحفظ هالمعلومة." : "Got it. I’ll remember that.")
+                answer.memoryID = memory.id
+                messages.append(answer)
+            } catch {
+                Logger(subsystem: "com.ghaf.app", category: "ai").error("Saving memory failed: \(String(describing: error), privacy: .public)")
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر حفظها. حاول مرة ثانية." : "I couldn't save that memory. Try again."))
+            }
+        case .forget(let text):
+            do {
+                try GhafMemoryStore.forget(text, in: modelContext)
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تم، نسيت هالمعلومة." : "Done. I’ve forgotten that."))
+            } catch {
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر نسيانها. حاول مرة ثانية." : "I couldn't forget that. Try again."))
+            }
+        }
+        if voiceMode && !liveCallActive, let reply = messages.last(where: { !$0.isUser })?.text {
+            listenAfterSpeaking = true
+            speak(reply, force: true)
         }
     }
 
@@ -889,13 +982,172 @@ struct GhafAIView: View {
     private func enterVoiceMode() {
         inputFocused = false
         GhafCloudAI.conversational = true
-        GhafCloudVoice.shared.onLevel = { level in speechDone.level = level }
-        withAnimation(.spring(duration: 0.45)) { voiceMode = true }
-        startVoice()
+        if reduceMotion { voiceMode = true } else { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { voiceMode = true } }
+        callStartedAt = .now
+        localCallElapsed = 0
+        fallbackTimer?.cancel()
+        fallbackTimer = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard voiceMode else { return }
+                localCallElapsed = Int(Date().timeIntervalSince(callStartedAt))
+                if !liveCallActive && localCallElapsed >= 1_800 {
+                    appendCallNote(ar ? "انتهى وقت المكالمة." : "The call time limit has ended.")
+                    exitVoiceMode()
+                    return
+                }
+            }
+        }
+        liveInputText = ""; liveOutputText = ""; liveGroundingSources = []
+        if GhafCloudAI.isEnabled && !liveConsentAccepted { offerLiveConsent = true }
+        else { Task { await beginVoiceCall() } }
+    }
+
+    private func beginVoiceCall() async {
+        guard GhafCloudAI.isEnabled else {
+            appendCallNote(ar ? "المكالمة المباشرة تحتاج الذكاء السحابي — أكمل بالصوت العادي." : "Live calls need Cloud AI — using standard voice.")
+            startVoice()
+            return
+        }
+        liveFacts = GhafCloudAI.minimized(GhafFinanceFacts.summary(accounts: accounts, transactions: transactions,
+                                                                   subscriptions: subscriptions,
+                                                                   memories: memoryEnabled ? memories : []))
+        if liveGroundingSources.isEmpty { liveGroundingSources = [liveFacts] }
+        let firstName = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
+            ?? settings.userName
+        let date = Date.now.formatted(date: .complete, time: .omitted)
+        let persona = ar
+            ? "أنت غاف، شاب إماراتي من أبوظبي، ودود وجمله قصيرة وطبيعية. إذا تحدث المستخدم بالعربية، أجب باللهجة الخليجية الإماراتية، لا بالفصحى أو المصرية أو الشامية. إذا تحدث بالإنجليزية، أجب بإنجليزية بسيطة وودودة. كل رقم مالي يجب أن يأتي من نتيجة أداة أو من كتلة الحقائق؛ إذا لم تكن متأكداً، استدعِ get_finance_answer. استخدم remember أو forget فقط عندما يطلب المستخدم ذلك صراحةً، ولا تستنتج معلومات للحفظ. لا تسجل عملية دون تأكيد المستخدم على البطاقة."
+            : "You are Ghaf, a friendly young Emirati man from Abu Dhabi. Use short, natural spoken sentences. Reply in Emirati Gulf Arabic when the user speaks Arabic, never MSA, Egyptian or Levantine. Reply in plain friendly English when they speak English. Every money figure must come from a tool result or the facts block; when unsure, call get_finance_answer. Use remember or forget only when the user explicitly asks; never infer facts to save. Never save a transaction without the user's confirmation on its card."
+        let nameLine = firstName.isEmpty ? "" : (ar ? "اسم المستخدم: \(firstName)." : "User's name: \(firstName).")
+        let instruction = String("\(persona)\n\(nameLine)\nToday's date: \(date).\n\nFACTS:\n\(liveFacts)".prefix(5_900))
+        configureLiveCallbacks()
+        do {
+            try await liveCall.start(language: ar ? "ar" : "en", systemInstruction: instruction, tools: liveToolDeclarations)
+            liveCallActive = true
+        } catch GhafCloudAI.Failure.dailyLimit {
+            appendCallNote(ar ? "وصلت لحد المكالمات اليوم — أكمل بالصوت العادي." : "You've reached today's Live call limit — using standard voice.")
+            startVoice()
+        } catch {
+            appendCallNote(ar ? "تعذر بدء المكالمة المباشرة — أكمل بالصوت العادي." : "Live call couldn't connect — using standard voice.")
+            startVoice()
+        }
+    }
+
+    private var liveToolDeclarations: [LiveFunctionDeclaration] {
+        func schema(_ properties: [String: LiveJSON], required: [String]) -> [String: LiveJSON] {
+            ["type": .string("OBJECT"), "properties": .object(properties), "required": .array(required.map(LiveJSON.string))]
+        }
+        let string: LiveJSON = .object(["type": .string("STRING")])
+        return [
+            LiveFunctionDeclaration(name: "get_finance_answer", description: "Answer a financial question from deterministic ledger records.", parameters: schema(["question": string], required: ["question"])),
+            LiveFunctionDeclaration(name: "show_chart", description: "Insert an inline chart built from the user's transactions.", parameters: schema(["question": string, "style": .object(["type": .string("STRING"), "enum": .array(["bar", "donut", "line", "rose"].map(LiveJSON.string))])], required: ["question"])),
+            LiveFunctionDeclaration(name: "log_transaction", description: "Parse a transaction and show an editable confirmation card. Never save it.", parameters: schema(["text": string], required: ["text"])),
+            LiveFunctionDeclaration(name: "remember", description: "Save a short user fact or preference they explicitly asked Ghaf to remember.", parameters: schema(["fact": string], required: ["fact"])),
+            LiveFunctionDeclaration(name: "forget", description: "Forget a user fact they explicitly asked Ghaf to forget.", parameters: schema(["fact": string], required: ["fact"]))
+        ]
+    }
+
+    private func configureLiveCallbacks() {
+        liveCall.onInputTranscript = { text, final in
+            if !text.isEmpty {
+                liveInputText += text
+                if liveInputMessageID == nil {
+                    let message = GhafChatMessage(isUser: true, text: text, isVoice: true)
+                    messages.append(message); liveInputMessageID = message.id
+                } else if let id = liveInputMessageID, let index = messages.firstIndex(where: { $0.id == id }) {
+                    messages[index].text += text
+                }
+                liveGroundingSources.append(text)
+            }
+            if final {
+                if let id = liveInputMessageID, let index = messages.firstIndex(where: { $0.id == id }) { messages[index].isVoice = true }
+                liveInputMessageID = nil; liveInputText = ""
+            }
+        }
+        liveCall.onOutputTranscript = { text, final in
+            if !text.isEmpty {
+                liveOutputText += text
+                if liveOutputMessageID == nil {
+                    var message = GhafChatMessage(isUser: false, text: text, isVoice: true, isStreaming: true)
+                    message.source = nil
+                    messages.append(message); liveOutputMessageID = message.id
+                } else if let id = liveOutputMessageID, let index = messages.firstIndex(where: { $0.id == id }) {
+                    messages[index].text += text
+                }
+            }
+            if final, let id = liveOutputMessageID, let index = messages.firstIndex(where: { $0.id == id }) {
+                let unsupported = GroundedNumbers.unsupported(in: messages[index].text, sources: liveGroundingSources)
+                if !unsupported.isEmpty {
+                    messages[index].text += ar
+                        ? "\n\n(بعض الأرقام هنا غير موجودة في سجلاتك في غاف، فتحقق منها.)"
+                        : "\n\n(Some figures here aren't in your Ghaf records, so double-check them.)"
+                }
+                messages[index].isStreaming = false
+                liveOutputMessageID = nil; liveOutputText = ""
+            }
+        }
+        liveCall.onToolCall = { call in await runLiveTool(call) }
+    }
+
+    private func runLiveTool(_ call: LiveToolCall) async -> [String: LiveJSON] {
+        func value(_ key: String) -> String { if case .string(let text) = call.args[key] { return text }; return "" }
+        let response: String
+        switch call.name {
+        case "get_finance_answer":
+            let question = value("question")
+            let answer = GhafLedgerAnswers.answer(to: question, accounts: accounts, transactions: transactions,
+                                                  subscriptions: subscriptions, currency: settings.currency,
+                                                  languageCode: settings.languageCode) ?? (ar ? "لا توجد بيانات كافية للإجابة." : "The records don't contain an answer.")
+            liveGroundingSources.append(answer)
+            response = answer
+        case "show_chart":
+            let question = value("question") + " " + value("style")
+            if let chart = GhafChatChartBuilder.chart(for: question, transactions: transactions,
+                                                     currency: settings.currency, languageCode: settings.languageCode) {
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "هذا الرسم من سجلاتك." : "Here is a chart from your records.", chart: chart))
+                response = chart.points.prefix(6).map { "\($0.label): \(GhafFormat.money(Decimal($0.value), currency: chart.currency, languageCode: settings.languageCode))" }.joined(separator: ", ")
+                liveGroundingSources.append(response)
+            } else { response = ar ? "لا توجد بيانات للرسم." : "There is no data to chart." }
+        case "log_transaction":
+            let text = value("text")
+            let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
+                var result = draft
+                result.merchant = Self.tidyTitle(draft.merchant)
+                if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
+                    result.category = match.category; result.subcategory = match.subcategory
+                } else { result.category = draft.direction == "credit" ? "Other Income" : "Other" }
+                return result
+            }
+            if !drafts.isEmpty {
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "وجدت عملية. راجعها ثم احفظ:" : "I found a transaction. Review it, then save:", drafts: drafts))
+                response = ar ? "بانتظار تأكيد المستخدم على بطاقة العملية." : "Awaiting the user's confirmation on the transaction card."
+            } else { response = ar ? "لم أجد عملية واضحة." : "I couldn't parse a clear transaction." }
+        case "remember":
+            guard memoryEnabled else { response = ar ? "الذاكرة متوقفة." : "Memory is disabled."; return ["result": .string(response)] }
+            do {
+                let memory = try GhafMemoryStore.remember(value("fact"), source: "confirmed", in: modelContext)
+                var message = GhafChatMessage(isUser: false, text: ar ? "تمام، بحفظ هالمعلومة." : "Got it. I’ll remember that.")
+                message.memoryID = memory.id; messages.append(message)
+                response = ar ? "انحفظت على هذا الجهاز." : "Saved on this iPhone."
+            } catch { response = ar ? "تعذر الحفظ." : "Could not save memory." }
+        case "forget":
+            do { try GhafMemoryStore.forget(value("fact"), in: modelContext); response = ar ? "نسيت المعلومة." : "Forgotten." }
+            catch { response = ar ? "تعذر النسيان." : "Could not forget that." }
+        default: response = "Unknown tool."
+        }
+        return ["result": .string(response)]
+    }
+
+    private func appendCallNote(_ text: String) {
+        withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: text)) }
     }
 
     private func exitVoiceMode() {
-        withAnimation(.spring(duration: 0.4)) { voiceMode = false }
+        liveCall.end()
+        fallbackTimer?.cancel(); fallbackTimer = nil
+        if reduceMotion { voiceMode = false } else { withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) { voiceMode = false } }
+        liveCallActive = false
         GhafCloudAI.conversational = false
         GhafCloudVoice.shared.stop()
         speechDone.speaking = false
@@ -905,107 +1157,106 @@ struct GhafAIView: View {
     }
 
     private var orbMood: GhafAIOrb.Mood {
+        if voiceMode {
+            switch liveCall.phase {
+            case .connecting, .thinking: return .thinking
+            case .listening, .reconnecting: return .listening
+            case .speaking: return .speaking
+            case .ended: break
+            }
+        }
         if recorder.isRecording { return .listening }
         if isThinking { return .thinking }
         if speechDone.speaking { return .speaking }
         return .idle
     }
 
-    private var orbLevel: Float { recorder.isRecording ? recorder.level : speechDone.level }
-
-    private var voiceStatus: String {
-        if recorder.isRecording { return ar ? "أستمع…" : "Listening…" }
-        if isThinking { return ar ? "أفكر…" : "Thinking…" }
-        if speechDone.speaking { return ar ? "أتكلم… اضغط للمقاطعة" : "Speaking… tap to interrupt" }
-        return ar ? "اضغط على الدائرة للتحدث" : "Tap the orb to talk"
+    private var orbLevel: Float {
+        if liveCallActive { return liveCall.phase == .speaking ? liveCall.outputLevel : liveCall.inputLevel }
+        return recorder.isRecording ? recorder.level : speechDone.level
     }
 
-    private var voiceModeView: some View {
-        let lastReply = messages.last { !$0.isUser }?.text ?? ""
-        return ZStack {
-            GhafAIView.night.opacity(0.98).ignoresSafeArea()
-            RadialGradient(colors: [theme.accent.opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 340)
-                .ignoresSafeArea()
-            VStack(spacing: 22) {
-                Text("Ghaf AI")
-                    .font(GhafTypography.heading(18, languageCode: "en"))
-                    .foregroundStyle(theme.secondaryText)
-                    .padding(.top, 24)
-                Spacer()
+    private var liveStatus: String {
+        if liveCallActive {
+            switch liveCall.phase {
+            case .listening: return ar ? "أسمعك…" : "Listening…"
+            case .speaking: return ar ? "غاف يتكلم — تكلم للمقاطعة" : "Ghaf is speaking — talk to interrupt"
+            case .thinking: return ar ? "أشيّك على سجلاتك…" : "Checking your records…"
+            case .reconnecting: return ar ? "أعيد الاتصال…" : "Reconnecting…"
+            case .connecting: return ar ? "جاري الاتصال…" : "Connecting…"
+            case .ended: break
+            }
+        }
+        if recorder.isRecording { return ar ? "أسمعك…" : "Listening…" }
+        if isThinking { return ar ? "أشيّك على سجلاتك…" : "Checking your records…" }
+        if speechDone.speaking { return ar ? "غاف يتكلم — تكلم للمقاطعة" : "Ghaf is speaking — talk to interrupt" }
+        return ar ? "جاهز" : "Ready"
+    }
+
+    private var callBar: some View {
+        VStack(spacing: 6) {
+            if !GhafCloudAI.isEnabled {
                 Button {
-                    // Tap to interrupt Ghaf, or to start talking.
-                    if speechDone.speaking {
-                        synthesizer.stopSpeaking(at: .immediate); GhafCloudVoice.shared.stop()
-                        speechDone.speaking = false; startVoice()
-                    }
-                    else if recorder.isRecording { finishVoice() }
-                    else if !isThinking { startVoice() }
+                    offerCloud = true
                 } label: {
-                    GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                        .frame(width: 240, height: 240)
+                    Text(ar ? "الصوت العادي · فعّل الذكاء السحابي للمكالمة المباشرة" : "Standard voice · Turn on Cloud AI for Live calls")
+                        .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .semibold))
+                        .foregroundStyle(theme.accent)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(voiceStatus)
-                Text(voiceStatus)
-                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .bold))
-                    .foregroundStyle(theme.accent)
-                    .contentTransition(.opacity)
-                if !GhafCloudAI.isEnabled {
-                    Button {
-                        UserDefaults.standard.set(true, forKey: GhafCloudAI.enabledKey)
-                        engine = assistant.engine
-                    } label: {
-                        Label(ar ? "فعّل الصوت الطبيعي والذكاء السحابي" : "Turn on the natural voice and Cloud AI", systemImage: "waveform.badge.plus")
-                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
-                            .padding(.horizontal, 16).frame(minHeight: 44)
-                            .background(theme.accent.opacity(0.12), in: Capsule())
-                            .foregroundStyle(theme.accent)
-                    }
-                    .buttonStyle(.ghafPress)
-                    Text(GhafCloudAI.disclosure(ar: ar))
-                        .font(GhafTypography.body(11, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.secondaryText)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 28)
-                        .lineLimit(4)
-                }
-                Text(recorder.isRecording ? recorder.transcript : lastReply)
-                    .font(GhafTypography.body(recorder.isRecording ? 20 : 17, languageCode: settings.languageCode,
-                                              weight: recorder.isRecording ? .semibold : .regular))
-                    .foregroundStyle(recorder.isRecording ? theme.primaryText : theme.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(6)
-                    .padding(.horizontal, 28)
-                    .frame(minHeight: 120, alignment: .top)
-                    .animation(.easeOut(duration: 0.2), value: recorder.transcript)
-                Spacer()
-                HStack(spacing: 40) {
-                    Button {
-                        speakReplies.toggle()
-                        if !speakReplies { stopSpeaking() }
-                    } label: {
-                        Image(systemName: speechDone.speaking ? "speaker.wave.2.fill" : "speaker.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(theme.primaryText)
-                            .frame(width: 64, height: 64)
-                            .background(.white.opacity(0.1), in: Circle())
-                    }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "الصوت" : "Sound")
-                    Button { exitVoiceMode() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 64, height: 64)
-                            .background(theme.over, in: Circle())
-                    }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "إنهاء المحادثة الصوتية" : "End voice mode")
-                }
-                .padding(.bottom, 36)
             }
-            .frame(maxWidth: 520)
+            HStack(spacing: 8) {
+                Button {
+                    if liveCallActive { liveCall.setMuted(!liveCall.isMuted) }
+                    else {
+                        fallbackMuted.toggle()
+                        if fallbackMuted { recorder.reset() }
+                        else { startVoice() }
+                    }
+                } label: {
+                    Image(systemName: (liveCallActive ? liveCall.isMuted : fallbackMuted) ? "mic.slash.fill" : "mic.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.ghafPress)
+                .accessibilityLabel((liveCallActive ? liveCall.isMuted : fallbackMuted)
+                                    ? (ar ? "إلغاء كتم الميكروفون" : "Unmute microphone")
+                                    : (ar ? "كتم الميكروفون" : "Mute microphone"))
+                Spacer(minLength: 0)
+                GhafLevelBars(level: liveCallActive ? orbLevel : recorder.level, tint: theme.accent)
+                    .frame(maxWidth: 110)
+                Text(callElapsedText)
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(theme.secondaryText)
+                    .monospacedDigit()
+                Spacer(minLength: 0)
+                Button { exitVoiceMode() } label: {
+                    Image(systemName: "phone.down.fill")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(theme.over, in: Circle())
+                }
+                .buttonStyle(.ghafPress)
+                .accessibilityLabel(ar ? "إنهاء المكالمة" : "End call")
+            }
+            .padding(6)
+            .frame(maxWidth: .infinity)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(.white.opacity(0.28)))
         }
+        .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 10)
+    }
+
+    private var callElapsed: Int {
+        liveCallActive ? Int(liveCall.elapsed) : localCallElapsed
+    }
+
+    private var callElapsedText: String {
+        let seconds = callElapsed
+        return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
     }
 
     private func stopSpeaking() {

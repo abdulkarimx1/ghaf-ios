@@ -6,9 +6,12 @@ struct GhafLearnedRulesView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \MerchantCategoryRule.updatedAt, order: .reverse) private var rules: [MerchantCategoryRule]
+    @Query(sort: \GhafMemory.updatedAt, order: .reverse) private var memories: [GhafMemory]
     @State private var confirmReset = false
+    @State private var confirmForgetMemories = false
     @AppStorage(MerchantCategorizer.modelLearningKey) private var modelLearning = true
     @AppStorage(GhafCloudAI.enabledKey) private var cloudEnabled = false
+    @AppStorage(GhafMemoryStore.enabledKey) private var memoryEnabled = GhafMemoryStore.defaultEnabled
     let settings: GhafSettings
 
     private var ar: Bool { settings.languageCode == "ar" }
@@ -25,6 +28,26 @@ struct GhafLearnedRulesView: View {
                     .foregroundStyle(theme.secondaryText)
             }
             Section {
+                Toggle(ar ? "دع غاف يتذكر" : "Let Ghaf remember", isOn: $memoryEnabled)
+            } footer: {
+                Text(ar ? "تُحفظ الذكريات على هذا الـ iPhone. عند تشغيل الذكاء السحابي، تُرسل مع أسئلتك لمساعدتك في الإجابة."
+                        : "Memories are stored on this iPhone. When Cloud AI is on, they are sent with your questions to answer them.")
+            }
+            if !memories.isEmpty {
+                Section(ar ? "ما يتذكره غاف" : "What Ghaf remembers") {
+                    ForEach(memories) { memory in
+                        Text(memory.text).font(GhafTypography.body(14, languageCode: settings.languageCode))
+                    }
+                    .onDelete { offsets in
+                        offsets.map { memories[$0] }.forEach(context.delete)
+                        try? context.save()
+                    }
+                }
+                Section {
+                    Button(ar ? "انسَ كل الذكريات" : "Forget everything", role: .destructive) { confirmForgetMemories = true }
+                }
+            }
+            Section {
                 Toggle(ar ? "التعلّم من عملياتي" : "Learn from my transactions", isOn: $modelLearning)
                     .onChange(of: modelLearning) { _, _ in MerchantCategorizer.invalidateLearner() }
             } footer: {
@@ -33,6 +56,9 @@ struct GhafLearnedRulesView: View {
             }
             Section {
                 Toggle(ar ? "الذكاء السحابي" : "Cloud AI", isOn: $cloudEnabled)
+                    .onChange(of: cloudEnabled) { _, enabled in
+                        if !enabled { UserDefaults.standard.set(false, forKey: "ghaf.ai.liveConsentAccepted") }
+                    }
             } header: {
                 Text(ar ? "اختياري" : "Optional")
             } footer: {
@@ -70,6 +96,14 @@ struct GhafLearnedRulesView: View {
         .confirmationDialog(ar ? "مسح كل القواعد المتعلَّمة؟" : "Reset all learned rules?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button(ar ? "مسح" : "Reset", role: .destructive) {
                 rules.forEach(context.delete)
+                try? context.save()
+            }
+        } message: {
+            Text(ar ? "لن تتأثر عملياتك المسجلة." : "Your recorded transactions are not changed.")
+        }
+        .confirmationDialog(ar ? "نسيان كل الذكريات؟" : "Forget all memories?", isPresented: $confirmForgetMemories, titleVisibility: .visible) {
+            Button(ar ? "انسَ الكل" : "Forget everything", role: .destructive) {
+                memories.forEach(context.delete)
                 try? context.save()
             }
         } message: {

@@ -9,6 +9,11 @@ GEMINI_MODEL = "gemini-flash-latest"
 # Free plan: questions per device per day, and a cap across all devices to protect the free Gemini quota.
 FREE_DAILY_LIMIT = "20"
 GLOBAL_DAILY_LIMIT = "1000"
+LIVE_DAILY_CALLS = "10"
+LIVE_GLOBAL_DAILY_CALLS = "300"
+LIVE_VOICE_AR = "Orus"
+LIVE_VOICE_EN = "Puck"
+TTS_VOICE_AR = "Orus"
 # Used when Gemini refuses the request (unsupported region, quota or busy).
 FALLBACK_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 

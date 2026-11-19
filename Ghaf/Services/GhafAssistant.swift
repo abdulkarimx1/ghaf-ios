@@ -12,6 +12,7 @@ enum GhafFinanceFacts {
         accounts: [GhafAccount],
         transactions: [GhafTransaction],
         subscriptions: [GhafSubscription],
+        memories: [GhafMemory] = [],
         now: Date = .now
     ) -> String {
         let calendar = GhafCalendar.current
@@ -81,6 +82,13 @@ enum GhafFinanceFacts {
         let suggested = subscriptions.filter(\.needsConfirmation).map(\.name)
         if !suggested.isEmpty {
             lines.append("Possible subscriptions waiting for the user to confirm: \(suggested.joined(separator: ", ")).")
+        }
+
+        let remembered = memories.sorted { $0.updatedAt > $1.updatedAt }.prefix(30)
+        if !remembered.isEmpty {
+            lines.append("What Ghaf remembers about the user:")
+            lines.append(contentsOf: remembered.map { "- \($0.text)" })
+            remembered.forEach { $0.lastUsedAt = now }
         }
 
         let recent = transactions.sorted { $0.date > $1.date }.prefix(10)
@@ -235,6 +243,7 @@ final class GhafAssistant: ObservableObject {
         Answer only from the FACTS below or from the ledger tool. Quote amounts exactly as written with their currency.
         For any number the FACTS do not contain (another period, a category, a store), call the ledger tool.
         Call showChart when a chart makes the answer clearer.
+        Use the memory tool only when the user explicitly asks you to remember or forget something; never save inferred facts.
         When a DIRECT ANSWER FROM THE LEDGER is given, answer with it in natural words, keeping every number,
         then add at most one short, useful observation or tip drawn from the facts.
         Never invent transactions, balances or subscriptions, and never add amounts in different currencies.
@@ -254,7 +263,7 @@ final class GhafAssistant: ObservableObject {
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let session = LanguageModelSession(tools: [GhafLedgerTool(), GhafChartTool()], instructions: instructions)
+                    let session = LanguageModelSession(tools: [GhafLedgerTool(), GhafChartTool(), GhafMemoryTool()], instructions: instructions)
                     var finalText = ""
                     for try await snapshot in session.streamResponse(to: prompt) {
                         finalText = snapshot.content
