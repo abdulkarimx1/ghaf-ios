@@ -99,7 +99,7 @@ public struct CategoryLearner {
     }
 
     static func features(merchant: String, amount: Decimal, date: Date) -> [String] {
-        let text = CategoryMatcher.normalize(merchant)
+        let text = MerchantName.key(merchant)
         let words: [String] = text.components(separatedBy: " ").filter { $0.count >= 2 && !$0.allSatisfy(\.isNumber) }
         guard !words.isEmpty else { return [] }
         var result = words.map { "w:" + $0 }

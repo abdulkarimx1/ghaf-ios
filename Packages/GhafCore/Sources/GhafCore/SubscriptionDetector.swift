@@ -55,10 +55,7 @@ public enum SubscriptionDetector {
 
     /// Merchant name without digits, punctuation or extra spaces, so "NETFLIX.COM 8829" == "Netflix.com".
     public static func normalize(_ merchant: String) -> String {
-        merchant.lowercased()
-            .filter { $0.isLetter || $0 == " " || $0 == "." || $0 == "/" }
-            .split(separator: " ")
-            .joined(separator: " ")
+        MerchantName.key(merchant)
     }
 
     /// Same service when the names match after `normalize`, or the charge's merchant starts with the

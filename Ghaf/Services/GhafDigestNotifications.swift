@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import UserNotifications
+import GhafCore
 
 /// Optional summaries from the ledger: a morning note (yesterday's spending), an evening note (today's),
 /// a weekly note on the first day of the user's week, and a note each time an automation adds a
@@ -94,22 +95,15 @@ enum GhafDigestNotifications {
         }
     }
 
-    /// Right after an automation records a transaction: what was added and the account's ledger balance.
-    static func transactionAdded(_ transaction: GhafTransaction, account: GhafAccount?, balance: Decimal?,
-                                 needsReview: Bool, languageCode: String) {
+    /// Right after an automation records a transaction: merchant and transaction amount only.
+    static func transactionAdded(_ transaction: GhafTransaction, needsReview: Bool, languageCode: String) {
         guard isOn(autoTransactionKey) else { return }
         let ar = languageCode == "ar"
-        let amount = GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
-        let place = transaction.merchant.map { ar ? " · \($0)" : " · \($0)" } ?? ""
+        let amount = GhafFormat.balancesHidden ? GhafMoneyLabel.mask : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
         let content = UNMutableNotificationContent()
-        content.title = (transaction.direction == "credit" ? (ar ? "إيداع " : "Received ") : (ar ? "صرف " : "Spent ")) + amount + place
-        var lines: [String] = []
-        if let account, let balance {
-            lines.append(ar ? "رصيد \(account.name): \(GhafFormat.money(balance, currency: account.currency, languageCode: languageCode))"
-                            : "\(account.name) balance: \(GhafFormat.money(balance, currency: account.currency, languageCode: languageCode))")
-        }
-        if needsReview { lines.append(ar ? "يحتاج مراجعة في غاف." : "Needs a quick review in Ghaf.") }
-        content.body = lines.isEmpty ? (ar ? "أُضيفت إلى غاف." : "Added to Ghaf.") : lines.joined(separator: "\n")
+        content.title = transaction.merchant.map(MerchantName.clean) ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
+        content.body = (transaction.direction == "credit" ? (ar ? "استلمت " : "Received ") : (ar ? "صرفت " : "Spent ")) + amount
+            + (needsReview ? (ar ? " · اضغط للمراجعة" : " · Tap to review") : "")
         // One note per transaction: a repeated automation run reuses the identifier.
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "ghaf.added.\(transaction.id.uuidString)",
                                                                      content: content, trigger: nil))

@@ -255,11 +255,11 @@ enum GhafLedgerAnswers {
         var seen: [String: String] = [:]
         for item in transactions where item.isExpense {
             guard let name = item.merchant else { continue }
-            let key = SubscriptionDetector.normalize(name)
+            let key = MerchantName.key(name)
             if key.count >= 3, seen[key] == nil { seen[key] = name }
         }
         // Whole words only, so a merchant called "Tip" doesn't match "tips".
-        let text = " " + SubscriptionDetector.normalize(q) + " "
+        let text = " " + MerchantName.key(q) + " "
         // Longest names first so "careem food" wins over "careem".
         return seen.sorted { $0.key.count > $1.key.count }
             .first { text.contains(" \($0.key) ") }

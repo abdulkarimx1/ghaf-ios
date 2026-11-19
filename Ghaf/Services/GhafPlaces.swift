@@ -28,7 +28,7 @@ enum GhafPlaces {
     ]
 
     static func isGeneric(_ merchant: String) -> Bool {
-        let words = CategoryMatcher.normalize(merchant).split(separator: " ").map(String.init)
+        let words = MerchantName.key(merchant).split(separator: " ").map(String.init)
         return words.isEmpty || words.allSatisfy { genericWords.contains($0) || $0.count < 2 }
     }
 
@@ -61,14 +61,14 @@ enum GhafPlaces {
     /// have many branches.
     static func rememberPurchaseSpot(_ location: CLLocation, merchant: String, transactionID: UUID) async {
         let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = merchant
+        request.naturalLanguageQuery = MerchantName.clean(merchant)
         request.resultTypes = .pointOfInterest
         request.region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 4_000, longitudinalMeters: 4_000)
         let items = (try? await MKLocalSearch(request: request).start().mapItems) ?? []
         let nearest = items
             .filter { ($0.placemark.location?.distance(from: location) ?? .infinity) < 2_000 }
             .min { ($0.placemark.location?.distance(from: location) ?? .infinity) < ($1.placemark.location?.distance(from: location) ?? .infinity) }
-        let saved = Saved(name: nearest?.name ?? merchant,
+        let saved = Saved(name: nearest?.name ?? MerchantName.clean(merchant),
                           latitude: nearest?.placemark.coordinate.latitude ?? location.coordinate.latitude,
                           longitude: nearest?.placemark.coordinate.longitude ?? location.coordinate.longitude,
                           address: nearest?.placemark.title, phone: nearest?.phoneNumber)
