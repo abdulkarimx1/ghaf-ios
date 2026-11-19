@@ -15,6 +15,7 @@ struct GhafNotificationSettingsView: View {
     @AppStorage(GhafDigestNotifications.weeklyKey) private var weekly = false
     @AppStorage(GhafWidgetSync.liveActivityKey) private var liveActivity = true
     @State private var denied = false
+    @State private var widgetStatusVersion = 0
     /// The Pro feature just tapped, if any; drives the Ghaf Pro sheet.
     @State private var proFeature: ProFeature?
 
@@ -100,30 +101,39 @@ struct GhafNotificationSettingsView: View {
     /// Whether the widgets can read Ghaf's data on this install. Sideload tools sometimes drop the App Group,
     /// and then the widgets can only say "Open Ghaf"; this line makes that visible instead of a silent blank.
     private var widgetStatus: some View {
+        _ = widgetStatusVersion
         let channels = GhafWidgetSync.lastChannels ?? (GhafWidgetSnapshot.hasSharedContainer, GhafWidgetKeychain.accessGroup != nil)
-        let ok = channels.group || channels.keychain
-        let detail: String = if channels.group {
-            ar ? "متصلة عبر مجموعة التطبيق (\(GhafWidgetSnapshot.groupID))" : "Connected through the App Group (\(GhafWidgetSnapshot.groupID))"
-        } else if channels.keychain {
-            ar ? "متصلة عبر سلسلة المفاتيح، لأن أداة التثبيت أزالت مجموعة التطبيق" : "Connected through the keychain; your install tool removed the App Group"
-        } else {
-            (ar ? "غير متصلة: توقيع التثبيت لا يمنح غاف مجموعة تطبيق، فلا تستطيع الودجت قراءة بياناتك. فعّل App Groups في أداة التثبيت ثم أعد التثبيت."
-                : "Not connected: this install's signature gives Ghaf no App Group, so widgets can't read its data. Turn on App Groups in your install tool and reinstall.")
-            + "\n" + profileSummary
-        }
-        return Button { proFeature = ProFeature(en: "Widgets", ar: "الودجت") } label: { Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ar ? "الودجت" : "Widgets").font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
-                Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+        let heartbeat = GhafWidgetSnapshot.lastHeartbeat
+        let snapshot = GhafWidgetSnapshot.loadWithSource().snapshot
+        let dateStyle = Date.FormatStyle(date: .abbreviated, time: .shortened).locale(Locale(identifier: ar ? "ar-AE" : "en-AE"))
+        return VStack(alignment: .leading, spacing: 10) {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(ar ? "حالة الودجت" : "Widget status").font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                    Text((ar ? "آخر حفظ: " : "Last snapshot: ") + (snapshot?.updated.formatted(dateStyle) ?? (ar ? "لا يوجد" : "None")) + " · " + (ar ? "مجموعة التطبيق " : "App Group ") + (channels.group ? "✓" : "✗") + " · " + (ar ? "سلسلة المفاتيح " : "Keychain ") + (channels.keychain ? "✓" : "✗"))
+                    Text((ar ? "مجموعة التطبيق: " : "App Group: ") + GhafWidgetSnapshot.groupID + " (" + (ar ? (GhafWidgetSnapshot.hasSharedContainer ? "متاحة" : "غير متاحة") : (GhafWidgetSnapshot.hasSharedContainer ? "reachable" : "unavailable")) + ")")
+                    Text((ar ? "مجموعة سلسلة المفاتيح: " : "Keychain group: ") + (GhafWidgetKeychain.accessGroup ?? (ar ? "غير متاحة" : "unavailable")))
+                    Text(heartbeat.map {
+                        (ar ? "آخر تشغيل للودجت: " : "Widget heartbeat: ") + "\($0.kind), \($0.family), " + (ar ? ($0.loadedFrom == "group" ? "مجموعة التطبيق" : $0.loadedFrom == "keychain" ? "سلسلة المفاتيح" : "بلا بيانات") : $0.loadedFrom) + " · \($0.date.formatted(dateStyle))"
+                    } ?? (ar ? "لم تشغّل الودجت بعد" : "The widget hasn't run yet"))
+                    if (!channels.group && !channels.keychain) || heartbeat?.loadedFrom == "none" {
+                        Text(ar ? "لا تستطيع الودجت الوصول إلى بيانات غاف — لم تجد لقطة مشتركة قابلة للقراءة. تحقق من مجموعات المشاركة في أداة التوقيع.\n" + profileSummary
+                             : "The widget can't reach Ghaf's data — it found no readable shared snapshot. Check the sharing groups in the signing tool.\n" + profileSummary)
+                    }
+                }
+                .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+            } icon: {
+                Image(systemName: channels.group || channels.keychain ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(channels.group || channels.keychain ? theme.comfortable : theme.over)
             }
-        } icon: {
-            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(ok ? theme.comfortable : theme.over)
+            Button(ar ? "تحديث الودجت" : "Refresh widgets", systemImage: "arrow.clockwise") {
+                GhafWidgetSync.refresh(context: modelContext)
+                widgetStatusVersion += 1
+            }
+            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         .ghafCard(theme: theme)
-        }
-        .buttonStyle(.ghafPress)
     }
 
     /// What the installer's profile grants, so a broken install can be diagnosed from a screenshot.
@@ -131,7 +141,8 @@ struct GhafNotificationSettingsView: View {
         let profile = GhafSigningProfile.current
         let groups = profile.appGroups.isEmpty ? "none" : profile.appGroups.joined(separator: ", ")
         let keychain = profile.keychainGroups.isEmpty ? "none" : profile.keychainGroups.joined(separator: ", ")
-        return "Profile: \(profile.name ?? "none") · App Groups: \(groups) · Keychain: \(keychain)"
+        return ar ? "الملف: \(profile.name ?? "غير متاح") · مجموعات التطبيق: \(groups) · سلسلة المفاتيح: \(keychain)"
+                    : "Profile: \(profile.name ?? "none") · App Groups: \(groups) · Keychain: \(keychain)"
     }
 
     private func refreshPermission() async {

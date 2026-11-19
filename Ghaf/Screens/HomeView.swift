@@ -1,9 +1,21 @@
 import SwiftUI
 import SwiftData
+
+private struct HomeAccountsZoomSource: ViewModifier {
+    let namespace: Namespace.ID
+    func body(content: Content) -> some View {
+        if #available(iOS 18, *) {
+            content.matchedTransitionSource(id: "home-accounts", in: namespace)
+        } else {
+            content
+        }
+    }
+}
 import GhafCore
 import AppIntents
 
 struct GhafHomeView: View {
+    @Namespace private var accountsNamespace
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(GhafTabRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
@@ -134,7 +146,7 @@ struct GhafHomeView: View {
             }
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings) }
+            .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace) }
             .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }.ghafDirection(settings.languageCode)
@@ -205,6 +217,7 @@ struct GhafHomeView: View {
                 .shadow(color: theme.shadow, radius: 8, y: 3)
             }
             .buttonStyle(.ghafPress)
+            .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
             Button {
                 withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
             } label: {

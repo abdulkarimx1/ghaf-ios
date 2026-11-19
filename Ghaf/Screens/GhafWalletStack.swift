@@ -4,6 +4,7 @@ import SwiftData
 /// Accounts as an Apple Pay style deck (canvas "Wallet"): the chosen card's balance on top, the card in front
 /// with its neighbours peeking, dots, four round actions and the card's latest purchases.
 struct GhafWalletStack: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let accounts: [GhafAccount]
     let balances: [UUID: Decimal]
     let transactions: [GhafTransaction]
@@ -47,7 +48,6 @@ struct GhafWalletStack: View {
                 recent(account).id(account.id).transition(.opacity)
             }
         }
-        .animation(.snappy, value: selectedID)
         .sensoryFeedback(.selection, trigger: selectedID)
         .onAppear { if selectedID == nil { selectedID = accounts.first?.id } }
         .sheet(item: $quickAdd) { item in
@@ -82,7 +82,9 @@ struct GhafWalletStack: View {
                         .offset(x: CGFloat(d) * step + sign * drag)
                         .opacity(abs(d) > 1 ? 0 : 1)
                         .zIndex(Double(10 - abs(d)))
-                        .onTapGesture { selectedID = account.id }
+                        .onTapGesture {
+                            withAnimation(deckAnimation) { selectedID = account.id }
+                        }
                         .contextMenu {
                             Button { onEdit(account) } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
                             Button { onMove(account, -1) } label: { Label(ar ? "نقل للأمام" : "Move earlier", systemImage: "arrow.backward") }
@@ -97,31 +99,41 @@ struct GhafWalletStack: View {
         .frame(maxWidth: .infinity)
         .frame(height: width / 1.586 + 50)
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 12)
-                .onChanged { drag = $0.translation.width * 0.6 }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 6)
+                .onChanged { value in
+                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                    let logical = sign * value.translation.width
+                    let atBoundary = (index == 0 && logical > 0) || (index == accounts.count - 1 && logical < 0)
+                    drag = value.translation.width * (atBoundary ? 0.35 : 1)
+                }
                 .onEnded { value in
-                    let move = sign * value.predictedEndTranslation.width
+                    let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                    let predicted = sign * value.predictedEndTranslation.width
                     var next = index
-                    if move < -step { next = min(index + 1, accounts.count - 1) }
-                    if move > step { next = max(index - 1, 0) }
-                    withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
-                        selectedID = accounts[next].id
+                    if isHorizontal && abs(predicted) > width * 0.4 {
+                        next = predicted < 0 ? min(index + 1, accounts.count - 1) : max(index - 1, 0)
+                    }
+                    withAnimation(deckAnimation) {
+                        if accounts.indices.contains(next) { selectedID = accounts[next].id }
                         drag = 0
                     }
                 }
         )
-        .animation(.spring(duration: 0.45, bounce: 0.2), value: selectedID)
         .accessibilityElement()
         .accessibilityLabel(current?.name ?? "")
         .accessibilityValue(ar ? "بطاقة \(index + 1) من \(accounts.count)" : "Card \(index + 1) of \(accounts.count)")
         .accessibilityAdjustableAction { direction in
             switch direction {
-            case .increment: selectedID = accounts[min(index + 1, accounts.count - 1)].id
-            case .decrement: selectedID = accounts[max(index - 1, 0)].id
+            case .increment: withAnimation(deckAnimation) { selectedID = accounts[min(index + 1, accounts.count - 1)].id }
+            case .decrement: withAnimation(deckAnimation) { selectedID = accounts[max(index - 1, 0)].id }
             @unknown default: break
             }
         }
+    }
+
+    private var deckAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.18) : .interpolatingSpring(stiffness: 260, damping: 26)
     }
 
     private var pageIndicator: some View {

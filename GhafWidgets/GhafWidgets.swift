@@ -32,7 +32,9 @@ struct GhafProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<GhafEntry>) -> Void) {
         // Ghaf reloads the widgets whenever a transaction is recorded; midnight resets "today".
         let midnight = Calendar.current.startOfDay(for: .now.addingTimeInterval(86_400))
-        completion(Timeline(entries: [GhafEntry(date: .now, snapshot: GhafWidgetSnapshot.load())], policy: .after(midnight)))
+        let loaded = GhafWidgetSnapshot.loadWithSource()
+        GhafWidgetSnapshot.recordHeartbeat(family: String(describing: context.family), kind: "GhafToday", source: loaded.source)
+        completion(Timeline(entries: [GhafEntry(date: .now, snapshot: loaded.snapshot)], policy: .after(midnight)))
     }
 }
 
@@ -125,7 +127,7 @@ struct OpenGhaf: View {
 struct GhafBalanceWidget: Widget {
     static let kind = "GhafBalance"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafBalanceConfig.self, provider: GhafConfigProvider<GhafBalanceConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafBalanceConfig.self, provider: GhafConfigProvider<GhafBalanceConfig>(kind: Self.kind)) { entry in
             GhafBalanceView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
                 .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
@@ -196,7 +198,7 @@ struct GhafBalanceView: View {
 struct GhafTodayWidget: Widget {
     static let kind = "GhafToday"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>(kind: Self.kind)) { entry in
             GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
                 .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }

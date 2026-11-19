@@ -202,7 +202,11 @@ struct GhafRootView: View {
         launchHasStarted = true
 
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: .seconds(0.9))
+            let deadline = ContinuousClock.now + .seconds(0.6)
+            while settings.first == nil, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(40))
+            }
             withAnimation(.easeOut(duration: 0.42)) {
                 showLaunch = false
             }
@@ -269,16 +273,16 @@ struct GhafTabView: View {
             router.selectedTab = tab
         })
         TabView(selection: selection) {
-            GhafHomeView(settings: settings)
+            GhafHomeView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 0, initialTab: true, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home") }
                 .tag(0)
 
-            GhafTransactionsView(settings: settings)
+            GhafTransactionsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 3, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions") }
                 .badge(reviewCount)
                 .tag(3)
 
-            GhafAIView(settings: settings)
+            GhafAIView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 1, initialTab: false, reduceMotion: reduceMotion)
                 // A full-colour Ghaf tree as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
@@ -287,11 +291,11 @@ struct GhafTabView: View {
                 }
                 .tag(1)
 
-            GhafStatsView(settings: settings)
+            GhafStatsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 2, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats") }
                 .tag(2)
 
-            GhafSettingsView(settings: settings)
+            GhafSettingsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 4, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
         }
@@ -316,6 +320,39 @@ struct GhafTabView: View {
             settings.appearanceMode == "Dark" ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+}
+
+private struct GhafTabEntrance: ViewModifier {
+    let selected: Bool
+    let initialTab: Bool
+    let reduceMotion: Bool
+    @State private var visible = false
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .offset(y: reduceMotion || visible ? 0 : 8)
+            .onAppear {
+                appeared = true
+                if initialTab { visible = true }
+                else if selected { withAnimation(.easeOut(duration: 0.24)) { visible = true } }
+            }
+            .onChange(of: selected) { _, isSelected in
+                guard appeared else { return }
+                if isSelected {
+                    withAnimation(.easeOut(duration: 0.24)) { visible = true }
+                } else {
+                    visible = false
+                }
+            }
+    }
+}
+
+private extension View {
+    func ghafTabEntrance(selected: Bool, initialTab: Bool, reduceMotion: Bool) -> some View {
+        modifier(GhafTabEntrance(selected: selected, initialTab: initialTab, reduceMotion: reduceMotion))
     }
 }
 
@@ -1277,26 +1314,27 @@ private struct GhafWelcomeLaunchScreen: View {
         returning ? (ar ? "Welcome back" : "أهلاً بعودتك") : (ar ? "Welcome" : "أهلاً بك")
     }
 
-    /// The user's own cards; a few of Ghaf's card designs before any account exists.
+    /// The user's cards first, then built-in designs to keep all three rows varied.
     private var faces: [AnyView] {
         let open = accounts.filter { !$0.isArchived }
         var list: [AnyView] = open.map { account in
             AnyView(GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
-                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 170))
+                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 150))
         }
-        if list.isEmpty {
-            list = ["mashreq-neo-cashback-card-product-card-360x220", "mbank-jaywan-debit", "cash-aed-100"].map {
-                AnyView(GhafCardFace(account: nil, design: GhafCardDesign(rawValue: $0), width: 170))
-            }
+        let fallbackIDs = ["mashreq-neo-cashback-card-product-card-360x220", "mbank-jaywan-debit", "cash-aed-100"]
+        let fallbacks = fallbackIDs.map { AnyView(GhafCardFace(account: nil, design: GhafCardDesign(rawValue: $0), width: 150)) }
+        while list.count < 6 {
+            list.append(fallbacks[list.count % fallbacks.count])
         }
-        while list.count < 4 { list += list }
         return list
     }
 
     var body: some View {
         let faces = faces
         // Both rows carry every card (at least 4, so one set is wider than the screen); the second starts halfway.
-        let rowA = faces, rowB = Array(faces[(faces.count / 2)...] + faces[..<(faces.count / 2)])
+        let rowA = faces
+        let rowB = Array(faces.dropFirst(2) + faces.prefix(2))
+        let rowC = Array(faces.dropFirst(4) + faces.prefix(4))
         ZStack(alignment: .bottom) {
             theme.background.ignoresSafeArea()
             LinearGradient(stops: [.init(color: theme.background.opacity(0), location: 0),
@@ -1326,19 +1364,22 @@ private struct GhafWelcomeLaunchScreen: View {
                 .opacity(shown ? 1 : 0)
                 .offset(y: shown || reduceMotion ? 0 : 14)
 
-                // Two rows of cards, tilted, drifting in opposite directions.
+                // Three rows share one clock and render their card faces as cached layers.
                 TimelineView(.animation(paused: reduceMotion)) { context in
                     let t = context.date.timeIntervalSince(start)
-                    VStack(spacing: 14) {
-                        cardRow(rowA, seconds: t, speed: 18, forward: true)
-                        cardRow(rowB, seconds: t, speed: 15, forward: false)
+                    VStack(spacing: 12) {
+                        cardRow(rowA, seconds: t, speed: 26, forward: true)
+                        cardRow(rowB, seconds: t, speed: 21, forward: false)
+                        cardRow(rowC, seconds: t, speed: 24, forward: true)
                     }
                 }
-                .frame(height: 230)
+                .frame(height: 330)
                 .rotationEffect(.degrees(-6))
                 .padding(.top, 60)
                 .environment(\.layoutDirection, .leftToRight)
                 .accessibilityHidden(true)
+                .opacity(shown ? 1 : 0)
+                .offset(y: shown || reduceMotion ? 0 : 14)
 
                 Spacer(minLength: 0)
             }
@@ -1356,20 +1397,21 @@ private struct GhafWelcomeLaunchScreen: View {
         .accessibilityLabel(ar ? "غاف يفتح" : "Ghaf is opening")
         .onAppear {
             start = .now
-            withAnimation(.spring(duration: 0.7, bounce: 0.2)) { shown = true }
+            withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.2)) { shown = true }
         }
     }
 
     /// One endless row: the cards drawn twice, slid by one set's width so the loop has no seam.
     private func cardRow(_ cards: [AnyView], seconds: TimeInterval, speed: Double, forward: Bool) -> some View {
-        let set = CGFloat(cards.count) * (170 + 14)
+        let set = CGFloat(cards.count) * (150 + 12)
         let shift = CGFloat((seconds * speed).truncatingRemainder(dividingBy: Double(set)))
-        return HStack(spacing: 14) {
+        return HStack(spacing: 12) {
             ForEach(0..<(cards.count * 2), id: \.self) { i in cards[i % cards.count] }
         }
         .offset(x: forward ? -shift : shift - set)
         .frame(width: UIScreen.main.bounds.width + 100, alignment: .leading)
         .clipped()
+        .drawingGroup()
     }
 
     @State private var sweep = false
