@@ -82,9 +82,9 @@ struct LogBankMessageIntent: AppIntent {
             return result
         }
         if let spot = location?.location, let id = confirmation.transactionID {
-            let context = try await MainActor.run { try GhafPersistence.shared().mainContext }
-            let merchant = await MainActor.run {
-                (try? context.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first?.merchant) ?? nil
+            let merchant = try await MainActor.run {
+                let context = try GhafPersistence.shared().mainContext
+                return try context.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first?.merchant
             }
             if let merchant { await GhafPlaces.rememberPurchaseSpot(spot, merchant: merchant, transactionID: id) }
         }
