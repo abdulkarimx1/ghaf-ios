@@ -1409,6 +1409,8 @@ private struct GhafWelcomeLaunchScreen: View {
         self.onSkip = onSkip
     }
 
+    private var ar: Bool { settings?.languageCode == "ar" }
+    private var lang: String { settings?.languageCode ?? "en" }
     private var returning: Bool { settings?.hasCompletedOnboarding == true }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings?.themeName ?? "Graphite", appearanceMode: settings?.appearanceMode ?? "System",
@@ -1416,7 +1418,7 @@ private struct GhafWelcomeLaunchScreen: View {
     }
     private var name: String {
         let value = settings?.userName.trimmingCharacters(in: .whitespaces) ?? ""
-        return value.isEmpty ? "Ghaf" : value
+        return value.isEmpty ? (ar ? "غاف" : "Ghaf") : value
     }
     private var faces: [AnyView] {
         let ownAccounts = accounts.filter { !$0.isArchived }
@@ -1444,19 +1446,20 @@ private struct GhafWelcomeLaunchScreen: View {
             let rowC = Array(cards.dropFirst(4) + cards.prefix(4))
             ZStack(alignment: .bottom) {
                 theme.background.ignoresSafeArea()
-                LinearGradient(stops: [.init(color: theme.background.opacity(0), location: 0),
-                                       .init(color: theme.glow.opacity(0.35), location: 0.3),
-                                       .init(color: theme.glow.opacity(0.75), location: 0.62),
-                                       .init(color: theme.accent, location: 1)],
+                // A soft accent glow; a full-strength fill turned into a white slab on Graphite.
+                LinearGradient(stops: [.init(color: theme.accent.opacity(0), location: 0),
+                                       .init(color: theme.accent.opacity(0.14), location: 0.55),
+                                       .init(color: theme.accent.opacity(0.28), location: 1)],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 430).ignoresSafeArea(edges: .bottom)
                 VStack(spacing: 0) {
                     VStack(spacing: 2) {
-                        Text(returning ? "Welcome back," : "Welcome to")
-                            .font(GhafTypography.body(17, languageCode: "en", weight: .semibold))
+                        Text(returning ? (ar ? "أهلاً بعودتك،" : "Welcome back,") : (ar ? "أهلاً بك في" : "Welcome to"))
+                            .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.secondaryText)
-                        Text(returning ? name : "Ghaf")
-                            .font(GhafTypography.display(44, languageCode: "en"))
+                        Text(returning ? name : (ar ? "غاف" : "Ghaf"))
+                            // A Latin name keeps the Latin face even in Arabic.
+                            .font(GhafTypography.display(44, languageCode: returning && name.unicodeScalars.contains { $0.isASCII && CharacterSet.letters.contains($0) } ? "en" : lang))
                             .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.6)
                     }
                     .multilineTextAlignment(.center).padding(.horizontal, 24).padding(.top, 70)
@@ -1478,15 +1481,16 @@ private struct GhafWelcomeLaunchScreen: View {
                 }
                 VStack(spacing: 12) {
                     loadingBar
-                    Text("Updating your balances…")
-                        .font(GhafTypography.body(14, languageCode: "en", weight: .semibold))
-                        .foregroundStyle(theme.accentContrast)
+                    Text(ar ? "جارٍ تحديث أرصدتك…" : "Updating your balances…")
+                        .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
                 }
                 .padding(.bottom, 56)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .contentShape(Rectangle()).onTapGesture(perform: onSkip)
         }
+        .ignoresSafeArea()
         .ghafBackground(theme: theme)
         .accessibilityElement(children: .combine).accessibilityLabel("Ghaf is opening")
         .onAppear {
@@ -1506,9 +1510,9 @@ private struct GhafWelcomeLaunchScreen: View {
     }
 
     private var loadingBar: some View {
-        Capsule().fill(theme.accentContrast.opacity(0.18)).frame(width: 120, height: 4)
+        Capsule().fill(theme.primaryText.opacity(0.15)).frame(width: 120, height: 4)
             .overlay(alignment: .leading) {
-                Capsule().fill(theme.accentContrast).frame(width: 48, height: 4).offset(x: sweep ? 120 : -48)
+                Capsule().fill(theme.primaryText).frame(width: 48, height: 4).offset(x: sweep ? 120 : -48)
             }
             .clipShape(Capsule())
             .onAppear {
