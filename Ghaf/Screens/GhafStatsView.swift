@@ -19,6 +19,7 @@ struct GhafStatsView: View {
     @State private var selectedBreakdownDay: Date?
     @State private var showPro = false
     @State private var showProSheet = false
+    @State private var preparedStats: PreparedStats?
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -40,6 +41,31 @@ struct GhafStatsView: View {
     private struct Bucket: Identifiable { let start: Date; let total: Double; var id: Date { start } }
     private struct DayBar: Identifiable { let date: Date; let amount: Double; var id: Date { date } }
     private struct Slice: Identifiable { let category: String; let total: Double; var id: String { category } }
+    private struct PreparedStats {
+        let current: [GhafTransaction]
+        let filtered: [GhafTransaction]
+        let previousFiltered: [GhafTransaction]
+        let buckets: [Bucket]
+        let slices: [Slice]
+    }
+
+    private var statsRevision: Int {
+        var hasher = Hasher()
+        for transaction in transactions {
+            hasher.combine(transaction.fingerprint)
+            hasher.combine(transaction.amount)
+            hasher.combine(transaction.currency)
+            hasher.combine(transaction.date)
+            hasher.combine(transaction.direction)
+            hasher.combine(transaction.category)
+            hasher.combine(transaction.subcategory)
+            hasher.combine(transaction.isReversal)
+            hasher.combine(transaction.merchant)
+        }
+        return hasher.finalize()
+    }
+
+    private var statsTaskID: String { "\(statsRevision)-\(period.rawValue)-\(selectedCategory ?? "")" }
 
     private var interval: DateInterval {
         let now = Date.now
@@ -104,14 +130,19 @@ struct GhafStatsView: View {
             .sorted { $0.total > $1.total }
     }
 
-    // MARK: Body
-
-    var body: some View {
+    private func prepareStats() -> PreparedStats {
         let current = expenses(in: interval)
         let previous = expenses(in: previousInterval)
         let filtered = selectedCategory.map { category in current.filter { $0.category == category } } ?? current
-        // With a category picked, the hero compares that category against itself last period.
         let previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
+        return PreparedStats(current: current, filtered: filtered, previousFiltered: previousFiltered,
+                             buckets: buckets(filtered), slices: slices(current))
+    }
+
+    // MARK: Body
+
+    var body: some View {
+        let stats = preparedStats ?? prepareStats()
         NavigationStack {
             ScrollViewReader { scrollProxy in
                 Group {
@@ -124,16 +155,16 @@ struct GhafStatsView: View {
                                                 subtitle: nil,
                                                 languageCode: lang, theme: theme)
                                 // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
-                                let trendBuckets = buckets(filtered)
-                                AnyView(trendHero(trendBuckets, current: filtered, previous: previousFiltered).ghafEntrance(0)).id("trend-chart")
+                                let trendBuckets = stats.buckets
+                                AnyView(trendHero(trendBuckets, current: stats.filtered, previous: stats.previousFiltered)).id("trend-chart")
                                 if period == .month, let selected = selectedLabel.flatMap({ key in trendBuckets.first { chartKey($0.start) == key } }) {
-                                    AnyView(weekBreakdown(selected, transactions: filtered))
+                                    AnyView(weekBreakdown(selected, transactions: stats.filtered))
                                 }
-                                AnyView(whereItWent(slices(current)).ghafEntrance(1)).id("category-chart")
-                                AnyView(tiles(current).ghafEntrance(2))
-                                AnyView(budgetLink.ghafEntrance(3))
-                                AnyView(merchants(current).ghafEntrance(4))
-                                AnyView(proCard.ghafEntrance(5))
+                                AnyView(whereItWent(stats.slices)).id("category-chart")
+                                AnyView(tiles(stats.current))
+                                AnyView(budgetLink)
+                                AnyView(merchants(stats.current))
+                                AnyView(proCard)
                             }
                             .ghafScreenPadding()
                             .padding(.top, 12)
@@ -142,19 +173,16 @@ struct GhafStatsView: View {
                             .frame(maxWidth: .infinity)
                         }
                         .scrollIndicators(.hidden)
+                        .ghafStatusBarFade(theme: theme)
                     }
                 }
                 .ghafBackground(theme: theme)
                 .toolbar(.hidden, for: .navigationBar)
+                .task(id: statsTaskID) { preparedStats = prepareStats() }
                 .sensoryFeedback(.selection, trigger: period)
                 .sensoryFeedback(.selection, trigger: selectedCategory)
                 .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
                 .onAppear {
-                    if period == .month && selectedLabel == nil {
-                        let month = calendar.dateInterval(of: .month, for: .now)!.start
-                        let offset = ((calendar.component(.day, from: .now) - 1) / 7) * 7
-                        selectedLabel = chartKey(calendar.date(byAdding: .day, value: offset, to: month)!)
-                    }
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
                 switch GhafScreenshotFixture.period {
@@ -194,7 +222,7 @@ struct GhafStatsView: View {
             let first = calendar.component(.day, from: date)
             let lastDate = min(calendar.date(byAdding: .day, value: 6, to: date)!, interval.end.addingTimeInterval(-1))
             return "\(first)–\(calendar.component(.day, from: lastDate))"
-        case .quarter: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
+        case .quarter: return date.formatted(.dateTime.month(.abbreviated).day().locale(locale))
         case .year: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
         }
     }
@@ -236,10 +264,8 @@ struct GhafStatsView: View {
             Text(heading)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
-                .contentTransition(.opacity)
             GhafMoneyLabel(amount: Decimal(selected?.total ?? spent), currency: currency, languageCode: lang, size: 40)
                 .foregroundStyle(theme.primaryText)
-                .contentTransition(.numericText())
                 .environment(\.layoutDirection, .leftToRight)
             if let change, selected == nil, selectedCategory == nil {
                 Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
@@ -314,16 +340,21 @@ struct GhafStatsView: View {
                     }
                 }
             }
-            // A new chart per period, faded in: Charts animating between different label sets produces NaN geometry.
+            // A new chart per period avoids invalid geometry when the label set changes.
             .id(period)
-            .transition(.opacity)
+            .transaction { $0.animation = nil }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
                 }
             }
             .chartXAxis {
-                AxisMarks(values: data.map { chartKey($0.start) }) { value in
+                let stride = max(1, Int(ceil(Double(data.count) / (period == .quarter ? 5 : period == .year ? 6 : 12))))
+                let labels = data.enumerated().compactMap { index, bucket in
+                    (period != .quarter || index > 0) && (index % stride == 0 || index == data.count - 1)
+                        ? chartKey(bucket.start) : nil
+                }
+                AxisMarks(values: labels) { value in
                     AxisValueLabel {
                         if let key = value.as(String.self), let bucket = data.first(where: { chartKey($0.start) == key }) {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
@@ -341,15 +372,14 @@ struct GhafStatsView: View {
                 .scaleEffect(x: 1, y: 52.0 / 56.0)
                 .frame(height: 52)
                 .padding(.top, 8)
-            .onChange(of: period) { _, value in
+            .onChange(of: period) { _, _ in
                 selectedLabel = nil
                 selectedCategory = nil
-                if value == .month {
-                    let month = calendar.dateInterval(of: .month, for: .now)!.start
-                    let offset = ((calendar.component(.day, from: .now) - 1) / 7) * 7
-                    selectedLabel = chartKey(calendar.date(byAdding: .day, value: offset, to: month)!)
-                }
             }
+        }
+        .transaction {
+            $0.animation = nil
+            $0.disablesAnimations = true
         }
         .frame(maxWidth: .infinity)
         .padding(GhafMetrics.heroPadding)
@@ -546,17 +576,17 @@ struct GhafStatsView: View {
             VStack(spacing: 8) {
                 Text(ar ? "متوسط اليوم" : "Daily average")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.accentContrast.opacity(0.65))
+                    .foregroundStyle(theme.secondaryText)
                 Text(GhafCompactNumber.string(total(items) / Double(days), languageCode: lang))
                     .contentTransition(.opacity)
                     .font(GhafTypography.number(28, weight: .heavy))
-                    .foregroundStyle(theme.accentContrast)
+                    .foregroundStyle(theme.primaryText)
                 Text(ar ? "\(currency) يومياً" : "\(currency) a day")
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.accentContrast.opacity(0.65))
+                    .foregroundStyle(theme.secondaryText)
             }
             .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
-            .background(theme.accent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .ghafStatsCard(theme: theme, radius: 22)
             VStack(spacing: 8) {
                 Text(ar ? "المشتريات" : "Purchases")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
@@ -575,7 +605,7 @@ struct GhafStatsView: View {
 
     private func merchants(_ items: [GhafTransaction]) -> some View {
         let top = Dictionary(grouping: items.filter { $0.merchant?.isEmpty == false }, by: { $0.merchant! })
-            .map { (name: $0.key, total: total($0.value), count: $0.value.count) }
+            .map { (name: $0.key, total: total($0.value), count: $0.value.count, category: $0.value.first?.category ?? "Other") }
             .sorted { $0.total > $1.total }
             .prefix(5)
         let most = top.first?.total ?? 1
@@ -589,7 +619,8 @@ struct GhafStatsView: View {
             }
             ForEach(Array(top), id: \.name) { row in
                 HStack(spacing: 12) {
-                    GhafBrandBadge(name: row.name, fallbackTint: theme.accent, size: 36)
+                    GhafCategoryIcon(category: row.category, tint: theme.accent, theme: theme)
+                        .frame(width: 36, height: 36)
                     VStack(alignment: .leading, spacing: 5) {
                         HStack {
                             Text(row.name).font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
