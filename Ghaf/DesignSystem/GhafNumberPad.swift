@@ -17,8 +17,6 @@ struct GhafAmountField: View {
     @State private var presented = false
     @State private var keyPress = 0
     @State private var replaceOnNextKey = true
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
     private var separator: String { GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency ?? "AED").decimalSeparator ?? "." }
@@ -32,7 +30,7 @@ struct GhafAmountField: View {
               } else {
                 amountContent
                     .frame(maxWidth: .infinity, minHeight: label.isEmpty ? max(56, fontSize + 32) : max(64, fontSize + 40))
-                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
+                    .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
               }
             }
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -141,10 +139,7 @@ struct GhafAmountField: View {
                             .frame(maxWidth: .infinity, minHeight: 64)
                             .background {
                                 let keyShape = RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                if glass.enabled && !reduceTransparency && theme.name == "Graphite" {
-                                    keyShape.fill(.ultraThinMaterial).overlay(keyShape.fill(theme.surface.opacity(0.38)))
-                                } else if theme.name == "Graphite" { keyShape.fill(theme.surface.opacity(0.72)) }
-                                else { keyShape.fill(theme.surface).overlay(keyShape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))) }
+                                keyShape.fill(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
                             }
                         }
                         .buttonStyle(.plain)
@@ -156,8 +151,7 @@ struct GhafAmountField: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(.ultraThinMaterial)
-        .background(theme.background.opacity(0.86))
+        .background(theme.background)
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
     }
 

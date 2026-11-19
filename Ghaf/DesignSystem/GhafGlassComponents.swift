@@ -27,7 +27,7 @@ extension View {
     }
 
     func ghafGlassShape<S: Shape>(theme: GhafTheme, shape: S, fallback: Color) -> some View {
-        modifier(GhafGlassShapeSurface(theme: theme, shape: shape, fallback: fallback))
+        modifier(GhafGlassShapeSurface(shape: shape, fallback: fallback))
     }
 
     /// Full-width primary action: a bold accent capsule.
@@ -42,30 +42,10 @@ extension View {
 }
 
 private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
-    let theme: GhafTheme
     let shape: S
     let fallback: Color
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     func body(content: Content) -> some View {
-        content.background {
-            if glass.enabled && !reduceTransparency {
-                let trueGlass = theme.name == "Graphite"
-                let opacity: Double = glass.intensity == .subtle ? 0.35 : glass.intensity == .balanced ? 0.45 : 0.55
-                let material: Material = glass.intensity == .subtle ? .ultraThin : glass.intensity == .balanced ? .thin : .regular
-                ZStack {
-                    if trueGlass {
-                        shape.fill(material)
-                        shape.fill(fallback.opacity(opacity))
-                    } else {
-                        shape.fill(fallback)
-                        shape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))
-                    }
-                }
-                .overlay { GhafShapeRim(theme: theme, shape: shape).blur(radius: 3).opacity(0.6).clipShape(shape) }
-                .overlay { GhafShapeRim(theme: theme, shape: shape) }
-            } else { shape.fill(fallback).shadow(color: theme.shadow, radius: 14, x: 0, y: 6) }
-        }
+        content.background(shape.fill(fallback))
     }
 }
 
@@ -105,8 +85,6 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
     let prominent: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -114,32 +92,11 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 56)
             .padding(.horizontal, 18)
-            .background(prominent ? theme.accent : (glass.enabled && !reduceTransparency ? Color.clear : theme.elevatedSurface), in: Capsule())
-            .modifier(GhafControlGlass(theme: theme, enabled: glass.enabled && !reduceTransparency, prominent: prominent))
+            .background(prominent ? theme.accent : theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
             .sensoryFeedback(.impact(weight: prominent ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
-    }
-}
-
-private struct GhafControlGlass: ViewModifier {
-    let theme: GhafTheme
-    let enabled: Bool
-    let prominent: Bool
-    func body(content: Content) -> some View {
-        if enabled && prominent { content }
-        else if enabled {
-            if theme.name == "Graphite" {
-                content.background(Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.38))))
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()).blur(radius: 3).opacity(0.6).clipShape(Capsule()) }
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()) }
-            } else {
-                content.background(Capsule().fill(theme.surface).overlay(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))))
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()).blur(radius: 3).opacity(0.6).clipShape(Capsule()) }
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()) }
-            }
-        } else { content }
     }
 }
 
@@ -153,8 +110,6 @@ struct GhafPillButton: View {
     var badge = 0
     let action: () -> Void
     @State private var taps = 0
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         Button {
@@ -183,16 +138,10 @@ struct GhafPillButton: View {
             .background {
                 if prominent {
                     Capsule().fill(theme.accent)
-                } else if glass.enabled && !reduceTransparency {
-                    if theme.name == "Graphite" {
-                        Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.38)))
-                    } else { Capsule().fill(theme.surface).overlay(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))) }
                 } else {
-                    Capsule().fill(theme.surface).shadow(color: theme.shadow, radius: 10, x: 0, y: 4)
+                    Capsule().fill(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
                 }
             }
-            .overlay { if (theme.isDark && !prominent && !(glass.enabled && !reduceTransparency)) { Capsule().stroke(theme.outline, lineWidth: 1) } }
-            .modifier(GhafControlGlass(theme: theme, enabled: glass.enabled && !reduceTransparency, prominent: prominent))
             .contentShape(Capsule())
         }
         .buttonStyle(.ghafPress)
@@ -235,8 +184,6 @@ struct GhafIconBadge: View {
     let tint: Color
     var size: CGFloat = 44
     var theme: GhafTheme? = nil
-    @Environment(\.ghafGlass) private var glass
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         Image(systemName: symbol)
@@ -244,15 +191,7 @@ struct GhafIconBadge: View {
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background {
-                if glass.enabled && !reduceTransparency, let theme, theme.name == "Graphite" {
-                    Circle().fill(.thinMaterial).overlay(Circle().fill(theme.surface.opacity(0.38))).overlay(Circle().fill(tint.opacity(0.12)))
-                        .overlay { GhafShapeRim(theme: theme, shape: Circle()).blur(radius: 3).opacity(0.6).clipShape(Circle()) }
-                        .overlay { GhafShapeRim(theme: theme, shape: Circle()) }
-                } else if glass.enabled && !reduceTransparency, let theme {
-                    Circle().fill(theme.surface).overlay(Circle().fill(tint.opacity(0.14)))
-                        .overlay { GhafShapeRim(theme: theme, shape: Circle()).blur(radius: 3).opacity(0.6).clipShape(Circle()) }
-                        .overlay { GhafShapeRim(theme: theme, shape: Circle()) }
-                } else { Circle().fill(tint.opacity(0.14)) }
+                Circle().fill(tint.opacity(0.14))
             }
             .accessibilityHidden(true)
     }

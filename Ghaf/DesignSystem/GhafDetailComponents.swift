@@ -83,7 +83,7 @@ struct GhafDetailActionBar: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 64, height: 56)
-                        .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
+                        .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                 }
                 .buttonStyle(.ghafPress)
                 .accessibilityLabel(secondaryLabel)

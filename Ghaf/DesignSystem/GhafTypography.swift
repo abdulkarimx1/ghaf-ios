@@ -84,8 +84,7 @@ struct GhafScreenTitle: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 44, height: 44)
-                        .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
-                        .shadow(color: theme.shadow, radius: 8, y: 3)
+                        .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
                 }
                 .buttonStyle(.ghafPress)
                 .accessibilityLabel(languageCode == "ar" ? "إغلاق" : "Close")
