@@ -7,11 +7,17 @@ import GhafCore
 enum GhafScreenshotFixture {
     private static let arguments = ProcessInfo.processInfo.arguments
     static var enabled: Bool { value("GhafFixture") == "1" }
+    static var autoSelect: Bool { enabled && value("GhafAutoSelect") == "1" }
     static var theme: String { value("GhafTheme") ?? "Graphite" }
     static var appearance: String { value("GhafAppearance") ?? "Light" }
     static var language: String { value("GhafLanguage") ?? "en" }
     static var tab: String { value("GhafTab") ?? "home" }
-    static var screen: String? { value("GhafScreen") }
+    static var selection: String? { value("GhafSelection") }
+    static var period: String? { value("GhafPeriod") }
+    static var screen: String? {
+        ["budget", "pro-popup", "pro-sheet"].contains(value("GhafScreen") ?? "") ? "insights" : value("GhafScreen")
+    }
+    static var destination: String? { value("GhafScreen") }
     static var automationExpanded: Bool { value("GhafAutomationExpanded") == "bank" }
     static var automationButtonProof: Bool { value("GhafAutomationButtonProof") == "1" }
     static var automationState: String { ["none", "waiting", "working"].contains(value("GhafAutomationState") ?? "none") ? (value("GhafAutomationState") ?? "none") : "none" }
@@ -60,7 +66,7 @@ enum GhafScreenshotFixture {
     }
 
     private static func seed(_ context: ModelContext) {
-        let settings = GhafSettings(languageCode: language, currency: "AED", themeName: theme,
+        let settings = GhafSettings(languageCode: language, currency: "AED", monthlyIncome: 12000, themeName: theme,
                                     appearanceMode: appearance, hasCompletedOnboarding: true)
         context.insert(settings)
         let mashreq = GhafAccount(name: "Mashreq Current", institution: "Mashreq", accountType: .current,
