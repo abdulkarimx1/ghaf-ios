@@ -1,8 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Accounts as an Apple Pay style deck (canvas "Wallet"): the chosen card's balance on top, the card in front
-/// with its neighbours peeking, dots, four round actions and the card's latest purchases.
+/// Wallet account carousel with the chosen card's balance, actions and latest purchases.
 struct GhafWalletStack: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let accounts: [GhafAccount]

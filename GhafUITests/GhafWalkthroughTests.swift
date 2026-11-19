@@ -232,3 +232,27 @@ extension GhafWalkthroughTests {
         snap("wallet-flat-after-four-flicks")
     }
 }
+
+extension GhafWalkthroughTests {
+    func test11WalletActionsRemainAvailable() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for action check")
+        for action in ["Spend", "Transfer", "Edit", "New card"] {
+            XCTAssertTrue(app.buttons[action].exists, "Missing wallet action: \(action)")
+        }
+    }
+}
+
+extension GhafWalkthroughTests {
+    func test12WalletBeforeAfterCapture() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for before-after capture")
+        Thread.sleep(forTimeInterval: 1.5)
+        snap("wallet-open-before-drag")
+
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.90, dy: 0.30))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.30))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.8)
+        snap("wallet-open-after-drag")
+    }
+}
