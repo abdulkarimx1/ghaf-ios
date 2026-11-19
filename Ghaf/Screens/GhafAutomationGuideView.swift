@@ -45,27 +45,45 @@ struct GhafAutomationGuideView: View {
 
     var body: some View {
         let _ = refreshTick
-        ScrollView {
-            VStack(spacing: 24) {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 24) {
 #if DEBUG
-                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.automationButtonProof {
-                    VStack(spacing: 24) { automationsSection; testSection }
-                } else {
-                    fullContent
-                }
+                    if GhafScreenshotFixture.enabled, GhafScreenshotFixture.automationButtonProof {
+                        VStack(spacing: 24) { automationsSection; testSection }
+                    } else {
+                        fullContent {
+                            DispatchQueue.main.async {
+                                withAnimation { proxy.scrollTo("bank-automation", anchor: .top) }
+                            }
+                        }
+                    }
 #else
-                fullContent
+                    fullContent {
+                        DispatchQueue.main.async {
+                            withAnimation { proxy.scrollTo("bank-automation", anchor: .top) }
+                        }
+                    }
 #endif
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 36)
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-            .padding(.bottom, 36)
-            .frame(maxWidth: 600)
-            .frame(maxWidth: .infinity)
+            .overlay(alignment: .top) {
+                LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 28)
+                    .ignoresSafeArea(edges: .top)
+                    .allowsHitTesting(false)
+            }
         }
         .ghafBackground(theme: theme)
-        .navigationTitle("")
+        .navigationTitle(text("Your banks", "بنوكك"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(theme.background, for: .navigationBar)
         .environment(\.locale, Locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .sheet(isPresented: $showingBankPicker) { bankPicker }
@@ -93,19 +111,35 @@ struct GhafAutomationGuideView: View {
         }
     }
 
-    private var fullContent: some View {
+    private func fullContent(onBankGuideLink: @escaping () -> Void) -> some View {
         VStack(spacing: 24) {
             header
-            banksSection
+            privacyCard
+            banksSection(onGuideTap: onBankGuideLink)
             automationsSection
             testSection
-            Text(text("iOS can’t create automations or read other apps’ notifications. Shortcuts passes only the data you choose to Ghaf.",
-                      "لا يستطيع iOS إنشاء الأتمتة أو قراءة إشعارات التطبيقات الأخرى. يمرر تطبيق الاختصارات إلى غاف البيانات التي تختارها فقط."))
-                .font(GhafTypography.body(12, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 12)
         }
+    }
+
+    private var privacyCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "shield.lefthalf.filled")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 32, height: 32)
+                .accessibilityHidden(true)
+            Text(text(
+                "Ghaf can’t read your bank login or other apps. Shortcuts passes the alert text you choose and, if mapped, its sender app name. Ghaf parses the alert on this iPhone and doesn’t send it to Ghaf’s server. Currency conversion or optional location lookup may use online services.",
+                "لا يستطيع غاف قراءة بيانات دخولك إلى البنك أو الاطلاع على التطبيقات الأخرى. يمرر تطبيق الاختصارات نص التنبيه الذي تختاره، واسم التطبيق المُرسِل إن ربطته. يحلل غاف التنبيه على هذا iPhone ولا يرسله إلى خوادم غاف. وقد تستخدم خدمة تحويل العملة أو البحث الاختياري عن الموقع خدمات عبر الإنترنت."
+            ))
+            .font(GhafTypography.body(14, languageCode: settings.languageCode))
+            .foregroundStyle(theme.primaryText)
+            .multilineTextAlignment(ar ? .trailing : .leading)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ghafCard(theme: theme, radius: 24)
     }
 
     private var header: some View {
@@ -127,7 +161,7 @@ struct GhafAutomationGuideView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var banksSection: some View {
+    private func banksSection(onGuideTap: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(text("Your banks", "بنوكك"))
