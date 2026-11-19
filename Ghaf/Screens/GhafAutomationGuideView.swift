@@ -29,6 +29,15 @@ struct GhafAutomationGuideView: View {
          defaults.double(forKey: GhafAutomationStatus.walletRunKey)]
     }
     private var overallStatus: GhafStatusChip.Kind {
+#if DEBUG
+        if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "automation" {
+            switch GhafScreenshotFixture.automationState {
+            case "waiting": return .waiting
+            case "working": return .working
+            default: return .notSetUp
+            }
+        }
+#endif
         if realRuns.contains(where: { $0 > Date.now.addingTimeInterval(-14 * 24 * 60 * 60).timeIntervalSince1970 }) { return .working }
         return chosenBanks.isEmpty ? .notSetUp : .waiting
     }
@@ -37,16 +46,15 @@ struct GhafAutomationGuideView: View {
         let _ = refreshTick
         ScrollView {
             VStack(spacing: 24) {
-                header
-                banksSection
-                automationsSection
-                testSection
-                Text(text("iOS can’t create automations or read other apps’ notifications. Shortcuts passes only the data you choose to Ghaf.",
-                          "لا يستطيع iOS إنشاء الأتمتة أو قراءة إشعارات التطبيقات الأخرى. يمرر تطبيق الاختصارات إلى غاف البيانات التي تختارها فقط."))
-                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 12)
+#if DEBUG
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.automationButtonProof {
+                    automationsSection
+                } else {
+                    fullContent
+                }
+#else
+                fullContent
+#endif
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
@@ -60,7 +68,14 @@ struct GhafAutomationGuideView: View {
         .environment(\.locale, Locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .sheet(isPresented: $showingBankPicker) { bankPicker }
-        .onAppear(perform: refreshBanks)
+        .onAppear {
+#if DEBUG
+            if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "automation" {
+                GhafScreenshotFixture.applyAutomation()
+            }
+#endif
+            refreshBanks()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { refreshBanks(); refreshTick.toggle() }
         }
@@ -71,6 +86,21 @@ struct GhafAutomationGuideView: View {
                 guard !Task.isCancelled, scenePhase == .active else { return }
                 refreshTick.toggle()
             }
+        }
+    }
+
+    private var fullContent: some View {
+        VStack(spacing: 24) {
+            header
+            banksSection
+            automationsSection
+            testSection
+            Text(text("iOS can’t create automations or read other apps’ notifications. Shortcuts passes only the data you choose to Ghaf.",
+                      "لا يستطيع iOS إنشاء الأتمتة أو قراءة إشعارات التطبيقات الأخرى. يمرر تطبيق الاختصارات إلى غاف البيانات التي تختارها فقط."))
+                .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
         }
     }
 
@@ -215,8 +245,8 @@ struct GhafAutomationGuideView: View {
         HStack(spacing: 12) {
             GhafIconBadge(symbol: symbol, tint: theme.accent, size: 40, theme: theme)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
-                Text(hint).font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
+                Text(title).font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Text(hint).font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
             runChip(timestamp)
@@ -248,13 +278,13 @@ struct GhafAutomationGuideView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            if expandedAutomation == automation { automationInstructions(automation) }
+            if expandedAutomation == automation || isFixtureExpanded(automation) { automationInstructions(automation) }
         }
     }
 
     private func automationInstructions(_ automation: Automation) -> some View {
         let lines: [String] = automation == .bank
-            ? [text("Shortcuts › Automation › + › App notification", "الاختصارات › الأتمتة › + › إشعار تطبيق"),
+            ? [text("Shortcuts › Automation › + › App › Notification", "الاختصارات › الأتمتة › + › App › Notification"),
                text("Choose: \(chosenBanks.joined(separator: ", "))", "اختر: \(chosenBanks.map { name in GhafBankSupportDirectory.contacts.first(where: { $0.name == name })?.nameArabic ?? name }.joined(separator: "، "))"),
                text("Add Ghaf › Log bank message › Run Immediately", "أضف غاف › Log bank message › Run Immediately")]
             : [text("Shortcuts › Automation › + › Transaction", "الاختصارات › الأتمتة › + › Transaction"),
@@ -405,6 +435,14 @@ struct GhafAutomationGuideView: View {
         let detected = GhafBankAppDetector.installedBanks()
         detectedBanks = detected
         chosenBanks = GhafAutomationBanks.selected(using: detected)
+    }
+
+    private func isFixtureExpanded(_ automation: Automation) -> Bool {
+#if DEBUG
+        GhafScreenshotFixture.enabled && GhafScreenshotFixture.screen == "automation" && GhafScreenshotFixture.automationExpanded && automation == .bank
+#else
+        false
+#endif
     }
 
     private func openShortcuts() {
