@@ -121,6 +121,12 @@ struct GhafMoneyLabel: View {
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 
+    private var numberText: Text {
+        let separator = Self.formatters[languageCode == "ar" ? "ar" : "en"]![GhafCurrencyDigits.fractionDigits(for: currency)]!.decimalSeparator ?? "."
+        guard size >= 28, let split = number.range(of: separator, options: .backwards), !number[split.upperBound...].isEmpty else { return Text(number) }
+        return Text(String(number[..<split.lowerBound])) + Text(String(number[split.lowerBound...])).opacity(0.45)
+    }
+
     var body: some View {
         HStack(spacing: size * 0.22) {
             if GhafCurrencyIcon.assetName(currency) != nil {
@@ -136,7 +142,7 @@ struct GhafMoneyLabel: View {
                     .tracking(size * 0.08)
                     .transition(.blurReplace.combined(with: .scale(0.6)))
             } else {
-                Text(number)
+                numberText
                     .font(GhafTypography.number(size, weight: .heavy))
                     .monospacedDigit()
                     .contentTransition(.numericText())
