@@ -246,21 +246,30 @@ struct GhafStatsView: View {
                 LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                     .foregroundStyle(accent)
                     .interpolationMethod(.monotone)
+                    .symbolSize(0)
                     .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                     .opacity(selected == nil || selected?.id == bucket.id ? 1 : 0.3)
+                let isSelected = selected?.id == bucket.id
+                let isLatest = bucket.id == data.last?.id
+                let pointOpacity = isSelected ? 1.0 : isLatest ? 0.8 : 0.0
                 PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                    .symbolSize(selected?.id == bucket.id ? 110 : 24)
-                    .foregroundStyle(accent)
-                    .opacity(selected == nil || selected?.id == bucket.id ? 1 : 0.3)
+                    .symbol {
+                        Circle().fill(accent.opacity(pointOpacity))
+                            .frame(width: isSelected ? 12 : isLatest ? 5 : 0, height: isSelected ? 12 : isLatest ? 5 : 0)
+                    }
+                    .foregroundStyle(accent.opacity(pointOpacity))
+                    .opacity(pointOpacity)
                     .accessibilityLabel(bucketLabel(bucket.start))
                     .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total), currency: currency, languageCode: lang))
-                let isSelected = selected?.id == bucket.id
                 RuleMark(x: .value("Date", chartKey(bucket.start)))
                     .foregroundStyle(theme.secondaryText.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
                     .opacity(isSelected ? 1 : 0)
                 PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                    .symbol { Circle().fill(accent).frame(width: 14, height: 14).overlay(Circle().stroke(theme.surface, lineWidth: 3)) }
+                    .symbol {
+                        Circle().fill(accent).frame(width: isSelected ? 14 : 0, height: isSelected ? 14 : 0)
+                            .overlay(Circle().stroke(theme.surface, lineWidth: isSelected ? 3 : 0))
+                    }
                     .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
                         selectionBubble(amount: bucket.total, date: bucket.start).opacity(isSelected ? 1 : 0)
                     }
