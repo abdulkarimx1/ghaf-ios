@@ -264,7 +264,14 @@ struct GhafAutomationGuideView: View {
     private func disclosureRow(_ automation: Automation) -> some View {
         VStack(spacing: 0) {
             Button {
-                let update = { expandedAutomation = expandedAutomation == automation ? nil : automation }
+                let update = {
+                    if expandedAutomation == automation {
+                        expandedAutomation = nil
+                    } else {
+                        automationPage = 0
+                        expandedAutomation = automation
+                    }
+                }
                 if reduceMotion { update() } else { withAnimation(.spring(response: 0.34, dampingFraction: 0.86), update) }
             } label: {
                 HStack(spacing: 12) {
@@ -292,32 +299,40 @@ struct GhafAutomationGuideView: View {
         let controls: [String]
         let highlight: String
         let caption: String
+        var imageName: String? = nil
         var id: String { caption }
     }
 
     private func guideSteps(_ automation: Automation) -> [GuideStep] {
         if automation == .wallet {
             return [
-                GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”.")),
-                GuideStep(screen: "Personal Automation", controls: ["+", "Wallet", "When I tap a Wallet Card or Pass"], highlight: "Wallet", caption: text("Tap “+”, then choose “Wallet” (Apple calls this the “Transaction” trigger).", "اضغط “+”، ثم اختر “Wallet” (يسميه دليل Apple مشغل “Transaction”).")),
-                GuideStep(screen: "Transaction", controls: ["Select Cards", "All Cards", "Next"], highlight: "All Cards", caption: text("Select all cards.", "حدد كل البطاقات.")),
-                GuideStep(screen: "Transaction", controls: ["Run After Confirmation", "Run Immediately", "Next"], highlight: "Run Immediately", caption: text("Choose “Run Immediately”.", "اختر “Run Immediately”.")),
-                GuideStep(screen: "Transaction", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط “Next”.")),
-                GuideStep(screen: "New Automation", controls: ["New Blank Automation", "Suggested Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
-                GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط “Add Action”.")),
-                GuideStep(screen: "Add Action", controls: ["Search Ghaf", "Add Apple Pay purchase"], highlight: "Add Apple Pay purchase", caption: text("Search “Ghaf” and choose “Add Apple Pay purchase”.", "ابحث عن “Ghaf” واختر “Add Apple Pay purchase”.")),
-                GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount = Shortcut Input › Amount", "Merchant = Shortcut Input › Merchant", "Card = Shortcut Input › Card or Pass", "Location = Current Location (optional)", "Done"], highlight: "Amount = Shortcut Input › Amount", caption: text("Map the fields, then tap “Done”.", "اربط الحقول، ثم اضغط “Done”."))
+                GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”."), imageName: "AutomationTab"),
+                GuideStep(screen: "Automation", controls: ["New Automation"], highlight: "New Automation", caption: text("Tap “New Automation”.", "اضغط على “New Automation”."), imageName: "NewAutomation"),
+                GuideStep(screen: "Personal Automation", controls: ["Wallet", "When I tap a Wallet Card or Pass"], highlight: "Wallet", caption: text("Choose “Wallet”.", "اختر “Wallet”."), imageName: "WalletTrigger"),
+                GuideStep(screen: "When I tap", controls: ["Wallet Card or Pass"], highlight: "Wallet Card or Pass", caption: text("Choose “Wallet Card or Pass”.", "اختر “Wallet Card or Pass”.")),
+                GuideStep(screen: "When I tap", controls: ["Run After Confirmation", "Run Immediately", "Next"], highlight: "Run Immediately", caption: text("Choose “Run Immediately”.", "اختر “Run Immediately”."), imageName: "RunImmediately"),
+                GuideStep(screen: "When I tap", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط على “Next”.")),
+                GuideStep(screen: "New Automation", controls: ["New Blank Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
+                GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
+                GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”.", "اضغط على “Apps”.")),
+                GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
+                GuideStep(screen: "Ghaf", controls: ["Add Apple Pay purchase"], highlight: "Add Apple Pay purchase", caption: text("Choose “Add Apple Pay purchase”.", "اختر “Add Apple Pay purchase”.")),
+                GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Set “Amount”, “Merchant”, and “Card” to the matching Wallet details, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card” بتفاصيل Wallet المناسبة، ثم اضغط “Done”.")),
             ]
         }
         return [
-            GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”.")),
-            GuideStep(screen: "Automation", controls: ["+", "Personal Automation"], highlight: "+", caption: text("Tap “+”, then choose “Notification”.", "اضغط “+”، ثم اختر “Notification”.")),
-            GuideStep(screen: "Notification", controls: ["App", "Add Filter"], highlight: "App", caption: text("Choose your bank app under “App”.", "اختر تطبيق البنك ضمن “App”.")),
-            GuideStep(screen: "Notification", controls: ["App", "Add Filter", "Message", "Subtitle", "Title"], highlight: "Add Filter", caption: text("Optionally filter by “Message”, “Subtitle” or “Title”.", "يمكنك إضافة تصفية حسب “Message” أو “Subtitle” أو “Title”.")),
-            GuideStep(screen: "Notification", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط “Next”.")),
-            GuideStep(screen: "New Automation", controls: ["New Blank Automation", "Suggested Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
-            GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”, then search “Ghaf”.", "اضغط “Add Action”، ثم ابحث عن “Ghaf”.")),
-            GuideStep(screen: "Add Action", controls: ["Log bank message", "Message text = Shortcut Input", "Sender = bank app"], highlight: "Log bank message", caption: text("Choose “Log bank message”. Map Message text to Shortcut Input and Sender to the bank app name.", "اختر “Log bank message”. اربط نص الرسالة بمدخل الاختصار والمرسل باسم تطبيق البنك."))
+            GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”."), imageName: "AutomationTab"),
+            GuideStep(screen: "Automation", controls: ["New Automation"], highlight: "New Automation", caption: text("Tap “New Automation”.", "اضغط على “New Automation”."), imageName: "NewAutomation"),
+            GuideStep(screen: "Personal Automation", controls: ["Notification"], highlight: "Notification", caption: text("Choose “Notification”.", "اختر “Notification”.")),
+            GuideStep(screen: "Notification", controls: ["App"], highlight: "App", caption: text("Tap “App”.", "اضغط على “App”.")),
+            GuideStep(screen: "App", controls: ["Choose Apps", "Done"], highlight: "Choose Apps", caption: text("Choose your bank apps, then tap “Done”.", "اختر تطبيقات البنوك، ثم اضغط على “Done”.")),
+            GuideStep(screen: "Notification", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط على “Next”.")),
+            GuideStep(screen: "New Automation", controls: ["New Blank Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
+            GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
+            GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”.", "اضغط على “Apps”.")),
+            GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
+            GuideStep(screen: "Ghaf", controls: ["Log bank message"], highlight: "Log bank message", caption: text("Choose “Log bank message”.", "اختر “Log bank message”.")),
+            GuideStep(screen: "Log bank message", controls: ["Message text", "Shortcut Input", "Sender", "Done"], highlight: "Message text", caption: text("Set “Message text” to “Shortcut Input” and “Sender” to your bank app name, then tap “Done”.", "اربط “Message text” بـ“Shortcut Input” و“Sender” باسم تطبيق البنك، ثم اضغط على “Done”."))
         ]
     }
 
@@ -333,7 +348,16 @@ struct GhafAutomationGuideView: View {
             TabView(selection: $automationPage) {
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                     VStack(spacing: 10) {
-                        shortcutScreen(step)
+                        if let imageName = step.imageName {
+                            Image(imageName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 15))
+                                .accessibilityLabel("Shortcuts screen: \(step.screen), highlighted \(step.highlight)")
+                        } else {
+                            shortcutScreen(step)
+                        }
                         Text(step.caption)
                             .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))
                             .foregroundStyle(theme.primaryText)
@@ -346,7 +370,7 @@ struct GhafAutomationGuideView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: automation == .wallet ? 294 : 280)
+            .frame(height: automation == .wallet ? 220 : 220)
             HStack(spacing: 6) {
                 ForEach(steps.indices, id: \.self) { index in
                     Capsule().fill(index == automationPage ? theme.accent : theme.secondaryText.opacity(0.28))
@@ -370,13 +394,8 @@ struct GhafAutomationGuideView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
-        .padding(.leading, 52)
-        .padding(.trailing, 16)
         .padding(.top, 16)
         .padding(.bottom, 20)
-        .onChange(of: expandedAutomation) { _, selected in
-            if selected == automation { automationPage = 0 }
-        }
     }
 
     private func shortcutScreen(_ step: GuideStep) -> some View {
