@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Query private var settings: [GhafSettings]
 
@@ -16,6 +17,7 @@ struct GhafRootView: View {
     @State private var appliedLanguage = ""
     @State private var showLaunch = true
     @State private var launchHasStarted = false
+    @State private var launchSkipRequested = false
     @State private var isUnlocked = true
     @State private var authenticationMessage: String?
     @State private var authenticationInProgress = false
@@ -36,8 +38,8 @@ struct GhafRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear.ignoresSafeArea())
 
-            if showLaunch && !screenshotFixtureEnabled {
-                GhafWelcomeLaunchScreen(settings: settings.first)
+            if showLaunch && (!screenshotFixtureEnabled || launchFixtureProofEnabled) {
+                GhafWelcomeLaunchScreen(settings: settings.first) { launchSkipRequested = true }
                     .transition(.opacity)
                     .zIndex(10)
             }
@@ -233,16 +235,20 @@ struct GhafRootView: View {
         guard !launchHasStarted else { return }
         launchHasStarted = true
 #if DEBUG
-        if GhafScreenshotFixture.enabled { showLaunch = false; return }
+        if GhafScreenshotFixture.enabled && !GhafScreenshotFixture.launchProof { showLaunch = false; return }
 #endif
         launchStartedAt = .now
 
         Task { @MainActor in
-            let deadline = ContinuousClock.now + .seconds(2.4)
-            while settings.first == nil, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(40)) }
-            let minimum = settings.first?.hasCompletedOnboarding == true ? 1.6 : 2.6
-            let elapsed = Date.now.timeIntervalSince(launchStartedAt)
-            if elapsed < minimum { try? await Task.sleep(for: .seconds(minimum - elapsed)) }
+            let settingsDeadline = ContinuousClock.now + .milliseconds(600)
+            while settings.first == nil, ContinuousClock.now < settingsDeadline, !launchSkipRequested {
+                try? await Task.sleep(for: .milliseconds(40))
+            }
+            let settingsWait = min(0.6, Date.now.timeIntervalSince(launchStartedAt))
+            let minimum = (reduceMotion ? 1.2 : 2.4) + settingsWait
+            while Date.now.timeIntervalSince(launchStartedAt) < minimum && !launchSkipRequested {
+                try? await Task.sleep(for: .milliseconds(40))
+            }
             withAnimation(.easeOut(duration: 0.42)) {
                 showLaunch = false
             }
@@ -257,6 +263,14 @@ struct GhafRootView: View {
     private var screenshotFixtureEnabled: Bool {
 #if DEBUG
         GhafScreenshotFixture.enabled
+#else
+        false
+#endif
+    }
+
+    private var launchFixtureProofEnabled: Bool {
+#if DEBUG
+        GhafScreenshotFixture.launchProof
 #else
         false
 #endif
@@ -1378,89 +1392,134 @@ struct GhafOnboardingView: View {
 
 /// Shown on every fresh app process launch, deliberately separate from onboarding completion, so returning
 /// users see it without repeating setup or resetting data. Never shown on return from the background.
-/// Canvas "Cold start": a centred "Welcome back" greeting, two tilted rows of the user's own cards drifting
+/// Canvas "Cold start": a centred greeting, three tilted rows of cards drifting
 /// in opposite directions, the theme's light rising from the bottom and a slim loading bar.
 private struct GhafWelcomeLaunchScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     let settings: GhafSettings?
+    let onSkip: () -> Void
     @State private var shown = false
     @State private var start = Date()
+    @State private var sweep = false
+
+    init(settings: GhafSettings?, onSkip: @escaping () -> Void) {
+        self.settings = settings
+        self.onSkip = onSkip
+    }
 
     private var ar: Bool { settings?.languageCode == "ar" }
     private var lang: String { settings?.languageCode ?? "en" }
     private var returning: Bool { settings?.hasCompletedOnboarding == true }
     private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings?.themeName ?? "Abu Dhabi", appearanceMode: settings?.appearanceMode ?? "System",
+        GhafTheme.resolve(name: settings?.themeName ?? "Graphite", appearanceMode: settings?.appearanceMode ?? "System",
                           systemIsDark: colorScheme == .dark)
     }
     private var name: String {
         let value = settings?.userName.trimmingCharacters(in: .whitespaces) ?? ""
         return value.isEmpty ? (ar ? "غاف" : "Ghaf") : value
     }
+    private var faces: [AnyView] {
+        let ownAccounts = accounts.filter { !$0.isArchived }
+        var result = ownAccounts.map { account in
+            AnyView(GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
+                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 150))
+        }
+        let accountDesigns = Set(ownAccounts.compactMap { GhafCardDesign.forAccount($0)?.id })
+        var seenBanks = Set<String>()
+        let generic = GhafCardDesign.all.filter {
+            $0.bank != "cash" && !accountDesigns.contains($0.id) && seenBanks.insert($0.bank).inserted
+        }
+        var index = 0
+        while result.count < 6, !generic.isEmpty {
+            result.append(AnyView(GhafCardFace(account: nil, design: generic[index % generic.count], width: 150)))
+            index += 1
+        }
+        return result
+    }
+
     var body: some View {
-        ZStack {
-            VStack(spacing: 18) {
-                Spacer()
-                GhafTreeMark(color: theme.accent).frame(width: 96, height: 96)
-                    .shadow(color: theme.glow.opacity(0.7), radius: 28)
-                Text(returning ? (ar ? "أهلاً بعودتك، \(name)" : "Welcome back, \(name)") : "Ghaf")
-                    .font(GhafTypography.display(42, languageCode: lang)).foregroundStyle(theme.primaryText)
-                if !returning {
-                    Text(ar ? "أموالك، بوضوح." : "Your money, clearly.")
-                        .font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                }
-                TimelineView(.animation(paused: reduceMotion)) { context in
-                    let phase = reduceMotion ? 0.5 : context.date.timeIntervalSince(start).truncatingRemainder(dividingBy: 2.8) / 2.8
-                    ZStack {
-                        Capsule().fill(theme.glow.opacity(0.12)).frame(height: 2)
-                        WelcomeCurve().stroke(theme.glow.opacity(0.8), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        Circle().fill(theme.accent).frame(width: 9, height: 9)
-                            .shadow(color: theme.accent, radius: 12)
-                            .offset(x: (phase - 0.5) * 220, y: CGFloat(sin(phase * .pi * 2)) * 10)
+        GeometryReader { geometry in
+            let cards = faces
+            let rowB = Array(cards.dropFirst(2) + cards.prefix(2))
+            let rowC = Array(cards.dropFirst(4) + cards.prefix(4))
+            ZStack(alignment: .bottom) {
+                theme.background.ignoresSafeArea()
+                // A soft accent glow; a full-strength fill turned into a white slab on Graphite.
+                LinearGradient(stops: [.init(color: theme.accent.opacity(0), location: 0),
+                                       .init(color: theme.accent.opacity(0.14), location: 0.55),
+                                       .init(color: theme.accent.opacity(0.28), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 430).ignoresSafeArea(edges: .bottom)
+                VStack(spacing: 0) {
+                    VStack(spacing: 2) {
+                        Text(returning ? (ar ? "أهلاً بعودتك،" : "Welcome back,") : (ar ? "أهلاً بك في" : "Welcome to"))
+                            .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.secondaryText)
+                        Text(returning ? name : (ar ? "غاف" : "Ghaf"))
+                            // A Latin name keeps the Latin face even in Arabic.
+                            .font(GhafTypography.display(44, languageCode: returning && name.unicodeScalars.contains { $0.isASCII && CharacterSet.letters.contains($0) } ? "en" : lang))
+                            .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.6)
                     }
-                    .frame(width: 260, height: 34)
-                }
-                if returning {
-                    let ownAccounts = accounts.filter { !$0.isArchived }
-                    if !ownAccounts.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(ownAccounts) { account in
-                                    GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
-                                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 150)
-                                }
+                    .multilineTextAlignment(.center).padding(.horizontal, 24).padding(.top, 70)
+                    .opacity(shown ? 1 : 0).offset(y: shown || reduceMotion ? 0 : 14)
+
+                    TimelineView(.animation(paused: reduceMotion)) { context in
+                        GeometryReader { rowGeometry in
+                            VStack(spacing: 12) {
+                                cardRow(cards, seconds: context.date.timeIntervalSince(start), speed: 57, forward: true, width: rowGeometry.size.width)
+                                cardRow(rowB, seconds: context.date.timeIntervalSince(start), speed: 46, forward: false, width: rowGeometry.size.width)
+                                cardRow(rowC, seconds: context.date.timeIntervalSince(start), speed: 53, forward: true, width: rowGeometry.size.width)
                             }
                         }
-                        .frame(height: 125)
-                        .accessibilityHidden(true)
                     }
+                    .frame(height: 330).rotationEffect(.degrees(-6)).padding(.top, 60)
+                    .environment(\.layoutDirection, .leftToRight).accessibilityHidden(true)
+                    .opacity(shown ? 1 : 0).offset(y: shown || reduceMotion ? 0 : 14)
+                    Spacer(minLength: 0)
                 }
-                Spacer()
+                VStack(spacing: 12) {
+                    loadingBar
+                    Text(ar ? "جارٍ تحديث أرصدتك…" : "Updating your balances…")
+                        .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                }
+                .padding(.bottom, 56)
             }
-            .frame(maxWidth: 360).padding(28)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .contentShape(Rectangle()).onTapGesture(perform: onSkip)
         }
+        .ignoresSafeArea()
         .ghafBackground(theme: theme)
-        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(ar ? "غاف يفتح" : "Ghaf is opening")
+        .accessibilityElement(children: .combine).accessibilityLabel("Ghaf is opening")
         .onAppear {
             start = .now
             withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.2)) { shown = true }
         }
     }
 
-}
-
-private struct WelcomeCurve: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { path in
-            path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-            path.addCurve(to: CGPoint(x: rect.maxX, y: rect.midY),
-                          control1: CGPoint(x: rect.width * 0.3, y: rect.minY),
-                          control2: CGPoint(x: rect.width * 0.7, y: rect.maxY))
+    private func cardRow(_ cards: [AnyView], seconds: TimeInterval, speed: Double, forward: Bool, width: CGFloat) -> some View {
+        let setWidth = CGFloat(cards.count) * 162
+        let shift = CGFloat((seconds * speed).truncatingRemainder(dividingBy: Double(setWidth)))
+        return HStack(spacing: 12) {
+            ForEach(0..<(cards.count * 2), id: \.self) { index in cards[index % cards.count] }
         }
+        .offset(x: forward ? -shift : shift - setWidth)
+        .frame(width: width, alignment: .leading).clipped().drawingGroup()
+    }
+
+    private var loadingBar: some View {
+        Capsule().fill(theme.primaryText.opacity(0.15)).frame(width: 120, height: 4)
+            .overlay(alignment: .leading) {
+                Capsule().fill(theme.primaryText).frame(width: 48, height: 4).offset(x: sweep ? 120 : -48)
+            }
+            .clipShape(Capsule())
+            .onAppear {
+                guard !reduceMotion else { sweep = true; return }
+                withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: false)) { sweep = true }
+            }
+            .accessibilityHidden(true)
     }
 }
 
