@@ -245,7 +245,7 @@ struct GhafRootView: View {
                 try? await Task.sleep(for: .milliseconds(40))
             }
             let settingsWait = min(0.6, Date.now.timeIntervalSince(launchStartedAt))
-            let minimum = (reduceMotion ? 1.2 : 2.4) + settingsWait
+            let minimum = (launchFixtureProofEnabled ? 10.0 : (reduceMotion ? 1.2 : 2.4)) + settingsWait
             while Date.now.timeIntervalSince(launchStartedAt) < minimum && !launchSkipRequested {
                 try? await Task.sleep(for: .milliseconds(40))
             }
@@ -1420,30 +1420,46 @@ private struct GhafWelcomeLaunchScreen: View {
         let value = settings?.userName.trimmingCharacters(in: .whitespaces) ?? ""
         return value.isEmpty ? (ar ? "غاف" : "Ghaf") : value
     }
-    private var faces: [AnyView] {
-        let ownAccounts = accounts.filter { !$0.isArchived }
-        var result = ownAccounts.map { account in
-            AnyView(GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
-                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 150))
+    private struct WallCard: Identifiable {
+        let id: String
+        let bank: String
+        let view: AnyView
+        let isOwn: Bool
+    }
+
+    private var wallCards: [WallCard] {
+        var seenOwnDesigns = Set<String>()
+        let own = accounts.filter { !$0.isArchived && $0.type != .cash }.compactMap { account -> WallCard? in
+            guard let design = GhafCardDesign.forAccount(account), design.bank != "cash" else { return nil }
+            guard seenOwnDesigns.insert(design.id).inserted else { return nil }
+            return WallCard(id: design.id, bank: design.bank,
+                            view: AnyView(GhafCardFace(account: account, name: account.name,
+                                                       institution: account.institution ?? "",
+                                                       lastFour: account.lastFourDigits ?? "", design: design, width: 150)),
+                            isOwn: true)
         }
-        let accountDesigns = Set(ownAccounts.compactMap { GhafCardDesign.forAccount($0)?.id })
+        let ownDesigns = Set(own.map(\.id))
+        let ownBanks = Set(own.map(\.bank))
         var seenBanks = Set<String>()
         let generic = GhafCardDesign.all.filter {
-            $0.bank != "cash" && !accountDesigns.contains($0.id) && seenBanks.insert($0.bank).inserted
+            $0.bank != "cash" && !ownBanks.contains($0.bank) && !ownDesigns.contains($0.id)
+                && seenBanks.insert($0.bank).inserted
+        }.map { design in
+            WallCard(id: design.id, bank: design.bank,
+                     view: AnyView(GhafCardFace(account: nil, design: design, width: 150)), isOwn: false)
         }
-        var index = 0
-        while result.count < 6, !generic.isEmpty {
-            result.append(AnyView(GhafCardFace(account: nil, design: generic[index % generic.count], width: 150)))
-            index += 1
-        }
-        return result
+        return own + generic
     }
 
     var body: some View {
         GeometryReader { geometry in
-            let cards = faces
-            let rowB = Array(cards.dropFirst(2) + cards.prefix(2))
-            let rowC = Array(cards.dropFirst(4) + cards.prefix(4))
+            let cards = wallCards
+            let own = cards.filter(\.isOwn)
+            let generic = cards.filter { !$0.isOwn }
+            let genericRows = (0..<3).map { row in generic.enumerated().compactMap { $0.offset % 3 == row ? $0.element : nil } }
+            let rowA = own + genericRows[0]
+            let rowB = genericRows[1]
+            let rowC = genericRows[2]
             ZStack(alignment: .bottom) {
                 theme.background.ignoresSafeArea()
                 // A soft accent glow; a full-strength fill turned into a white slab on Graphite.
@@ -1458,27 +1474,33 @@ private struct GhafWelcomeLaunchScreen: View {
                             .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.secondaryText)
                         Text(returning ? name : (ar ? "غاف" : "Ghaf"))
-                            // A Latin name keeps the Latin face even in Arabic.
                             .font(GhafTypography.display(44, languageCode: returning && name.unicodeScalars.contains { $0.isASCII && CharacterSet.letters.contains($0) } ? "en" : lang))
                             .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.6)
                     }
-                    .multilineTextAlignment(.center).padding(.horizontal, 24).padding(.top, 70)
-                    .opacity(shown ? 1 : 0).offset(y: shown || reduceMotion ? 0 : 14)
-
-                    TimelineView(.animation(paused: reduceMotion)) { context in
-                        GeometryReader { rowGeometry in
-                            VStack(spacing: 12) {
-                                cardRow(cards, seconds: context.date.timeIntervalSince(start), speed: 57, forward: true, width: rowGeometry.size.width)
-                                cardRow(rowB, seconds: context.date.timeIntervalSince(start), speed: 46, forward: false, width: rowGeometry.size.width)
-                                cardRow(rowC, seconds: context.date.timeIntervalSince(start), speed: 53, forward: true, width: rowGeometry.size.width)
-                            }
-                        }
-                    }
-                    .frame(height: 330).rotationEffect(.degrees(-6)).padding(.top, 60)
-                    .environment(\.layoutDirection, .leftToRight).accessibilityHidden(true)
+                    .multilineTextAlignment(.center).padding(.horizontal, 24).padding(.top, 94)
                     .opacity(shown ? 1 : 0).offset(y: shown || reduceMotion ? 0 : 14)
                     Spacer(minLength: 0)
                 }
+                TimelineView(.animation(paused: reduceMotion)) { context in
+                    GeometryReader { rowGeometry in
+                        VStack(spacing: 12) {
+                            cardRow(rowA, genericCount: genericRows[0].count, seconds: context.date.timeIntervalSince(start), speed: 57, forward: true, width: rowGeometry.size.width)
+                            cardRow(rowB, genericCount: rowB.count, seconds: context.date.timeIntervalSince(start), speed: 46, forward: false, width: rowGeometry.size.width)
+                            cardRow(rowC, genericCount: rowC.count, seconds: context.date.timeIntervalSince(start), speed: 53, forward: true, width: rowGeometry.size.width)
+                        }
+                    }
+                }
+                .frame(height: geometry.size.height * 0.45, alignment: .bottom)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .rotationEffect(.degrees(-6)).clipped()
+                .environment(\.layoutDirection, .leftToRight).accessibilityHidden(true)
+                .opacity(shown ? 1 : 0).offset(y: shown || reduceMotion ? 0 : 14)
+                LinearGradient(stops: [.init(color: theme.background.opacity(0), location: 0),
+                                       .init(color: theme.background.opacity(0.82), location: 0.48),
+                                       .init(color: theme.background, location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: geometry.size.height * 0.45).frame(maxHeight: .infinity, alignment: .bottom)
+                    .ignoresSafeArea().allowsHitTesting(false)
                 VStack(spacing: 12) {
                     loadingBar
                     Text(ar ? "جارٍ تحديث أرصدتك…" : "Updating your balances…")
@@ -1499,14 +1521,16 @@ private struct GhafWelcomeLaunchScreen: View {
         }
     }
 
-    private func cardRow(_ cards: [AnyView], seconds: TimeInterval, speed: Double, forward: Bool, width: CGFloat) -> some View {
-        let setWidth = CGFloat(cards.count) * 162
+    private func cardRow(_ cards: [WallCard], genericCount: Int, seconds: TimeInterval, speed: Double, forward: Bool, width: CGFloat) -> some View {
+        guard !cards.isEmpty else { return AnyView(EmptyView()) }
+        let repeated = cards.filter { $0.isOwn } + cards.filter { !$0.isOwn } + cards.filter { !$0.isOwn }
+        let setWidth = CGFloat(max(genericCount, 1)) * 162
         let shift = CGFloat((seconds * speed).truncatingRemainder(dividingBy: Double(setWidth)))
-        return HStack(spacing: 12) {
-            ForEach(0..<(cards.count * 2), id: \.self) { index in cards[index % cards.count] }
+        return AnyView(HStack(spacing: 12) {
+            ForEach(Array(repeated.enumerated()), id: \.offset) { _, card in card.view }
         }
-        .offset(x: forward ? -shift : shift - setWidth)
-        .frame(width: width, alignment: .leading).clipped().drawingGroup()
+        .offset(x: forward ? -shift : shift - setWidth / 2)
+        .frame(width: width, alignment: .leading).clipped().drawingGroup())
     }
 
     private var loadingBar: some View {
