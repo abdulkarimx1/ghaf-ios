@@ -373,7 +373,7 @@ struct GhafStatsView: View {
             }
         }
         .padding(GhafMetrics.cardPadding)
-        .ghafCard(theme: theme, radius: 24)
+        .ghafStatsCard(theme: theme, radius: 24)
     }
 
     private func whole(_ value: Double) -> String {
@@ -381,7 +381,7 @@ struct GhafStatsView: View {
     }
 
     private func toggle(_ category: String) {
-        withAnimation(.snappy) { selectedCategory = selectedCategory == category ? nil : category }
+        withAnimation(.snappy) { selectedCategory = selectedCategory == category ? nil : category; selectedLabel = nil }
     }
 
     // MARK: Tiles and merchants
@@ -390,32 +390,33 @@ struct GhafStatsView: View {
         let days = max(1, calendar.dateComponents([.day], from: interval.start, to: min(Date.now, interval.end)).day ?? 1)
         let units = ar ? ["هذا الأسبوع", "هذا الشهر", "آخر ٣ أشهر", "هذه السنة"] : ["this week", "this month", "these 3 months", "this year"]
         return HStack(spacing: 10) {
-            VStack(spacing: 2) {
+            VStack(spacing: 8) {
                 Text(ar ? "متوسط اليوم" : "Daily average")
-                    .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.accentContrast.opacity(0.65))
-                Text(whole(total(items) / Double(days)))
-                    .font(GhafTypography.number(26, weight: .bold))
+                Text(GhafCompactNumber.string(total(items) / Double(days), languageCode: lang))
+                    .contentTransition(.opacity)
+                    .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.accentContrast)
                 Text(ar ? "\(currency) يومياً" : "\(currency) a day")
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.accentContrast.opacity(0.65))
             }
-            .frame(maxWidth: .infinity).padding(GhafMetrics.cardPadding)
+            .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
             .background(theme.accent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            VStack(spacing: 2) {
+            VStack(spacing: 8) {
                 Text(ar ? "المشتريات" : "Purchases")
-                    .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                 Text(items.count.formatted(.number.locale(Locale(identifier: lang))))
-                    .font(GhafTypography.number(26, weight: .bold))
+                    .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.primaryText)
                 Text(units[period.rawValue])
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
             }
-            .frame(maxWidth: .infinity).padding(GhafMetrics.cardPadding)
-            .ghafCard(theme: theme, radius: 22)
+            .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
+            .ghafStatsCard(theme: theme, radius: 22)
         }
     }
 
