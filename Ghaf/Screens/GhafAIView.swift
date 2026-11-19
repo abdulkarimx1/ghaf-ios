@@ -45,6 +45,7 @@ struct GhafAIView: View {
     static let night = Color(red: 0.02, green: 0.024, blue: 0.031)
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(GhafTabRouter.self) private var tabRouter
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     @Query private var subscriptions: [GhafSubscription]
@@ -58,6 +59,7 @@ struct GhafAIView: View {
     @StateObject private var assistant = GhafAssistant()
     @StateObject private var recorder = GhafSpeechRecorder()
     @StateObject private var liveCall = GhafLiveCall()
+    @State private var progress = GhafAIProgress.shared
     @State private var prompt = ""
     @State private var isTyping = false
     @State private var microphoneOff = false
@@ -110,6 +112,7 @@ struct GhafAIView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 14) {
+                                if progress.stage != nil { progressLine }
                                 ForEach($messages) { $message in
                                     bubble($message).id(message.id)
                                 }
@@ -125,9 +128,8 @@ struct GhafAIView: View {
                         .safeAreaInset(edge: .bottom, spacing: 0) {
                             VStack(spacing: 8) {
                                 if microphoneOff { microphonePermissionHint }
-                                orbControl(size: 64)
                             }
-                            .padding(.bottom, 30)
+                            .padding(.bottom, 12)
                         }
                         .onChange(of: messages.last?.text) { _, _ in
                             withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(messages.last?.id, anchor: .bottom) }
@@ -167,8 +169,27 @@ struct GhafAIView: View {
             }
             .onAppear {
                 engine = assistant.engine
+                tabRouter.startVoice = {
+                    if recorder.isRecording { recorder.stop(); finishVoice() }
+                    else { startVoice() }
+                }
+                tabRouter.typeQuestion = { openTyping() }
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
+                    if let fixture = GhafScreenshotFixture.progressStageFixture {
+                        let query = GhafLedgerAnswers.progressQuery(for: "How much did I spend this month?", transactions: transactions,
+                                                                    currency: settings.currency, languageCode: settings.languageCode)
+                        switch fixture {
+                        case "listening": progress.stage = .listening; tabRouter.isListening = true
+                        case "transcribing": progress.stage = .transcribing
+                        case "checking": if let query { progress.stage = .checkingTransactions(count: query.transactionCount, period: query.period) }
+                        case "adding": if let query, let count = query.purchaseCount { progress.stage = .addingPurchases(count) }
+                        case "asking": progress.stage = .askingAI
+                        case "chart": progress.stage = .drawingChart
+                        case "draft": progress.stage = .preparingDraft
+                        default: break
+                        }
+                    }
                     if GhafScreenshotFixture.destination == "ai-typing" { openTyping() }
                     if GhafScreenshotFixture.destination == "ai-conversation", messages.isEmpty {
                         send("How much did I spend this week?")
@@ -178,11 +199,16 @@ struct GhafAIView: View {
             }
             .onDisappear {
                 recorder.reset()
+                tabRouter.isListening = false
+                progress.stage = nil
+                tabRouter.startVoice = nil
+                tabRouter.typeQuestion = nil
                 stopSpeaking()
                 liveCall.end()
                 persistChat()
             }
             .onChange(of: isThinking) { _, thinking in if !thinking { persistChat() } }
+            .onChange(of: recorder.isRecording) { _, listening in tabRouter.isListening = listening }
             .onChange(of: messages.count) { _, _ in if !isThinking { persistChat() } }
             .onChange(of: liveCall.phase) { _, phase in
                 if case .ended(let reason) = phase, liveCallActive {
@@ -194,6 +220,22 @@ struct GhafAIView: View {
         }
     }
 
+    private var progressLine: some View {
+        Group {
+            if let stage = progress.stage {
+                Text(stage.label(languageCode: settings.languageCode))
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .id(stage)
+                    .transition(.opacity)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: progress.stage)
+    }
+
     // MARK: Header
 
     private func glassCircle(_ symbol: String, tint: Color? = nil) -> some View {
@@ -202,12 +244,16 @@ struct GhafAIView: View {
             .foregroundStyle(tint ?? theme.primaryText)
             .frame(width: 44, height: 44)
             .background(.white.opacity(0.06), in: Circle())
-            .overlay(Circle().stroke(.white.opacity(0.14)))
     }
 
     /// Engine, read-aloud and dictation; also reachable from the history sheet.
     private var optionsMenu: some View {
         Menu {
+            if !messages.isEmpty {
+                Button { startNewChat() } label: {
+                    Label(ar ? "محادثة جديدة" : "New chat", systemImage: "square.and.pencil")
+                }
+            }
             Section(engineLabel) {
                 if engine != .cloud {
                     Button { offerCloud = true } label: {
@@ -230,38 +276,22 @@ struct GhafAIView: View {
             }
             .disabled(isThinking || recorder.isRecording)
         } label: {
-            glassCircle("ellipsis")
+            glassCircle("line.3.horizontal")
         }
-        .accessibilityLabel(ar ? "خيارات غاف" : "Ghaf AI options")
+        .accessibilityLabel(ar ? "قائمة غاف AI" : "Ghaf AI menu")
     }
 
     private var header: some View {
         HStack {
-            if messages.isEmpty {
-                // As on the canvas: history on the start screen.
-                Button { showHistory = true } label: { glassCircle("line.3.horizontal") }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "المحادثات السابقة" : "Chat history")
-            } else {
-                // Back to the start screen; the chat is already saved in history.
-                Button { startNewChat() } label: { glassCircle(ar ? "chevron.right" : "chevron.left") }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "محادثة جديدة، المحادثة محفوظة" : "New chat, this one is saved")
-            }
-            Spacer()
-            if !messages.isEmpty || voiceMode {
-                HStack(spacing: 8) {
-                    GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                        .frame(width: 26, height: 26)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Ghaf AI")
-                            .font(GhafTypography.heading(17, languageCode: "en"))
-                            .foregroundStyle(theme.primaryText)
-                    }
-                }
-                Spacer()
-            }
             optionsMenu
+            Spacer()
+            Color.clear.frame(width: 44, height: 44)
+        }
+        .overlay {
+            Text("Ghaf AI")
+                .font(GhafTypography.heading(17, languageCode: "en"))
+                .foregroundStyle(theme.primaryText)
+                .accessibilityAddTraits(.isHeader)
         }
         .ghafScreenPadding()
         .padding(.top, 8)
@@ -354,8 +384,6 @@ struct GhafAIView: View {
 
     private var welcome: some View {
         VStack(spacing: 0) {
-            orbControl(size: 168)
-                .padding(.top, 40)
             let name = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
                 ?? settings.userName.split(separator: " ").first.map(String.init) ?? ""
             Text(name.isEmpty ? (ar ? "أهلاً" : "Hello") : (ar ? "أهلاً \(name)" : "Hello \(name)"))
@@ -367,6 +395,7 @@ struct GhafAIView: View {
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.center)
                 .padding(.top, 2)
+            if progress.stage != nil { progressLine.padding(.top, 12) }
             let chips = ar
                 ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "ما الاشتراكات القادمة؟"]
                 : ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"]
@@ -380,7 +409,7 @@ struct GhafAIView: View {
             if microphoneOff {
                 microphonePermissionHint.padding(.top, 14)
             } else {
-                Text("Tap the orb to talk · hold to type")
+                Text("Tap Ghaf AI in the tab bar to talk · hold to type")
                     .font(GhafTypography.body(13, languageCode: "en"))
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
@@ -601,7 +630,7 @@ struct GhafAIView: View {
 
     private var microphonePermissionHint: some View {
         HStack(spacing: 4) {
-            Text("Microphone is off — hold the orb to type")
+            Text("Microphone is off — hold Ghaf AI in the tab bar to type")
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Link("Settings", destination: URL(string: UIApplication.openSettingsURLString)!)
@@ -612,20 +641,6 @@ struct GhafAIView: View {
         .foregroundStyle(theme.secondaryText)
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)
-    }
-
-    private func orbControl(size: CGFloat) -> some View {
-        Button(action: startVoice) {
-            GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                .frame(width: size, height: size)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in openTyping() })
-        .accessibilityLabel("Talk to Ghaf AI")
-        .accessibilityHint("Double-tap to talk. Use the actions rotor to type.")
-        .accessibilityAction(named: Text("Type a question")) { openTyping() }
-        .disabled(isThinking || isTyping)
     }
 
     private func openTyping() {
@@ -672,13 +687,21 @@ struct GhafAIView: View {
         let text = (recorder.transcript.isEmpty ? prompt : recorder.transcript).trimmingCharacters(in: .whitespacesAndNewlines)
         recorder.reset()
         let letters = text.filter(\.isLetter).count
+        let voiceDrafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency)
         let understood = GhafMessageIntent.isQuestion(text)
-            || !GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).isEmpty
+            || !voiceDrafts.isEmpty
             || MemoryIntent.parse(text) != nil
             || ChatCorrection.parse(text, recent: recentDraftRefs().map(\.name)) != nil
             || ChatEdit.parse(text, recent: recentDraftRefs().map(\.name)) != nil
         if (letters >= 2 || ChatEdit.parse(text, recent: []) == .confirm) && understood {
-            send(text, isVoice: true)
+            if !voiceDrafts.isEmpty {
+                Task { @MainActor in
+                    progress.stage = .preparingDraft
+                    await Task.yield()
+                    send(text, isVoice: true)
+                    progress.stage = nil
+                }
+            } else { send(text, isVoice: true) }
         } else {
             // Nothing usable: clear it and show a short note that removes itself.
             prompt = ""
@@ -866,11 +889,23 @@ struct GhafAIView: View {
         let history = messages.dropLast().filter { !$0.text.isEmpty }.map { (isUser: $0.isUser, text: $0.text) }
         let facts = GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions,
                                               memories: memoryEnabled ? memories : [])
+        let progressQuery = GhafLedgerAnswers.progressQuery(for: resolved, transactions: transactions,
+                                                            currency: settings.currency, languageCode: settings.languageCode)
+        if let progressQuery {
+            progress.stage = .checkingTransactions(count: progressQuery.transactionCount, period: progressQuery.period)
+        }
         isThinking = true
-        let direct = GhafLedgerAnswers.answer(to: resolved, accounts: accounts, transactions: transactions,
-                                              subscriptions: subscriptions, currency: settings.currency,
-                                              languageCode: settings.languageCode)
         replyTask = Task {
+            if let progressQuery {
+                await Task.yield()
+                if let count = progressQuery.purchaseCount {
+                    progress.stage = .addingPurchases(count)
+                    await Task.yield()
+                }
+            }
+            let direct = GhafLedgerAnswers.answer(to: resolved, accounts: accounts, transactions: transactions,
+                                                  subscriptions: subscriptions, currency: settings.currency,
+                                                  languageCode: settings.languageCode)
             var index: Int?
             do {
                 GhafLedgerContext.accounts = accounts
@@ -897,9 +932,14 @@ struct GhafAIView: View {
                 let chartQuestion = GhafLedgerContext.requestedChart.map {
                     ["compare": "compare", "week": "week", "trend": "trend"][$0.kind, default: "categories"] + " " + $0.style
                 } ?? resolved
+                let chart = GhafChatChartBuilder.chart(for: chartQuestion, transactions: transactions,
+                                                       currency: settings.currency, languageCode: settings.languageCode)
+                if chart != nil {
+                    progress.stage = .drawingChart
+                    await Task.yield()
+                }
                 withAnimation(.spring(duration: 0.5, bounce: 0.2)) {
-                    messages[index].chart = GhafChatChartBuilder.chart(for: chartQuestion, transactions: transactions,
-                                                                      currency: settings.currency, languageCode: settings.languageCode)
+                    messages[index].chart = chart
                     messages[index].suggestions = suggestions(after: resolved)
                     // Only answers the ledger computed say where their numbers came from.
                     if direct != nil {
@@ -910,6 +950,7 @@ struct GhafAIView: View {
                 speak(messages[index].text, force: isVoice)
             }
             isThinking = false
+            progress.stage = nil
         }
     }
 

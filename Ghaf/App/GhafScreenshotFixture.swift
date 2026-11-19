@@ -115,3 +115,38 @@ enum GhafScreenshotFixture {
     }
 }
 #endif
+
+#if DEBUG
+extension GhafScreenshotFixture {
+    static var progressStageFixture: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard enabled, let index = args.firstIndex(of: "-GhafAIStage"), args.indices.contains(index + 1) else { return nil }
+        let stage = args[index + 1]
+        return ["listening", "transcribing", "checking", "adding", "asking", "chart", "draft"].contains(stage) ? stage : nil
+    }
+
+    static var attentionMarksFixture: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        guard enabled, let index = args.firstIndex(of: "-GhafAttentionMarks"), args.indices.contains(index + 1) else { return false }
+        return args[index + 1] == "1"
+    }
+
+    static func seedAttentionMarks(in context: ModelContext) {
+        let transactions = (try? context.fetch(FetchDescriptor<GhafTransaction>())) ?? []
+        let subscriptions = (try? context.fetch(FetchDescriptor<GhafSubscription>())) ?? []
+        for index in 1...3 where !transactions.contains(where: { $0.fingerprint == "fixture-attention-review-\(index)" }) {
+            let parsed = ParsedTransaction(amount: Decimal(index * 12), currency: "AED", merchant: "Review fixture \(index)", date: .now,
+                                           direction: .debit, confidence: 0.5, bank: "Mashreq")
+            context.insert(GhafTransaction(fingerprint: "fixture-attention-review-\(index)", parsed: parsed,
+                                           category: "Other", needsReview: true, isReversal: false))
+        }
+        for index in 1...3 where !subscriptions.contains(where: { $0.name == "Confirmation fixture \(index)" }) {
+            let subscription = GhafSubscription(name: "Confirmation fixture \(index)", amount: Decimal(index * 19),
+                                                nextPaymentDate: .now, isActive: false)
+            subscription.needsConfirmation = true
+            context.insert(subscription)
+        }
+        try? context.save()
+    }
+}
+#endif
