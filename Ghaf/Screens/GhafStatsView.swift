@@ -308,7 +308,9 @@ struct GhafStatsView: View {
             .accessibilityLabel(ar ? "اتجاه الصرف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
 
             GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme, languageCode: lang)
-            .padding(.top, 8)
+                .scaleEffect(x: 1, y: 52.0 / 56.0)
+                .frame(height: 52)
+                .padding(.top, 8)
             .onChange(of: period) { _, _ in selectedLabel = nil; selectedCategory = nil }
         }
         .frame(maxWidth: .infinity)
@@ -529,17 +531,25 @@ struct GhafStatsView: View {
     private var proPopup: some View {
         ZStack {
             theme.background.opacity(0.55).ignoresSafeArea().onTapGesture { closePro() }
-            VStack(spacing: 16) {
+            VStack(spacing: 0) {
                 HStack {
                     Text("Pro").font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accentContrast).padding(.horizontal, 12).padding(.vertical, 7).background(theme.accent, in: Capsule())
                     Spacer()
                     Button { closePro() } label: { Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText).frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityLabel(ar ? "إغلاق" : "Close")
                 }
-                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro").font(GhafTypography.display(24, languageCode: lang)).foregroundStyle(theme.primaryText).multilineTextAlignment(.center)
-                Text(ar ? "تقارير أعمق، ودجت، ونشاط مباشر" : "Deeper reports, widgets and Live Activities").font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
-                Button { showPro = false; showProSheet = true } label: { Text(ar ? "عرض الخطط ←" : "See plans →").font(GhafTypography.body(16, languageCode: lang, weight: .bold)).frame(maxWidth: .infinity, minHeight: 56) }.ghafProminentButton(theme: theme, languageCode: lang)
+                Image(systemName: "sparkles").font(.system(size: 28, weight: .bold)).foregroundStyle(theme.accentContrast)
+                    .frame(width: 64, height: 64).background(theme.accent, in: RoundedRectangle(cornerRadius: 20, style: .continuous)).padding(.top, 24)
+                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro").font(GhafTypography.display(26, languageCode: lang)).foregroundStyle(theme.primaryText).multilineTextAlignment(.center).padding(.top, 24)
+                Text(ar ? "تقارير أعمق، ودجت، ونشاط مباشر" : "Deeper reports, widgets and Live Activities").font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center).padding(.top, 8)
+                Button { showPro = false; showProSheet = true } label: {
+                    Text(ar ? "عرض الخطط ←" : "See plans →").font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.surface).frame(maxWidth: .infinity, minHeight: 56)
+                        .background(theme.primaryText, in: Capsule())
+                }.buttonStyle(.plain).padding(.top, 24)
+                Text(ar ? "لا توجد دفعة حقيقية في هذا الإصدار." : "This build does not take a real payment.")
+                    .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center).padding(.top, 16)
             }
-            .padding(22).frame(maxWidth: 360).background(theme.surface, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(24).frame(maxWidth: 360).background(theme.surface, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
         }
         .transition(.scale(scale: 0.92).combined(with: .opacity))
         .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.82), value: showPro)
