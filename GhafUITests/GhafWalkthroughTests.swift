@@ -90,4 +90,17 @@ final class GhafWalkthroughTests: XCTestCase {
         timedTap(app.tabBars.buttons["Home"], "tab Home")
         timedTap(app.tabBars.buttons["Transactions"], "tab Transactions again")
     }
+
+    func test5BudgetListsOnlySpendingCategories() {
+        launch(["-GhafTab", "insights"])
+        let budget = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Budget, Salary'")).firstMatch
+        timedTap(budget, "open budget eligibility")
+        XCTAssertTrue(app.staticTexts["Food"].exists)
+        XCTAssertTrue(app.staticTexts["Car"].exists)
+        for category in ["Salary", "Transfers", "Transfers received", "Reimbursements", "Receivable",
+                         "Borrow Money", "Lend Money", "Payable Debt Interest", "Payment Collection"] {
+            XCTAssertFalse(app.staticTexts[category].exists, "Unexpected budget category: \(category)")
+        }
+        snap("budget-spending-categories")
+    }
 }

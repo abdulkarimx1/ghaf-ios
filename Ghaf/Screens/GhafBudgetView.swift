@@ -56,7 +56,6 @@ struct GhafBudgetView: View {
     @State private var editingCategory: String?
     @State private var budgetEntry = ""
     @State private var showPresetSheet = false
-    @State private var petalsVisible = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var lang: String { settings.languageCode }
@@ -84,7 +83,11 @@ struct GhafBudgetView: View {
     }
 
     private func expenses(in range: DateInterval) -> [GhafTransaction] {
-        transactions.filter { $0.currency == currency && $0.isExpense && range.contains($0.date) }
+        transactions.filter { transaction in
+            guard transaction.currency == currency, transaction.isExpense, range.contains(transaction.date) else { return false }
+            return !CategoryTaxonomy.isTransferOrAdjustment(category: transaction.category, subcategory: transaction.subcategory)
+                && CategoryTaxonomy.category(named: transaction.category)?.isIncome != true
+        }
     }
 
     var body: some View {
@@ -107,6 +110,7 @@ struct GhafBudgetView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .ghafStatusBarFade(theme: theme)
         .ghafBackground(theme: theme)
         .navigationTitle(ar ? "الميزانية" : "Budget")
         .navigationBarTitleDisplayMode(.inline)
@@ -118,7 +122,6 @@ struct GhafBudgetView: View {
             budgetEditor(item.name).presentationDetents([.height(320)]).presentationCornerRadius(32)
         }
         .onAppear {
-            petalsVisible = true
 #if DEBUG
             guard GhafScreenshotFixture.enabled else { return }
             if GhafScreenshotFixture.selection == "wants" { bucket = .wants; bucketSelected = true }
@@ -160,22 +163,31 @@ struct GhafBudgetView: View {
     }
 
     private var monthlySpendByCategory: [(name: String, spent: Decimal, budget: Decimal)] {
-        let totals = Dictionary(grouping: expenses(in: calendar.dateInterval(of: .month, for: .now)!), by: \.category)
+        let monthStart = calendar.dateInterval(of: .month, for: .now)!.start
+        let totals = Dictionary(grouping: expenses(in: DateInterval(start: monthStart, end: calendar.dateInterval(of: .month, for: .now)!.end)), by: \.category)
             .mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
-        let names = Set(settings.categories).union(totals.keys)
+        let historyStart = calendar.date(byAdding: .month, value: -3, to: monthStart)!
+        let history = Dictionary(grouping: expenses(in: DateInterval(start: historyStart, end: monthStart)), by: \.category)
+            .mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
+        let incomeOnly = Set(transactions.filter(\.isIncome).map(\.category)).subtracting(totals.keys)
+        let names = Set(settings.categories).union(totals.keys).filter {
+            !CategoryTaxonomy.isTransferOrAdjustment(category: $0, subcategory: nil)
+                && CategoryTaxonomy.category(named: $0)?.isIncome != true
+                && !incomeOnly.contains($0)
+                && (CategoryTaxonomy.category(named: $0) != nil || CategoryTaxonomy.defaultNames.contains($0)
+                    || totals[$0] != nil || history[$0] != nil || settings.categoryBudgets[$0] != nil)
+        }
         return names.compactMap { name in
             let spent = totals[name, default: 0]
-            return (name, spent, settings.categoryBudgets[name] ?? suggestedBudget(for: name, categories: names))
+            return (name, spent, settings.categoryBudgets[name] ?? suggestedBudget(for: name, categories: Set(names), history: history))
         }.sorted { lhs, rhs in
             lhs.budget == rhs.budget ? lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending : lhs.budget > rhs.budget
         }
     }
 
-    private func suggestedBudget(for name: String, categories: Set<String>) -> Decimal {
+    private func suggestedBudget(for name: String, categories: Set<String>, history: [String: Decimal]) -> Decimal {
         let bucket = BudgetAllocation.bucket(forCategory: name)
         let bucketAmount = income * preset.share(bucket)
-        let threeMonths = DateInterval(start: calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!, end: calendar.dateInterval(of: .month, for: .now)!.start)
-        let history = Dictionary(grouping: expenses(in: threeMonths), by: \.category).mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
         let historyTotal = categories.filter { BudgetAllocation.bucket(forCategory: $0) == bucket }.reduce(Decimal.zero) { $0 + history[$1, default: 0] }
         let bucketCategories = max(1, categories.filter { BudgetAllocation.bucket(forCategory: $0) == bucket }.count)
         return roundedBudget(historyTotal > 0 ? bucketAmount * history[name, default: 0] / historyTotal : bucketAmount / Decimal(bucketCategories))
@@ -210,7 +222,7 @@ struct GhafBudgetView: View {
                     let start = -90 + Double(index) * step + gap / 2
                     let end = -90 + Double(index + 1) * step - gap / 2
                     let fraction = item.budget > 0 ? min(1, NSDecimalNumber(decimal: item.spent / item.budget).doubleValue) : 0
-                    let fillRadius = item.spent > item.budget ? 1 : (petalsVisible || reduceMotion ? sqrt(innerRatio * innerRatio + fraction * (1 - innerRatio * innerRatio)) : innerRatio)
+                    let fillRadius = item.spent > item.budget ? 1 : sqrt(innerRatio * innerRatio + fraction * (1 - innerRatio * innerRatio))
                     BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1)
                         .fill(theme.primaryText.opacity(theme.isDark ? 0.07 : 0.05))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
@@ -322,7 +334,6 @@ struct GhafBudgetView: View {
         }
         .frame(height: CGFloat(rows.count * 64) + 350)
         .padding(GhafMetrics.cardPadding).ghafStatsCard(theme: theme, radius: 22)
-        .animation(reduceMotion ? nil : .spring(response: 0.7, dampingFraction: 0.82), value: petalsVisible)
     }
 
     private func hasRecentSpending(_ category: String) -> Bool {
