@@ -4,7 +4,7 @@ import CoreLocation
 import SwiftData
 import GhafCore
 
-struct LogBankMessageIntent: AppIntent {
+struct LogBankMessageIntent: AppIntent, LiveActivityIntent {
 
     static var title: LocalizedStringResource = "Log bank message"
 
@@ -91,6 +91,7 @@ struct LogBankMessageIntent: AppIntent {
             if let merchant { await GhafPlaces.rememberPurchaseSpot(spot, merchant: merchant, transactionID: id) }
         }
 
+        if let id = confirmation.transactionID { try? await GhafWidgetSync.showPurchase(transactionID: id) }
         return .result(value: confirmation.confirmation)
     }
 }

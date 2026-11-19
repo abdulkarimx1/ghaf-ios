@@ -128,6 +128,7 @@ struct GhafSettingsView: View {
                             subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
+                        menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
                         menuRow(ar ? "الأمان والخصوصية" : "Security & privacy", icon: "lock.fill") { subpage(ar ? "الأمان" : "Security") { securityCard } }
                     }
 

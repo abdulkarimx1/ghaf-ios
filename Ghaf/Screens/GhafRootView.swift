@@ -343,6 +343,9 @@ struct GhafTabView: View {
     @State private var showOrbOverlay = false
     /// A stable reference in the environment: switching tabs never changes the tabs' inputs.
     @State private var router = GhafTabRouter()
+    /// Opened from a Live Activity or widget link (ghaf://transaction/<UUID>).
+    @State private var linkedTransaction: GhafTransaction?
+    @Query private var linkAccounts: [GhafAccount]
     /// Decoded once, not on every tab switch, so category icons are not invalidated needlessly.
     @State private var categoryMeta: [String: GhafCategoryMeta] = [:]
 
@@ -390,6 +393,15 @@ struct GhafTabView: View {
             GhafSettingsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 4, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
+        }
+        .onOpenURL { url in
+            guard url.scheme == "ghaf", url.host == "transaction", let id = UUID(uuidString: url.lastPathComponent) else { return }
+            linkedTransaction = try? modelContext.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first
+            if linkedTransaction != nil { router.selectedTab = 3 }
+        }
+        .sheet(item: $linkedTransaction) { transaction in
+            NavigationStack { GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: linkAccounts.filter { !$0.isArchived }) }
+                .ghafDirection(settings.languageCode)
         }
         .overlay {
             GeometryReader { geometry in

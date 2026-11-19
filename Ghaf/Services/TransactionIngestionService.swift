@@ -194,13 +194,7 @@ final class TransactionIngestionService {
         }
         GhafDigestNotifications.reschedule(context: context)
         GhafWidgetSync.refresh(context: context)
-        do {
-            let all = (try? context.fetch(FetchDescriptor<GhafTransaction>())) ?? []
-            let balance = resolvedAccount.map { GhafAccountBalanceCalculator.balance(for: $0, transactions: all) }
-            let arabic = (try? GhafPersistence.settings(in: context).languageCode) == "ar"
-            let account = resolvedAccount
-            Task { await GhafWidgetSync.showPurchase(transaction, account: account, balance: balance, needsReview: needsReview, arabic: arabic) }
-        }
+        // The Live Activity is started by the calling LiveActivityIntent, which iOS lets run in the background.
 
         let amountFormatter = NumberFormatter()
         amountFormatter.locale = Locale(identifier: "en_US_POSIX")
