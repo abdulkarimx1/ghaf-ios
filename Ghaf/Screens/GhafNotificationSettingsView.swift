@@ -63,7 +63,8 @@ struct GhafNotificationSettingsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(ar ? "تنبيهات الأحداث" : "Event alerts")
                         .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 16).padding(.bottom, 12)
                     row(ar ? "عملية تحتاج مراجعتك" : "Transaction needs review",
                         ar ? "عندما تُحفظ عملية آلية لتراجع تفاصيلها." : "When an automatic transaction is saved for review.",
                         icon: "tray.full.fill", isOn: $transactionReview)
@@ -90,7 +91,8 @@ struct GhafNotificationSettingsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(ar ? "ملخصات مجدولة" : "Scheduled summaries")
                         .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 16).padding(.bottom, 12)
                     row(ar ? "صباحاً · ٨:٠٠" : "Morning · 8:00",
                         ar ? "مصروفات أمس" : "Yesterday's spending", icon: "sunrise.fill", isOn: $morning)
                     Divider().overlay(theme.outline)
@@ -262,8 +264,8 @@ struct GhafNotificationSettingsView: View {
                     .frame(width: 34, height: 34)
                     .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
-                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                    Text(title).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
+                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
