@@ -194,8 +194,10 @@ struct GhafBudgetView: View {
         let totalSpent = shown.reduce(Decimal.zero) { $0 + $1.spent }
         let totalBudget = shown.reduce(Decimal.zero) { $0 + $1.budget }
         let active = shown.first { $0.name == selectedCategory }
-        let outerRadius: CGFloat = 130
-        let innerRatio: CGFloat = 0.34
+        return GeometryReader { geometry in
+        let labelWidth: CGFloat = 72
+        let outerRadius = max(1, (geometry.size.width - 2 * labelWidth - 24) / 2 - 1)
+        let innerRatio: CGFloat = 0.5
         let innerRadius = outerRadius * innerRatio
         let labelRadius = outerRadius + 14
         return VStack(spacing: 12) {
@@ -223,38 +225,39 @@ struct GhafBudgetView: View {
                 }
                 ForEach(Array(shown.enumerated()), id: \.offset) { index, item in
                     let angle = -90 + (Double(index) + 0.5) * 360 / Double(max(shown.count, 1))
-                    let labelPoint = CGPoint(x: 180 + cos(angle * .pi / 180) * labelRadius,
-                                             y: 160 + sin(angle * .pi / 180) * labelRadius)
-                    HStack(spacing: 3) {
-                        if item.spent > item.budget { Image(systemName: "exclamationmark").font(.system(size: 10, weight: .bold)).foregroundStyle(theme.over) }
-                        Text(item.name).font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.primaryText).lineLimit(1)
-                    }
-                    .fixedSize()
+                    let labelPoint = CGPoint(x: geometry.size.width / 2 + cos(angle * .pi / 180) * labelRadius,
+                                             y: outerRadius + labelWidth + 12 + sin(angle * .pi / 180) * labelRadius)
+                    ((item.spent > item.budget ? Text("! ").foregroundColor(theme.over) : Text(""))
+                    + Text(item.name).foregroundColor(theme.primaryText))
+                    .font(GhafTypography.body(item.name.count > 9 ? 9 : 12, languageCode: lang, weight: .medium))
+                    .lineLimit(1).minimumScaleFactor(0.45)
+                    .frame(width: labelWidth, alignment: .center)
                     .position(labelPoint)
+                    .zIndex(1)
                     .allowsHitTesting(false)
                 }
                 VStack(spacing: 3) {
                     if let active {
                         GhafMoneyLabel(amount: active.spent, currency: currency, languageCode: lang, size: 20, weight: .semibold)
-                            .fixedSize(horizontal: true, vertical: false).scaleEffect(0.6).frame(width: innerRadius * 2 - 20)
+                            .fixedSize(horizontal: true, vertical: false).scaleEffect(0.45).frame(width: innerRadius * 2)
                         HStack(spacing: 3) {
                             Text("of").font(GhafTypography.body(12, languageCode: lang))
                             GhafMoneyLabel(amount: active.budget, currency: currency, languageCode: lang, size: 12)
-                        }.foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.6)
+                        }.foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.45)
                     } else {
                         GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 20, weight: .semibold)
-                            .fixedSize(horizontal: true, vertical: false).scaleEffect(0.6).frame(width: innerRadius * 2 - 20)
+                            .fixedSize(horizontal: true, vertical: false).scaleEffect(0.45).frame(width: innerRadius * 2)
                         HStack(spacing: 3) {
                             Text("of").font(GhafTypography.body(12, languageCode: lang))
                             GhafMoneyLabel(amount: totalBudget, currency: currency, languageCode: lang, size: 12)
-                        }.foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.6)
+                        }.foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.45)
                     }
-            }.frame(width: max(0, innerRadius * 2 - 20)).multilineTextAlignment(.center).foregroundStyle(theme.primaryText).allowsHitTesting(false)
+            }.frame(width: max(0, innerRadius * 2 - 8)).multilineTextAlignment(.center).foregroundStyle(theme.primaryText).allowsHitTesting(false)
             }
-            .frame(width: 360, height: 320)
+            .frame(width: geometry.size.width, height: outerRadius * 2 + 2 * labelWidth + 24)
             .contentShape(Rectangle())
             .gesture(SpatialTapGesture().onEnded { value in
-                let point = CGPoint(x: value.location.x - 180, y: value.location.y - 160)
+                let point = CGPoint(x: value.location.x - geometry.size.width / 2, y: value.location.y - outerRadius - labelWidth - 12)
                 let radius = hypot(point.x, point.y) / outerRadius
                 guard radius >= innerRatio, radius <= 1, !shown.isEmpty else { withAnimation(.spring()) { selectedCategory = nil }; return }
                 let degrees = (atan2(point.y, point.x) * 180 / .pi + 450).truncatingRemainder(dividingBy: 360)
@@ -309,6 +312,8 @@ struct GhafBudgetView: View {
                 }
             }
         }
+        }
+        .frame(height: CGFloat(rows.count * 64) + 500)
         .padding(GhafMetrics.cardPadding).ghafStatsCard(theme: theme, radius: 22)
         .animation(reduceMotion ? nil : .spring(response: 0.7, dampingFraction: 0.82), value: petalsVisible)
     }
