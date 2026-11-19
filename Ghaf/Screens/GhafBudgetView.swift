@@ -11,6 +11,8 @@ struct GhafBudgetView: View {
     let settings: GhafSettings
 
     @State private var bucket: BudgetAllocation.Bucket = .needs
+    @State private var bucketSelected = false
+    @State private var selectedMonth: Date?
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -95,14 +97,24 @@ struct GhafBudgetView: View {
     // MARK: Auto-allocation
 
     private func allocationCard(needs: Decimal, wants: Decimal) -> some View {
-        let planned = income * BudgetAllocation.share(bucket)
-        // Savings "used" is what's actually left of income after needs and wants, against the 20% goal.
-        let used: Decimal = bucket == .needs ? needs : bucket == .wants ? wants : max(income - needs - wants, 0)
-        let ratio = planned > 0 ? min(max(NSDecimalNumber(decimal: used / planned).doubleValue, 0), 1.5) : 0
         let names = ar ? ["الأساسيات", "الرغبات", "الادخار"] : ["Needs", "Wants", "Savings"]
         let notes = ar ? ["إيجار، فواتير، بقالة، سيارة", "مطاعم، تسوق، ترفيه", "ما يبقى من دخلك"]
                        : ["Rent, bills, groceries, car", "Dining, shopping, fun", "What's left of your income"]
         let colors = [theme.accent, theme.glow, theme.credit]
+        let planned = bucketSelected ? income * BudgetAllocation.share(bucket) : income
+        let used: Decimal = bucketSelected ? (bucket == .needs ? needs : bucket == .wants ? wants : max(income - needs - wants, 0)) : needs + wants
+        let ratio = planned > 0 ? min(max(NSDecimalNumber(decimal: used / planned).doubleValue, 0), 1.5) : 0
+        let activeName = bucketSelected ? names[bucket.rawValue] : (ar ? "الإجمالي" : "Total")
+        let activeColor = bucketSelected ? colors[bucket.rawValue] : theme.accent
+        let allocationSelection = Binding<BudgetAllocation.Bucket>(
+            get: { bucket },
+            set: { value in
+                withAnimation(.snappy) {
+                    if bucket == value && bucketSelected { bucketSelected = false }
+                    else { bucket = value; bucketSelected = true }
+                }
+            }
+        )
         return VStack(spacing: 14) {
             Text(ar ? "التوزيع التلقائي" : "Auto-allocation")
                 .font(GhafTypography.body(15, languageCode: lang, weight: .bold))
@@ -114,38 +126,98 @@ struct GhafBudgetView: View {
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
             } else {
+                ZStack {
                 Chart(BudgetAllocation.Bucket.allCases, id: \.self) { item in
                     SectorMark(angle: .value("Share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
-                               outerRadius: .ratio(item == bucket ? 1 : 0.92), angularInset: 1.5)
-                        .foregroundStyle(colors[item.rawValue].opacity(item == bucket ? 1 : 0.45))
-                        .annotation(position: .overlay) {
-                            Text("\(Int(truncating: (BudgetAllocation.share(item) * 100) as NSNumber))%")
-                                .font(GhafTypography.number(16, weight: .bold))
-                                .foregroundStyle(theme.accentContrast)
-                        }
+                               innerRadius: .ratio(0.62), outerRadius: .ratio(1), angularInset: 2)
+                        .foregroundStyle(colors[item.rawValue])
+                        .opacity(!bucketSelected || item == bucket ? 1 : 0.3)
+                        .accessibilityLabel(names[item.rawValue])
+                        .accessibilityValue(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
+                    if bucketSelected && item == bucket {
+                        SectorMark(angle: .value("Selected share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
+                                   innerRadius: .ratio(0.95), outerRadius: .ratio(1), angularInset: 2)
+                            .foregroundStyle(theme.primaryText)
+                            .accessibilityHidden(true)
+                    }
                 }
-                .frame(width: 180, height: 180)
-                .accessibilityLabel(ar ? "٥٠٪ أساسيات، ٣٠٪ رغبات، ٢٠٪ ادخار" : "Needs 50 percent, wants 30 percent, savings 20 percent")
-
-                HStack(spacing: 4) {
-                    ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
-                        Button { withAnimation(.snappy) { bucket = item } } label: {
-                            Text(names[item.rawValue])
-                                .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                                .foregroundStyle(item == bucket ? theme.accentContrast : theme.secondaryText)
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(item == bucket ? theme.accent : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .frame(width: 200, height: 200)
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle().fill(.clear).contentShape(Rectangle())
+                            .gesture(SpatialTapGesture().onEnded { tap in
+                                guard let anchor = proxy.plotFrame else { return }
+                                let frame = geometry[anchor]
+                                let point = CGPoint(x: tap.location.x - frame.midX, y: tap.location.y - frame.midY)
+                                let radius = hypot(point.x, point.y)
+                                guard radius > 62 && radius < 100 else { withAnimation(.snappy) { bucketSelected = false }; return }
+                                let degrees = (atan2(point.x, -point.y) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+                                let values = BudgetAllocation.Bucket.allCases.map { NSDecimalNumber(decimal: BudgetAllocation.share($0)).doubleValue * 360 }
+                                var edge = 0.0
+                                for (index, amount) in values.enumerated() {
+                                    if degrees >= edge && degrees < edge + amount {
+                                        withAnimation(.snappy) {
+                                            let chosen = BudgetAllocation.Bucket.allCases[index]
+                                            if chosen == bucket && bucketSelected { bucketSelected = false }
+                                            else { bucket = chosen; bucketSelected = true }
+                                        }
+                                        break
+                                    }
+                                    edge += amount
+                                }
+                            })
+                    }
+                }
+                .accessibilityRepresentation {
+                    VStack {
+                        ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
+                            Button {
+                                withAnimation(.snappy) {
+                                    if bucketSelected && bucket == item { bucketSelected = false }
+                                    else { bucket = item; bucketSelected = true }
+                                }
+                            } label: { Text(names[item.rawValue]) }
+                                .accessibilityValue(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
+                                .accessibilityAddTraits(bucketSelected && item == bucket ? .isSelected : [])
                         }
-                        .buttonStyle(.ghafPress)
-                        .accessibilityAddTraits(item == bucket ? .isSelected : [])
+                    }
+                }
+                VStack(spacing: 8) {
+                    Text(bucketSelected ? NSDecimalNumber(decimal: BudgetAllocation.share(bucket) * 100).stringValue + "%" : "100%")
+                        .font(GhafTypography.number(28, weight: .heavy)).foregroundStyle(theme.primaryText)
+                    Text(activeName).font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                    GhafMoneyLabel(amount: planned, currency: currency, languageCode: lang, size: 15).foregroundStyle(theme.primaryText)
+                }
+                .multilineTextAlignment(.center)
+                .allowsHitTesting(false)
+                }
+                .accessibilityElement(children: .contain)
+
+                GhafSegmented(options: Array(zip(BudgetAllocation.Bucket.allCases, names)), selection: allocationSelection, theme: theme, languageCode: lang)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
+                        Button { withAnimation(.snappy) { if bucket == item && bucketSelected { bucketSelected = false } else { bucket = item; bucketSelected = true } } } label: {
+                            VStack(spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Circle().fill(colors[item.rawValue]).frame(width: 8, height: 8)
+                                    Text(names[item.rawValue]).lineLimit(1)
+                                    Text("\(Int(truncating: (BudgetAllocation.share(item) * 100) as NSNumber))%")
+                                }
+                                Text(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang)).lineLimit(1).minimumScaleFactor(0.75)
+                            }
+                            .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, minHeight: 56)
+                        }
+                        .accessibilityLabel("\(names[item.rawValue]), \(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))")
+                        .accessibilityAddTraits(bucketSelected && bucket == item ? .isSelected : [])
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(names[bucket.rawValue]).font(GhafTypography.body(16, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
-                            Text(notes[bucket.rawValue]).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            Text(activeName).font(GhafTypography.body(16, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
+                            Text(bucketSelected ? notes[bucket.rawValue] : (ar ? "الدخل مقابل المصروفات" : "Income and spending overview")).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         }
                         Spacer()
                         GhafMoneyLabel(amount: planned, currency: currency, languageCode: lang, size: 18)
@@ -154,13 +226,13 @@ struct GhafBudgetView: View {
                     GeometryReader { proxy in
                         ZStack(alignment: .leading) {
                             Capsule().fill(theme.elevatedSurface)
-                            Capsule().fill(bucket != .savings && ratio > 1 ? theme.over : colors[bucket.rawValue])
+                            Capsule().fill(bucketSelected && bucket != .savings && ratio > 1 ? theme.over : activeColor)
                                 .frame(width: max(6, proxy.size.width * min(ratio, 1)))
                         }
                     }
                     .frame(height: 8)
                     HStack {
-                        Text(bucket == .savings
+                        Text(bucketSelected && bucket == .savings
                              ? (ar ? "ادّخرت حتى الآن " : "Saved so far ") + GhafFormat.shownMoney(used, currency: currency, languageCode: lang)
                              : GhafFormat.shownMoney(max(planned - used, 0), currency: currency, languageCode: lang) + (ar ? " متبقٍ" : " left"))
                         Spacer()
@@ -170,12 +242,12 @@ struct GhafBudgetView: View {
                     .foregroundStyle(theme.secondaryText)
                 }
                 .padding(GhafMetrics.cardPadding)
-                .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 18, style: .continuous), fallback: theme.elevatedSurface.opacity(0.6))
+                .ghafStatsCard(theme: theme, radius: 18)
             }
         }
         .padding(18)
         .frame(maxWidth: .infinity)
-        .ghafGlassHero(theme: theme, radius: 28)
+        .ghafStatsCard(theme: theme, radius: 28)
     }
 
     // MARK: Pace
@@ -212,7 +284,7 @@ struct GhafBudgetView: View {
                     .foregroundStyle(theme.primaryText)
             }
             .padding(GhafMetrics.cardPadding)
-            .ghafCard(theme: theme, radius: 22)
+            .ghafStatsCard(theme: theme, radius: 22)
         }
         .buttonStyle(.ghafPress)
         .accessibilityHint(ar ? "يفتح إعدادات دورة الراتب" : "Opens salary cycle settings")
