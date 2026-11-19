@@ -202,12 +202,16 @@ struct GhafAIView: View {
             .foregroundStyle(tint ?? theme.primaryText)
             .frame(width: 44, height: 44)
             .background(.white.opacity(0.06), in: Circle())
-            .overlay(Circle().stroke(.white.opacity(0.14)))
     }
 
     /// Engine, read-aloud and dictation; also reachable from the history sheet.
     private var optionsMenu: some View {
         Menu {
+            if !messages.isEmpty {
+                Button { startNewChat() } label: {
+                    Label(ar ? "محادثة جديدة" : "New chat", systemImage: "square.and.pencil")
+                }
+            }
             Section(engineLabel) {
                 if engine != .cloud {
                     Button { offerCloud = true } label: {
@@ -230,38 +234,22 @@ struct GhafAIView: View {
             }
             .disabled(isThinking || recorder.isRecording)
         } label: {
-            glassCircle("ellipsis")
+            glassCircle("line.3.horizontal")
         }
-        .accessibilityLabel(ar ? "خيارات غاف" : "Ghaf AI options")
+        .accessibilityLabel(ar ? "قائمة غاف AI" : "Ghaf AI menu")
     }
 
     private var header: some View {
         HStack {
-            if messages.isEmpty {
-                // As on the canvas: history on the start screen.
-                Button { showHistory = true } label: { glassCircle("line.3.horizontal") }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "المحادثات السابقة" : "Chat history")
-            } else {
-                // Back to the start screen; the chat is already saved in history.
-                Button { startNewChat() } label: { glassCircle(ar ? "chevron.right" : "chevron.left") }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(ar ? "محادثة جديدة، المحادثة محفوظة" : "New chat, this one is saved")
-            }
-            Spacer()
-            if !messages.isEmpty || voiceMode {
-                HStack(spacing: 8) {
-                    GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                        .frame(width: 26, height: 26)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Ghaf AI")
-                            .font(GhafTypography.heading(17, languageCode: "en"))
-                            .foregroundStyle(theme.primaryText)
-                    }
-                }
-                Spacer()
-            }
             optionsMenu
+            Spacer()
+            Color.clear.frame(width: 44, height: 44)
+        }
+        .overlay {
+            Text("Ghaf AI")
+                .font(GhafTypography.heading(17, languageCode: "en"))
+                .foregroundStyle(theme.primaryText)
+                .accessibilityAddTraits(.isHeader)
         }
         .ghafScreenPadding()
         .padding(.top, 8)
