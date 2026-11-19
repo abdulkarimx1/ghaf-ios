@@ -146,6 +146,12 @@ struct GhafTransactionsView: View {
                 } else {
                     ForEach(sections(ordered(list)), id: \.title) { section in
                         Section {
+                            Text(section.title)
+                                .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                                .foregroundStyle(theme.secondaryText)
+                                .listRowInsets(EdgeInsets(top: 8, leading: GhafMetrics.gutter, bottom: 2, trailing: GhafMetrics.gutter))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                             ForEach(section.items) { transaction in
                                 Button { selectedTransaction = transaction } label: {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
@@ -166,12 +172,6 @@ struct GhafTransactionsView: View {
                                     }
                                 }
                             }
-                        } header: {
-                            Text(section.title)
-                                .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                                .foregroundStyle(theme.secondaryText)
-                                .textCase(nil)
-                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 0, trailing: GhafMetrics.gutter))
                         }
                     }
                 }
@@ -274,33 +274,28 @@ struct GhafTransactionsView: View {
     }
 
     private func filterBar(count: Int) -> some View {
-        HStack(spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    filterButton("All", label: ar ? "الكل" : "All")
-                    filterButton("Expenses", label: ar ? "مصروفات" : "Expenses")
-                    filterButton("Income", label: ar ? "دخل" : "Income")
-                    filterButton("Review", label: ar ? "مراجعة" : "Review")
-                }
-            }
-            .contentMargins(.trailing, 12, for: .scrollContent)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .trailing) {
-                LinearGradient(colors: [theme.background.opacity(0), theme.background],
-                               startPoint: ar ? .trailing : .leading, endPoint: ar ? .leading : .trailing)
-                    .frame(width: 16)
-                    .allowsHitTesting(false)
-            }
-            GhafMenuRow(title: ar ? "ترتيب" : "Sort", value: sortOrderTitle, theme: theme, languageCode: lang, compact: true) {
+        HStack(spacing: 6) {
+            filterButton("All", label: ar ? "الكل" : "All")
+            filterButton("Expenses", label: ar ? "مصروفات" : "Expenses")
+            filterButton("Income", label: ar ? "دخل" : "Income")
+            filterButton("Review", label: ar ? "مراجعة" : "Review")
+            Menu {
                 Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
                     Text(ar ? "الأحدث" : "Newest").tag("Newest")
                     Text(ar ? "الأقدم" : "Oldest").tag("Oldest")
                     Text(ar ? "الأعلى" : "Highest").tag("Highest")
                     Text(ar ? "الأقل" : "Lowest").tag("Lowest")
                 }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+                    .frame(width: 44, height: 44)
+                    .background(theme.surface, in: Circle())
             }
-            .fixedSize(horizontal: true, vertical: false)
+            .buttonStyle(.plain)
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
+            .accessibilityValue(sortOrderTitle)
         }
     }
 
@@ -310,9 +305,9 @@ struct GhafTransactionsView: View {
             withAnimation(.snappy(duration: 0.2)) { filter = value }
         } label: {
             Text(label)
-                .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
                 .lineLimit(1)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 9)
                 .frame(minHeight: GhafMetrics.compactButtonHeight)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.primaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
