@@ -401,7 +401,9 @@ private struct GhafSubscriptionEditor: View {
             Form {
                 Section(settings.languageCode == "ar" ? "تفاصيل الاشتراك" : "Subscription details") {
                     TextField(settings.languageCode == "ar" ? "اسم الخدمة" : "Service name", text: $name)
-                    TextField(settings.languageCode == "ar" ? "المبلغ" : "Amount", text: $amount).keyboardType(.decimalPad)
+                    GhafAmountField(value: $amount, currency: currency,
+                                    label: settings.languageCode == "ar" ? "المبلغ" : "Amount",
+                                    theme: theme, languageCode: settings.languageCode)
                     Picker(settings.languageCode == "ar" ? "العملة" : "Currency", selection: $currency) {
                         ForEach(["AED","SAR","KWD","BHD","OMR","QAR"], id: \.self) { Text($0).tag($0) }
                     }

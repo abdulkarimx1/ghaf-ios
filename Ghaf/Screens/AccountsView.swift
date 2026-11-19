@@ -251,25 +251,24 @@ struct GhafAccountEditorView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(ar ? "الرصيد المتاح الآن" : "Available right now")
                             .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        HStack(spacing: 8) {
-                            GhafCurrencyIcon(currency: currency, size: 26).foregroundStyle(theme.primaryText)
-                            TextField("0.00", text: $balanceText)
-                                .font(GhafTypography.number(30, weight: .bold))
-                                .keyboardType(.decimalPad)
-                        }
-                        .environment(\.layoutDirection, .leftToRight)
+                        GhafAmountField(value: $balanceText, currency: currency,
+                                        label: ar ? "الرصيد المتاح الآن" : "Available balance",
+                                        theme: theme, languageCode: lang)
                     }
                     .padding(.vertical, 12)
                     .overlay(alignment: .bottom) { Divider().overlay(theme.outline) }
                     if accountType == .credit {
                         fieldRow(ar ? "الحد الائتماني" : "Credit limit") {
-                            TextField(ar ? "اختياري" : "Optional", text: $creditLimitText).keyboardType(.decimalPad)
+                            GhafAmountField(value: $creditLimitText, currency: currency,
+                                            label: ar ? "الحد الائتماني" : "Credit limit",
+                                            theme: theme, languageCode: lang)
                         }
                     }
                     if !isCash {
                         fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
-                            TextField("1234", text: $lastFourDigits)
-                                .keyboardType(.numberPad)
+                            GhafAmountField(value: $lastFourDigits, currency: nil,
+                                            label: ar ? "آخر ٤ أرقام" : "Last 4 digits",
+                                            theme: theme, languageCode: lang, integerMode: true)
                                 .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
                         }
                     }

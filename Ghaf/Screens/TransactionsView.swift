@@ -378,11 +378,9 @@ struct GhafTransactionEditor: View {
                         .foregroundStyle(theme.primaryText)
 
                     editorLabel(languageCode == "ar" ? "المبلغ" : "AMOUNT")
-                    TextField("0.00", text: $amount)
-                        .font(GhafTypography.number(30, weight: .bold))
-                        .keyboardType(.decimalPad)
-                        .padding(15)
-                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 15), fallback: theme.surface)
+                    GhafAmountField(value: $amount, currency: transaction.currency,
+                                    label: languageCode == "ar" ? "المبلغ" : "Amount",
+                                    theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
                     editorField("Merchant", text: $merchant)

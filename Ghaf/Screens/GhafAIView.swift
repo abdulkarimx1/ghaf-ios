@@ -507,15 +507,10 @@ struct GhafAIView: View {
                         }
                     }
                     Spacer(minLength: 6)
-                    HStack(spacing: 4) {
-                        GhafCurrencyIcon(currency: draft.currency, size: 14)
-                        TextField("0", text: $draft.amountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .font(GhafTypography.number(17, weight: .heavy))
-                            .fixedSize()
-                            .disabled(state != .pending)
-                    }
+                    GhafAmountField(value: $draft.amountText, currency: draft.currency,
+                                    label: ar ? "المبلغ" : "Amount", theme: theme,
+                                    languageCode: settings.languageCode)
+                        .disabled(state != .pending)
                     .foregroundStyle(draft.direction == "credit" ? theme.credit : theme.primaryText)
                     .environment(\.layoutDirection, .leftToRight)
                 }

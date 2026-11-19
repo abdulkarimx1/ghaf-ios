@@ -126,15 +126,9 @@ struct GhafVoiceEntryView: View {
                                         .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                                         .foregroundStyle(theme.primaryText)
                                     Spacer(minLength: 8)
-                                    HStack(spacing: 5) {
-                                        GhafCurrencyIcon(currency: draft.currency, size: 16)
-                                        TextField("0.00", text: $draft.amountText)
-                                            .font(GhafTypography.number(15, weight: .semibold))
-                                            .keyboardType(.decimalPad)
-                                            .multilineTextAlignment(.trailing)
-                                            .frame(width: 92)
-                                            .foregroundStyle(theme.primaryText)
-                                    }
+                                    GhafAmountField(value: $draft.amountText, currency: draft.currency,
+                                                    label: isArabic ? "المبلغ" : "Amount",
+                                                    theme: theme, languageCode: settings.languageCode)
                                 }
                                 HStack {
                                     Picker(isArabic ? "الفئة" : "Category", selection: $draft.category) {

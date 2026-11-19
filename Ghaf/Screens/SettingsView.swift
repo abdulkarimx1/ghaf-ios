@@ -691,13 +691,10 @@ HStack(spacing: 8) {
                             .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
                             .foregroundStyle(theme.primaryText)
                         Spacer()
-                        TextField(languageCode == "ar" ? "٠" : "0", text: budgetBinding(for: category))
-                            .font(GhafTypography.number(14))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 106)
-                            .padding(.horizontal, 12).frame(minHeight: 46)
-                            .background(theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        GhafAmountField(value: budgetBinding(for: category), currency: settings.currency,
+                                        label: GhafLocalization.category(category, languageCode: languageCode),
+                                        theme: theme, languageCode: languageCode)
+                            .frame(width: 132)
                     }
                 }
             }
@@ -960,12 +957,17 @@ HStack(spacing: 8) {
         text: Binding<String>,
         numeric: Bool = false
     ) -> some View {
-        TextField(placeholder, text: text)
-            .font(GhafTypography.body(15, languageCode: languageCode))
-            .keyboardType(numeric ? .decimalPad : .default)
-            .padding(.horizontal, 14).frame(minHeight: 50)
-            .background(theme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.outline, lineWidth: 1))
+        Group {
+            if numeric {
+                GhafAmountField(value: text, currency: settings.currency, label: placeholder,
+                                theme: theme, languageCode: languageCode)
+            } else {
+                TextField(placeholder, text: text)
+                    .font(GhafTypography.body(15, languageCode: languageCode))
+                    .padding(.horizontal, 14).frame(minHeight: 56)
+                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
+            }
+        }
     }
 
     private func settingsActionRow(_ title: String, detail: String, icon: String) -> some View {
