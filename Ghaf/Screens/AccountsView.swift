@@ -297,24 +297,42 @@ struct GhafAccountEditorView: View {
         .ghafBackground(theme: theme)
         .tint(theme.accent)
         .safeAreaInset(edge: .bottom) {
-            ZStack(alignment: .leading) {
-                GhafDetailActionBar(theme: theme, languageCode: lang,
-                                    secondarySymbol: account == nil ? nil : "archivebox",
-                                    secondaryLabel: ar ? "أرشفة الحساب" : "Archive account",
-                                    secondaryAction: { showArchiveConfirmation = true },
-                                    primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
-                                    primaryAction: save)
-                if account != nil {
-                    Color.clear.frame(width: 104, height: 88).allowsHitTesting(false)
-                        .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
-                                            titleVisibility: .visible) {
-                            Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
-                            Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
-                        } message: {
-                            Text(ar ? "يختفي الحساب ويبقى سجل عملياته." : "The account is hidden and its transaction history is kept.")
-                        }
+            GhafDetailActionBar(theme: theme, languageCode: lang,
+                                secondarySymbol: account == nil ? nil : "archivebox",
+                                secondaryLabel: ar ? "أرشفة الحساب" : "Archive account",
+                                secondaryAction: { showArchiveConfirmation = true },
+                                primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
+                                primaryAction: save)
+                .overlay(alignment: .bottom) {
+            if showArchiveConfirmation {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(ar ? "أرشفة هذا الحساب؟" : "Archive this account?")
+                        .font(GhafTypography.heading(18, languageCode: lang))
+                        .foregroundStyle(theme.primaryText)
+                    Text(ar ? "يختفي الحساب ويبقى سجل عملياته." : "The account is hidden and its transaction history is kept.")
+                        .font(GhafTypography.body(14, languageCode: lang))
+                        .foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 10) {
+                        Button(ar ? "إلغاء" : "Cancel") { showArchiveConfirmation = false }
+                            .foregroundStyle(theme.primaryText)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(theme.elevatedSurface, in: Capsule())
+                        Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
+                            .foregroundStyle(theme.over)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(theme.over.opacity(0.12), in: Capsule())
+                    }
                 }
+                .padding(18)
+                .frame(maxWidth: 440)
+                .background(theme.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .padding(.horizontal, GhafMetrics.gutter)
+                .padding(.bottom, GhafMetrics.buttonHeight + 24)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(1)
             }
+                }
         }
         .navigationTitle(account == nil ? (ar ? "إضافة حساب" : "Add account") : (ar ? "تعديل الحساب" : "Edit account"))
         .navigationBarTitleDisplayMode(.inline)
