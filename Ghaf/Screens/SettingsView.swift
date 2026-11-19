@@ -78,6 +78,8 @@ struct GhafSettingsView: View {
     @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
 #if DEBUG
     @State private var fixtureGlassPresented = false
+    @State private var fixtureProfilePresented = false
+    @State private var fixtureProPresented = false
 #endif
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
@@ -183,13 +185,26 @@ struct GhafSettingsView: View {
             .navigationDestination(isPresented: $fixtureGlassPresented) {
                 subpage(ar ? "الزجاج" : "Glass") { glassSettings }
             }
+            .navigationDestination(isPresented: $fixtureProfilePresented) {
+                subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
+            }
+            .navigationDestination(isPresented: $fixtureProPresented) {
+                GhafProView(settings: settings, showsClose: false)
+            }
 #endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear {
                 loadSettings()
                 proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
 #if DEBUG
-                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "settings-glass" { fixtureGlassPresented = true }
+                if GhafScreenshotFixture.enabled {
+                    switch GhafScreenshotFixture.destination {
+                    case "settings-glass": fixtureGlassPresented = true
+                    case "profile-proof": fixtureProfilePresented = true
+                    case "pro-page-proof": fixtureProPresented = true
+                    default: break
+                    }
+                }
 #endif
             }
             .onChange(of: glassEnabled) { _, _ in GhafWidgetSync.refresh(context: modelContext) }
