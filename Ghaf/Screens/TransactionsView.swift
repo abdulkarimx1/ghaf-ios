@@ -143,11 +143,13 @@ struct GhafTransactionsView: View {
                             ForEach(section.items) { transaction in
                                 Button { selectedTransaction = transaction } label: {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 4)
                                 }
                                 .buttonStyle(.ghafPress)
                                 .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
                                 .listRowBackground(Color.clear)
-                                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.surface))
+                                .background(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).fill(theme.surface))
                                 .listRowSeparatorTint(theme.outline)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
