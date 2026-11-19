@@ -144,7 +144,7 @@ struct GhafDateRow: View {
             Text(title).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                 .foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)
             DatePicker(title, selection: $selection, displayedComponents: components)
-                .labelsHidden().tint(theme.accent)
+                .labelsHidden().tint(theme.accent).environment(\.colorScheme, theme.isDark ? .dark : .light)
         }
         .padding(.horizontal, 16).frame(minHeight: 56)
         .ghafCard(theme: theme, radius: 16)

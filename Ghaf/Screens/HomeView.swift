@@ -776,7 +776,7 @@ struct GhafQuickAddView: View {
                         divider
                       }
                         row(ar ? "التاريخ" : "Date", icon: "calendar") {
-                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden().tint(theme.accent)
+                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden().tint(theme.accent).environment(\.colorScheme, theme.isDark ? .dark : .light)
                         }
                         divider
                         row(ar ? "ملاحظة" : "Note", icon: "text.alignleft") {
@@ -829,6 +829,7 @@ struct GhafQuickAddView: View {
         }
         .tint(theme.accent)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        .preferredColorScheme(theme.isDark ? .dark : .light)
         .onAppear {
             selectedAccountID = presetAccountID
                 ?? accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id

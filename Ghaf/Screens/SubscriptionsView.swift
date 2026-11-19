@@ -112,6 +112,7 @@ struct GhafSubscriptionsView: View {
             }
         }
         .ghafDirection(settings.languageCode)
+        .preferredColorScheme(theme.isDark ? .dark : .light)
     }
 
     private func daysUntil(_ date: Date) -> Int {
