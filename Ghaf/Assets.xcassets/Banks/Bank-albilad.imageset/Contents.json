@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "albilad.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
