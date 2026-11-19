@@ -235,6 +235,7 @@ struct GhafTransactionsView: View {
                     filterButton("Review", label: ar ? "مراجعة" : "Review")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             GhafMenuRow(title: ar ? "ترتيب" : "Sort", value: sortOrderTitle, theme: theme, languageCode: lang, compact: true) {
                 Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
                     Text(ar ? "الأحدث" : "Newest").tag("Newest")
@@ -243,6 +244,7 @@ struct GhafTransactionsView: View {
                     Text(ar ? "الأقل" : "Lowest").tag("Lowest")
                 }
             }
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
         }
     }
