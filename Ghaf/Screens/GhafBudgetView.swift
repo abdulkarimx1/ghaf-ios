@@ -63,6 +63,16 @@ struct GhafBudgetView: View {
         .navigationTitle(ar ? "الميزانية" : "Budget")
         .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.selection, trigger: bucket)
+        .sensoryFeedback(.selection, trigger: bucketSelected)
+        .sensoryFeedback(.selection, trigger: selectedMonth)
+        .onAppear {
+#if DEBUG
+            guard GhafScreenshotFixture.enabled else { return }
+            if GhafScreenshotFixture.selection == "wants" { bucket = .wants; bucketSelected = true }
+            if GhafScreenshotFixture.selection == "month" { selectedMonth = calendar.dateInterval(of: .month, for: .now)?.start }
+
+#endif
+}
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -301,29 +311,46 @@ struct GhafBudgetView: View {
             return (start, NSDecimalNumber(decimal: sum).doubleValue)
         }
         let most = max(months.map(\.total).max() ?? 0, 1)
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .center, spacing: 10) {
             Text(ar ? "اتجاه الصرف" : "Spending trend")
-                .font(GhafTypography.body(15, languageCode: lang, weight: .bold))
+                .font(GhafTypography.heading(20, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.center)
+            let average = months.map(\.total).reduce(0, +) / Double(months.count)
             HStack(alignment: .bottom, spacing: 10) {
                 ForEach(months, id: \.start) { month in
                     let current = month.start == thisMonth.start
-                    VStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(current ? theme.accent : theme.primaryText.opacity(0.22))
-                            .frame(height: max(6, 70 * month.total / most))
-                        Text(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))
-                            .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(current ? theme.primaryText : theme.secondaryText)
+                    Button { withAnimation(.snappy) { selectedMonth = selectedMonth == month.start ? nil : month.start } } label: {
+                        VStack(spacing: 8) {
+                            if selectedMonth == month.start {
+                                Text("\(GhafCompactNumber.string(month.total, languageCode: lang)) · \(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))")
+                                    .font(GhafTypography.number(11, weight: .bold)).foregroundStyle(theme.surface).padding(.horizontal, 6).padding(.vertical, 3).background(theme.primaryText, in: Capsule()).lineLimit(1).minimumScaleFactor(0.65)
+                            }
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(current ? theme.accent : theme.primaryText.opacity(selectedMonth == nil ? 0.22 : selectedMonth == month.start ? 1 : 0.3))
+                                .frame(height: max(6, 70 * month.total / most))
+                            Text(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))
+                                .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(current ? theme.primaryText : theme.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottom).contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottom)
+                    .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(month.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang)))
-                                        + " " + GhafFormat.shownMoney(Decimal(month.total), currency: currency, languageCode: lang))
+                    .accessibilityLabel(month.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang))) + " " + GhafFormat.shownMoney(Decimal(month.total), currency: currency, languageCode: lang))
+                    .accessibilityAddTraits(selectedMonth == month.start ? .isSelected : [])
                 }
+            }
+            .overlay(alignment: .topLeading) {
+                GeometryReader { proxy in
+                    let y = 70 * average / most
+                    Path { path in path.move(to: CGPoint(x: 0, y: 90 - y)); path.addLine(to: CGPoint(x: proxy.size.width, y: 90 - y)) }
+                        .stroke(theme.secondaryText.opacity(0.65), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .overlay(alignment: .topTrailing) { Text(ar ? "متوسط" : "avg").font(GhafTypography.body(10, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText) }
+                }
+                .allowsHitTesting(false)
             }
         }
             .padding(GhafMetrics.cardPadding)
-        .ghafCard(theme: theme, radius: 22)
+        .ghafStatsCard(theme: theme, radius: 22)
     }
 }
