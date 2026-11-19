@@ -194,7 +194,7 @@ struct GhafAutomationGuideView: View {
         let lastSeen = defaults.double(forKey: "ghaf.automation.lastSeen.\(bank.name)")
         let skipped = GhafAutomationCapturePolicy.skippedCount(for: bank.name, defaults: defaults)
         return HStack(spacing: 12) {
-            GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: 40)
+            bankBadge(bank, size: 40)
             VStack(alignment: .leading, spacing: 3) {
                 Text(ar ? bank.nameArabic : bank.name)
                     .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
@@ -370,7 +370,7 @@ struct GhafAutomationGuideView: View {
                             } label: {
                                 VStack(spacing: 8) {
                                     ZStack(alignment: .topTrailing) {
-                                        GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: 44)
+                                        bankBadge(bank, size: 44)
                                         if isChosen { Image(systemName: "checkmark.circle.fill").font(.system(size: 17)).foregroundStyle(theme.comfortable) }
                                     }
                                     Text(ar ? bank.nameArabic : bank.name)
@@ -406,6 +406,20 @@ struct GhafAutomationGuideView: View {
 
     private var insetDivider: some View {
         Rectangle().fill(theme.outline.opacity(0.55)).frame(height: 0.5).padding(.leading, 68)
+    }
+
+    @ViewBuilder
+    private func bankBadge(_ bank: GhafBankSupportContact, size: CGFloat) -> some View {
+        if GhafBrand.match(bank.name) != nil {
+            GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: size)
+        } else {
+            Text(String((ar ? bank.nameArabic : bank.name).trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
+                .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
+                .foregroundStyle(theme.isDark ? theme.primaryText : theme.accent)
+                .frame(width: size, height: size)
+                .background((theme.isDark ? theme.primaryText : theme.accent).opacity(theme.isDark ? 0.12 : 0.14), in: Circle())
+                .accessibilityHidden(true)
+        }
     }
 
     private func automationMark(_ kind: GhafStatusChip.Kind) -> some View {
