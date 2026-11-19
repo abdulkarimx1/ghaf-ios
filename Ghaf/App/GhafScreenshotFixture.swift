@@ -7,6 +7,7 @@ import GhafCore
 enum GhafScreenshotFixture {
     private static let arguments = ProcessInfo.processInfo.arguments
     static var enabled: Bool { value("GhafFixture") == "1" }
+    static var autoSelect: Bool { enabled && value("GhafAutoSelect") == "1" }
     static var theme: String { value("GhafTheme") ?? "Graphite" }
     static var appearance: String { value("GhafAppearance") ?? "Light" }
     static var language: String { value("GhafLanguage") ?? "en" }

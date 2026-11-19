@@ -70,6 +70,7 @@ struct GhafBudgetView: View {
             guard GhafScreenshotFixture.enabled else { return }
             if GhafScreenshotFixture.selection == "wants" { bucket = .wants; bucketSelected = true }
             if GhafScreenshotFixture.selection == "month" { selectedMonth = calendar.dateInterval(of: .month, for: .now)?.start }
+            if GhafScreenshotFixture.autoSelect { runAutoSelection() }
 
 #endif
 }
@@ -78,6 +79,27 @@ struct GhafBudgetView: View {
 
     private func spent(_ bucket: BudgetAllocation.Bucket, _ items: [GhafTransaction]) -> Decimal {
         items.filter { BudgetAllocation.bucket(forCategory: $0.category) == bucket }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+    }
+
+    private func toggleBucket(_ value: BudgetAllocation.Bucket) {
+        withAnimation(.snappy) {
+            if bucket == value && bucketSelected { bucketSelected = false }
+            else { bucket = value; bucketSelected = true }
+        }
+    }
+
+    private func toggleMonth(_ date: Date) {
+        withAnimation(.snappy) { selectedMonth = selectedMonth == date ? nil : date }
+    }
+
+    private func runAutoSelection() {
+        let month = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!
+        let actions: [(TimeInterval, () -> Void)] = [
+            (1, { toggleBucket(.wants) }), (2, { toggleBucket(.savings) }),
+            (3, { toggleBucket(.savings) }),
+            (4, { toggleMonth(month) }), (5, { toggleMonth(month) })
+        ]
+        for (delay, action) in actions { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
     }
 
     // MARK: Header
@@ -118,12 +140,7 @@ struct GhafBudgetView: View {
         let activeColor = bucketSelected ? colors[bucket.rawValue] : theme.accent
         let allocationSelection = Binding<BudgetAllocation.Bucket>(
             get: { bucket },
-            set: { value in
-                withAnimation(.snappy) {
-                    if bucket == value && bucketSelected { bucketSelected = false }
-                    else { bucket = value; bucketSelected = true }
-                }
-            }
+            set: { toggleBucket($0) }
         )
         return VStack(spacing: 14) {
             Text(ar ? "التوزيع التلقائي" : "Auto-allocation")
@@ -166,11 +183,7 @@ struct GhafBudgetView: View {
                                 var edge = 0.0
                                 for (index, amount) in values.enumerated() {
                                     if degrees >= edge && degrees < edge + amount {
-                                        withAnimation(.snappy) {
-                                            let chosen = BudgetAllocation.Bucket.allCases[index]
-                                            if chosen == bucket && bucketSelected { bucketSelected = false }
-                                            else { bucket = chosen; bucketSelected = true }
-                                        }
+                                        toggleBucket(BudgetAllocation.Bucket.allCases[index])
                                         break
                                     }
                                     edge += amount
@@ -181,12 +194,7 @@ struct GhafBudgetView: View {
                 .accessibilityRepresentation {
                     VStack {
                         ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
-                            Button {
-                                withAnimation(.snappy) {
-                                    if bucketSelected && bucket == item { bucketSelected = false }
-                                    else { bucket = item; bucketSelected = true }
-                                }
-                            } label: { Text(names[item.rawValue]) }
+                            Button { toggleBucket(item) } label: { Text(names[item.rawValue]) }
                                 .accessibilityValue(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
                                 .accessibilityAddTraits(bucketSelected && item == bucket ? .isSelected : [])
                         }
@@ -206,7 +214,7 @@ struct GhafBudgetView: View {
                 GhafSegmented(options: Array(zip(BudgetAllocation.Bucket.allCases, names)), selection: allocationSelection, theme: theme, languageCode: lang)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
-                        Button { withAnimation(.snappy) { if bucket == item && bucketSelected { bucketSelected = false } else { bucket = item; bucketSelected = true } } } label: {
+                        Button { toggleBucket(item) } label: {
                             VStack(spacing: 6) {
                                 HStack(spacing: 6) {
                                     Circle().fill(colors[item.rawValue]).frame(width: 8, height: 8)
@@ -320,7 +328,7 @@ struct GhafBudgetView: View {
             HStack(alignment: .bottom, spacing: 10) {
                 ForEach(months, id: \.start) { month in
                     let current = month.start == thisMonth.start
-                    Button { withAnimation(.snappy) { selectedMonth = selectedMonth == month.start ? nil : month.start } } label: {
+                    Button { toggleMonth(month.start) } label: {
                         VStack(spacing: 8) {
                             if selectedMonth == month.start {
                                 Text("\(GhafCompactNumber.string(month.total, languageCode: lang)) · \(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))")

@@ -149,6 +149,7 @@ struct GhafStatsView: View {
                     selectedLabel = chartKey(date)
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
+                if GhafScreenshotFixture.autoSelect { runAutoSelection() }
 
 #endif
 }
@@ -274,9 +275,7 @@ struct GhafStatsView: View {
                 VStack {
                     ForEach(data) { bucket in
                         Button {
-                            withAnimation(.snappy) {
-                                selectedLabel = selectedLabel == chartKey(bucket.start) ? nil : chartKey(bucket.start)
-                            }
+                            tapTrendBucket(chartKey(bucket.start))
                         } label: { Text(bucketLabel(bucket.start)) }
                             .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total), currency: currency, languageCode: lang))
                             .accessibilityAddTraits(selected?.id == bucket.id ? .isSelected : [])
@@ -326,7 +325,25 @@ struct GhafStatsView: View {
         }
         let dx = location.x - plotFrame.minX - pointX
         let dy = location.y - plotFrame.minY - pointY
-        withAnimation(.snappy) { selectedLabel = dx * dx + dy * dy < 784 && selectedLabel != key ? key : nil }
+        guard dx * dx + dy * dy < 784 else { withAnimation(.snappy) { selectedLabel = nil }; return }
+        tapTrendBucket(key)
+    }
+
+    private func tapTrendBucket(_ key: String) {
+        withAnimation(.snappy) { selectedLabel = selectedLabel == key ? nil : key }
+    }
+
+    private func runAutoSelection() {
+        let categories = slices(expenses(in: interval)).map(\.category)
+        let point = chartKey(calendar.dateInterval(of: bucketUnit, for: Date.now.addingTimeInterval(-2 * 86_400))?.start ?? .now)
+        let actions: [(TimeInterval, () -> Void)] = [
+            (1, { if categories.indices.contains(1) { toggle(categories[1]) } }),
+            (2, { if categories.indices.contains(2) { toggle(categories[2]) } }),
+            (3, { if categories.indices.contains(2) { toggle(categories[2]) } }),
+            (4, { tapTrendBucket(point) }),
+            (5, { tapTrendBucket(point) })
+        ]
+        for (delay, action) in actions { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
     }
 
     private func selectionBubble(amount: Double, date: Date) -> some View {
