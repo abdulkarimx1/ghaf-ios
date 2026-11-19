@@ -171,13 +171,19 @@ struct GhafBudgetView: View {
                         .opacity(!bucketSelected || item == bucket ? 1 : 0.45)
                         .accessibilityLabel(names[item.rawValue])
                         .accessibilityValue(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
-                    SectorMark(angle: .value("Selected share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
-                               innerRadius: .ratio(0.95), outerRadius: .ratio(1), angularInset: 2)
-                        .foregroundStyle(colors[item.rawValue])
-                        .opacity(bucketSelected && item == bucket ? 1 : 0)
-                        .accessibilityHidden(true)
                 }
                 .frame(width: 200, height: 200)
+                // Separate chart: sectors in one Chart share 360°, so a ring there would halve every slice.
+                .overlay {
+                    Chart(BudgetAllocation.Bucket.allCases, id: \.self) { item in
+                        SectorMark(angle: .value("Selected share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
+                                   innerRadius: .ratio(0.95), outerRadius: .ratio(1.06), angularInset: 2)
+                            .foregroundStyle(colors[item.rawValue])
+                            .opacity(bucketSelected && item == bucket ? 1 : 0)
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
                 .chartOverlay { proxy in
                     GeometryReader { geometry in
                         Rectangle().fill(.clear).contentShape(Rectangle())
