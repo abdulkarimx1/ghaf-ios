@@ -290,9 +290,9 @@ struct GhafAccountEditorView: View {
                 }
             }
             .ghafScreenPadding()
-            .padding(.bottom, 120)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
+        .contentMargins(.bottom, 112, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .ghafBackground(theme: theme)
         .tint(theme.accent)
