@@ -65,7 +65,7 @@ struct LogBankMessageIntent: AppIntent {
             }
         }
         // Rates for a purchase abroad; skipped when the cached ones are fresh, and never blocks long.
-        await GhafExchangeRates.refreshIfStale()
+        await GhafExchangeRates.prepareForIngestion()
         let confirmation = try await MainActor.run {
 
             let container = try GhafPersistence.shared()

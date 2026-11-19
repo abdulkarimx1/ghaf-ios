@@ -12,6 +12,11 @@ enum GhafExchangeRates {
     }
 
     /// Fetches new rates when the cache is older than `maxAge`. Never throws: conversion falls back to the cache.
+    /// For automations: waits (briefly) only when no rates are cached at all, so a stale cache never delays a save.
+    static func prepareForIngestion() async {
+        if cached == nil { await refreshIfStale(timeout: 2) } else { Task.detached { await refreshIfStale() } }
+    }
+
     static func refreshIfStale(maxAge: TimeInterval = 6 * 3600, timeout: TimeInterval = 5) async {
         if let cached, Date.now.timeIntervalSince(cached.updated) < maxAge { return }
         var request = URLRequest(url: URL(string: "https://open.er-api.com/v6/latest/USD")!)
