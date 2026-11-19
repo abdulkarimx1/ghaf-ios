@@ -12,11 +12,17 @@ struct GhafTransactionsView: View {
     private var accounts: [GhafAccount]
 
     @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
+    @State private var transactionDetailHeight: CGFloat = 0
+    @State private var transactionDetailDetent: PresentationDetent = .large
     @State private var sortOrder = "Newest"
     @State private var transactionToDelete: GhafTransaction?
     @State private var showDeleteConfirmation = false
+#if DEBUG
+    @State private var fixtureDetailOpened = false
+#endif
 
     let settings: GhafSettings
 
@@ -143,11 +149,13 @@ struct GhafTransactionsView: View {
                             ForEach(section.items) { transaction in
                                 Button { selectedTransaction = transaction } label: {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 4)
                                 }
                                 .buttonStyle(.ghafPress)
                                 .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
                                 .listRowBackground(Color.clear)
-                                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.surface))
+                                .background(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).fill(theme.surface))
                                 .listRowSeparatorTint(theme.outline)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
@@ -175,9 +183,27 @@ struct GhafTransactionsView: View {
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
+#if DEBUG
+            .onAppear {
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.tab == "transactions",
+                   GhafScreenshotFixture.selection == "transaction-detail", !fixtureDetailOpened,
+                   let transaction = transactions.first(where: { $0.merchant == "Lunch" }) ?? transactions.first {
+                    fixtureDetailOpened = true
+                    selectedTransaction = transaction
+                }
+            }
+#endif
             .sheet(item: $selectedTransaction) { transaction in
-                GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
-                    .presentationDetents([.large])
+                GhafTransactionDetailView(transaction: transaction, settings: settings,
+                                          accounts: accounts.filter { !$0.isArchived }) {
+                    transactionDetailHeight = $0
+                    transactionDetailDetent = $0 > UIScreen.main.bounds.height * 0.85 ? .large : .height($0)
+                }
+                    .presentationDetents(transactionDetailHeight == 0 ? [.large]
+                                         : transactionDetailHeight > UIScreen.main.bounds.height * 0.85
+                                            ? [.height(transactionDetailHeight), .large] : [.height(transactionDetailHeight)],
+                                         selection: $transactionDetailDetent)
+                    .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .confirmationDialog(
@@ -210,19 +236,40 @@ struct GhafTransactionsView: View {
     private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color, icon: String) -> some View {
         VStack(spacing: 6) {
             Label(title, systemImage: icon)
-                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 20)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 24)
                 .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
         }
         .frame(maxWidth: .infinity)
     }
 
     private var searchField: some View {
-        GhafTextField(text: $searchText, placeholder: ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank",
-                      theme: theme, languageCode: lang, icon: "magnifyingglass", autocorrection: false,
-                      capitalization: .never, submitLabel: .search)
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(theme.secondaryText).accessibilityHidden(true)
+            TextField(ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank", text: $searchText)
+                .font(GhafTypography.userContent(searchText, size: 17, languageCode: lang))
+                .foregroundStyle(theme.primaryText)
+                .tint(theme.accent)
+                .focused($searchFocused)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(theme.secondaryText).frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ar ? "مسح البحث" : "Clear search")
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 48)
+        .background(theme.primaryText.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityLabel(ar ? "بحث" : "Search")
     }
 
     private func filterBar(count: Int) -> some View {

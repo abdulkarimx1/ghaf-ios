@@ -41,7 +41,10 @@ struct GhafMerchantDetailView: View {
             }
             if history.count > 1 { historyCard }
         }
-        .task(id: transaction.id) { await load() }
+        .task(id: transaction.id) {
+            await Task.yield()
+            await load()
+        }
         .sheet(isPresented: $choosingPlace) {
             GhafPlacePicker(initialQuery: GhafPlaces.isGeneric(merchant ?? "") ? "" : (merchant ?? ""),
                             theme: theme, languageCode: languageCode) { item in
