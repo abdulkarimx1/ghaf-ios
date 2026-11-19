@@ -230,12 +230,12 @@ struct GhafHomeView: View {
                 .font(GhafTypography.body(15, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
-            Button { showBackupImporter = true } label: {
+            Button { showAccounts = true } label: {
                 Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
                     .frame(maxWidth: .infinity).frame(height: 56)
             }
             .ghafProminentButton(theme: theme, languageCode: lang)
-            Button { showAccounts = true } label: {
+            Button { showBackupImporter = true } label: {
                 Label(ar ? "استيراد نسخة غاف الاحتياطية" : "Import Ghaf backup", systemImage: "arrow.down.doc")
                     .frame(maxWidth: .infinity).frame(height: 56)
             }
