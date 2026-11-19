@@ -62,7 +62,8 @@ struct GhafAIView: View {
     @State private var isThinking = false
     @State private var replyTask: Task<Void, Never>?
     @AppStorage("ghaf.ai.speakReplies") private var speakReplies = false
-    @AppStorage("ghaf.ai.memoryEnabled") private var memoryEnabled = true
+    @AppStorage(GhafMemoryStore.enabledKey) private var memoryEnabled = GhafMemoryStore.defaultEnabled
+    @AppStorage("ghaf.ai.liveConsentAccepted") private var liveConsentAccepted = false
     @State private var synthesizer = AVSpeechSynthesizer()
     @State private var speechDone = GhafSpeechDone()
     /// Set when Ghaf asked something out loud: it listens for the answer once it stops speaking.
@@ -266,7 +267,7 @@ struct GhafAIView: View {
             Text(GhafCloudAI.disclosure(ar: ar) + (ar ? " يمكنك إيقافه من «ما تعلّمه غاف»." : " Turn it off anytime in What Ghaf learned."))
         }
         .confirmationDialog(ar ? "مكالمة غاف المباشرة" : "Ghaf Live call", isPresented: $offerLiveConsent, titleVisibility: .visible) {
-            Button(ar ? "بدء المكالمة" : "Start call") { Task { await beginVoiceCall() } }
+            Button(ar ? "بدء المكالمة" : "Start call") { liveConsentAccepted = true; Task { await beginVoiceCall() } }
             Button(ar ? "إلغاء" : "Cancel", role: .cancel) { exitVoiceMode() }
         } message: {
             Text(GhafCloudAI.liveDisclosure(ar: ar))
@@ -998,7 +999,7 @@ struct GhafAIView: View {
             }
         }
         liveInputText = ""; liveOutputText = ""; liveGroundingSources = []
-        if GhafCloudAI.isEnabled { offerLiveConsent = true }
+        if GhafCloudAI.isEnabled && !liveConsentAccepted { offerLiveConsent = true }
         else { Task { await beginVoiceCall() } }
     }
 
@@ -1011,7 +1012,7 @@ struct GhafAIView: View {
         liveFacts = GhafCloudAI.minimized(GhafFinanceFacts.summary(accounts: accounts, transactions: transactions,
                                                                    subscriptions: subscriptions,
                                                                    memories: memoryEnabled ? memories : []))
-        liveGroundingSources = [liveFacts]
+        if liveGroundingSources.isEmpty { liveGroundingSources = [liveFacts] }
         let firstName = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
             ?? settings.userName
         let date = Date.now.formatted(date: .complete, time: .omitted)
@@ -1083,7 +1084,7 @@ struct GhafAIView: View {
                         : "\n\n(Some figures here aren't in your Ghaf records, so double-check them.)"
                 }
                 messages[index].isStreaming = false
-                liveOutputMessageID = nil; liveOutputText = ""; liveGroundingSources = [liveFacts]
+                liveOutputMessageID = nil; liveOutputText = ""
             }
         }
         liveCall.onToolCall = { call in await runLiveTool(call) }

@@ -1,8 +1,11 @@
 import Foundation
+import GhafCore
 import SwiftData
 
 @MainActor
 enum GhafMemoryStore {
+    static let enabledKey = "ghaf.ai.memoryEnabled"
+    static let defaultEnabled = true
     static func remember(_ text: String, kind: String = "fact", source: String = "confirmed", in context: ModelContext) throws -> GhafMemory {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= 200 else {
             throw NSError(domain: "GhafMemory", code: 1)
@@ -18,8 +21,7 @@ enum GhafMemoryStore {
     }
 
     static func forget(_ text: String, in context: ModelContext) throws {
-        let target = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-        for memory in try context.fetch(FetchDescriptor<GhafMemory>()) where memory.text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current).contains(target) {
+        for memory in try context.fetch(FetchDescriptor<GhafMemory>()) where MemoryIntent.matches(memory: memory.text, target: text) {
             context.delete(memory)
         }
         try context.save()
@@ -42,7 +44,7 @@ struct GhafMemoryTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         try await MainActor.run {
-            guard UserDefaults.standard.bool(forKey: "ghaf.ai.memoryEnabled"),
+            guard UserDefaults.standard.object(forKey: GhafMemoryStore.enabledKey) as? Bool ?? GhafMemoryStore.defaultEnabled,
                   let context = GhafLedgerContext.modelContext else { return "Memory is disabled." }
             if arguments.operation == "remember" {
                 _ = try GhafMemoryStore.remember(arguments.fact, in: context)

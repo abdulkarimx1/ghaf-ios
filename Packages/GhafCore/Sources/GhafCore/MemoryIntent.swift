@@ -7,6 +7,7 @@ public enum MemoryIntent: Equatable {
 
     public static func parse(_ text: String) -> MemoryIntent? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.hasSuffix("?"), !clean.hasSuffix("؟") else { return nil }
         let english: [(String, (String) -> MemoryIntent)] = [
             (#"(?i)^remember(?:\s+that)?\s+(.+?)\s*[.!؟?]*$"#, MemoryIntent.remember),
             (#"(?i)^forget(?:\s+that)?\s+(.+?)\s*[.!؟?]*$"#, MemoryIntent.forget),
@@ -14,7 +15,7 @@ public enum MemoryIntent: Equatable {
             (#"(?i)^my\s+name\s+is\s+(.+?)\s*[.!؟?]*$"#, MemoryIntent.name)
         ]
         for (pattern, make) in english {
-            if let value = capture(pattern, clean), valid(value) { return make(value) }
+            if let value = capture(pattern, clean), valid(value), !startsWithQuestionWord(value, arabic: false) { return make(value) }
         }
         let normalized = clean.replacingOccurrences(of: "أ", with: "ا")
             .replacingOccurrences(of: "إ", with: "ا").replacingOccurrences(of: "آ", with: "ا")
@@ -26,9 +27,26 @@ public enum MemoryIntent: Equatable {
             (#"^اسمي\s+(.+?)\s*[.!؟?]*$"#, MemoryIntent.name)
         ]
         for (pattern, make) in arabic {
-            if let value = capture(pattern, normalized), valid(value) { return make(value) }
+            if let value = capture(pattern, normalized), valid(value), !startsWithQuestionWord(value, arabic: true) { return make(value) }
         }
         return nil
+    }
+
+    public static func matches(memory: String, target: String) -> Bool {
+        let normalize: (String) -> String = { $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current).trimmingCharacters(in: .whitespacesAndNewlines) }
+        let memory = normalize(memory), target = normalize(target)
+        guard target.count >= 3 else { return false }
+        if memory == target { return true }
+        guard target.count >= 4 else { return false }
+        let escaped = NSRegularExpression.escapedPattern(for: target)
+        guard let regex = try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}])" + escaped + "(?![\\p{L}\\p{N}])", options: [.caseInsensitive]) else { return false }
+        return regex.firstMatch(in: memory, range: NSRange(memory.startIndex..., in: memory)) != nil
+    }
+
+    private static func startsWithQuestionWord(_ text: String, arabic: Bool) -> Bool {
+        let words = arabic ? ["كم", "شو", "ايش", "وين", "متى", "ليش", "هل"] : ["how", "what", "when", "where", "which", "who", "why", "did", "do"]
+        let first = text.split(whereSeparator: { $0.isWhitespace }).first.map(String.init)?.lowercased() ?? ""
+        return words.contains(first)
     }
 
     private static func capture(_ pattern: String, _ input: String) -> String? {

@@ -41,16 +41,39 @@ final class GhafLiveCall: ObservableObject {
     private var toolTasks: [String: Task<[String: LiveJSON], Never>] = [:]
     private var cancelledToolIDs = Set<String>()
     private var queuedOutputBuffers = 0
+    private var inputContinuation: AsyncStream<Data>.Continuation?
+    private var inputSenderTask: Task<Void, Never>?
 
     func start(language: String, systemInstruction: String, tools: [LiveFunctionDeclaration]) async throws {
         guard GhafCloudAI.isEnabled else { throw GhafCloudAI.Failure.unavailable }
         self.language = language; instruction = systemInstruction; self.tools = tools
         stopping = false; reconnects = 0; startedAt = Date(); phase = .connecting
+        let stream = AsyncStream<Data>.makeStream()
+        inputContinuation = stream.continuation
+        inputSenderTask = Task { [weak self, stream = stream.stream] in
+            for await chunk in stream {
+                guard let self, !self.stopping else { continue }
+                guard !self.isMuted else { self.inputLevel = 0; continue }
+                let samples = chunk.withUnsafeBytes { raw in Array(raw.bindMemory(to: Int16.self)) }
+                let rms = sqrt(samples.reduce(Float.zero) { $0 + pow(Float($1) / 32768, 2) } / max(1, Float(samples.count)))
+                self.inputLevel = min(1, rms * 3)
+                for start in stride(from: 0, to: chunk.count, by: 640) {
+                    guard !self.isMuted, let message = try? LiveEncoder.audio(chunk.subdata(in: start..<min(start + 640, chunk.count))) else { continue }
+                    try? await self.send(message)
+                }
+            }
+        }
+        let audioSession = AVAudioSession.sharedInstance()
+        priorCategory = audioSession.category; priorMode = audioSession.mode; priorOptions = audioSession.categoryOptions
+        NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)), name: AVAudioSession.interruptionNotification, object: audioSession)
+        NotificationCenter.default.addObserver(self, selector: #selector(audioRouteChanged(_:)), name: AVAudioSession.routeChangeNotification, object: audioSession)
         try await connect(resuming: nil)
     }
 
     func end(reason: String = "") {
         stopping = true
+        inputContinuation?.finish(); inputContinuation = nil
+        inputSenderTask?.cancel(); inputSenderTask = nil
         setupWaiter?.resume(throwing: CancellationError()); setupWaiter = nil
         setupTimeout?.cancel(); setupTimeout = nil
         receiveTask?.cancel(); receiveTask = nil
@@ -139,7 +162,7 @@ final class GhafLiveCall: ObservableObject {
                 for event in LiveServerEvent.parse(data) { await handle(event) }
             }
         } catch {
-            guard !stopping else { return }
+            guard !stopping, !Task.isCancelled, task === socket else { return }
             log(error)
             await reconnect()
         }
@@ -155,6 +178,7 @@ final class GhafLiveCall: ObservableObject {
         case .outputTranscript(let text): onOutputTranscript?(text, false)
         case .interrupted:
             player.stop(); player.reset(); queuedOutputBuffers = 0; outputLevel = 0; phase = .listening
+            onOutputTranscript?("", true)
         case .turnComplete:
             onInputTranscript?("", true); onOutputTranscript?("", true)
             if queuedOutputBuffers == 0 { phase = .listening }
@@ -205,7 +229,6 @@ final class GhafLiveCall: ObservableObject {
 
     private func startAudio() throws {
         let audioSession = AVAudioSession.sharedInstance()
-        priorCategory = audioSession.category; priorMode = audioSession.mode; priorOptions = audioSession.categoryOptions
         try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
         try audioSession.setActive(true)
         let input = engine.inputNode
@@ -219,17 +242,16 @@ final class GhafLiveCall: ObservableObject {
         }
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: outputFormat)
-        input.installTap(onBus: 0, bufferSize: 2048, format: hardware) { [weak self] buffer, _ in
-            guard let self, !self.isMuted else { return }
-            self.convertAndSend(buffer, target: target, converter: converter)
+        let continuation = inputContinuation
+        input.installTap(onBus: 0, bufferSize: 2048, format: hardware) { [weak self, continuation] buffer, _ in
+            guard let self else { return }
+            self.convert(buffer, target: target, converter: converter, continuation: continuation)
         }
         engine.prepare(); try engine.start()
         if !player.isPlaying { player.play() }
-        NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)), name: AVAudioSession.interruptionNotification, object: audioSession)
-        NotificationCenter.default.addObserver(self, selector: #selector(audioRouteChanged(_:)), name: AVAudioSession.routeChangeNotification, object: audioSession)
     }
 
-    private nonisolated func convertAndSend(_ buffer: AVAudioPCMBuffer, target: AVAudioFormat, converter: AVAudioConverter) {
+    private nonisolated func convert(_ buffer: AVAudioPCMBuffer, target: AVAudioFormat, converter: AVAudioConverter, continuation: AsyncStream<Data>.Continuation?) {
         let ratio = target.sampleRate / buffer.format.sampleRate
         guard let converted = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1) else { return }
         var supplied = false
@@ -238,17 +260,8 @@ final class GhafLiveCall: ObservableObject {
             supplied = true; status.pointee = .haveData; return buffer
         }
         guard let bytes = converted.int16ChannelData else { return }
-        let samples = UnsafeBufferPointer(start: bytes[0], count: Int(converted.frameLength))
-        let rms = sqrt(samples.reduce(Float.zero) { $0 + pow(Float($1) / 32768, 2) } / max(1, Float(samples.count)))
         let data = Data(bytes: bytes[0], count: Int(converted.frameLength) * MemoryLayout<Int16>.size)
-        Task { @MainActor [weak self] in
-            guard let self, !self.stopping else { return }
-            self.inputLevel = min(1, rms * 3)
-            for start in stride(from: 0, to: data.count, by: 640) {
-                let chunk = data.subdata(in: start..<min(start + 640, data.count))
-                if let message = try? LiveEncoder.audio(chunk) { try? await self.send(message) }
-            }
-        }
+        continuation?.yield(data)
     }
 
     private func play(_ pcm: Data) {
@@ -273,10 +286,15 @@ final class GhafLiveCall: ObservableObject {
         if !player.isPlaying { player.play() }
     }
 
-    @objc private func audioInterrupted(_ notification: Notification) { end(reason: "audio_interruption") }
+    @objc private func audioInterrupted(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+        end(reason: "audio_interruption")
+    }
     @objc private func audioRouteChanged(_ notification: Notification) {
         guard let value = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              AVAudioSession.RouteChangeReason(rawValue: value) != .oldDeviceUnavailable else { return }
+              let reason = AVAudioSession.RouteChangeReason(rawValue: value),
+              reason == .newDeviceAvailable || reason == .oldDeviceUnavailable else { return }
         Task { @MainActor [weak self] in
             guard let self, !self.stopping else { return }
             self.engine.inputNode.removeTap(onBus: 0)

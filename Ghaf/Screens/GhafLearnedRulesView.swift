@@ -11,7 +11,7 @@ struct GhafLearnedRulesView: View {
     @State private var confirmForgetMemories = false
     @AppStorage(MerchantCategorizer.modelLearningKey) private var modelLearning = true
     @AppStorage(GhafCloudAI.enabledKey) private var cloudEnabled = false
-    @AppStorage("ghaf.ai.memoryEnabled") private var memoryEnabled = true
+    @AppStorage(GhafMemoryStore.enabledKey) private var memoryEnabled = GhafMemoryStore.defaultEnabled
     let settings: GhafSettings
 
     private var ar: Bool { settings.languageCode == "ar" }
@@ -56,6 +56,9 @@ struct GhafLearnedRulesView: View {
             }
             Section {
                 Toggle(ar ? "الذكاء السحابي" : "Cloud AI", isOn: $cloudEnabled)
+                    .onChange(of: cloudEnabled) { _, enabled in
+                        if !enabled { UserDefaults.standard.set(false, forKey: "ghaf.ai.liveConsentAccepted") }
+                    }
             } header: {
                 Text(ar ? "اختياري" : "Optional")
             } footer: {
