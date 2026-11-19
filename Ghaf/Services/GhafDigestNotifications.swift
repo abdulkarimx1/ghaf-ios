@@ -103,7 +103,7 @@ enum GhafDigestNotifications {
         GhafEventNotifications.record(
             key: "transaction-review-\(transaction.id.uuidString)", kind: .transactionReview,
             title: ar ? "عملية تحتاج مراجعتك" : "Check a transaction",
-            message: ar ? "راجع \(merchant) · \(amount) في الوارد." : "Review \(merchant) · \(amount) in Inbox.",
+            message: ar ? "راجع \(merchant) · \(amount) في الإشعارات." : "Review \(merchant) · \(amount) in Notifications.",
             itemID: transaction.id.uuidString,
             notifies: GhafEventNotifications.isEnabled(GhafEventNotifications.transactionReviewKey)
         )

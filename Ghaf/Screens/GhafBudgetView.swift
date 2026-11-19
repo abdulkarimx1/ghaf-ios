@@ -271,11 +271,19 @@ struct GhafBudgetView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack { Text(item.title).font(GhafTypography.body(16, languageCode: lang, weight: .semibold)); Spacer(); if preset == item { Image(systemName: "checkmark") } }
                         GeometryReader { geo in HStack(spacing: 2) { ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { bucket in Rectangle().fill([theme.accent, theme.close, theme.comfortable][bucket.rawValue]).frame(width: geo.size.width * CGFloat(NSDecimalNumber(decimal: item.share(bucket)).doubleValue)) } } }.frame(height: 8).clipShape(Capsule())
-                        Text(item.description).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        Text(ar ? presetArabic(item) : item.description).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
                     }.foregroundStyle(theme.primaryText).padding(12).background(theme.primaryText.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
                 }.buttonStyle(.plain)
             }
         }.padding(22).ghafBackground(theme: theme)
+    }
+
+    private func presetArabic(_ preset: BudgetAllocation.Preset) -> String {
+        switch preset {
+        case .balanced: "للمصاريف الثابتة التي تقل عن نصف دخلك"
+        case .highRentCity: "حين يستهلك الإيجار والفواتير ٥٥٪ أو أكثر"
+        case .essentialsFirst: "حين ترتفع الفواتير ويبدأ الادخار صغيراً"
+        }
     }
 
     private func budgetEditor(_ name: String) -> some View {

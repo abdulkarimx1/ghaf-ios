@@ -545,7 +545,7 @@ struct GhafHomeView: View {
             Button { showInbox = true } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "tray.full.fill").font(.system(size: 16, weight: .bold))
-                    Text(ar ? "الوارد" : "Inbox")
+                    Text(ar ? "الإشعارات" : "Notifications")
                         .font(GhafTypography.body(15, languageCode: lang, weight: .bold))
                         .lineLimit(1).minimumScaleFactor(0.75)
                     if inboxCount > 0 {
@@ -564,7 +564,7 @@ struct GhafHomeView: View {
                 .contentShape(Capsule())
             }
             .buttonStyle(.ghafPress)
-            .accessibilityLabel(ar ? "الوارد، \(inboxCount)" : "Inbox, \(inboxCount)")
+            .accessibilityLabel(ar ? "الإشعارات، \(inboxCount)" : "Notifications, \(inboxCount)")
         }
     }
 

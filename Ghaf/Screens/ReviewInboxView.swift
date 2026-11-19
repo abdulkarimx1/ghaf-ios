@@ -101,7 +101,7 @@ struct GhafReviewInboxView: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            Text(ar ? "الوارد" : "Inbox")
+            Text(ar ? "الإشعارات" : "Notifications")
                 .font(GhafTypography.display(30, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
             Text(ar ? "العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, subscriptions and alerts that need your attention.")

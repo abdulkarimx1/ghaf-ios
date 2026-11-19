@@ -28,6 +28,6 @@ final class BudgetAllocationTests: XCTestCase {
         }
         #expect(BudgetAllocation.Preset.balanced.amount(for: .needs, income: 12_000) == 6_000)
         #expect(BudgetAllocation.Preset.highRentCity.amount(for: .needs, income: 12_000) == 7_200)
-        #expect(BudgetAllocation.Preset.saver.amount(for: .savings, income: 12_000) == 3_600)
+        #expect(BudgetAllocation.Preset.essentialsFirst.amount(for: .savings, income: 12_000) == 1_200)
     }
 }
