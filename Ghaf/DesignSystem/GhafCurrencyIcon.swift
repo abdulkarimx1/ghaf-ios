@@ -121,10 +121,14 @@ struct GhafMoneyLabel: View {
         return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 
-    private var numberText: Text {
+    @ViewBuilder private var numberText: some View {
         let separator = Self.formatters[languageCode == "ar" ? "ar" : "en"]![GhafCurrencyDigits.fractionDigits(for: currency)]!.decimalSeparator ?? "."
-        guard size >= 28, let split = number.range(of: separator, options: .backwards), !number[split.upperBound...].isEmpty else { return Text(number) }
-        return Text(String(number[..<split.lowerBound])) + Text(String(number[split.lowerBound...])).opacity(0.45)
+        if size >= 28, let split = number.range(of: separator, options: .backwards), !number[split.upperBound...].isEmpty {
+            HStack(spacing: 0) {
+                Text(String(number[..<split.lowerBound]))
+                Text(String(number[split.lowerBound...])).opacity(0.45)
+            }
+        } else { Text(number) }
     }
 
     var body: some View {
