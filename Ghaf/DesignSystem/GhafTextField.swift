@@ -27,8 +27,8 @@ struct GhafTextField: View {
             HStack(spacing: 10) {
                 if let icon { Image(systemName: icon).foregroundStyle(theme.secondaryText).accessibilityHidden(true) }
                 Group {
-                    if multiline { TextField(placeholder, text: $text, axis: .vertical) }
-                    else { TextField(placeholder, text: $text) }
+                    if multiline { TextField(text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText), axis: .vertical) }
+                    else { TextField(text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText)) }
                 }
                 .focused(focusBinding ?? $focused)
                 .font(GhafTypography.body(17, languageCode: languageCode))
