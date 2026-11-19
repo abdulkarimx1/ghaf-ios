@@ -190,7 +190,6 @@ private struct GhafWalletCarousel: View {
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
             .scaleEffect(1 - 0.06 * CGFloat(min(abs(delta), 3)))
-            .rotationEffect(.degrees(delta < 0 ? 4 : (delta > 0 ? -4 : 0)))
             .frame(width: width, height: cardHeight)
             .frame(width: width, height: cardHeight + 50)
             .id(account.id)
