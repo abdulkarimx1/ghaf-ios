@@ -433,6 +433,20 @@ enum GhafBackupService {
             context.insert(memory)
         }
 
+        #if DEBUG
+        let financialDataBeforeCleanup = try financialSnapshot(in: context)
+        #endif
+        _ = try GhafPersistence.cleanMerchantData(in: context, save: false)
+        #if DEBUG
+        let financialDataAfterCleanup = try financialSnapshot(in: context)
+        assert(financialDataAfterCleanup == financialDataBeforeCleanup,
+               "Merchant cleanup changed restored financial data")
+        let restoredTransactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+        assert(restoredTransactions.compactMap(\.merchant).allSatisfy {
+            $0.range(of: #"(?i)\busing\b.*\bcard\b"#, options: .regularExpression) == nil
+        }, "Restored merchants still contain a card clause")
+        #endif
+
         do {
             try context.save()
         } catch {
@@ -452,6 +466,38 @@ enum GhafBackupService {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }
     }
+
+    #if DEBUG
+    private struct FinancialSnapshot: Equatable {
+        struct Transaction: Equatable {
+            var amount: Decimal
+            var currency: String
+            var date: Date
+            var accountID: UUID?
+            var direction: String
+            var isReversal: Bool
+        }
+
+        var accountBalances: [UUID: Decimal]
+        var totalsByCurrency: [String: Decimal]
+        var transactions: [UUID: Transaction]
+    }
+
+    private static func financialSnapshot(in context: ModelContext) throws -> FinancialSnapshot {
+        let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
+        let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+        let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
+        let totals = GhafAccountBalanceCalculator.balancesByCurrency(accounts: accounts, balances: balances)
+        return FinancialSnapshot(
+            accountBalances: balances,
+            totalsByCurrency: Dictionary(uniqueKeysWithValues: totals.map { ($0.currency, $0.amount) }),
+            transactions: Dictionary(uniqueKeysWithValues: transactions.map { item in
+                (item.id, .init(amount: item.amount, currency: item.currency, date: item.date,
+                                 accountID: item.accountID, direction: item.direction, isReversal: item.isReversal))
+            })
+        )
+    }
+    #endif
 
     #if DEBUG
     static func debugRoundTripCheck(context: ModelContext) async throws -> String {

@@ -90,4 +90,18 @@ final class GhafWalkthroughTests: XCTestCase {
         timedTap(app.tabBars.buttons["Home"], "tab Home")
         timedTap(app.tabBars.buttons["Transactions"], "tab Transactions again")
     }
+
+    func testRestoreCleansMerchantsWithoutChangingBalances() throws {
+        guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+                ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"] else {
+            throw XCTSkip("TEST_RUNNER_GHAF_BACKUP not set")
+        }
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", backup,
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+        timedTap(app.tabBars.buttons["Transactions"], "tab Transactions for restore cleanup")
+        snap("restore-cleanup-transactions")
+    }
 }

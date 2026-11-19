@@ -23,22 +23,29 @@ enum GhafPersistence {
         let flag = "ghaf.migration.merchantClean.v2"
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
         do {
-            let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
-            var cleaned = 0
-            for transaction in transactions {
-                guard let merchant = transaction.merchant else { continue }
-                let value = MerchantName.clean(merchant)
-                let baseline = merchant.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-                    .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
-                if value != baseline { transaction.merchant = value; cleaned += 1 }
-            }
-            try MerchantCategorizer.rekeyRules(context: context, save: false)
+            let cleaned = try cleanMerchantData(in: context, save: false)
             try context.save()
             UserDefaults.standard.set(true, forKey: flag)
             Logger(subsystem: "Ghaf", category: "Persistence").info("\(cleaned, privacy: .public)")
         } catch {
             context.rollback()
         }
+    }
+
+    @discardableResult
+    static func cleanMerchantData(in context: ModelContext, save: Bool = true) throws -> Int {
+        let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+        var cleaned = 0
+        for transaction in transactions {
+            guard let merchant = transaction.merchant else { continue }
+            let value = MerchantName.clean(merchant)
+            let baseline = merchant.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+            if value != baseline { transaction.merchant = value; cleaned += 1 }
+        }
+        try MerchantCategorizer.rekeyRules(context: context, save: false)
+        if save { try context.save() }
+        return cleaned
     }
 
     static func makeContainer() throws -> ModelContainer {
