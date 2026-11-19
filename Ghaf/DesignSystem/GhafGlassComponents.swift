@@ -3,20 +3,23 @@ import SwiftUI
 extension View {
     /// White rounded card with a soft shadow (hairline outline instead in dark mode).
     func ghafCard(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        return background(shape.fill(theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6))
-            .overlay { if theme.isDark { shape.stroke(theme.outline, lineWidth: 1) } }
+        modifier(GhafGlassSurface(theme: theme, radius: radius))
     }
 
     func ghafBackground(theme: GhafTheme) -> some View {
         background(ZStack {
             theme.background
             GhafCityBackdrop(theme: theme)
+            GhafGlassBackground(theme: theme)
         }.ignoresSafeArea())
     }
 
     func ghafLiquidGlass(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
         ghafCard(theme: theme, radius: radius)
+    }
+
+    func ghafGlassHero(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
+        modifier(GhafGlassSurface(theme: theme, radius: radius, hero: true))
     }
 
     /// Full-width primary action: a bold accent capsule.
@@ -30,12 +33,34 @@ extension View {
     }
 }
 
+private struct GhafGlassBackground: View {
+    let theme: GhafTheme
+    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(GhafTiltMotion.self) private var motion
+    var body: some View {
+        if glass.enabled && !reduceTransparency {
+            GeometryReader { proxy in
+                ZStack {
+                    if glass.ambientGlow {
+                        Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: proxy.size.width * 0.9).blur(radius: 100).position(x: proxy.size.width * 0.18 + CGFloat(motion.tilt.x) * 8, y: proxy.size.height * 0.2)
+                        Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: proxy.size.width * 0.8).blur(radius: 110).position(x: proxy.size.width * 0.82, y: proxy.size.height * 0.64 + CGFloat(motion.tilt.y) * 8)
+                    }
+                    if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(0.04).blendMode(.overlay).allowsHitTesting(false) }
+                }
+            }
+        }
+    }
+}
+
 struct GhafCapsuleButtonStyle: ButtonStyle {
     let theme: GhafTheme
     let languageCode: String
     let prominent: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -43,11 +68,28 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 56)
             .padding(.horizontal, 18)
-            .background(prominent ? theme.accent : theme.elevatedSurface, in: Capsule())
+            .background(prominent ? theme.accent : (glass.enabled && !reduceTransparency ? Color.clear : theme.elevatedSurface), in: Capsule())
+            .modifier(GhafControlGlass(theme: theme, enabled: glass.enabled && !reduceTransparency, prominent: prominent))
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
             .sensoryFeedback(.impact(weight: prominent ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+private struct GhafControlGlass: ViewModifier {
+    let theme: GhafTheme
+    let enabled: Bool
+    let prominent: Bool
+    func body(content: Content) -> some View {
+        if enabled {
+            if #available(iOS 26, *), !prominent {
+                content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
+            } else {
+                content.overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(prominent ? 0.4 : 0.45), .white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .overlay(alignment: .top) { Capsule().fill(.white.opacity(prominent ? 0.12 : 0.06)).frame(height: 1) }
+            }
+        } else { content }
     }
 }
 
@@ -61,6 +103,8 @@ struct GhafPillButton: View {
     var badge = 0
     let action: () -> Void
     @State private var taps = 0
+    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         Button {
@@ -89,11 +133,15 @@ struct GhafPillButton: View {
             .background {
                 if prominent {
                     Capsule().fill(theme.accent)
+                } else if glass.enabled && !reduceTransparency {
+                    if #available(iOS 26, *) { Capsule().fill(.clear) }
+                    else { Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.3))) }
                 } else {
                     Capsule().fill(theme.surface).shadow(color: theme.shadow, radius: 10, x: 0, y: 4)
                 }
             }
-            .overlay { if theme.isDark && !prominent { Capsule().stroke(theme.outline, lineWidth: 1) } }
+            .overlay { if (theme.isDark && !prominent && !(glass.enabled && !reduceTransparency)) { Capsule().stroke(theme.outline, lineWidth: 1) } }
+            .modifier(GhafControlGlass(theme: theme, enabled: glass.enabled && !reduceTransparency, prominent: prominent))
             .contentShape(Capsule())
         }
         .buttonStyle(.ghafPress)
@@ -109,12 +157,13 @@ struct GhafSectionHeader: View {
     let languageCode: String
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
+    @Environment(\.ghafGlass) private var glass
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .font(GhafTypography.heading(20, languageCode: languageCode))
-                .foregroundStyle(theme.primaryText)
+                .foregroundStyle(glass.enabled ? theme.secondaryText.opacity(0.85) : theme.primaryText)
             Spacer()
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
@@ -132,13 +181,20 @@ struct GhafIconBadge: View {
     let symbol: String
     let tint: Color
     var size: CGFloat = 44
+    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: size * 0.4, weight: .bold))
             .foregroundStyle(tint)
             .frame(width: size, height: size)
-            .background(tint.opacity(0.14), in: Circle())
+            .background {
+                if glass.enabled && !reduceTransparency {
+                    Circle().fill(.thinMaterial).overlay(Circle().fill(tint.opacity(0.12)))
+                        .overlay(Circle().strokeBorder(.white.opacity(0.28), lineWidth: 0.8))
+                } else { Circle().fill(tint.opacity(0.14)) }
+            }
             .accessibilityHidden(true)
     }
 }

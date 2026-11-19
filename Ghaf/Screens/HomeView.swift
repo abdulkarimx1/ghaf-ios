@@ -332,7 +332,7 @@ struct GhafHomeView: View {
         .padding(.vertical, 22)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme, radius: 28)
+        .ghafGlassHero(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }

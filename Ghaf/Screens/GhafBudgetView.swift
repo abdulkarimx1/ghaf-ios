@@ -175,7 +175,7 @@ struct GhafBudgetView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme, radius: 28)
+        .ghafGlassHero(theme: theme, radius: 28)
     }
 
     // MARK: Pace
