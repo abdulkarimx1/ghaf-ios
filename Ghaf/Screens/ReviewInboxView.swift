@@ -183,7 +183,7 @@ struct GhafReviewInboxView: View {
         let account = activeAccounts.first { $0.id == transaction.accountID }
         return VStack(spacing: 16) {
             HStack(spacing: 12) {
-                GhafBrandBadge(name: name, fallbackTint: theme.accent, size: 40)
+                GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText).lineLimit(1)
