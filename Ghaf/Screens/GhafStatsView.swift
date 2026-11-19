@@ -217,9 +217,10 @@ struct GhafStatsView: View {
     /// period, a line you drag across, and the period chips under it. Every value comes from the ledger.
     private func trendHero(_ all: [Bucket], current: [GhafTransaction], previous: [GhafTransaction]) -> some View {
         // Days that haven't happened yet aren't zero spending: the line stops at today, like Stocks.
-        let data = period == .month ? all : all.filter { $0.start <= .now }
+        let data = all
+        let plotted = all.filter { $0.start <= .now }
         // Plotted by a short label per bucket, not by date: date-unit marks by week or month crash Charts (NaN).
-        let selected = selectedLabel.flatMap { key in data.first { chartKey($0.start) == key } }
+        let selected = selectedLabel.flatMap { key in plotted.first { chartKey($0.start) == key } }
         let spent = total(current)
         let before = total(previous)
         let change = before > 0 ? (spent - before) / before : nil
@@ -253,7 +254,7 @@ struct GhafStatsView: View {
                     .foregroundStyle(theme.secondaryText)
                     .padding(.vertical, 5)
             }
-            Chart(data) { bucket in
+            Chart(plotted) { bucket in
                 AreaMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                     .foregroundStyle(LinearGradient(colors: [accent.opacity(0.18), accent.opacity(0)], startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.catmullRom)
@@ -323,7 +324,8 @@ struct GhafStatsView: View {
                 AxisMarks(values: data.map { chartKey($0.start) }) { value in
                     AxisValueLabel {
                         if let key = value.as(String.self), let bucket = data.first(where: { chartKey($0.start) == key }) {
-                            Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                            Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                                .foregroundStyle(theme.secondaryText.opacity(bucket.start > .now ? 0.4 : 1))
                         }
                     }
                 }
