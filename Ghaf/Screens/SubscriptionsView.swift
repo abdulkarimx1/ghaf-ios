@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import GhafCore
+import os
+
+private let subscriptionDetailLog = OSLog(subsystem: "com.ghaf.app", category: "SubscriptionDetail")
 
 struct GhafSubscriptionsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -14,8 +17,10 @@ struct GhafSubscriptionsView: View {
     @State private var editorTarget: EditorTarget?
 #if DEBUG
     @State private var fixtureEditorOpened = false
+    @State private var fixtureDetailOpened = false
 #endif
     @State private var detail: GhafSubscription?
+    @State private var detailTapStartedAt: TimeInterval = 0
     let settings: GhafSettings
 
     private var theme: GhafTheme {
@@ -79,7 +84,11 @@ struct GhafSubscriptionsView: View {
                                         .padding(.horizontal, 6)
                                     VStack(spacing: 0) {
                                         ForEach(group.items) { item in
-                                            Button { detail = item } label: { subscriptionRow(item) }.buttonStyle(.ghafPress)
+                                            Button {
+                                                detailTapStartedAt = ProcessInfo.processInfo.systemUptime
+                                                os_signpost(.begin, log: subscriptionDetailLog, name: "TapToFirstFrame")
+                                                detail = item
+                                            } label: { subscriptionRow(item) }.buttonStyle(.ghafPress)
                                             if item.id != group.items.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
                                         }
                                     }.padding(.horizontal, 16).padding(.vertical, 4).ghafCard(theme: theme)
@@ -97,7 +106,11 @@ struct GhafSubscriptionsView: View {
             .sensoryFeedback(.success, trigger: confirmedCount)
             .animation(.snappy, value: subscriptions.count)
             .sheet(item: $detail) { item in
-                GhafSubscriptionDetailView(subscription: item, settings: settings, accounts: accounts.filter { !$0.isArchived })
+                GhafSubscriptionDetailView(subscription: item, settings: settings, accounts: accounts.filter { !$0.isArchived }) {
+                    let elapsed = (ProcessInfo.processInfo.systemUptime - detailTapStartedAt) * 1_000
+                    os_signpost(.end, log: subscriptionDetailLog, name: "TapToFirstFrame")
+                    os_signpost(.event, log: subscriptionDetailLog, name: "TapToFirstFrameMs", "%{public}.1f ms", elapsed)
+                }
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
             .sheet(item: $editorTarget) { target in
@@ -109,6 +122,17 @@ struct GhafSubscriptionsView: View {
                 if GhafScreenshotFixture.enabled, ["subscription-editor", "subscription-editor-filled"].contains(GhafScreenshotFixture.screen ?? ""), !fixtureEditorOpened {
                     fixtureEditorOpened = true
                     editorTarget = EditorTarget(subscription: GhafScreenshotFixture.screen == "subscription-editor-filled" ? subscriptions.first : nil)
+                }
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "subscriptions",
+                   GhafScreenshotFixture.selection == "subscription-detail", !fixtureDetailOpened,
+                   let item = subscriptions.first {
+                    fixtureDetailOpened = true
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(900))
+                        detailTapStartedAt = ProcessInfo.processInfo.systemUptime
+                        os_signpost(.begin, log: subscriptionDetailLog, name: "TapToFirstFrame")
+                        detail = item
+                    }
                 }
 #endif
             }
@@ -604,6 +628,7 @@ private struct GhafSubscriptionDetailView: View {
     let subscription: GhafSubscription
     let settings: GhafSettings
     let accounts: [GhafAccount]
+    let onFirstFrame: () -> Void
 
     @State private var payments: [GhafTransaction] = []
     @State private var editing = false
@@ -653,7 +678,12 @@ private struct GhafSubscriptionDetailView: View {
                 GhafSubscriptionEditor(settings: settings, accounts: accounts, subscription: subscription)
                     .ghafDirection(settings.languageCode).presentationDetents([.large])
             }
-            .onAppear(perform: load)
+            .task {
+                await Task.yield()
+                onFirstFrame()
+                await Task.yield()
+                load()
+            }
         }
         .ghafDirection(settings.languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
