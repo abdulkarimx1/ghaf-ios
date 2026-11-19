@@ -13,6 +13,16 @@ packages:
     path: Packages/GhafCore
 
 targets:
+  GhafUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [GhafUITests]
+    dependencies:
+      - target: Ghaf
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app.uitests
   Ghaf:
     type: application
     platform: iOS
@@ -28,8 +38,8 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.24"
-        CFBundleVersion: "38"
+        CFBundleShortVersionString: "1.25"
+        CFBundleVersion: "39"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
@@ -84,8 +94,8 @@ targets:
       path: BuildConfig/GhafWidgets-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.24"
-        CFBundleVersion: "38"
+        CFBundleShortVersionString: "1.25"
+        CFBundleVersion: "39"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

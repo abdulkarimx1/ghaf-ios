@@ -72,10 +72,9 @@ struct GhafAutomationGuideView: View {
                 .frame(maxWidth: 600)
                 .frame(maxWidth: .infinity)
             }
-            .overlay(alignment: .top) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
                     .frame(height: 28)
-                    .ignoresSafeArea(edges: .top)
                     .allowsHitTesting(false)
             }
         }
@@ -372,8 +371,8 @@ struct GhafAutomationGuideView: View {
                 GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
                 GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”.", "اضغط على “Apps”.")),
                 GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
-                GuideStep(screen: "Ghaf", controls: ["Add Apple Pay purchase"], highlight: "Add Apple Pay purchase", caption: text("Choose “Add Apple Pay purchase”.", "اختر “Add Apple Pay purchase”.")),
-                GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Map “Amount”, “Merchant”, and “Card”, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card”، ثم اضغط “Done”.")),
+                GuideStep(screen: "Ghaf", controls: ["Capture Apple Pay"], highlight: "Capture Apple Pay", caption: text("Choose “Capture Apple Pay”.", "اختر “Capture Apple Pay”.")),
+                GuideStep(screen: "Capture Apple Pay", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Map “Amount”, “Merchant”, and “Card”, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card”، ثم اضغط “Done”.")),
             ]
         }
         if automation == .messages {
@@ -386,8 +385,8 @@ struct GhafAutomationGuideView: View {
                 GuideStep(screen: "New Automation", controls: ["New Blank Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
                 GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
                 GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”, then choose “Ghaf”.", "اضغط على “Apps”، ثم اختر “Ghaf”.")),
-                GuideStep(screen: "Ghaf", controls: ["Log bank message"], highlight: "Log bank message", caption: text("Choose “Log bank message”.", "اختر “Log bank message”.")),
-                GuideStep(screen: "Log bank message", controls: ["Message text", "Content", "Sender", "Done"], highlight: "Message text", caption: text("Set “Message text” to “Shortcut Input › Content” and “Sender” to “Shortcut Input › Sender”, then tap “Done”.", "اربط “Message text” بـ“Shortcut Input › Content”، و“Sender” بـ“Shortcut Input › Sender”، ثم اضغط “Done”."))
+                GuideStep(screen: "Ghaf", controls: ["Capture Bank Alert"], highlight: "Capture Bank Alert", caption: text("Choose “Capture Bank Alert”.", "اختر “Capture Bank Alert”.")),
+                GuideStep(screen: "Capture Bank Alert", controls: ["Alert text", "Content", "Sender", "Done"], highlight: "Alert text", caption: text("Set “Alert text” to “Shortcut Input › Content” and “Sender” to “Shortcut Input › Sender”, then tap “Done”.", "اربط “Alert text” بـ“Shortcut Input › Content”، و“Sender” بـ“Shortcut Input › Sender”، ثم اضغط “Done”."))
             ]
         }
         return [
@@ -401,8 +400,8 @@ struct GhafAutomationGuideView: View {
             GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
             GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”.", "اضغط على “Apps”.")),
             GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
-            GuideStep(screen: "Ghaf", controls: ["Log bank message"], highlight: "Log bank message", caption: text("Choose “Log bank message”.", "اختر “Log bank message”.")),
-            GuideStep(screen: "Log bank message", controls: ["Message text", "Shortcut Input", "Sender", "Done"], highlight: "Message text", caption: text("Set “Message text” to “Shortcut Input” and “Sender” to your bank app name, then tap “Done”.", "اربط “Message text” بـ“Shortcut Input” و“Sender” باسم تطبيق البنك، ثم اضغط على “Done”."))
+            GuideStep(screen: "Ghaf", controls: ["Capture Bank Alert"], highlight: "Capture Bank Alert", caption: text("Choose “Capture Bank Alert”.", "اختر “Capture Bank Alert”.")),
+            GuideStep(screen: "Capture Bank Alert", controls: ["Alert text", "Shortcut Input", "Sender", "Done"], highlight: "Alert text", caption: text("Set “Alert text” to “Shortcut Input” and “Sender” to your bank app name, then tap “Done”.", "اربط “Alert text” بـ“Shortcut Input” و“Sender” باسم تطبيق البنك، ثم اضغط على “Done”."))
         ]
     }
 
@@ -603,7 +602,16 @@ struct GhafAutomationGuideView: View {
 
     @ViewBuilder
     private func bankBadge(_ bank: GhafBankSupportContact, size: CGFloat) -> some View {
-        if GhafBrand.match(bank.name) != nil {
+        if let logo = UIImage(named: "Bank-\(bank.id)") {
+            Image(uiImage: logo)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+                    .stroke(theme.outline, lineWidth: 0.5))
+                .accessibilityHidden(true)
+        } else if GhafBrand.match(bank.name) != nil {
             GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: size)
         } else {
             let hex = GhafUAEBank.match([bank.name])?.colors.0 ?? bankMonogramColor(for: bank.id)

@@ -44,12 +44,11 @@ struct GhafAboutView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-            VStack(spacing: 18) {
+            VStack(spacing: 14) {
                 hero
                 featureCarousel.ghafEntrance(1)
-                story.ghafEntrance(2)
-                actions.ghafEntrance(3).id("about-actions")
-                socials.ghafEntrance(4)
+                actions.ghafEntrance(2).id("about-actions")
+                socials.ghafEntrance(3)
                 footer
             }
             .ghafScreenPadding()
@@ -73,10 +72,10 @@ struct GhafAboutView: View {
     }
 
     private var hero: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Image("GhafBrandMark")
                 .resizable().scaledToFit()
-                .frame(width: 92, height: 92)
+                .frame(width: 76, height: 76)
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
                 .scaleEffect(appeared ? 1 : 0.7)
@@ -91,20 +90,10 @@ struct GhafAboutView: View {
                 .padding(.horizontal, 12).padding(.vertical, 5)
                 .background(theme.accentContrast.opacity(0.15), in: Capsule())
         }
-        // Text follows the accent's own contrast colour, so light accents (Graphite, dark mode) get dark text.
-        .foregroundStyle(theme.accentContrast)
+        .foregroundStyle(theme.primaryText)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 30)
-        .background {
-            ZStack {
-                LinearGradient(colors: [theme.accent, theme.glow], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 220))
-                    .foregroundStyle(theme.accentContrast.opacity(0.08))
-                    .rotationEffect(.degrees(-20))
-                    .offset(x: 110, y: 40)
-            }
-        }
+        .padding(.vertical, 20)
+        .background(theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
@@ -136,7 +125,7 @@ struct GhafAboutView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 176)
+            .frame(height: 160)
             HStack(spacing: 6) {
                 ForEach(features.indices, id: \.self) { index in
                     Capsule().fill(index == page ? theme.accent : theme.secondaryText.opacity(0.3))
@@ -146,22 +135,6 @@ struct GhafAboutView: View {
             .animation(.snappy, value: page)
             .accessibilityHidden(true)
         }
-    }
-
-    private var story: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(ar ? "لماذا غاف؟" : "Why Ghaf?", systemImage: "leaf.fill")
-                .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
-                .foregroundStyle(theme.accent)
-            Text(ar ? "الغاف شجرة الإمارات الوطنية. تعيش في الصحراء بقليل من الماء، وتمنح الظل لكل من حولها. هكذا نريد غاف لأموالك: هادئ، صبور، وحاضر حين تحتاجه."
-                    : "The Ghaf is the UAE's national tree. It thrives in the desert on very little water and gives shade to everyone around it. That's what we want Ghaf to be for your money: calm, patient, and there when you need it.")
-                .font(GhafTypography.body(15, languageCode: lang))
-                .foregroundStyle(theme.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme)
     }
 
     private var actions: some View {

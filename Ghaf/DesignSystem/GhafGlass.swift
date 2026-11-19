@@ -27,6 +27,7 @@ final class GhafTiltMotion {
     private var filtered = CGPoint.zero
     private var running = false
     private var requested = false
+    private var lastTiltPublish: TimeInterval = 0
     private let deadZone = 0.0262 // 1.5 degrees
     private var powerObserver: NSObjectProtocol?
     private init() {
@@ -59,6 +60,9 @@ final class GhafTiltMotion {
                 guard let motion else { return }
                 Task { @MainActor [weak self] in
                     guard let self, self.running else { return }
+                    let now = ProcessInfo.processInfo.systemUptime
+                    guard now - self.lastTiltPublish >= 1.0 / 30.0 else { return }
+                    self.lastTiltPublish = now
                     guard let attitude = motion.attitude.copy() as? CMAttitude else { return }
                     if self.reference == nil { self.reference = attitude.copy() as? CMAttitude }
                     if let reference = self.reference { attitude.multiply(byInverseOf: reference) }
@@ -142,9 +146,7 @@ struct GhafGlassSurface: ViewModifier {
                     }
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
-                .overlay {
-                    GhafGlassRim(theme: theme, shape: shape).blur(radius: 3).opacity(0.6).clipShape(shape)
-                }
+                .overlay { shape.strokeBorder(theme.glow.opacity(theme.isDark ? 0.12 : 0.08), lineWidth: 4) }
                 .overlay { GhafGlassRim(theme: theme, shape: shape) }
             } else {
                 shape.fill(fallback ?? theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6)

@@ -200,7 +200,7 @@ extension View {
     func ghafStatusBarFade(theme: GhafTheme) -> some View {
         overlay(alignment: .top) {
             GeometryReader { geometry in
-                let top = geometry.safeAreaInsets.top, fade: CGFloat = 18
+                let top = geometry.safeAreaInsets.top, fade: CGFloat = 32
                 LinearGradient(stops: [.init(color: theme.background, location: 0),
                                        .init(color: theme.background, location: top / (top + fade)),
                                        .init(color: theme.background.opacity(0), location: 1)],

@@ -63,7 +63,15 @@ enum GhafScreenshotFixture {
         let configuration = ModelConfiguration("GhafScreenshotFixture", schema: schema,
                                                 isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: [configuration])
-        seed(container.mainContext)
+        // -GhafRestoreBackup <path>: load a real Ghaf backup instead of the sample data, to prove fixes on real data.
+        if let i = arguments.firstIndex(of: "-GhafRestoreBackup"), i + 1 < arguments.count {
+            try GhafBackupService.restore(from: URL(fileURLWithPath: arguments[i + 1]), context: container.mainContext)
+            if let s = try container.mainContext.fetch(FetchDescriptor<GhafSettings>()).first {
+                s.themeName = theme; s.appearanceMode = appearance; s.languageCode = language
+            }
+        } else {
+            seed(container.mainContext)
+        }
         if arguments.contains("-GhafAutomationProof") { try GhafAutomationIntentHarness.assertBehavior(in: container.mainContext) }
         return container
     }

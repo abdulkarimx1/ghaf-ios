@@ -6,7 +6,7 @@ import GhafCore
 
 struct LogBankMessageIntent: AppIntent, LiveActivityIntent {
 
-    static var title: LocalizedStringResource = "Log bank message"
+    static var title: LocalizedStringResource = "Capture Bank Alert"
 
     static var description = IntentDescription(
         "Add a bank transaction to Ghaf from Shortcut Input Content and Sender in a bank text message automation."
@@ -16,8 +16,8 @@ struct LogBankMessageIntent: AppIntent, LiveActivityIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(
-        title: "Message text",
-        description: "محتوى إشعار أو رسالة العملية البنكية الواردة."
+        title: "Alert text",
+        description: "The text of the incoming bank notification or message."
     )
     var messageText: String
 
