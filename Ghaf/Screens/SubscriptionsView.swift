@@ -12,6 +12,9 @@ struct GhafSubscriptionsView: View {
     /// One value drives the sheet, so it always opens on the tapped subscription (not a stale or blank one).
     private struct EditorTarget: Identifiable { let id = UUID(); let subscription: GhafSubscription? }
     @State private var editorTarget: EditorTarget?
+#if DEBUG
+    @State private var fixtureEditorOpened = false
+#endif
     @State private var detail: GhafSubscription?
     let settings: GhafSettings
 
@@ -98,6 +101,14 @@ struct GhafSubscriptionsView: View {
             }
             .sheet(item: $editorTarget) { target in
                 GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: target.subscription).ghafDirection(settings.languageCode)
+            }
+            .onAppear {
+#if DEBUG
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "subscription-editor", !fixtureEditorOpened {
+                    fixtureEditorOpened = true
+                    editorTarget = EditorTarget(subscription: nil)
+                }
+#endif
             }
         }
         .ghafDirection(settings.languageCode)

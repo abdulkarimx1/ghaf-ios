@@ -57,6 +57,9 @@ struct GhafSettingsView: View {
     @State private var editingCategory: String?
     @State private var categoryDraftName = ""
     @State private var showCategories = false
+#if DEBUG
+    @State private var fixtureGlassPresented = false
+#endif
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
@@ -147,8 +150,18 @@ struct GhafSettingsView: View {
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
             .tint(theme.accent)
+#if DEBUG
+            .navigationDestination(isPresented: $fixtureGlassPresented) {
+                subpage(ar ? "الزجاج" : "Glass") { glassSettings }
+            }
+#endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
-            .onAppear(perform: loadSettings)
+            .onAppear {
+                loadSettings()
+#if DEBUG
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "settings-glass" { fixtureGlassPresented = true }
+#endif
+            }
             .onChange(of: glassEnabled) { _, _ in GhafWidgetSync.refresh(context: modelContext) }
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }

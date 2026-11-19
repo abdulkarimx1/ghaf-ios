@@ -36,7 +36,7 @@ struct GhafRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear.ignoresSafeArea())
 
-            if showLaunch {
+            if showLaunch && !screenshotFixtureEnabled {
                 GhafWelcomeLaunchScreen(settings: settings.first)
                     .transition(.opacity)
                     .zIndex(10)
@@ -181,7 +181,17 @@ struct GhafRootView: View {
 
     @ViewBuilder
     private var rootContent: some View {
-        if let currentSettings = settings.first {
+#if DEBUG
+        if GhafScreenshotFixture.enabled, let currentSettings = settings.first {
+            switch GhafScreenshotFixture.screen {
+            case "insights": GhafStatsView(settings: currentSettings)
+            case "subscriptions", "subscription-editor": GhafSubscriptionsView(settings: currentSettings)
+            case "settings-glass": GhafSettingsView(settings: currentSettings)
+            case "amount-pad": GhafTabView(settings: currentSettings)
+            case nil where GhafScreenshotFixture.tab == "subscriptions": GhafSubscriptionsView(settings: currentSettings)
+            default: GhafTabView(settings: currentSettings)
+            }
+        } else if let currentSettings = settings.first {
             if currentSettings.hasCompletedOnboarding {
                 GhafTabView(settings: currentSettings)
             } else {
@@ -198,11 +208,28 @@ struct GhafRootView: View {
                     }
                 }
         }
+#else
+        if let currentSettings = settings.first {
+            if currentSettings.hasCompletedOnboarding {
+                GhafTabView(settings: currentSettings)
+            } else {
+                GhafOnboardingView(settings: currentSettings)
+            }
+        } else {
+            ProgressView().tint(.white).task {
+                do { _ = try GhafPersistence.settings(in: modelContext) }
+                catch { print("Ghaf initialization error: \(error)") }
+            }
+        }
+#endif
     }
 
     private func beginLaunch() {
         guard !launchHasStarted else { return }
         launchHasStarted = true
+#if DEBUG
+        if GhafScreenshotFixture.enabled { showLaunch = false; return }
+#endif
         launchStartedAt = .now
 
         Task { @MainActor in
@@ -220,6 +247,14 @@ struct GhafRootView: View {
             }
             presentAutomationIntroIfNeeded()
         }
+    }
+
+    private var screenshotFixtureEnabled: Bool {
+#if DEBUG
+        GhafScreenshotFixture.enabled
+#else
+        false
+#endif
     }
 
     @State private var launchStartedAt = Date.now
@@ -311,6 +346,18 @@ struct GhafTabView: View {
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
         .tint(theme.accent)
+#if DEBUG
+        .onAppear {
+            guard GhafScreenshotFixture.enabled else { return }
+            switch GhafScreenshotFixture.tab {
+            case "transactions": router.selectedTab = 3
+            case "ai": router.selectedTab = 1
+            case "more": router.selectedTab = 4
+            case "insights": router.selectedTab = 2
+            default: router.selectedTab = 0
+            }
+        }
+#endif
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         .task(id: router.selectedTab) {
             // Opening Ghaf AI plays the tree's grow-and-sway once, frame by frame (tab icons can't animate otherwise).

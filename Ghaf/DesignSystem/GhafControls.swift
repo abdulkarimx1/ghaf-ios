@@ -11,7 +11,7 @@ struct GhafToggleStyle: ToggleStyle {
             if reduceMotion { change() } else { withAnimation(.spring(response: 0.3, dampingFraction: 0.78), change) }
         } label: {
             HStack(spacing: 12) {
-                configuration.label.frame(maxWidth: .infinity, alignment: .leading)
+                configuration.label.foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 5) {
                     Text(configuration.isOn ? (languageCode == "ar" ? "مفعّل" : "On") : (languageCode == "ar" ? "متوقف" : "Off"))
                     if configuration.isOn { Image(systemName: "checkmark") }
@@ -86,9 +86,11 @@ struct GhafMenuRow<Content: View>: View {
             Group {
                 if compact {
                     HStack(spacing: 8) {
-                        Text(value).foregroundStyle(theme.secondaryText)
+                        Text(value).foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
                         Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText)
                     }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .padding(.leading, 8)
                 } else {
                     HStack(spacing: 12) {
                         Text(title).foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)

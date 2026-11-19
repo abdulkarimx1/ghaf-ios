@@ -154,6 +154,11 @@ struct GhafHomeView: View {
             .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
             .ghafStatusBarFade(theme: theme)
+#if DEBUG
+            .onAppear {
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "amount-pad" { showQuickAdd = true }
+            }
+#endif
             .onChange(of: router.homeReselects) { _, _ in
                 withAnimation(.spring(duration: 0.45, bounce: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
             }
@@ -850,6 +855,7 @@ struct GhafQuickAddView: View {
         return Button { withAnimation(.snappy) { direction = value } } label: {
             Label(title, systemImage: icon)
                 .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                .lineLimit(1).minimumScaleFactor(0.65)
                 .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
                 .padding(.horizontal, 16).frame(minHeight: 38)
                 .background(selected ? theme.accent : theme.primaryText.opacity(0.06), in: Capsule())

@@ -32,10 +32,10 @@ struct GhafTransactionsView: View {
     private var lang: String { settings.languageCode }
     private var sortOrderTitle: String {
         switch sortOrder {
-        case "Oldest": ar ? "الأقدم أولاً" : "Oldest first"
-        case "Highest": ar ? "الأعلى مبلغاً" : "Highest amount"
-        case "Lowest": ar ? "الأقل مبلغاً" : "Lowest amount"
-        default: ar ? "الأحدث أولاً" : "Newest first"
+        case "Oldest": ar ? "الأقدم" : "Oldest"
+        case "Highest": ar ? "الأعلى" : "Highest"
+        case "Lowest": ar ? "الأقل" : "Lowest"
+        default: ar ? "الأحدث" : "Newest"
         }
     }
 
@@ -232,17 +232,17 @@ struct GhafTransactionsView: View {
                     filterButton("Review", label: ar ? "مراجعة" : "Review")
                 }
             }
-            .scrollClipDisabled()
             GhafMenuRow(title: ar ? "ترتيب" : "Sort", value: sortOrderTitle, theme: theme, languageCode: lang, compact: true) {
                 Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
-                    Text(ar ? "الأحدث أولاً" : "Newest first").tag("Newest")
-                    Text(ar ? "الأقدم أولاً" : "Oldest first").tag("Oldest")
-                    Text(ar ? "الأعلى مبلغاً" : "Highest amount").tag("Highest")
-                    Text(ar ? "الأقل مبلغاً" : "Lowest amount").tag("Lowest")
+                    Text(ar ? "الأحدث" : "Newest").tag("Newest")
+                    Text(ar ? "الأقدم" : "Oldest").tag("Oldest")
+                    Text(ar ? "الأعلى" : "Highest").tag("Highest")
+                    Text(ar ? "الأقل" : "Lowest").tag("Lowest")
                 }
             }
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
         }
+        .padding(.horizontal, GhafMetrics.gutter)
     }
 
     private func filterButton(_ value: String, label: String) -> some View {
