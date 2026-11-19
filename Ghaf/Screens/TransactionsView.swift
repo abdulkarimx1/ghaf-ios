@@ -101,7 +101,7 @@ struct GhafTransactionsView: View {
         for transaction in list where transaction.currency == settings.currency
             && calendar.isDate(transaction.date, equalTo: .now, toGranularity: .month) {
             if transaction.isExpense { spent += transaction.spendingAmount }
-            if transaction.isIncome { income += transaction.amount }
+            income += transaction.incomeAmount
         }
         return (spent, income)
     }

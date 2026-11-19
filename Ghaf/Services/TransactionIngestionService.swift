@@ -117,14 +117,15 @@ final class TransactionIngestionService {
 
         let isReversal = parsed.kind == .refund || parsed.kind == .reversal
         // A refund offsets its original purchase, so it takes that purchase's category and account.
-        let original = isReversal && parsed.direction == .credit ? try originalPurchase(for: parsed) : nil
+        let original = isReversal ? try originalPurchase(for: parsed, direction: parsed.direction == .credit ? "debit" : "credit") : nil
 
+        // The message's own account evidence beats the amount-based guess at the original.
         let resolvedAccount = matchedAccount
             ?? original?.accountID.flatMap { id in accounts.first { $0.id == id } }
             ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil)
 
         let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, amount: parsed.amount, date: parsed.date,
-                                                        direction: isReversal ? .debit : parsed.direction, context: context)
+                                                        direction: isReversal && original == nil ? .debit : parsed.direction, context: context)
         let category = try original?.category ?? MerchantCategorizer.category(
             for: parsed.merchant,
             direction: isReversal ? .debit : parsed.direction,
@@ -324,15 +325,13 @@ final class TransactionIngestionService {
                                                                      content: content, trigger: nil))
     }
 
-    /// Most recent purchase this refund reverses: same amount and currency, within 90 days before it,
-    /// and the same merchant.
-    /// shortcut: does not track which purchases were already refunded; add a link field if partial refunds matter.
-    private func originalPurchase(for parsed: ParsedTransaction) throws -> GhafTransaction? {
+    /// Most recent transaction the reversal offsets: same amount, currency and merchant within 90 days.
+    private func originalPurchase(for parsed: ParsedTransaction, direction: String) throws -> GhafTransaction? {
         let amount = parsed.amount, currency = parsed.currency, end = parsed.date
         let start = end.addingTimeInterval(-90 * 86_400)
         var descriptor = FetchDescriptor<GhafTransaction>(
             predicate: #Predicate {
-                $0.direction == "debit" && !$0.isReversal && $0.amount == amount
+                $0.direction == direction && !$0.isReversal && $0.amount == amount
                     && $0.currency == currency && $0.date >= start && $0.date <= end
             },
             sortBy: [SortDescriptor(\.date, order: .reverse)]

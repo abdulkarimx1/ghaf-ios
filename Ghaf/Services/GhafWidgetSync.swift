@@ -37,7 +37,7 @@ enum GhafWidgetSync {
             return spending.filter { calendar.isDate($0.date, inSameDayAs: day) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
         }
         var snapshot = GhafWidgetSnapshot(currency: currency, balance: balance, spentToday: today, spentThisMonth: month,
-                           lastPurchase: last.map { .init(merchant: $0.merchant ?? GhafLocalization.category($0.category, languageCode: settings.languageCode),
+                           lastPurchase: last.map { .init(merchant: GhafFormat.balancesHidden ? GhafLocalization.category($0.category, languageCode: settings.languageCode) : ($0.merchant ?? GhafLocalization.category($0.category, languageCode: settings.languageCode)),
                                                           amount: $0.amount, currency: $0.currency, date: $0.date) },
                            hidden: GhafFormat.balancesHidden, arabic: settings.languageCode == "ar", updated: .now)
         snapshot.todayCategories = Array(byCategory.prefix(4))
@@ -57,12 +57,12 @@ enum GhafWidgetSync {
         snapshot.month = period(.month, slices: 5, slice: (.day, 7), spending: spending, calendar: calendar, name: name)
 
         if let latest = transactions.max(by: { $0.createdAt < $1.createdAt }) {
-            snapshot.recent = .init(merchant: latest.merchant, category: name(latest.category),
+            snapshot.recent = .init(merchant: GhafFormat.balancesHidden ? name(latest.category) : latest.merchant, category: name(latest.category),
                                     symbol: GhafCategoryIcon.builtIn(latest.category)?.symbol ?? (latest.direction == "credit" ? "arrow.down" : "bag.fill"),
                                     amount: latest.amount, currency: latest.currency, date: latest.date,
                                     isCredit: latest.direction == "credit",
-                                    account: accounts.first { $0.id == latest.accountID }?.name,
-                                    bank: latest.bank, needsReview: latest.needsReview)
+                                    account: GhafFormat.balancesHidden ? nil : accounts.first { $0.id == latest.accountID }?.name,
+                                    bank: GhafFormat.balancesHidden ? nil : latest.bank, needsReview: latest.needsReview)
         }
 
         if budget.hasBudget {
@@ -99,9 +99,9 @@ enum GhafWidgetSync {
               ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         await endAll()
         let state = GhafPurchaseAttributes.ContentState(
-            merchant: transaction.merchant ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en"),
+            merchant: GhafFormat.balancesHidden ? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en") : (transaction.merchant ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en")),
             amount: transaction.amount, currency: transaction.currency, isCredit: transaction.direction == "credit",
-            accountName: account?.name, balance: GhafFormat.balancesHidden ? nil : balance, needsReview: needsReview,
+            accountName: GhafFormat.balancesHidden ? nil : account?.name, balance: GhafFormat.balancesHidden ? nil : balance, needsReview: needsReview,
             symbol: GhafCategoryIcon.builtIn(transaction.category)?.symbol ?? (transaction.direction == "credit" ? "arrow.down" : "bag.fill"),
             category: GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en"),
             recordedAt: .now, hidden: GhafFormat.balancesHidden)

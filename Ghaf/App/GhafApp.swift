@@ -6,6 +6,7 @@ import UIKit
 struct GhafApp: App {
 
     private let modelContainer: ModelContainer
+    @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
 
     init() {
         // Native bounce stays on: it is part of iOS's fluid feel.
@@ -30,6 +31,11 @@ struct GhafApp: App {
 
             GhafRootView()
                 .onAppear { DispatchQueue.main.async { GhafKeyboardDismisser.shared.install() } }
+                // Widgets and Live Activities show purchase details, so they follow the hide toggle at once.
+                .onChange(of: hideBalances) { _, hidden in
+                    GhafWidgetSync.refresh(context: modelContainer.mainContext)
+                    if hidden { Task { await GhafWidgetSync.endAll() } }
+                }
         }
         .modelContainer(modelContainer)
     }

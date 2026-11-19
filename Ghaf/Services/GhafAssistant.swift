@@ -45,7 +45,7 @@ enum GhafFinanceFacts {
             for currency in currencies {
                 let items = inPeriod.filter { $0.currency == currency }
                 let spent = spendingSum(items)
-                let income = sum(items.filter(\.isIncome))
+                let income = items.reduce(Decimal.zero) { $0 + $1.incomeAmount }
                 if spent > 0 || income > 0 {
                     lines.append("Spent \(label) (refunds subtracted): \(fmt(spent, currency: currency)) \(currency); income \(label): \(fmt(income, currency: currency)) \(currency); \(items.count) transactions.")
                 }
@@ -162,8 +162,10 @@ final class GhafAssistant: ObservableObject {
             return AsyncThrowingStream { continuation in
                 let task = Task {
                     do {
-                        await Self.reveal(try await GhafCloudAI.reply(question: question, facts: facts, direct: direct,
-                                                                      history: history, languageCode: languageCode), into: continuation)
+                        let reply = try await GhafCloudAI.reply(question: question, facts: facts, direct: direct,
+                                                               history: history, languageCode: languageCode)
+                        await Self.reveal(Self.groundedReply(reply, question: question, facts: facts, direct: direct,
+                                                             history: history, languageCode: languageCode), into: continuation)
                     } catch GhafCloudAI.Failure.dailyLimit {
                         await Self.reveal(fallback + (languageCode == "ar"
                             ? "\n\n(وصلت للحد اليومي للذكاء السحابي؛ أجبتك من جهازك.)"
@@ -191,6 +193,18 @@ final class GhafAssistant: ObservableObject {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    private static func groundedReply(_ reply: String, question: String, facts: String, direct: String?,
+                                      history: [(isUser: Bool, text: String)], languageCode: String) -> String {
+        let sources = [facts, direct ?? "", question] + history.map(\.text)
+        let unsupported = GroundedNumbers.unsupported(in: reply, sources: sources)
+        guard !unsupported.isEmpty else { return reply }
+        Logger(subsystem: "com.ghaf.app", category: "ai").warning("Grounding replaced or flagged \(unsupported.count, privacy: .public) unsupported figures")
+        if let direct { return direct }
+        return reply + (languageCode == "ar"
+            ? "\n\n(بعض الأرقام هنا غير موجودة في سجلاتك في غاف، فتحقق منها.)"
+            : "\n\n(Some figures here aren't in your Ghaf records, so double-check them.)")
     }
 
     /// Shows an answer that arrived whole a few words at a time, as the on-device model's real stream does.
@@ -241,9 +255,14 @@ final class GhafAssistant: ObservableObject {
             let task = Task {
                 do {
                     let session = LanguageModelSession(tools: [GhafLedgerTool(), GhafChartTool()], instructions: instructions)
+                    var finalText = ""
                     for try await snapshot in session.streamResponse(to: prompt) {
-                        continuation.yield(snapshot.content)
+                        finalText = snapshot.content
+                        continuation.yield(finalText)
                     }
+                    let corrected = Self.groundedReply(finalText, question: question, facts: facts, direct: direct,
+                                                       history: history, languageCode: languageCode)
+                    if corrected != finalText { continuation.yield(corrected) }
                     continuation.finish()
                 } catch {
                     // Context too long, unsupported language, guardrails: fall back to grounded answers.

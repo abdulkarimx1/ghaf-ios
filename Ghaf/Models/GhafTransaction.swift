@@ -31,11 +31,11 @@ final class GhafTransaction {
     /// but are never spending or income.
     var isSpendingOrIncome: Bool { !CategoryTaxonomy.isTransferOrAdjustment(category: category, subcategory: subcategory) }
     /// Purchases, plus refunds/reversals of purchases (credits that offset spending).
-    /// shortcut: a reversed credit (debit with isReversal) counts as neither; offset income if that shows up.
     var isExpense: Bool { isSpendingOrIncome && (direction == "debit") != isReversal }
     var isIncome: Bool { direction == "credit" && isSpendingOrIncome && !isReversal }
-    /// Signed spending effect: a refund lowers spending and is never income.
-    var spendingAmount: Decimal { isExpense ? (isReversal ? -amount : amount) : 0 }
+    /// Signed effects keep both purchase refunds and reversed deposits in their original totals.
+    var spendingAmount: Decimal { TransactionEffect.spending(amount: amount, isDebit: direction == "debit", isReversal: isReversal, countsAsSpendingOrIncome: isSpendingOrIncome) }
+    var incomeAmount: Decimal { TransactionEffect.income(amount: amount, isDebit: direction == "debit", isReversal: isReversal, countsAsSpendingOrIncome: isSpendingOrIncome) }
 
     // A transaction can remain unassigned when its source account is unknown.
     var accountID: UUID?
