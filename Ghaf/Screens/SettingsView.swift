@@ -134,7 +134,7 @@ struct GhafSettingsView: View {
 
                     menuGroup(ar ? "البيانات" : "Data") {
                         menuRow(ar ? "Google Drive والنسخ الاحتياطي" : "Google Drive & backup", icon: "externaldrive.fill.badge.icloud") { subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard } }
-                        menuRow(ar ? "عن غاف" : "About Ghaf", icon: "leaf.fill") { GhafAboutView(settings: settings) }
+                        menuRow(ar ? "عن غاف" : "About Ghaf", icon: "info.circle.fill") { GhafAboutView(settings: settings) }
                     }
 
                     Button(role: .destructive) { showDeleteConfirmation = true } label: {
