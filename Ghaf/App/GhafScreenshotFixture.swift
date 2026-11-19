@@ -20,7 +20,8 @@ enum GhafScreenshotFixture {
         ["budget", "pro-popup", "pro-sheet"].contains(value("GhafScreen") ?? "") ? "insights" : value("GhafScreen")
     }
     static var destination: String? { value("GhafScreen") }
-    static var automationExpanded: Bool { value("GhafAutomationExpanded") == "bank" }
+    static var automationExpanded: String { value("GhafAutomationExpanded") ?? "bank" }
+    static var automationPage: Int? { value("GhafAutomationPage").flatMap(Int.init) }
     static var automationButtonProof: Bool { value("GhafAutomationButtonProof") == "1" }
     static var automationState: String { ["none", "waiting", "working"].contains(value("GhafAutomationState") ?? "none") ? (value("GhafAutomationState") ?? "none") : "none" }
 

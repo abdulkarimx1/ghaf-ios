@@ -14,6 +14,7 @@ struct GhafAutomationGuideView: View {
     @State private var bankSearch = ""
     @State private var expandedAutomation: Automation?
     @State private var refreshTick = false
+    @State private var automationPage = 0
 
     private enum Automation: String { case bank, wallet }
 
@@ -48,7 +49,7 @@ struct GhafAutomationGuideView: View {
             VStack(spacing: 24) {
 #if DEBUG
                 if GhafScreenshotFixture.enabled, GhafScreenshotFixture.automationButtonProof {
-                    automationsSection
+                    VStack(spacing: 24) { automationsSection; testSection }
                 } else {
                     fullContent
                 }
@@ -75,6 +76,9 @@ struct GhafAutomationGuideView: View {
             }
 #endif
             refreshBanks()
+#if DEBUG
+            if GhafScreenshotFixture.enabled { automationPage = max(0, (GhafScreenshotFixture.automationPage ?? 1) - 1) }
+#endif
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { refreshBanks(); refreshTick.toggle() }
@@ -283,15 +287,79 @@ struct GhafAutomationGuideView: View {
         }
     }
 
+    private struct GuideStep: Identifiable {
+        let screen: String
+        let controls: [String]
+        let highlight: String
+        let caption: String
+        var id: String { caption }
+    }
+
+    private func guideSteps(_ automation: Automation) -> [GuideStep] {
+        if automation == .wallet {
+            return [
+                GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”.")),
+                GuideStep(screen: "Personal Automation", controls: ["+", "Wallet", "When I tap a Wallet Card or Pass"], highlight: "Wallet", caption: text("Tap “+”, then choose “Wallet” (Apple calls this the “Transaction” trigger).", "اضغط “+”، ثم اختر “Wallet” (يسميه دليل Apple مشغل “Transaction”).")),
+                GuideStep(screen: "Transaction", controls: ["Select Cards", "All Cards", "Next"], highlight: "All Cards", caption: text("Select all cards.", "حدد كل البطاقات.")),
+                GuideStep(screen: "Transaction", controls: ["Run After Confirmation", "Run Immediately", "Next"], highlight: "Run Immediately", caption: text("Choose “Run Immediately”.", "اختر “Run Immediately”.")),
+                GuideStep(screen: "Transaction", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط “Next”.")),
+                GuideStep(screen: "New Automation", controls: ["New Blank Automation", "Suggested Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
+                GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط “Add Action”.")),
+                GuideStep(screen: "Add Action", controls: ["Search Ghaf", "Add Apple Pay purchase"], highlight: "Add Apple Pay purchase", caption: text("Search “Ghaf” and choose “Add Apple Pay purchase”.", "ابحث عن “Ghaf” واختر “Add Apple Pay purchase”.")),
+                GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount = Shortcut Input › Amount", "Merchant = Shortcut Input › Merchant", "Card = Shortcut Input › Card or Pass", "Location = Current Location (optional)", "Done"], highlight: "Amount = Shortcut Input › Amount", caption: text("Map the fields, then tap “Done”.", "اربط الحقول، ثم اضغط “Done”."))
+            ]
+        }
+        return [
+            GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”.")),
+            GuideStep(screen: "Automation", controls: ["+", "Personal Automation"], highlight: "+", caption: text("Tap “+”, then choose “Notification”.", "اضغط “+”، ثم اختر “Notification”.")),
+            GuideStep(screen: "Notification", controls: ["App", "Add Filter"], highlight: "App", caption: text("Choose your bank app under “App”.", "اختر تطبيق البنك ضمن “App”.")),
+            GuideStep(screen: "Notification", controls: ["App", "Add Filter", "Message", "Subtitle", "Title"], highlight: "Add Filter", caption: text("Optionally filter by “Message”, “Subtitle” or “Title”.", "يمكنك إضافة تصفية حسب “Message” أو “Subtitle” أو “Title”.")),
+            GuideStep(screen: "Notification", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط “Next”.")),
+            GuideStep(screen: "New Automation", controls: ["New Blank Automation", "Suggested Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
+            GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”, then search “Ghaf”.", "اضغط “Add Action”، ثم ابحث عن “Ghaf”.")),
+            GuideStep(screen: "Add Action", controls: ["Log bank message", "Message text = Shortcut Input", "Sender = bank app"], highlight: "Log bank message", caption: text("Choose “Log bank message”. Map Message text to Shortcut Input and Sender to the bank app name.", "اختر “Log bank message”. اربط نص الرسالة بمدخل الاختصار والمرسل باسم تطبيق البنك."))
+        ]
+    }
+
     private func automationInstructions(_ automation: Automation) -> some View {
-        let paths = automation == .bank
-            ? [[ ["Shortcuts", "Automation", "+"], ["App", "Notification"] ], [ ["Ghaf", "Log bank message"], ["Run Immediately"] ]]
-            : [[ ["Shortcuts", "Automation", "+"], ["Transaction"] ], [ ["Ghaf", "Add Apple Pay purchase"] ]]
-        let banks = chosenBanks.map { name in GhafBankSupportDirectory.contacts.first(where: { $0.name == name })?.nameArabic ?? name }.joined(separator: "، ")
-        return VStack(alignment: .leading, spacing: 12) {
-            instructionRow(1, prose: text("Open these Shortcuts screens:", "افتح شاشات الاختصارات التالية:"), path: paths[0])
-            instructionRow(2, prose: automation == .bank ? (chosenBanks.isEmpty ? text("Choose your bank apps (add them above first)", "اختر تطبيقات بنوكك (أضفها في الأعلى أولاً)") : text("Choose: \(chosenBanks.joined(separator: ", "))", "اختر: \(banks)")) : text("Choose all cards", "اختر كل البطاقات"))
-            instructionRow(3, prose: text("Add this Ghaf action:", "أضف إجراء غاف التالي:"), path: paths[1])
+        let steps = guideSteps(automation)
+        return VStack(spacing: 14) {
+            HStack {
+                Text(text("Step \(automationPage + 1) of \(steps.count)", "الخطوة \(automationPage + 1) من \(steps.count)"))
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.secondaryText)
+                Spacer()
+            }
+            TabView(selection: $automationPage) {
+                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                    VStack(spacing: 10) {
+                        shortcutScreen(step)
+                        Text(step.caption)
+                            .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))
+                            .foregroundStyle(theme.primaryText)
+                            .multilineTextAlignment(ar ? .trailing : .leading)
+                            .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .tag(index)
+                    .padding(.horizontal, 2)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: automation == .wallet ? 294 : 280)
+            HStack(spacing: 6) {
+                ForEach(steps.indices, id: \.self) { index in
+                    Capsule().fill(index == automationPage ? theme.accent : theme.secondaryText.opacity(0.28))
+                        .frame(width: index == automationPage ? 18 : 6, height: 6)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            Text(automation == .wallet
+                 ? text("Test it: Pay for something small with Apple Pay, then check Transactions.", "اختبره: ادفع مبلغاً صغيراً عبر Apple Pay، ثم تحقق من المعاملات.")
+                 : text("Test it: Wait for your next bank alert.", "اختبره: انتظر تنبيه البنك التالي."))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
             Button(action: openShortcuts) {
                 Text(text("Open Shortcuts", "فتح الاختصارات"))
                     .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .semibold))
@@ -306,37 +374,43 @@ struct GhafAutomationGuideView: View {
         .padding(.trailing, 16)
         .padding(.top, 16)
         .padding(.bottom, 20)
+        .onChange(of: expandedAutomation) { _, selected in
+            if selected == automation { automationPage = 0 }
+        }
     }
 
-    private func instructionRow(_ number: Int, prose: String, path: [[String]] = []) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("\(number)")
-                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
-                .foregroundStyle(theme.accentContrast)
-                .frame(width: 28, height: 28)
-                .background(theme.accent, in: Circle())
-            VStack(alignment: ar ? .trailing : .leading, spacing: 4) {
-                Text(prose).font(GhafTypography.body(15, languageCode: settings.languageCode)).foregroundStyle(theme.primaryText).fixedSize(horizontal: false, vertical: true)
-                if !path.isEmpty {
-                    ForEach(Array(path.enumerated()), id: \.offset) { _, labels in
-                        HStack(spacing: 4) {
-                            ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
-                                if index > 0 { Text(ar ? "‹" : "›").font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium)).foregroundStyle(theme.secondaryText) }
-                                Text("“\(label)”")
-                                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
-                                    .foregroundStyle(theme.primaryText)
-                                    .padding(.horizontal, 7).padding(.vertical, 4)
-                                    .background(theme.primaryText.opacity(theme.isDark ? 0.12 : 0.07), in: Capsule())
-                                    .fixedSize()
-                                    .environment(\.layoutDirection, .leftToRight)
-                            }
-                        }
-                        .environment(\.layoutDirection, .leftToRight)
-                    }
+    private func shortcutScreen(_ step: GuideStep) -> some View {
+        VStack(spacing: 7) {
+            HStack {
+                Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                Spacer()
+                Text(step.screen).font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Spacer()
+                Image(systemName: "ellipsis").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText)
+            }
+            .padding(.bottom, 2)
+            ForEach(step.controls, id: \.self) { control in
+                HStack(spacing: 8) {
+                    Image(systemName: control.contains("Location") ? "location" : control.contains("Amount") ? "dollarsign.circle" : control.contains("Merchant") ? "storefront" : control.contains("Card") ? "creditcard" : "circle")
+                        .font(.system(size: 11, weight: .medium))
+                    Text(control).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75)
+                    Spacer(minLength: 0)
+                    if control == step.highlight { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)) }
+                    else { Image(systemName: "chevron.right").font(.system(size: 9, weight: .medium)) }
                 }
+                .foregroundStyle(control == step.highlight ? theme.surface : theme.primaryText)
+                .padding(.horizontal, 9)
+                .frame(minHeight: 23)
+                .background(control == step.highlight ? theme.accent : theme.primaryText.opacity(theme.isDark ? 0.07 : 0.045), in: RoundedRectangle(cornerRadius: 7))
             }
             Spacer(minLength: 0)
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 15))
+        .overlay(RoundedRectangle(cornerRadius: 15).stroke(theme.outline.opacity(0.45), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Shortcuts screen: \(step.screen), highlighted \(step.highlight)")
     }
 
     private var testSection: some View {
@@ -362,6 +436,10 @@ struct GhafAutomationGuideView: View {
             }
             .buttonStyle(.plain)
             .ghafCard(theme: theme)
+            Text(text("“Missing amount or merchant. Nothing saved.” means you skipped “Map the fields”.", "تعني رسالة “المبلغ أو التاجر مفقود. لم يتم الحفظ.” أنك تخطيت خطوة “Map the fields”."))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .padding(.horizontal, 4)
         }
     }
 
@@ -496,7 +574,7 @@ struct GhafAutomationGuideView: View {
 
     private func isFixtureExpanded(_ automation: Automation) -> Bool {
 #if DEBUG
-        GhafScreenshotFixture.enabled && GhafScreenshotFixture.screen == "automation" && GhafScreenshotFixture.automationExpanded && automation == .bank
+        GhafScreenshotFixture.enabled && GhafScreenshotFixture.screen == "automation" && GhafScreenshotFixture.automationExpanded == automation.rawValue
 #else
         false
 #endif

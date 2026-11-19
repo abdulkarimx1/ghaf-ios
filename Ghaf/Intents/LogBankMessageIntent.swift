@@ -6,8 +6,7 @@ import GhafCore
 
 struct LogBankMessageIntent: AppIntent {
 
-    static var title: LocalizedStringResource =
-        "أضف عملية من رسالة بنكية"
+    static var title: LocalizedStringResource = "Log bank message"
 
     static var description = IntentDescription(
         "Add a bank transaction to Ghaf from the incoming notification text."
@@ -17,10 +16,13 @@ struct LogBankMessageIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(
-        title: "نص الرسالة",
+        title: "Message text",
         description: "محتوى إشعار أو رسالة العملية البنكية الواردة."
     )
     var messageText: String
+
+    @Parameter(title: "Sender", description: "Optional sender name from the incoming bank message.")
+    var sender: String?
 
     @Parameter(title: "Location", description: "Optional: Current Location, so Ghaf can pin where you paid.")
     var location: CLPlacemark?
@@ -43,7 +45,7 @@ struct LogBankMessageIntent: AppIntent {
             let parsed = BankMessageParser().parse(messageText, referenceDate: .now)
             guard let parsed else { return nil }
             let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
-            let account = GhafAccountBalanceCalculator.matchAccount(bank: parsed.bank, sender: nil, accounts: accounts)
+            let account = GhafAccountBalanceCalculator.matchAccount(bank: parsed.bank, sender: sender, accounts: accounts)
             return GhafBankSupportDirectory.contact(for: [parsed.bank, account?.institution, account?.name])?.name
         }
         let defaults = UserDefaults.standard
@@ -76,7 +78,7 @@ struct LogBankMessageIntent: AppIntent {
 
             let result = try service.ingest(
                 messageText: messageText,
-                sender: nil
+                sender: sender
             )
 
             return result
