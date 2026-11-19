@@ -35,6 +35,7 @@ final class GhafSettings {
     var budgetMode: String
     var categoriesJSON: String
     var categoryBudgetsJSON: String
+    var allocationPresetRaw: String = BudgetAllocation.Preset.balanced.rawValue
     /// Per-category subcategories, SF Symbol and colour. Keyed by the names in `categories`.
     var categoryMetaJSON: String = "{}"
     var hasCompletedOnboarding: Bool
@@ -85,6 +86,7 @@ final class GhafSettings {
         self.categoriesJSON = Self.encode(GhafDefaults.defaultCategories)
         self.categoryMetaJSON = Self.encode(GhafDefaults.defaultCategoryMeta)
         self.categoryBudgetsJSON = "{}"
+        self.allocationPresetRaw = BudgetAllocation.Preset.balanced.rawValue
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.createdAt = .now
         self.balanceSetupMode = balanceSetupMode
