@@ -33,44 +33,52 @@ struct GhafAccountsView: View {
     var body: some View {
         // One pass over transactions for every account, not one per row.
         let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
-        ScrollView {
-            VStack(spacing: GhafMetrics.sectionSpacing) {
-                if activeAccounts.isEmpty {
-                    emptyState
-                    Button {
-                        editorTarget = EditorTarget(account: nil)
-                    } label: {
-                        Label(lang == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet", systemImage: "plus")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .ghafProminentButton(theme: theme, languageCode: lang)
-                } else {
-                    GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
-                                    theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
-                                    onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
-                        .ghafEntrance(1)
-                }
-
-                if accounts.contains(where: \.isArchived) {
-                    archivedAccounts(balances)
-                }
+        Group {
+            if accounts.contains(where: \.isArchived) {
+                ScrollView { walletContent(balances) }
+            } else {
+                walletContent(balances)
             }
-            .ghafScreenPadding()
-            .padding(.top, 4)
-            .padding(.bottom, 30)
-            .frame(maxWidth: 620)
-            .frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 32).allowsHitTesting(false)
+        }
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
             }.ghafDirection(settings.languageCode)
         }
         .modifier(WalletZoomDestination(namespace: zoomNamespace))
+    }
+
+    private func walletContent(_ balances: [UUID: Decimal]) -> some View {
+        VStack(spacing: GhafMetrics.sectionSpacing) {
+            if activeAccounts.isEmpty {
+                emptyState
+                Button { editorTarget = EditorTarget(account: nil) } label: {
+                    Label(lang == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .ghafProminentButton(theme: theme, languageCode: lang)
+            } else {
+                GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
+                                theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
+                                onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
+                    .ghafEntrance(1)
+            }
+            if accounts.contains(where: \.isArchived) { archivedAccounts(balances) }
+        }
+        .ghafScreenPadding()
+        .padding(.top, 4)
+        .padding(.bottom, 30)
+        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity)
     }
 
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
@@ -299,6 +307,7 @@ struct GhafAccountEditorView: View {
                                 secondaryAction: { showArchiveConfirmation = true },
                                 primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
                                 primaryAction: save)
+            }
         }
         .navigationTitle(account == nil ? (ar ? "إضافة حساب" : "Add account") : (ar ? "تعديل الحساب" : "Edit account"))
         .navigationBarTitleDisplayMode(.inline)
