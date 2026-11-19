@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import GhafCore
 
 struct GhafCurrencyBalance: Identifiable {
     let currency: String
@@ -75,49 +76,13 @@ enum GhafAccountBalanceCalculator {
         sender: String?,
         accounts: [GhafAccount]
     ) -> GhafAccount? {
-        let incoming = [bank, sender]
-            .compactMap { $0 }
-            .map(normalize)
-            .filter { !$0.isEmpty }
-        guard !incoming.isEmpty else { return nil }
-
-        // Account names are user-defined. A card wallet may be labelled
-        // "iVESTOR" while its account type is still Cash or Prepaid.
-        // Match names across all active accounts, but prefer real bank accounts
-        // when scores are otherwise equal.
-        let bankAccounts = accounts.filter { !$0.isArchived }
-
-        let ranked = bankAccounts.map { account -> (GhafAccount, Int) in
-            let institution = normalize(account.institution ?? "")
-            let name = normalize(account.name)
-            var score = 0
-
-            for value in incoming {
-                if !institution.isEmpty && value == institution { score = max(score, 100) }
-                if !name.isEmpty && value == name {
-                    score = max(score, account.type.isBankAccount ? 100 : 95)
-                }
-                if !institution.isEmpty && value.contains(institution) { score = max(score, 80) }
-                if !institution.isEmpty && institution.contains(value) { score = max(score, 70) }
-                if !name.isEmpty && value.contains(name) { score = max(score, 65) }
-            }
-            return (account, score)
+        let active = accounts.filter { !$0.isArchived }
+        let candidates = active.map {
+            AccountCandidate(id: $0.id, name: $0.name, institution: $0.institution,
+                             isBankAccount: $0.type.isBankAccount, isPrimary: $0.isPrimary)
         }
-
-        return ranked
-            .filter { $0.1 > 0 }
-            .sorted {
-                if $0.1 == $1.1 { return $0.0.isPrimary && !$1.0.isPrimary }
-                return $0.1 > $1.1
-            }
-            .first?.0
-    }
-
-    private static func normalize(_ value: String) -> String {
-        value.lowercased().unicodeScalars
-            .filter { CharacterSet.alphanumerics.contains($0) }
-            .map(String.init)
-            .joined()
+        guard let id = AccountMatcher.match(bank: bank, sender: sender, candidates: candidates) else { return nil }
+        return active.first { $0.id == id }
     }
 }
 
