@@ -909,7 +909,7 @@ HStack(spacing: 8) {
     private var backupCard: some View {
         settingsCard(languageCode == "ar" ? "البيانات والنسخ الاحتياطي" : "Data and backup", subtitle: languageCode == "ar" ? "تصدير نسخة من بياناتك أو استعادتها" : "Move or keep a copy of your local records") {
             Button(action: createBackup) {
-                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير العمليات والإعدادات وقواعد التجار" : "Export transactions, settings and learned merchants", icon: "square.and.arrow.up")
+                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير الحسابات والعمليات والاشتراكات والإعدادات والذاكرة والتفضيلات" : "Export accounts, transactions, subscriptions, settings, memories and preferences", icon: "square.and.arrow.up")
             }
             .buttonStyle(.ghafPress)
 
@@ -931,6 +931,27 @@ HStack(spacing: 8) {
                 .font(GhafTypography.body(11, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(languageCode == "ar" ? "ملاحظة: لا تتضمن النسخة محادثات غاف AI المحفوظة." : "Saved Ghaf AI conversations are not included in backups.")
+                .font(GhafTypography.body(11, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            #if DEBUG
+            Button {
+                Task {
+                    do {
+                        let result = try await GhafBackupService.debugRoundTripCheck(context: modelContext)
+                        prompt = .message("Backup round-trip: \(result)")
+                    } catch {
+                        prompt = .message(error.localizedDescription)
+                    }
+                }
+            } label: {
+                settingsActionRow(languageCode == "ar" ? "فحص النسخ الاحتياطي (للتطوير)" : "Run backup round-trip check (Debug)",
+                                  detail: languageCode == "ar" ? "يصدر نسخة ثم يمسح بيانات هذا المحاكي ويستعيدها للتحقق" : "Exports, resets this simulator's Ghaf data, restores it, then compares models and preferences",
+                                  icon: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.ghafPress)
+            #endif
         }
     }
 
