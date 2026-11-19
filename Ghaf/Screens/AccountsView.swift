@@ -45,10 +45,6 @@ struct GhafAccountsView: View {
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
         .toolbarBackground(.hidden, for: .navigationBar)
-        .overlay(alignment: .top) {
-            LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 32).allowsHitTesting(false)
-        }
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)

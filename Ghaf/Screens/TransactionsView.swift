@@ -181,6 +181,7 @@ struct GhafTransactionsView: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .ghafBackground(theme: theme)
+            .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
 #if DEBUG
