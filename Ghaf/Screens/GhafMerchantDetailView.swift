@@ -54,7 +54,8 @@ struct GhafMerchantDetailView: View {
     private func placeCard(_ item: MKMapItem) -> some View {
         let coordinate = item.placemark.coordinate
         return VStack(alignment: .leading, spacing: 0) {
-            Map(initialPosition: .camera(MapCamera(centerCoordinate: coordinate, distance: 900))) {
+            // A fixed preview: Directions and the other buttons below handle navigation.
+            Map(initialPosition: .camera(MapCamera(centerCoordinate: coordinate, distance: 900)), interactionModes: []) {
                 Marker(item.name ?? "", systemImage: "bag.fill", coordinate: coordinate).tint(theme.accent)
             }
             .mapControlVisibility(.hidden)
