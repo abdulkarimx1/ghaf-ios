@@ -343,7 +343,7 @@ struct GhafHomeView: View {
     // MARK: Header: greeting, accounts pill, hide-balances eye
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(greeting)
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
@@ -537,35 +537,45 @@ struct GhafHomeView: View {
     // MARK: Big pill actions
 
     private func actionRow() -> some View {
+        ViewThatFits(in: .horizontal) {
+            actionPills(compactNotifications: false)
+            actionPills(compactNotifications: true)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionPills(compactNotifications: Bool) -> some View {
         HStack(spacing: 10) {
             GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
                            prominent: true) { showQuickAdd = true }
             GhafPillButton(title: ar ? "اشتراكات" : "Subs", icon: "repeat", theme: theme,
                            languageCode: lang) { showSubscriptions = true }
             Button { showInbox = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "tray.full.fill").font(.system(size: 16, weight: .bold))
-                    Text(ar ? "الإشعارات" : "Notifications")
-                        .font(GhafTypography.body(15, languageCode: lang, weight: .bold))
-                        .lineLimit(1).minimumScaleFactor(0.75)
+                HStack(spacing: 4) {
+                    Image(systemName: "tray.full.fill").font(.system(size: 14, weight: .bold))
+                    if !compactNotifications {
+                        Text(ar ? "الإشعارات" : "Notifications")
+                            .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
+                            .lineLimit(1)
+                    }
                     if inboxCount > 0 {
                         Text("\(inboxCount)")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(theme.accent)
-                            .padding(.horizontal, 7).frame(minHeight: 22)
+                            .padding(.horizontal, 5).frame(minHeight: 20)
                             .background(theme.accent.opacity(0.14), in: Capsule())
-                            .overlay(Capsule().stroke(theme.accent.opacity(0.35), lineWidth: 1))
                     }
                 }
                 .foregroundStyle(theme.primaryText)
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .padding(.horizontal, 10)
+                .frame(minHeight: 48)
+                .padding(.horizontal, 16)
                 .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                 .contentShape(Capsule())
             }
             .buttonStyle(.ghafPress)
             .accessibilityLabel(ar ? "الإشعارات، \(inboxCount)" : "Notifications, \(inboxCount)")
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: Dark insight card

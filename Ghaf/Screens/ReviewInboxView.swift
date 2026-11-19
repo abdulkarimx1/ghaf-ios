@@ -183,7 +183,7 @@ struct GhafReviewInboxView: View {
         let account = activeAccounts.first { $0.id == transaction.accountID }
         return VStack(spacing: 16) {
             HStack(spacing: 12) {
-                GhafBrandBadge(name: name, fallbackTint: theme.accent, size: 40)
+                GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText).lineLimit(1)
@@ -213,7 +213,7 @@ struct GhafReviewInboxView: View {
                 }
             }
 
-            HStack(spacing: 8) {
+            VStack(spacing: 0) {
                 Menu {
                     ForEach(activeAccounts) { item in
                         Button(item.name) {
@@ -222,20 +222,37 @@ struct GhafReviewInboxView: View {
                         }
                     }
                 } label: {
-                    chip(ar ? "الحساب" : "Account", account?.name ?? (ar ? "اختر" : "Choose"), missing: account == nil)
+                    GhafDetailRow(label: ar ? "الحساب" : "Account", theme: theme, languageCode: lang) {
+                        menuValue(account?.name ?? (ar ? "اختر" : "Choose"), missing: account == nil)
+                    }
                 }
-                Button { selectedTransaction = transaction } label: {
-                    chip(ar ? "الفئة" : "Category", GhafLocalization.category(transaction.category, languageCode: lang),
-                         missing: transaction.category == "Other")
+                .buttonStyle(.plain)
+                Divider().overlay(theme.outline)
+                Menu {
+                    ForEach(settings.categories, id: \.self) { category in
+                        Button(GhafLocalization.category(category, languageCode: lang)) {
+                            transaction.category = category
+                            transaction.subcategory = nil
+                            try? modelContext.save()
+                        }
+                    }
+                } label: {
+                    GhafDetailRow(label: ar ? "الفئة" : "Category", theme: theme, languageCode: lang) {
+                        menuValue(GhafLocalization.category(transaction.category, languageCode: lang),
+                                  missing: transaction.category == "Other")
+                    }
                 }
-                .buttonStyle(.ghafPress)
+                .buttonStyle(.plain)
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Button { selectedTransaction = transaction } label: {
-                    Text(ar ? "تعديل" : "Edit").frame(maxWidth: .infinity)
+                    Text(ar ? "تعديل" : "Edit")
+                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .padding(.horizontal, 24).frame(minHeight: 48)
                 }
-                .ghafGlassButton(theme: theme, languageCode: lang)
+                .buttonStyle(.ghafPress)
                 Button {
                     withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
                         transaction.needsReview = false
@@ -243,11 +260,16 @@ struct GhafReviewInboxView: View {
                     }
                     confirmed += 1
                 } label: {
-                    Label(ar ? "تأكيد" : "Confirm", systemImage: "checkmark").frame(maxWidth: .infinity)
+                    Label(ar ? "تأكيد" : "Confirm", systemImage: "checkmark")
+                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.accentContrast)
+                        .padding(.horizontal, 24).frame(minHeight: 48)
+                        .background(theme.accent, in: Capsule())
                 }
-                .ghafProminentButton(theme: theme, languageCode: lang)
+                .buttonStyle(.ghafPress)
                 .disabled(account == nil)
             }
+            .frame(maxWidth: .infinity)
             if account == nil {
                 Text(ar ? "اختر الحساب أولاً حتى يُحتسب في الرصيد الصحيح." : "Pick the account first so it counts toward the right balance.")
                     .font(GhafTypography.body(11, languageCode: lang))
@@ -258,18 +280,11 @@ struct GhafReviewInboxView: View {
         .ghafCard(theme: theme)
     }
 
-    private func chip(_ label: String, _ value: String, missing: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
-            HStack(spacing: 4) {
-                Text(value).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11, weight: .bold))
-            }
-            .foregroundStyle(missing ? theme.close : theme.primaryText)
+    private func menuValue(_ value: String, missing: Bool) -> some View {
+        HStack(spacing: 6) {
+            Text(value).lineLimit(1)
+            Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold))
         }
-        .padding(.horizontal, 12).padding(.vertical, 9)
-        .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight, alignment: .leading)
-        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 14, style: .continuous), fallback: theme.elevatedSurface)
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(missing ? theme.close.opacity(0.5) : .clear, lineWidth: 1))
+        .foregroundStyle(missing ? theme.close : theme.primaryText)
     }
 }

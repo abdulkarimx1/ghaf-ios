@@ -105,7 +105,7 @@ struct GhafTransactionDetailView: View {
         VStack(spacing: 18) {
             // Who and when, like a receipt's first line.
             HStack(spacing: 12) {
-                GhafBrandBadge(name: merchantName, fallbackTint: theme.accent, size: 46)
+                GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(merchantName)
                         .font(GhafTypography.userContent(merchantName, size: 17, languageCode: lang, weight: .semibold))

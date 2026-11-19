@@ -250,6 +250,7 @@ struct GhafTermsView: View {
 /// The bottom sheet shown when a Pro feature is tapped. Purchases are not open yet, so the buy button is
 /// disabled and "Skip for now" carries on to the feature, which stays free until then.
 struct GhafProSheet: View {
+    @State private var contentHeight: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
     let settings: GhafSettings
     let feature: (en: String, ar: String)
@@ -285,14 +286,25 @@ struct GhafProSheet: View {
                 .accessibilityHint(ar ? "عرض خطط غاف Pro." : "Opens Ghaf Pro plans for \(feature.en).")
             }
             .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: GhafProSheetHeightKey.self, value: proxy.size.height)
+                }
+            }
             .background(theme.background)
             .toolbar(.hidden, for: .navigationBar)
         }
-        .presentationDetents([.medium])
+        .onPreferenceChange(GhafProSheetHeightKey.self) { contentHeight = $0 }
+        .presentationDetents([.height(max(contentHeight, 240))])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(32)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
+}
+
+private struct GhafProSheetHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
