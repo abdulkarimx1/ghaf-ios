@@ -167,14 +167,14 @@ struct GhafHomeView: View {
                     .ghafScreenPadding()
                     .padding(.top, 4)
                     .padding(.bottom, 8)
-                    .background {
+                    .background(alignment: .bottom) {
                         LinearGradient(stops: [
                             .init(color: theme.background, location: 0),
-                            .init(color: theme.background, location: 0.62),
                             .init(color: theme.background.opacity(0), location: 1)
                         ], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 44 + 12 + 28, alignment: .top)
-                        .frame(maxHeight: .infinity, alignment: .top)
+                        .frame(height: 32)
+                        .offset(y: 32)
+                        .allowsHitTesting(false)
                         .accessibilityHidden(true)
                     }
             }

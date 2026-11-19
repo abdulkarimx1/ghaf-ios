@@ -104,3 +104,36 @@ final class GhafWalkthroughTests: XCTestCase {
         snap("budget-spending-categories")
     }
 }
+
+extension GhafWalkthroughTests {
+    func test5ProfileBeforeAfterCapture() {
+        launch()
+        timedTap(app.tabBars.buttons["More"], "tab More for profile")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.31)).tap()
+        sleep(1)
+        snap("p0-profile")
+        swipeUp(); snap("p1-profile-scrolled")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func test6AccountEditorLayoutCapture() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for editor capture")
+        let tabbyBalance = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "Tabby balance")).firstMatch
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.3))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.3))
+        for _ in 0..<11 where !tabbyBalance.exists {
+            start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .fast, thenHoldForDuration: 0)
+        }
+        XCTAssertTrue(tabbyBalance.waitForExistence(timeout: 2))
+        timedTap(app.buttons["Edit"].firstMatch, "open account editor for capture")
+        sleep(1)
+        snap("g2-account-editor-top")
+        app.swipeUp(velocity: .slow)
+        snap("g2-account-editor-bottom")
+        timedTap(app.buttons["Archive account"].firstMatch, "show archive confirmation")
+        sleep(1)
+        snap("g2-archive-confirmation")
+    }
+}

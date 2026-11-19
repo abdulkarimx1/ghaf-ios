@@ -50,6 +50,7 @@ struct GhafSettingsView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
+    @FocusState private var profileNameFocused: Bool
     @State private var prompt: GhafSettingsPrompt?
     @State private var showDeleteConfirmation = false
     @State private var hasLoadedSettings = false
@@ -134,7 +135,7 @@ struct GhafSettingsView: View {
 
                     menuGroup(ar ? "البيانات" : "Data") {
                         menuRow(ar ? "Google Drive والنسخ الاحتياطي" : "Google Drive & backup", icon: "externaldrive.fill.badge.icloud") { subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard } }
-                        menuRow(ar ? "عن غاف" : "About Ghaf", icon: "leaf.fill") { GhafAboutView(settings: settings) }
+                        menuRow(ar ? "عن غاف" : "About Ghaf", icon: "info.circle.fill") { GhafAboutView(settings: settings) }
                     }
 
                     Button(role: .destructive) { showDeleteConfirmation = true } label: {
@@ -401,29 +402,55 @@ struct GhafSettingsView: View {
     private var profileCard: some View {
         let activeAccountCount = accounts.filter { !$0.isArchived }.count
         let streak = GhafLoggingStreak.count(transactions.filter { !$0.needsReview }.map(\.date), through: .now, calendar: Calendar.current)
-        return VStack(spacing: 24) {
+        return VStack(spacing: 18) {
             VStack(spacing: 10) {
-                PhotosPicker(selection: $photoItem, matching: .images) {
-                    GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
-                        .overlay(alignment: .bottomTrailing) {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(theme.accentContrast)
-                                .frame(width: 44, height: 44)
-                                .background(theme.accent, in: Circle())
-                                .overlay(Circle().stroke(theme.surface, lineWidth: 3))
-                        }
-                        .frame(width: 104, height: 104)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.ghafPress)
-                .accessibilityLabel(ar ? "اختيار صورة الملف الشخصي" : "Choose profile photo")
-                .onChange(of: photoItem) { _, item in
-                    Task {
-                        guard let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
-                        do { try GhafProfilePhoto.save(image); hasPhoto = true }
-                        catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
+                GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(theme.accentContrast)
+                            .frame(width: 44, height: 44)
+                            .background(theme.accent, in: Circle())
+                            .overlay(Circle().stroke(theme.surface, lineWidth: 3))
                     }
+                    .frame(width: 104, height: 104)
+                TextField(ar ? "اسمك" : "Your name", text: $name)
+                    .font(GhafTypography.display(26, languageCode: languageCode))
+                    .foregroundStyle(theme.primaryText)
+                    .multilineTextAlignment(.center)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
+                    .focused($profileNameFocused)
+                Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+                HStack(spacing: 10) {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label(ar ? "تغيير الصورة" : "Change photo", systemImage: "camera.fill")
+                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
+                            .foregroundStyle(theme.primaryText)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
+                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .accessibilityLabel(ar ? "تغيير صورة الملف الشخصي" : "Change profile photo")
+                    .onChange(of: photoItem) { _, item in
+                        Task {
+                            guard let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
+                            do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                            catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
+                        }
+                    }
+                    Button {
+                        profileNameFocused = true
+                    } label: {
+                        Label(ar ? "تعديل الاسم" : "Edit name", systemImage: "pencil")
+                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
+                            .foregroundStyle(theme.primaryText)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
+                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                    }
+                    .buttonStyle(.ghafPress)
                 }
                 if hasPhoto {
                     Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
@@ -432,15 +459,6 @@ struct GhafSettingsView: View {
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                     .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                 }
-                TextField(ar ? "اسمك" : "Your name", text: $name)
-                    .font(GhafTypography.display(26, languageCode: languageCode))
-                    .foregroundStyle(theme.primaryText)
-                    .multilineTextAlignment(.center)
-                    .textInputAutocapitalization(.words)
-                    .submitLabel(.done)
-                Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
             }
             .frame(maxWidth: .infinity)
 
@@ -450,18 +468,18 @@ struct GhafSettingsView: View {
                 profileMetric(value: "\(activeAccountCount)", title: ar ? "الحسابات" : "Accounts")
             }
 
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Text(ar ? "الإنجازات" : "Milestones")
                     .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 12) {
-                    ForEach([7, 30, 100], id: \.self) { days in
+                    .frame(maxWidth: .infinity, alignment: .center)
+                HStack(spacing: 8) {
+                    ForEach([7, 30, 100, 365], id: \.self) { days in
                         VStack(spacing: 6) {
                             Text("\(days)")
                                 .font(GhafTypography.number(16, weight: .bold))
                                 .foregroundStyle(streak >= days ? theme.accentContrast : theme.secondaryText)
-                                .frame(width: 56, height: 56)
+                                .frame(width: 52, height: 52)
                                 .background(streak >= days ? theme.accent : theme.secondaryText.opacity(0.12), in: Circle())
                             Text(ar ? "يوم" : "days")
                                 .font(GhafTypography.body(12, languageCode: languageCode))
@@ -471,7 +489,8 @@ struct GhafSettingsView: View {
                     }
                 }
             }
-            .padding(GhafMetrics.cardPadding)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
             .ghafCard(theme: theme)
         }
     }
