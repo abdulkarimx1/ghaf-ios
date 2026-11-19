@@ -113,6 +113,9 @@ struct GhafNotificationSettingsView: View {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(ar ? "حالة الودجت" : "Widget status").font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                    GhafStatusChip(kind: (!channels.group && !channels.keychain) ? .notSetUp : (snapshot == nil ? .waiting : .working),
+                                   title: (!channels.group && !channels.keychain) ? (ar ? "غير مُعد" : "Not set up") : (snapshot == nil ? (ar ? "بانتظار لقطة" : "Waiting for snapshot") : (ar ? "الودجت متصل" : "Widget connected")),
+                                   theme: theme, languageCode: lang)
                     Text((ar ? "آخر حفظ: " : "Last snapshot: ") + (snapshot?.updated.formatted(dateStyle) ?? (ar ? "لا يوجد" : "None")) + " · " + (ar ? "مجموعة التطبيق " : "App Group ") + (channels.group ? "✓" : "✗") + " · " + (ar ? "سلسلة المفاتيح " : "Keychain ") + (channels.keychain ? "✓" : "✗"))
                     Text((ar ? "مجموعة التطبيق: " : "App Group: ") + GhafWidgetSnapshot.groupID + " (" + (ar ? (GhafWidgetSnapshot.hasSharedContainer ? "متاحة" : "غير متاحة") : (GhafWidgetSnapshot.hasSharedContainer ? "reachable" : "unavailable")) + ")")
                     Text((ar ? "مجموعة سلسلة المفاتيح: " : "Keychain group: ") + (GhafWidgetKeychain.accessGroup ?? (ar ? "غير متاحة" : "unavailable")))

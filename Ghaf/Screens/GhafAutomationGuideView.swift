@@ -42,10 +42,9 @@ struct GhafAutomationGuideView: View {
             Text(detail[step]).font(GhafTypography.body(16, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             if step == 4 {
-                Label(connected ? (ar ? "غاف متصل ✓" : "Ghaf is connected ✓") : detail[4],
-                      systemImage: connected ? "checkmark.circle.fill" : "clock")
-                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                    .foregroundStyle(connected ? theme.credit : theme.secondaryText)
+                GhafStatusChip(kind: connected ? .working : .waiting,
+                               title: connected ? (ar ? "غاف متصل" : "Ghaf is connected") : (ar ? "بانتظار أول تشغيل" : "Waiting for first run"),
+                               theme: theme, languageCode: settings.languageCode)
                 Button(ar ? "اختبر الآن في الاختصارات" : "Test now in Shortcuts") {
                     if let url = URL(string: "shortcuts://") { UIApplication.shared.open(url) }
                 }
