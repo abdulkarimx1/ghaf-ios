@@ -516,7 +516,7 @@ enum GhafBackupService {
     private static let preferenceKeys = [
         "ghaf.hideBalances", "ghaf.weekStart", "ghaf.glass.enabled", "ghaf.glass.intensity", "ghaf.glass.grain",
         "ghaf.glass.glow", "ghaf.glass.tilt", "ghaf.ai.cloudEnabled", "ghaf.ai.modelLearning", "ghaf.ai.memoryEnabled",
-        "ghaf.ai.speakReplies", "ghaf.ai.liveConsentAccepted", "ghaf.notify.autoTransaction", "ghaf.notify.morning",
+        "ghaf.ai.speakReplies", "ghaf.notify.autoTransaction", "ghaf.notify.morning",
         "ghaf.notify.evening", "ghaf.notify.weekly", "ghaf.liveActivity", "ghaf.places.byMerchant",
         "ghaf.places.byTransaction", "ghaf.voice.learnedPause"
     ]
