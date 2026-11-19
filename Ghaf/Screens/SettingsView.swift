@@ -444,15 +444,15 @@ struct GhafSettingsView: View {
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                     .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                 }
-                Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
                 TextField(ar ? "اسمك" : "Your name", text: $name)
                     .font(GhafTypography.display(26, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
                     .multilineTextAlignment(.center)
                     .textInputAutocapitalization(.words)
                     .submitLabel(.done)
+                Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
             }
             .frame(maxWidth: .infinity)
 
