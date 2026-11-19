@@ -266,7 +266,7 @@ struct GhafRecentWidget: Widget {
     static let kind = "GhafRecent"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafRecentConfig.self, provider: GhafConfigProvider<GhafRecentConfig>(kind: Self.kind)) { entry in
-            GhafRecentView(entry: entry).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafRecentView(entry: entry).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Latest transaction")
         .description("The last purchase or deposit Ghaf recorded, from a bank message, a shortcut or by hand.")
@@ -371,7 +371,7 @@ struct GhafSpendingWidget: Widget {
     static let kind = "GhafSpending"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafSpendingConfig.self, provider: GhafConfigProvider<GhafSpendingConfig>(kind: Self.kind)) { entry in
-            GhafSpendingView(entry: entry).ghafTap(GhafSpendingWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafSpendingView(entry: entry).ghafTap(GhafSpendingWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Spending")
         .description("Today, this week or this month. Tap Day, Week or Month to switch.")
@@ -443,7 +443,7 @@ struct GhafBudgetWidget: Widget {
     static let kind = "GhafBudget"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBudgetConfig.self, provider: GhafConfigProvider<GhafBudgetConfig>(kind: Self.kind)) { entry in
-            GhafBudgetView(entry: entry).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafBudgetView(entry: entry).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Budget")
         .description("How much of your budget is left, from your Budget settings in Ghaf.")
@@ -551,7 +551,7 @@ struct GhafCategoriesWidget: Widget {
     static let kind = "GhafCategories"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafCategoriesConfig.self, provider: GhafConfigProvider<GhafCategoriesConfig>(kind: Self.kind)) { entry in
-            GhafCategoriesView(entry: entry).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafCategoriesView(entry: entry).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Where it went")
         .description("Your top spending categories. Tap Day, Week or Month to switch.")
@@ -631,7 +631,7 @@ struct GhafBillsWidget: Widget {
     static let kind = "GhafBills"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBillsConfig.self, provider: GhafConfigProvider<GhafBillsConfig>(kind: Self.kind)) { entry in
-            GhafBillsView(entry: entry).ghafTap(GhafBillsWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+            GhafBillsView(entry: entry).ghafTap(GhafBillsWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Upcoming payments")
         .description("Subscriptions due soon. A reminder is not a payment: Ghaf records it when the charge arrives.")

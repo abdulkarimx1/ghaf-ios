@@ -56,7 +56,7 @@ struct GhafTrendsWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafTrendsConfig.self, provider: GhafConfigProvider<GhafTrendsConfig>(kind: Self.kind)) { entry in
             GhafTrendsView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
-                .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
+                .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Trends")
         .description("How your spending is moving, like a stock chart. Tap to switch between 1D, 1W and 1M.")

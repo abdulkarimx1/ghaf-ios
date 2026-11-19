@@ -53,6 +53,7 @@ enum GhafWidgetSync {
         let lit = GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
         snapshot.accent = hex(lit.accent)
         snapshot.glow = hex(lit.glow)
+        snapshot.glass = UserDefaults.standard.object(forKey: "ghaf.glass.enabled") as? Bool ?? true
 
         let language = settings.languageCode
         let name = { (category: String) in GhafLocalization.category(category, languageCode: language) }

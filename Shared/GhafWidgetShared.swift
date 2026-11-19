@@ -31,6 +31,7 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     var glow: UInt32? = nil
     /// Share of today's budget spent (BudgetCalculator's daily mode), unclamped; nil when no daily budget is set.
     var dailyBudgetUsed: Double? = nil
+    var glass: Bool? = nil
 
     struct CategorySpend: Codable, Equatable {
         let name: String
