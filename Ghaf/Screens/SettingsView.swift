@@ -5,14 +5,12 @@ import UniformTypeIdentifiers
 import PhotosUI
 
 private enum GhafSettingsPrompt: Identifiable {
-    case deleteData
     case importBackup
     case importExpend
     case message(String)
 
     var id: String {
         switch self {
-        case .deleteData: return "delete"
         case .importBackup: return "import"
         case .importExpend: return "import-expend"
         case .message(let value): return "message-\(value)"
@@ -53,6 +51,7 @@ struct GhafSettingsView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var prompt: GhafSettingsPrompt?
+    @State private var showDeleteConfirmation = false
     @State private var hasLoadedSettings = false
     @State private var categoryToRemove: String?
     @State private var editingCategory: String?
@@ -120,7 +119,7 @@ struct GhafSettingsView: View {
                         menuRow(ar ? "عن غاف" : "About Ghaf", icon: "leaf.fill") { GhafAboutView(settings: settings) }
                     }
 
-                    Button(role: .destructive) { prompt = .deleteData } label: {
+                    Button(role: .destructive) { showDeleteConfirmation = true } label: {
                         Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
                             .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                             .foregroundStyle(theme.over)
@@ -173,13 +172,6 @@ struct GhafSettingsView: View {
             }
             .alert(item: $prompt) { selectedPrompt in
                 switch selectedPrompt {
-                case .deleteData:
-                    return Alert(
-                        title: Text(languageCode == "ar" ? "حذف جميع البيانات؟" : "Delete all data?"),
-                        message: Text(languageCode == "ar" ? "سيتم حذف جميع العمليات والإعدادات وقواعد تصنيف التجار المحفوظة نهائياً." : "All transactions, settings and learned merchant rules will be permanently deleted."),
-                        primaryButton: .destructive(Text(languageCode == "ar" ? "حذف كل شيء" : "Delete everything"), action: deleteAllData),
-                        secondaryButton: .cancel()
-                    )
                 case .importBackup:
                     return Alert(
                         title: Text(languageCode == "ar" ? "استعادة نسخة غاف؟" : "Restore Ghaf backup?"),
@@ -205,6 +197,21 @@ struct GhafSettingsView: View {
                         dismissButton: .default(Text(languageCode == "ar" ? "حسناً" : "OK"))
                     )
                 }
+            }
+            .confirmationDialog(languageCode == "ar" ? "حذف كل شيء من هذا الـ iPhone؟" : "Delete everything on this iPhone?",
+                                isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button(languageCode == "ar" ? "إنشاء نسخة احتياطية أولاً" : "Export a backup first") {
+                    createBackup()
+                    prompt = .message(languageCode == "ar"
+                        ? "أُنشئت النسخة. افتح البيانات والنسخ الاحتياطي لمشاركتها أو حفظها قبل الحذف."
+                        : "The backup is ready. Open Data and backup to save or share it before deleting.")
+                }
+                Button(languageCode == "ar" ? "حذف كل شيء" : "Delete everything", role: .destructive, action: deleteAllData)
+                Button(languageCode == "ar" ? "إلغاء" : "Cancel", role: .cancel) {}
+            } message: {
+                Text(languageCode == "ar"
+                     ? "سيتم حذف الحسابات والعمليات والإعدادات والسمات وذاكرة الذكاء الاصطناعي. لا يمكن التراجع. يُنصح بتصدير نسخة احتياطية أولاً."
+                     : "Accounts, transactions, settings, themes and AI memory will be erased. This can't be undone. Export a backup first if you want to keep a copy.")
             }
     }
 
@@ -1160,18 +1167,16 @@ HStack(spacing: 8) {
     }
 
     private func deleteAllData() {
-        do {
-            let transactions = try modelContext.fetch(FetchDescriptor<GhafTransaction>())
-            let rules = try modelContext.fetch(FetchDescriptor<MerchantCategoryRule>())
-            let settings = try modelContext.fetch(FetchDescriptor<GhafSettings>())
-
-            transactions.forEach { modelContext.delete($0) }
-            rules.forEach { modelContext.delete($0) }
-            settings.forEach { modelContext.delete($0) }
-
-            try modelContext.save()
-        } catch {
-            prompt = .message(languageCode == "ar" ? "تعذر حذف جميع البيانات." : "Could not delete all data.")
+        let arabic = languageCode == "ar"
+        Task {
+            do {
+                let issues = try await GhafResetService.run(context: modelContext)
+                prompt = issues.isEmpty ? nil : .message(arabic
+                    ? "حُذفت البيانات، لكن تعذّر حذف بعض ملفات الجهاز أو عناصر سلسلة المفاتيح: \(issues.joined(separator: ", "))"
+                    : "Data was deleted, but some device files or keychain items could not be removed: \(issues.joined(separator: ", "))")
+            } catch {
+                prompt = .message(arabic ? "تعذر حذف جميع البيانات: \(error.localizedDescription)" : "Could not delete all data: \(error.localizedDescription)")
+            }
         }
     }
 }
