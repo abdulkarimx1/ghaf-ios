@@ -4,6 +4,7 @@ import LocalAuthentication
 import UserNotifications
 import AVFoundation
 import Speech
+import UniformTypeIdentifiers
 
 struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -200,13 +201,14 @@ struct GhafRootView: View {
     private func beginLaunch() {
         guard !launchHasStarted else { return }
         launchHasStarted = true
+        launchStartedAt = .now
 
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(0.9))
-            let deadline = ContinuousClock.now + .seconds(0.6)
-            while settings.first == nil, ContinuousClock.now < deadline {
-                try? await Task.sleep(for: .milliseconds(40))
-            }
+            let deadline = ContinuousClock.now + .seconds(2.4)
+            while settings.first == nil, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(40)) }
+            let minimum = settings.first?.hasCompletedOnboarding == true ? 1.6 : 2.6
+            let elapsed = Date.now.timeIntervalSince(launchStartedAt)
+            if elapsed < minimum { try? await Task.sleep(for: .seconds(minimum - elapsed)) }
             withAnimation(.easeOut(duration: 0.42)) {
                 showLaunch = false
             }
@@ -217,6 +219,8 @@ struct GhafRootView: View {
             presentAutomationIntroIfNeeded()
         }
     }
+
+    @State private var launchStartedAt = Date.now
 
     private func presentAutomationIntroIfNeeded() {
         guard let currentSettings = settings.first,
@@ -233,6 +237,9 @@ struct GhafRootView: View {
             return
         }
         currentSettings.hasSeenAutomationIntro = true
+        if UserDefaults.standard.double(forKey: GhafAutomationStatus.setupCompletedKey) == 0 {
+            UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.setupCompletedKey)
+        }
         try? modelContext.save()
     }
 }
@@ -401,6 +408,8 @@ struct GhafOnboardingView: View {
     @State private var salaryReminderEnabled = true
     @State private var salaryAccountDraftID: UUID?
     @State private var accountSetupError = false
+    @State private var showBackupImporter = false
+    @State private var backupImportError: String?
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
@@ -438,6 +447,9 @@ struct GhafOnboardingView: View {
         }
         .sheet(isPresented: $showAutomationGuide, onDismiss: {
             settings.hasSeenAutomationIntro = true
+            if UserDefaults.standard.double(forKey: GhafAutomationStatus.setupCompletedKey) == 0 {
+                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.setupCompletedKey)
+            }
             try? modelContext.save()
         }) {
             NavigationStack {
@@ -449,6 +461,23 @@ struct GhafOnboardingView: View {
                     }
             }
         }
+        .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
+            do {
+                let url = try result.get()
+                try GhafBackupService.restore(from: url, context: modelContext)
+                if let restored = try modelContext.fetch(FetchDescriptor<GhafSettings>()).first {
+                    restored.hasCompletedOnboarding = true
+                    try modelContext.save()
+                }
+            } catch {
+                backupImportError = error.localizedDescription
+            }
+        }
+        .alert(localized("Could not import backup", "تعذر استيراد النسخة"), isPresented: Binding(
+            get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
+        )) {
+            Button(localized("OK", "حسناً"), role: .cancel) { backupImportError = nil }
+        } message: { Text(backupImportError ?? "") }
     }
 
     private var formBody: some View {
@@ -634,12 +663,18 @@ struct GhafOnboardingView: View {
             Button {} label: {
                 Label(localized("Continue with Apple", "المتابعة باستخدام Apple"), systemImage: "apple.logo")
                     .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .foregroundStyle(.white)
-                    .background(.black, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .frame(maxWidth: .infinity).frame(height: 56)
             }
+            .ghafProminentButton(theme: theme, languageCode: languageCode)
             .disabled(true)
-            .opacity(0.55)
+            Button { showBackupImporter = true } label: {
+                Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
+                    .frame(maxWidth: .infinity).frame(height: 56)
+            }
+            .ghafGlassButton(theme: theme, languageCode: languageCode)
+            if let backupImportError {
+                Text(backupImportError).font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(.red)
+            }
             Text(localized("Ghaf accounts arrive soon. Until then everything stays on this iPhone.",
                            "حسابات غاف قريباً. لين ذاك الوقت كل شي يبقى على جهازك."))
                 .font(GhafTypography.body(12, languageCode: languageCode))
@@ -1217,11 +1252,6 @@ struct GhafOnboardingView: View {
         }
 
         if step == 6 {
-            guard !accountDrafts.isEmpty else {
-                accountSetupError = true
-                return
-            }
-
             var createdIDs: [UUID] = []
             for (index, draft) in accountDrafts.enumerated() {
                 let cleanName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1317,92 +1347,49 @@ private struct GhafWelcomeLaunchScreen: View {
         let value = settings?.userName.trimmingCharacters(in: .whitespaces) ?? ""
         return value.isEmpty ? (ar ? "غاف" : "Ghaf") : value
     }
-    private var title: String {
-        returning ? (ar ? "أهلاً بعودتك" : "Welcome back") : (ar ? "أهلاً بك في" : "Welcome to")
-    }
-    /// The canvas repeats the greeting in the other language, small, under the name.
-    private var echo: String {
-        returning ? (ar ? "Welcome back" : "أهلاً بعودتك") : (ar ? "Welcome" : "أهلاً بك")
-    }
-
-    /// The user's cards first, then built-in designs to keep all three rows varied.
-    private var faces: [AnyView] {
-        let open = accounts.filter { !$0.isArchived }
-        var list: [AnyView] = open.map { account in
-            AnyView(GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
-                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 150))
-        }
-        let fallbackIDs = ["mashreq-neo-cashback-card-product-card-360x220", "mbank-jaywan-debit", "cash-aed-100"]
-        let fallbacks = fallbackIDs.map { AnyView(GhafCardFace(account: nil, design: GhafCardDesign(rawValue: $0), width: 150)) }
-        while list.count < 6 {
-            list.append(fallbacks[list.count % fallbacks.count])
-        }
-        return list
-    }
-
     var body: some View {
-        let faces = faces
-        // Both rows carry every card (at least 4, so one set is wider than the screen); the second starts halfway.
-        let rowA = faces
-        let rowB = Array(faces.dropFirst(2) + faces.prefix(2))
-        let rowC = Array(faces.dropFirst(4) + faces.prefix(4))
-        ZStack(alignment: .bottom) {
-            theme.background.ignoresSafeArea()
-            LinearGradient(stops: [.init(color: theme.background.opacity(0), location: 0),
-                                   .init(color: theme.glow.opacity(0.35), location: 0.3),
-                                   .init(color: theme.glow.opacity(0.75), location: 0.62),
-                                   .init(color: theme.accent, location: 1)],
-                           startPoint: .top, endPoint: .bottom)
-                .frame(height: 430)
-                .ignoresSafeArea(edges: .bottom)
-
-            VStack(spacing: 0) {
-                VStack(spacing: 2) {
-                    Text(title)
-                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
-                    Text(name)
-                        .font(GhafTypography.display(48, languageCode: lang))
-                        .foregroundStyle(theme.primaryText)
-                        .lineLimit(1).minimumScaleFactor(0.5)
-                    Text(echo)
-                        .font(GhafTypography.body(17, languageCode: ar ? "en" : "ar", weight: .semibold))
-                        .foregroundStyle(theme.secondaryText)
+        ZStack {
+            VStack(spacing: 18) {
+                Spacer()
+                GhafTreeMark(color: theme.accent).frame(width: 96, height: 96)
+                    .shadow(color: theme.glow.opacity(0.7), radius: 28)
+                Text(returning ? (ar ? "أهلاً بعودتك، \(name)" : "Welcome back, \(name)") : "Ghaf")
+                    .font(GhafTypography.display(42, languageCode: lang)).foregroundStyle(theme.primaryText)
+                if !returning {
+                    Text(ar ? "أموالك، بوضوح." : "Your money, clearly.")
+                        .font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .padding(.top, 70)
-                .opacity(shown ? 1 : 0)
-                .offset(y: shown || reduceMotion ? 0 : 14)
-
-                // Three rows share one clock and render their card faces as cached layers.
                 TimelineView(.animation(paused: reduceMotion)) { context in
-                    let t = context.date.timeIntervalSince(start)
-                    VStack(spacing: 12) {
-                        cardRow(rowA, seconds: t, speed: 26, forward: true)
-                        cardRow(rowB, seconds: t, speed: 21, forward: false)
-                        cardRow(rowC, seconds: t, speed: 24, forward: true)
+                    let phase = reduceMotion ? 0.5 : context.date.timeIntervalSince(start).truncatingRemainder(dividingBy: 2.8) / 2.8
+                    ZStack {
+                        Capsule().fill(theme.glow.opacity(0.12)).frame(height: 2)
+                        WelcomeCurve().stroke(theme.glow.opacity(0.8), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        Circle().fill(theme.accent).frame(width: 9, height: 9)
+                            .shadow(color: theme.accent, radius: 12)
+                            .offset(x: (phase - 0.5) * 220, y: CGFloat(sin(phase * .pi * 2)) * 10)
+                    }
+                    .frame(width: 260, height: 34)
+                }
+                if returning {
+                    let ownAccounts = accounts.filter { !$0.isArchived }
+                    if !ownAccounts.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(ownAccounts) { account in
+                                    GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
+                                                 lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: 150)
+                                }
+                            }
+                        }
+                        .frame(height: 125)
+                        .accessibilityHidden(true)
                     }
                 }
-                .frame(height: 330)
-                .rotationEffect(.degrees(-6))
-                .padding(.top, 60)
-                .environment(\.layoutDirection, .leftToRight)
-                .accessibilityHidden(true)
-                .opacity(shown ? 1 : 0)
-                .offset(y: shown || reduceMotion ? 0 : 14)
-
-                Spacer(minLength: 0)
+                Spacer()
             }
-
-            VStack(spacing: 12) {
-                loadingBar
-                Text(ar ? "جارٍ تحديث أرصدتك…" : "Updating your balances…")
-                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.accentContrast)
-            }
-            .padding(.bottom, 56)
+            .frame(maxWidth: 360).padding(28)
         }
+        .ghafBackground(theme: theme)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(ar ? "غاف يفتح" : "Ghaf is opening")
@@ -1412,35 +1399,16 @@ private struct GhafWelcomeLaunchScreen: View {
         }
     }
 
-    /// One endless row: the cards drawn twice, slid by one set's width so the loop has no seam.
-    private func cardRow(_ cards: [AnyView], seconds: TimeInterval, speed: Double, forward: Bool) -> some View {
-        let set = CGFloat(cards.count) * (150 + 12)
-        let shift = CGFloat((seconds * speed).truncatingRemainder(dividingBy: Double(set)))
-        return HStack(spacing: 12) {
-            ForEach(0..<(cards.count * 2), id: \.self) { i in cards[i % cards.count] }
-        }
-        .offset(x: forward ? -shift : shift - set)
-        .frame(width: UIScreen.main.bounds.width + 100, alignment: .leading)
-        .clipped()
-        .drawingGroup()
-    }
+}
 
-    @State private var sweep = false
-    private var loadingBar: some View {
-        Capsule()
-            .fill(theme.accentContrast.opacity(0.18))
-            .frame(width: 120, height: 4)
-            .overlay(alignment: .leading) {
-                Capsule().fill(theme.accentContrast)
-                    .frame(width: 48, height: 4)
-                    .offset(x: sweep ? 120 : -48)
-            }
-            .clipShape(Capsule())
-            .onAppear {
-                guard !reduceMotion else { sweep = true; return }
-                withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: false)) { sweep = true }
-            }
-            .accessibilityHidden(true)
+private struct WelcomeCurve: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+            path.addCurve(to: CGPoint(x: rect.maxX, y: rect.midY),
+                          control1: CGPoint(x: rect.width * 0.3, y: rect.minY),
+                          control2: CGPoint(x: rect.width * 0.7, y: rect.maxY))
+        }
     }
 }
 
