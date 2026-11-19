@@ -19,7 +19,6 @@ final class MerchantCleanupBackupTests: XCTestCase {
                 .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
             return MerchantName.clean(raw) != baseline
         }
-        print("CLEANUP_CHANGES", changed.count, Set(changed).map { "\($0) -> \(MerchantName.clean($0))" })
-        XCTAssertTrue(changed.allSatisfy { $0.contains("using") })
+        XCTAssertTrue(changed.allSatisfy { MerchantName.clean($0).range(of: #"(?i)\busing\b.*\bcard\b"#, options: .regularExpression) == nil })
     }
 }

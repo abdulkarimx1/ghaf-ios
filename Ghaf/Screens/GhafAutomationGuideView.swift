@@ -72,10 +72,9 @@ struct GhafAutomationGuideView: View {
                 .frame(maxWidth: 600)
                 .frame(maxWidth: .infinity)
             }
-            .overlay(alignment: .top) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
                     .frame(height: 28)
-                    .ignoresSafeArea(edges: .top)
                     .allowsHitTesting(false)
             }
         }
@@ -603,7 +602,16 @@ struct GhafAutomationGuideView: View {
 
     @ViewBuilder
     private func bankBadge(_ bank: GhafBankSupportContact, size: CGFloat) -> some View {
-        if GhafBrand.match(bank.name) != nil {
+        if let logo = UIImage(named: "Bank-\(bank.id)") {
+            Image(uiImage: logo)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+                    .stroke(theme.outline, lineWidth: 0.5))
+                .accessibilityHidden(true)
+        } else if GhafBrand.match(bank.name) != nil {
             GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: size)
         } else {
             let hex = GhafUAEBank.match([bank.name])?.colors.0 ?? bankMonogramColor(for: bank.id)
