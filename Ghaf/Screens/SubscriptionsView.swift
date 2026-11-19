@@ -153,7 +153,7 @@ struct GhafSubscriptionsView: View {
                         .stroke(LinearGradient(colors: [theme.accent, theme.glow], startPoint: .top, endPoint: .bottom),
                                 style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    GhafBrandBadge(name: item.name, fallbackTint: theme.accent, size: 46)
+                    GhafBrandBadge(name: item.name, fallbackTint: theme.accent, size: 46, theme: theme)
                 }
                 .frame(width: 58, height: 58)
                 VStack(alignment: .leading, spacing: 3) {
@@ -600,7 +600,7 @@ private struct GhafSubscriptionDetailView: View {
     private var header: some View {
         VStack(spacing: 8) {
             GhafStatusMark(tint: theme.primaryText) {
-                GhafBrandBadge(name: subscription.name, fallbackTint: theme.accent, size: 60)
+                GhafBrandBadge(name: subscription.name, fallbackTint: theme.accent, size: 60, theme: theme)
             }
             Text(subscription.name)
                 .font(GhafTypography.heading(24, languageCode: lang))

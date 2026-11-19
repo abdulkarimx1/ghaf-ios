@@ -40,23 +40,23 @@ struct GhafBrandBadge: View {
     let name: String
     let fallbackTint: Color
     var size: CGFloat = 44
-    @Environment(\.colorScheme) private var colorScheme
-
+    var theme: GhafTheme? = nil
     var body: some View {
         let brand = GhafBrand.match(name)
         // Every mark is monochrome in the text colour, like the rest of Ghaf's icons.
-        let tint = Color.primary
+        let tint = theme?.primaryText ?? Color.primary
         Group {
             if let brand {
                 Image(brand.asset).resizable().scaledToFit().frame(width: size * 0.44, height: size * 0.44)
             } else {
                 Text(String(name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
                     .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
+                    .foregroundStyle(fallbackTint)
             }
         }
         .foregroundStyle(tint)
         .frame(width: size, height: size)
-        .background(tint.opacity(colorScheme == .dark ? 0.12 : 0.07), in: Circle())
+        .background(fallbackTint.opacity(0.14), in: Circle())
         .accessibilityHidden(true)
     }
 
