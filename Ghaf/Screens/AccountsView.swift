@@ -9,6 +9,7 @@ struct GhafAccountsView: View {
     @Query private var transactions: [GhafTransaction]
 
     let settings: GhafSettings
+    var zoomNamespace: Namespace.ID? = nil
 
     /// One value drives the sheet so it always opens on the tapped account.
     private struct EditorTarget: Identifiable { let id = UUID(); let account: GhafAccount? }
@@ -68,6 +69,7 @@ struct GhafAccountsView: View {
                 GhafAccountEditorView(account: target.account, settings: settings)
             }.ghafDirection(settings.languageCode)
         }
+        .modifier(WalletZoomDestination(namespace: zoomNamespace))
     }
 
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
@@ -139,6 +141,17 @@ struct GhafAccountsView: View {
         }
         .padding(18)
         .ghafCard(theme: theme)
+    }
+}
+
+private struct WalletZoomDestination: ViewModifier {
+    let namespace: Namespace.ID?
+    func body(content: Content) -> some View {
+        if #available(iOS 18, *), let namespace {
+            content.navigationTransition(.zoom(sourceID: "home-accounts", in: namespace))
+        } else {
+            content
+        }
     }
 }
 

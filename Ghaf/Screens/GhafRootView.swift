@@ -273,16 +273,16 @@ struct GhafTabView: View {
             router.selectedTab = tab
         })
         TabView(selection: selection) {
-            GhafHomeView(settings: settings)
+            GhafHomeView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 0, initialTab: true, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home") }
                 .tag(0)
 
-            GhafTransactionsView(settings: settings)
+            GhafTransactionsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 3, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions") }
                 .badge(reviewCount)
                 .tag(3)
 
-            GhafAIView(settings: settings)
+            GhafAIView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 1, initialTab: false, reduceMotion: reduceMotion)
                 // A full-colour Ghaf tree as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
@@ -291,11 +291,11 @@ struct GhafTabView: View {
                 }
                 .tag(1)
 
-            GhafStatsView(settings: settings)
+            GhafStatsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 2, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats") }
                 .tag(2)
 
-            GhafSettingsView(settings: settings)
+            GhafSettingsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 4, initialTab: false, reduceMotion: reduceMotion)
                 .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
         }
@@ -320,6 +320,39 @@ struct GhafTabView: View {
             settings.appearanceMode == "Dark" ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+}
+
+private struct GhafTabEntrance: ViewModifier {
+    let selected: Bool
+    let initialTab: Bool
+    let reduceMotion: Bool
+    @State private var visible = false
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .offset(y: reduceMotion || visible ? 0 : 8)
+            .onAppear {
+                appeared = true
+                if initialTab { visible = true }
+                else if selected { withAnimation(.easeOut(duration: 0.24)) { visible = true } }
+            }
+            .onChange(of: selected) { _, isSelected in
+                guard appeared else { return }
+                if isSelected {
+                    withAnimation(.easeOut(duration: 0.24)) { visible = true }
+                } else {
+                    visible = false
+                }
+            }
+    }
+}
+
+private extension View {
+    func ghafTabEntrance(selected: Bool, initialTab: Bool, reduceMotion: Bool) -> some View {
+        modifier(GhafTabEntrance(selected: selected, initialTab: initialTab, reduceMotion: reduceMotion))
     }
 }
 
