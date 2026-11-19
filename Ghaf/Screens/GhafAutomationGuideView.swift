@@ -602,7 +602,16 @@ struct GhafAutomationGuideView: View {
 
     @ViewBuilder
     private func bankBadge(_ bank: GhafBankSupportContact, size: CGFloat) -> some View {
-        if GhafBrand.match(bank.name) != nil {
+        if let logo = UIImage(named: "Bank-\(bank.id)") {
+            Image(uiImage: logo)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+                    .stroke(theme.outline, lineWidth: 0.5))
+                .accessibilityHidden(true)
+        } else if GhafBrand.match(bank.name) != nil {
             GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: size)
         } else {
             let hex = GhafUAEBank.match([bank.name])?.colors.0 ?? bankMonogramColor(for: bank.id)
