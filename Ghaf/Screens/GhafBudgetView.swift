@@ -103,11 +103,11 @@ struct GhafBudgetView: View {
     private func runAutoSelection(scrollProxy: ScrollViewProxy) {
         let month = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!
         let actions: [(TimeInterval, () -> Void)] = [
-            (1, { toggleBucket(.wants) }), (2, { toggleBucket(.savings) }),
-            (3, { toggleBucket(.savings) }),
-            (4, { toggleMonth(month) }), (5, { toggleMonth(month) })
+            (2.0, { toggleBucket(.wants) }), (3.0, { toggleBucket(.savings) }),
+            (4.0, { toggleBucket(.savings) }),
+            (5.0, { toggleMonth(month) }), (6.0, { toggleMonth(month) })
         ]
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) { scrollProxy.scrollTo("month-trend", anchor: .center) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { scrollProxy.scrollTo("month-trend", anchor: .center) }
         for (delay, action) in actions { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
     }
 #endif

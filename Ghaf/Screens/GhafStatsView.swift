@@ -152,7 +152,7 @@ struct GhafStatsView: View {
                     selectedLabel = chartKey(date)
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
-                if GhafScreenshotFixture.autoSelect { runAutoSelection(scrollProxy: scrollProxy) }
+                if GhafScreenshotFixture.autoSelect && !fixtureBudget { runAutoSelection(scrollProxy: scrollProxy) }
                 if GhafScreenshotFixture.selection == "category" {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("category-chart", anchor: .center) }
                 }
@@ -347,15 +347,16 @@ struct GhafStatsView: View {
     private func runAutoSelection(scrollProxy: ScrollViewProxy) {
         let categories = slices(expenses(in: interval)).map(\.category)
         let point = chartKey(calendar.dateInterval(of: bucketUnit, for: Date.now.addingTimeInterval(-2 * 86_400))?.start ?? .now)
+        // The capture starts 1.5s after launch; the first view appears about 0.5s after launch.
         let actions: [(TimeInterval, () -> Void)] = [
-            (1, { if categories.indices.contains(1) { toggle(categories[1]) } }),
-            (2, { if categories.indices.contains(2) { toggle(categories[2]) } }),
-            (3, { if categories.indices.contains(2) { toggle(categories[2]) } }),
-            (4, { tapTrendBucket(point) }),
-            (5, { tapTrendBucket(point) })
+            (2.0, { if categories.indices.contains(1) { toggle(categories[1]) } }),
+            (3.0, { if categories.indices.contains(2) { toggle(categories[2]) } }),
+            (4.0, { if categories.indices.contains(2) { toggle(categories[2]) } }),
+            (5.0, { tapTrendBucket(point) }),
+            (6.0, { tapTrendBucket(point) })
         ]
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("category-chart", anchor: .center) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { scrollProxy.scrollTo("trend-chart", anchor: .top) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { scrollProxy.scrollTo("category-chart", anchor: .center) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { scrollProxy.scrollTo("trend-chart", anchor: .top) }
         for (delay, action) in actions { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
     }
 #endif
