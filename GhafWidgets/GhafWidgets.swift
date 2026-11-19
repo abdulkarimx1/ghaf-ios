@@ -350,7 +350,7 @@ struct GhafTodayView: View {
 }
 
 // MARK: Live Activity: a purchase just recorded
-// One at a time (a new purchase replaces the last), stale after 15 minutes, ended when Ghaf next opens.
+// One at a time (a new purchase replaces the last), stale after five minutes.
 // Lock Screen is the main surface; the Dynamic Island shows compact (symbol + amount), minimal (symbol only,
 // fits the 28 pt circle) and expanded (who, what, how much, which account).
 
@@ -361,14 +361,11 @@ private extension GhafPurchaseAttributes {
 }
 
 private extension GhafPurchaseAttributes.ContentState {
-    var signedAmount: String { hidden == true ? "✦✦✦" : (isCredit ? "+" : "") + amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: currency)))) }
-    /// Fits the compact trailing space: "45", "1.2K".
-    var shortAmount: String {
-        hidden == true ? "✦✦" : (isCredit ? "+" : "") + (amount >= 1000
-            ? (NSDecimalNumber(decimal: amount / 1000).doubleValue).formatted(.number.precision(.fractionLength(1))) + "K"
-            : amount.formatted(.number.precision(.fractionLength(0))))
+    var signedAmount: String {
+        hidden == true ? "✦✦✦" : (isCredit ? "+" : "−") + currency + " " + amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: currency))))
     }
-    var subtitle: String { category.isEmpty || category == merchant ? (accountName ?? "") : category }
+    var shortAmount: String { signedAmount }
+    var transactionURL: URL? { transactionID.flatMap { URL(string: "ghaf://transaction/\($0.uuidString)") } }
     func spoken(_ arabic: Bool) -> String {
         if hidden == true { return arabic ? "عملية جديدة، \(merchant)" : "New transaction, \(merchant)" }
         return arabic ? "\(isCredit ? "وصلك" : "دفعت") \(amount.formatted()) \(currency)، \(merchant)"
@@ -397,27 +394,21 @@ private struct GhafActivityStatus: View {
     var body: some View {
         let s = context.state
         let ar = context.attributes.arabic
-        HStack(spacing: 6) {
-            if s.needsReview {
-                Text(ar ? "تحتاج مراجعة" : "Needs review")
-                    .font(.caption2.weight(.bold)).foregroundStyle(ink)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Color.orange, in: Capsule())
-            } else {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(context.attributes.glowColor)
-                Text(ar ? "سُجّلت في غاف" : "Recorded in Ghaf")
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(s.accountName ?? (ar ? "البطاقة" : "Card")).lineLimit(1).privacySensitive()
+                if let at = s.recordedAt { Text(at, style: .time).lineLimit(1) }
             }
-            if let at = s.recordedAt { Text("· ") + Text(at, style: .time) }
-            Spacer(minLength: 6)
+            .font(.caption.weight(.semibold)).foregroundStyle(paper.opacity(0.62))
+            Spacer(minLength: 4)
             if let balance = s.balance {
-                Text((s.accountName.map { "\($0) · " } ?? "") + "\(s.currency) " + balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))
-                    .lineLimit(1).privacySensitive()
-            } else if let name = s.accountName {
-                Text(name).lineLimit(1).privacySensitive()
+                Text(ar ? "الرصيد · \(s.currency) \(balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))" : "Balance · \(s.currency) \(balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))")
+                    .lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
+            }
+            if let url = s.transactionURL {
+                Link(ar ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(context.attributes.glowColor)
             }
         }
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(paper.opacity(0.6))
     }
 }
 
@@ -435,10 +426,7 @@ struct GhafPurchaseLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 10) {
                         GhafCategoryBadge(state: s, attributes: a, size: 42)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(s.merchant).font(.headline).foregroundStyle(paper).lineLimit(1).privacySensitive()
-                            Text(s.subtitle).font(.caption.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1).privacySensitive()
-                        }
+                        Text(s.merchant).font(.headline).foregroundStyle(paper).lineLimit(1).privacySensitive()
                     }
                     .dynamicIsland(verticalPlacement: .belowIfTooWide)
                     .padding(.leading, 4)
@@ -447,16 +435,23 @@ struct GhafPurchaseLiveActivity: Widget {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(s.signedAmount)
                             .font(.system(size: 24, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(s.isCredit ? Color.green : paper)
                             .minimumScaleFactor(0.6).lineLimit(1).privacySensitive()
-                        Text(s.currency).font(.caption2.weight(.heavy)).foregroundStyle(a.glowColor)
                     }
                     .dynamicIsland(verticalPlacement: .belowIfTooWide)
                     .padding(.trailing, 4)
                     .opacity(fade)
                 }
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(spacing: 3) {
+                        Text(s.accountName ?? (a.arabic ? "البطاقة" : "Card")).font(.caption.weight(.semibold)).lineLimit(1).privacySensitive()
+                        if let at = s.recordedAt { Text(at, style: .time).font(.caption2).foregroundStyle(paper.opacity(0.6)) }
+                    }
+                }
                 DynamicIslandExpandedRegion(.bottom) {
-                    GhafActivityStatus(context: context).padding(.horizontal, 4).padding(.top, 6)
+                    HStack { Spacer(minLength: 0); GhafActivityStatus(context: context); Spacer(minLength: 0) }
+                        .padding(.horizontal, 4).padding(.top, 6)
                 }
             } compactLeading: {
                 Image(systemName: s.symbol)
@@ -465,7 +460,7 @@ struct GhafPurchaseLiveActivity: Widget {
                     .accessibilityLabel(s.category)
             } compactTrailing: {
                 Text(s.shortAmount)
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(s.isCredit ? Color.green : a.glowColor)
                     .opacity(fade).privacySensitive()
@@ -492,23 +487,34 @@ struct GhafPurchaseLockView: View {
                 GhafCategoryBadge(state: s, attributes: a, size: 46)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(s.merchant).font(.system(size: 17, weight: .bold)).foregroundStyle(paper).lineLimit(1).privacySensitive()
-                    Text(s.isCredit ? (a.arabic ? "وصلك مبلغ" : "Money received") : s.subtitle)
+                    Text(s.category)
                         .font(.subheadline.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1).privacySensitive()
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(s.signedAmount)
                         .font(.system(size: 30, weight: .heavy, design: .rounded)).tracking(-0.6)
+                        .monospacedDigit()
                         .foregroundStyle(s.isCredit ? Color.green : paper)
                         .minimumScaleFactor(0.6).lineLimit(1)
                         .contentTransition(.numericText()).privacySensitive()
-                    Text(s.currency).font(.caption.weight(.heavy)).foregroundStyle(a.glowColor)
                 }
                 .opacity(context.isStale ? 0.55 : 1)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(s.spoken(a.arabic))
-            GhafActivityStatus(context: context)
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(s.accountName ?? (a.arabic ? "البطاقة" : "Card")).font(.caption.weight(.semibold)).privacySensitive()
+                    if let at = s.recordedAt { Text(at, style: .time).font(.caption2).foregroundStyle(paper.opacity(0.6)) }
+                }
+                Spacer(minLength: 6)
+                if let balance = s.balance {
+                    Text((a.arabic ? "الرصيد · " : "Balance · ") + s.currency + " " + balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))
+                        .font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
+                }
+                if let url = s.transactionURL { Link(a.arabic ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(a.glowColor) }
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .environment(\.layoutDirection, a.arabic ? .rightToLeft : .leftToRight)

@@ -313,6 +313,7 @@ struct GhafPurchaseAttributes: ActivityAttributes {
         var recordedAt: Date? = nil
         /// The user hides balances: show stars instead of the amount.
         var hidden: Bool? = nil
+        var transactionID: UUID? = nil
     }
     var arabic: Bool
     /// The user's theme colours (0xRRGGBB), so the activity looks like Ghaf.

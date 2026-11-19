@@ -4,11 +4,39 @@ import WidgetKit
 import ActivityKit
 import SwiftUI
 import UIKit
+import AppIntents
+
+enum GhafLiveActivityBalance: String, CaseIterable {
+    case total = "total"
+    case card = "card"
+    case hidden = "hidden"
+}
 
 /// Keeps the widgets and the purchase Live Activity in step with the ledger.
 @MainActor
 enum GhafWidgetSync {
     static let liveActivityKey = "ghaf.liveActivity"
+    static let liveActivityBalanceKey = "ghaf.liveActivity.balance"
+    static let liveActivityEnabledKey = "ghaf.liveActivity.enabled"
+
+    private static var liveActivityDefaults: UserDefaults? {
+        GhafWidgetSnapshot.groupIDs.first.flatMap(UserDefaults.init(suiteName:))
+    }
+
+    static var liveActivityEnabled: Bool {
+        liveActivityDefaults?.object(forKey: liveActivityEnabledKey) as? Bool
+            ?? UserDefaults.standard.object(forKey: liveActivityKey) as? Bool ?? true
+    }
+
+    static var liveActivityBalance: GhafLiveActivityBalance {
+        liveActivityDefaults?.string(forKey: liveActivityBalanceKey).flatMap(GhafLiveActivityBalance.init(rawValue:)) ?? .card
+    }
+
+    static func setLiveActivityPreferences(enabled: Bool, balance: GhafLiveActivityBalance) {
+        liveActivityDefaults?.set(enabled, forKey: liveActivityEnabledKey)
+        liveActivityDefaults?.set(balance.rawValue, forKey: liveActivityBalanceKey)
+        UserDefaults.standard.set(enabled, forKey: liveActivityKey)
+    }
     /// Which channels the last refresh could write, shown in Notifications & widgets so a broken install is visible.
     static private(set) var lastChannels: (group: Bool, keychain: Bool)? = {
         guard let values = UserDefaults.standard.dictionary(forKey: "ghaf.widget.channels"),
@@ -98,25 +126,73 @@ enum GhafWidgetSync {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    /// Shows a purchase on the Lock Screen and in the Dynamic Island. One at a time: a new purchase
-    /// replaces the previous one, and each goes stale after 15 minutes.
+    /// Call from a LiveActivityIntent's perform() to start while automation runs in the background.
+    static func showPurchase(transactionID: UUID) async throws {
+        let context = try GhafPersistence.shared().mainContext
+        guard let transaction = try context.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == transactionID })).first else { return }
+        let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
+        let account = accounts.first { $0.id == transaction.accountID }
+        let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+        let balance = account.map { GhafAccountBalanceCalculator.balance(for: $0, transactions: transactions) }
+        let arabic = (try? GhafPersistence.settings(in: context).languageCode) == "ar"
+        await showPurchase(transaction, account: account, balance: balance, accounts: accounts,
+                           transactions: transactions, needsReview: transaction.needsReview, arabic: arabic)
+    }
+
+    /// One purchase at a time; stale after five minutes and then dismissed at its expiry date.
     static func showPurchase(_ transaction: GhafTransaction, account: GhafAccount?, balance: Decimal?,
                              needsReview: Bool, arabic: Bool) async {
-        guard UserDefaults.standard.object(forKey: liveActivityKey) as? Bool ?? true,
+        let context = try? GhafPersistence.shared().mainContext
+        let accounts = (try? context?.fetch(FetchDescriptor<GhafAccount>())) ?? []
+        let transactions = (try? context?.fetch(FetchDescriptor<GhafTransaction>())) ?? []
+        await showPurchase(transaction, account: account, balance: balance, accounts: accounts,
+                           transactions: transactions, needsReview: needsReview, arabic: arabic)
+    }
+
+    private static func showPurchase(_ transaction: GhafTransaction, account: GhafAccount?, balance: Decimal?,
+                                    accounts: [GhafAccount], transactions: [GhafTransaction],
+                                    needsReview: Bool, arabic: Bool) async {
+        guard liveActivityEnabled,
               ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         await endAll()
+        let remainingBalance: Decimal?
+        switch liveActivityBalance {
+        case .hidden:
+            remainingBalance = nil
+        case .card:
+            remainingBalance = account?.currency == transaction.currency ? balance : nil
+        case .total:
+            let active = accounts.filter { !$0.isArchived && $0.includeInTotal }
+            let currencies = Set(active.map(\.currency))
+            if currencies == [transaction.currency] {
+                remainingBalance = GhafAccountBalanceCalculator.balancesByCurrency(accounts: active, transactions: transactions)
+                    .first { $0.currency == transaction.currency }?.amount
+            } else {
+                remainingBalance = account?.currency == transaction.currency ? balance : nil
+            }
+        }
         let state = GhafPurchaseAttributes.ContentState(
             merchant: GhafFormat.balancesHidden ? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en") : (transaction.merchant ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en")),
             amount: transaction.amount, currency: transaction.currency, isCredit: transaction.direction == "credit",
-            accountName: GhafFormat.balancesHidden ? nil : account?.name, balance: GhafFormat.balancesHidden ? nil : balance, needsReview: needsReview,
+            accountName: GhafFormat.balancesHidden ? nil : account?.name,
+            balance: GhafFormat.balancesHidden ? nil : remainingBalance, needsReview: needsReview,
             symbol: GhafCategoryIcon.builtIn(transaction.category)?.symbol ?? (transaction.direction == "credit" ? "arrow.down" : "bag.fill"),
             category: GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en"),
-            recordedAt: .now, hidden: GhafFormat.balancesHidden)
+            recordedAt: .now, hidden: GhafFormat.balancesHidden, transactionID: transaction.id)
         // The Dynamic Island is always dark, so it takes the theme's dark-mode colours.
         let settings = try? GhafPersistence.settings(in: GhafPersistence.shared().mainContext)
         let theme = GhafTheme.resolve(name: settings?.themeName ?? "Abu Dhabi", appearanceMode: "Dark", systemIsDark: true)
-        _ = try? Activity.request(attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
-                                  content: .init(state: state, staleDate: .now.addingTimeInterval(15 * 60)))
+        let expires = Date.now.addingTimeInterval(5 * 60)
+        guard let activity = try? Activity.request(
+            attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
+            content: .init(state: state, staleDate: expires)
+        ) else { return }
+        // shortcut: iOS may suspend the process after the intent returns; next-launch cleanup handles missed timers.
+        Task {
+            try? await Task.sleep(for: .seconds(5 * 60))
+            let final = ActivityContent(state: state, staleDate: nil)
+            await activity.end(final, dismissalPolicy: .after(expires))
+        }
     }
 
     /// Spending in the current day/week/month (main currency, transfers excluded by `isExpense`), cut into
@@ -158,8 +234,9 @@ enum GhafWidgetSync {
     }
 
     static func endStale() async {
-        for activity in Activity<GhafPurchaseAttributes>.activities where activity.content.staleDate.map({ $0 < .now }) ?? false {
-            await activity.end(nil, dismissalPolicy: .immediate)
+        for activity in Activity<GhafPurchaseAttributes>.activities where activity.content.staleDate.map({ $0 <= .now }) ?? false {
+            await activity.end(ActivityContent(state: activity.content.state, staleDate: nil),
+                               dismissalPolicy: .after(activity.content.staleDate ?? .now))
         }
     }
 }
