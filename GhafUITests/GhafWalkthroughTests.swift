@@ -137,3 +137,19 @@ extension GhafWalkthroughTests {
         snap("g2-archive-confirmation")
     }
 }
+
+extension GhafWalkthroughTests {
+    /// Separates XCTest's element-lookup cost from the app's own tab-switch time.
+    func test9TabSwitchCost() {
+        launch()
+        let bar = app.tabBars.firstMatch.frame
+        func tabPoint(_ i: Int) -> XCUICoordinate {
+            app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: bar.minX + bar.width * (CGFloat(i) + 0.5) / 5, dy: bar.midY))
+        }
+        for (i, name) in [(2, "Stats"), (4, "More"), (3, "Transactions"), (0, "Home"), (2, "Stats")] {
+            var t = Date(); _ = app.tabBars.buttons[name].exists; let lookup = Date().timeIntervalSince(t)
+            t = Date(); tabPoint(i).tap(); let tap = Date().timeIntervalSince(t)
+            log += String(format: "coord tab %@ tap+idle %.2fs | element lookup alone %.2fs\n", name, tap, lookup)
+        }
+    }
+}
