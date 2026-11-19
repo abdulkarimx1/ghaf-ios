@@ -151,8 +151,8 @@ enum GhafFormat {
         formatter.numberStyle = .currency
         formatter.currencyCode = currency.uppercased()
         formatter.locale = locale(for: currency, languageCode: languageCode)
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
+        formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
 
         return formatter.string(from: amount as NSDecimalNumber)
             ?? "\(symbol(for: currency, languageCode: languageCode)) \(NSDecimalNumber(decimal: amount))"

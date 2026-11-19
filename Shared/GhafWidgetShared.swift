@@ -140,8 +140,8 @@ struct GhafWidgetSnapshot: Codable, Equatable {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale(identifier: arabic ? "ar_AE" : "en_AE")
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: code)
+        formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: code)
         return "\(code) " + (formatter.string(from: value as NSDecimalNumber) ?? "\(value)")
     }
 }

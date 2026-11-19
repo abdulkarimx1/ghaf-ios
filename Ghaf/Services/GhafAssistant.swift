@@ -24,7 +24,7 @@ enum GhafFinanceFacts {
             lines.append("Accounts (balance each, never add different currencies):")
             for account in open {
                 let balance = GhafAccountBalanceCalculator.balance(for: account, transactions: transactions)
-                lines.append("- \(account.name): \(fmt(balance)) \(account.currency)")
+                lines.append("- \(account.name): \(fmt(balance, currency: account.currency)) \(account.currency)")
             }
         }
 
@@ -47,22 +47,26 @@ enum GhafFinanceFacts {
                 let spent = spendingSum(items)
                 let income = sum(items.filter(\.isIncome))
                 if spent > 0 || income > 0 {
-                    lines.append("Spent \(label) (refunds subtracted): \(fmt(spent)) \(currency); income \(label): \(fmt(income)) \(currency); \(items.count) transactions.")
+                    lines.append("Spent \(label) (refunds subtracted): \(fmt(spent, currency: currency)) \(currency); income \(label): \(fmt(income, currency: currency)) \(currency); \(items.count) transactions.")
                 }
             }
         }
 
         if let month = window(.month) {
             let debits = transactions.filter { month.contains($0.date) && $0.isExpense }
-            let byCategory = Dictionary(grouping: debits) { "\($0.category) (\($0.currency))" }
-                .mapValues(spendingSum).filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(5)
+            let categoryTotals: [(String, Decimal, String)] = Dictionary(grouping: debits) { "\($0.category) (\($0.currency))" }
+                .map { key, items in (key, spendingSum(items), items[0].currency) }
+                .filter { $0.1 > 0 }.sorted { $0.1 > $1.1 }
+            let byCategory = categoryTotals.prefix(5)
             if !byCategory.isEmpty {
-                lines.append("Top categories this month: " + byCategory.map { "\($0.key) \(fmt($0.value))" }.joined(separator: ", ") + ".")
+                lines.append("Top categories this month: " + byCategory.map { "\($0.0) \(fmt($0.1, currency: $0.2))" }.joined(separator: ", ") + ".")
             }
-            let byMerchant = Dictionary(grouping: debits.filter { $0.merchant != nil }) { "\($0.merchant ?? "") (\($0.currency))" }
-                .mapValues(spendingSum).filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(5)
+            let merchantTotals: [(String, Decimal, String)] = Dictionary(grouping: debits.filter { $0.merchant != nil }) { "\($0.merchant ?? "") (\($0.currency))" }
+                .map { key, items in (key, spendingSum(items), items[0].currency) }
+                .filter { $0.1 > 0 }.sorted { $0.1 > $1.1 }
+            let byMerchant = merchantTotals.prefix(5)
             if !byMerchant.isEmpty {
-                lines.append("Top merchants this month: " + byMerchant.map { "\($0.key) \(fmt($0.value))" }.joined(separator: ", ") + ".")
+                lines.append("Top merchants this month: " + byMerchant.map { "\($0.0) \(fmt($0.1, currency: $0.2))" }.joined(separator: ", ") + ".")
             }
         }
 
@@ -71,7 +75,7 @@ enum GhafFinanceFacts {
             .sorted { $0.nextPaymentDate < $1.nextPaymentDate }
         if !upcoming.isEmpty {
             lines.append("Subscriptions due in 30 days: " + upcoming.map {
-                "\($0.name) \(fmt($0.amount)) \($0.currency) on \($0.nextPaymentDate.formatted(date: .abbreviated, time: .omitted))"
+                "\($0.name) \(fmt($0.amount, currency: $0.currency)) \($0.currency) on \($0.nextPaymentDate.formatted(date: .abbreviated, time: .omitted))"
             }.joined(separator: "; ") + ".")
         }
         let suggested = subscriptions.filter(\.needsConfirmation).map(\.name)
@@ -84,7 +88,7 @@ enum GhafFinanceFacts {
             lines.append("Latest transactions:")
             for item in recent {
                 let sign = item.direction == "credit" ? "+" : "-"
-                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(item.merchant ?? item.category) \(sign)\(fmt(item.amount)) \(item.currency) [\(item.category)]")
+                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(item.merchant ?? item.category) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(item.category)]")
             }
         }
         return lines.joined(separator: "\n")
@@ -98,12 +102,12 @@ enum GhafFinanceFacts {
         items.reduce(Decimal.zero) { $0 + $1.amount }
     }
 
-    static func fmt(_ value: Decimal) -> String {
+    static func fmt(_ value: Decimal, currency: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
+        formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
     }
 }
