@@ -24,7 +24,8 @@ struct GhafFormRow<Trailing: View>: View {
         HStack(spacing: 12) {
             GhafIconBadge(symbol: icon, tint: tint, size: 40, theme: theme)
             Text(title).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
-                .lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1).minimumScaleFactor(0.75)
+            Spacer(minLength: 12)
             trailing().font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .lineLimit(1).minimumScaleFactor(0.7).frame(maxWidth: 155, alignment: .trailing)
         }
