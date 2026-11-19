@@ -75,7 +75,7 @@ struct GhafReviewInboxView: View {
                     GhafEventNotifications.configure()
                     if let initialTargetID { DispatchQueue.main.async { proxy.scrollTo(initialTargetID, anchor: .top) } }
                 }
-                .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) {
+                .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) { _ in
                     alerts = GhafEventNotifications.events
                 }
             }

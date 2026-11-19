@@ -115,3 +115,30 @@ enum GhafScreenshotFixture {
     }
 }
 #endif
+
+#if DEBUG
+extension GhafScreenshotFixture {
+    static func configureInbox(context: ModelContext, settings: GhafSettings) {
+        guard enabled else { return }
+        guard ["inbox-proof", "home-inbox-count"].contains(screen ?? "") else {
+            GhafEventNotifications.setFixtureEvents([])
+            return
+        }
+        if (try? context.fetch(FetchDescriptor<GhafTransaction>()).contains(where: { $0.fingerprint == "r3-inbox-fixture" })) != true {
+            let parsed = ParsedTransaction(amount: 84.50, currency: settings.currency, merchant: "Local Cafe", date: .now,
+                                           direction: .debit, confidence: 0.72, bank: "Mashreq")
+            context.insert(GhafTransaction(fingerprint: "r3-inbox-fixture", parsed: parsed, category: "Dining",
+                                           needsReview: true, isReversal: false, accountID: nil))
+            let subscription = GhafSubscription(name: "Cloud storage", amount: 18.99, currency: settings.currency,
+                                                billingCycle: .monthly, nextPaymentDate: .now, isActive: false)
+            subscription.needsConfirmation = true
+            context.insert(subscription)
+            try? context.save()
+        }
+        GhafEventNotifications.setFixtureEvents([
+            GhafInboxEvent(id: "fixture-budget-80", kind: .budgetThreshold, title: "Dining reached 80% of its budget",
+                           message: "Dining spending reached 80% of its monthly budget.", itemID: nil, date: .now)
+        ])
+    }
+}
+#endif

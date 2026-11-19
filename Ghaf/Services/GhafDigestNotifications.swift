@@ -3,9 +3,7 @@ import SwiftData
 import UserNotifications
 import GhafCore
 
-/// Optional summaries from the ledger: a morning note (yesterday's spending), an evening note (today's),
-/// a weekly note on the first day of the user's week, and a note each time an automation adds a
-/// transaction. Every number is computed from recorded transactions in the main currency only.
+/// Optional scheduled summaries from the ledger. Event alerts are handled by GhafEventNotifications.
 ///
 /// iOS cannot compute a notification's text when it fires, so each summary is scheduled for its next
 /// time with the numbers known now, and rescheduled whenever a transaction arrives or Ghaf opens.
@@ -19,8 +17,7 @@ enum GhafDigestNotifications {
     private static let ids = ["ghaf.digest.morning", "ghaf.digest.evening", "ghaf.digest.weekly"]
 
     static func isOn(_ key: String) -> Bool {
-        // A new transaction note is on unless turned off; the summaries are opt-in.
-        UserDefaults.standard.object(forKey: key) as? Bool ?? (key == autoTransactionKey)
+        UserDefaults.standard.bool(forKey: key)
     }
 
     static func requestPermission() async -> Bool {
@@ -31,9 +28,10 @@ enum GhafDigestNotifications {
     static func reschedule(context: ModelContext) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ids)
-        guard isOn(morningKey) || isOn(eveningKey) || isOn(weeklyKey),
-              let settings = try? GhafPersistence.settings(in: context),
+        guard let settings = try? GhafPersistence.settings(in: context),
               let transactions = try? context.fetch(FetchDescriptor<GhafTransaction>()) else { return }
+        updateEvents(context: context, settings: settings, transactions: transactions)
+        guard isOn(morningKey) || isOn(eveningKey) || isOn(weeklyKey) else { return }
         let ar = settings.languageCode == "ar"
         let currency = settings.currency
         let calendar = GhafCalendar.current
@@ -95,17 +93,84 @@ enum GhafDigestNotifications {
         }
     }
 
-    /// Right after an automation records a transaction: merchant and transaction amount only.
+    /// Only a transaction held for review needs an event alert.
     static func transactionAdded(_ transaction: GhafTransaction, needsReview: Bool, languageCode: String) {
-        guard isOn(autoTransactionKey) else { return }
+        guard needsReview else { return }
         let ar = languageCode == "ar"
         let amount = GhafFormat.balancesHidden ? GhafMoneyLabel.mask : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
-        let content = UNMutableNotificationContent()
-        content.title = transaction.merchant.map(MerchantName.clean) ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
-        content.body = (transaction.direction == "credit" ? (ar ? "استلمت " : "Received ") : (ar ? "صرفت " : "Spent ")) + amount
-            + (needsReview ? (ar ? " · اضغط للمراجعة" : " · Tap to review") : "")
-        // One note per transaction: a repeated automation run reuses the identifier.
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "ghaf.added.\(transaction.id.uuidString)",
-                                                                     content: content, trigger: nil))
+        let merchant = transaction.merchant.map(MerchantName.clean)
+            ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
+        GhafEventNotifications.record(
+            key: "transaction-review-\(transaction.id.uuidString)", kind: .transactionReview,
+            title: ar ? "عملية تحتاج مراجعتك" : "Check a transaction",
+            message: ar ? "راجع \(merchant) · \(amount) في الوارد." : "Review \(merchant) · \(amount) in Inbox.",
+            itemID: transaction.id.uuidString,
+            notifies: GhafEventNotifications.isEnabled(GhafEventNotifications.transactionReviewKey)
+        )
+    }
+
+    private static func updateEvents(context: ModelContext, settings: GhafSettings, transactions: [GhafTransaction]) {
+        let ar = settings.languageCode == "ar"
+        let calendar = GhafCalendar.current
+        let monthKey = "\(calendar.component(.year, from: .now))-\(calendar.component(.month, from: .now))"
+        if let subscriptions = try? context.fetch(FetchDescriptor<GhafSubscription>()) {
+            for subscription in subscriptions where subscription.needsConfirmation && subscription.createdAt > Date.now.addingTimeInterval(-120) {
+                GhafEventNotifications.record(
+                    key: "detected-subscription-\(subscription.id.uuidString)", kind: .detectedSubscription,
+                    title: ar ? "اشتراك متكرر مرصود" : "Recurring charge detected",
+                    message: ar ? "راجع \(subscription.name) قبل تتبّع الاشتراك." : "Review \(subscription.name) before tracking it.",
+                    itemID: subscription.id.uuidString,
+                    notifies: GhafEventNotifications.isEnabled(GhafEventNotifications.detectedSubscriptionKey)
+                )
+            }
+        }
+
+        guard let month = GhafCalendar.current.dateInterval(of: .month, for: .now) else { return }
+        let monthly = transactions.filter {
+            $0.currency == settings.currency && $0.isExpense && $0.date >= month.start && $0.date < month.end
+        }
+        let spent = Dictionary(grouping: monthly, by: \.category).mapValues {
+            $0.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+        }
+        let latest = monthly.max(by: { $0.createdAt < $1.createdAt })
+        func notifyThresholds(name: String, eventKey: String, total: Decimal, limit: Decimal, previous: Decimal) {
+            guard limit > 0 else { return }
+            for (threshold, label) in [(Decimal(string: "0.8")!, "80%"), (Decimal(1), "100%")] {
+                if previous / limit < threshold && total / limit >= threshold {
+                    let key = "budget-\(monthKey)-\(eventKey)-\(label)"
+                    GhafEventNotifications.record(
+                        key: key, kind: .budgetThreshold,
+                        title: ar ? "بلغت \(name) \(label) من ميزانيتها" : "\(name) reached \(label) of its budget",
+                        message: ar ? "وصل الصرف في \(name) إلى \(label) من ميزانية هذا الشهر." : "\(name) spending reached \(label) of its monthly budget.",
+                        notifies: GhafEventNotifications.isEnabled(GhafEventNotifications.budgetThresholdKey)
+                    )
+                }
+            }
+        }
+        if settings.budgetMode == "Category" {
+            for (category, limit) in settings.categoryBudgets where limit > 0 {
+                let total = spent[category, default: .zero]
+                let key = "ghaf.budget.observed.\(monthKey).category.\(category)"
+                let isLatest = latest.map { $0.category == category && Date.now.timeIntervalSince($0.createdAt) < 120 } ?? false
+                let previous = UserDefaults.standard.string(forKey: key).flatMap { Decimal(string: $0) }
+                    ?? (isLatest ? max(Decimal.zero, total - latest!.spendingAmount) : total)
+                notifyThresholds(name: category, eventKey: "category-\(category)", total: total, limit: limit, previous: previous)
+                UserDefaults.standard.set(NSDecimalNumber(decimal: total).stringValue, forKey: key)
+            }
+        }
+
+        let monthlyIncome = settings.salaryEnabled == true ? (settings.salaryAmount ?? settings.monthlyIncome) : settings.monthlyIncome
+        for bucket in [BudgetAllocation.Bucket.needs, .wants] where monthlyIncome > 0 {
+            let name = ar ? (bucket == .needs ? "الاحتياجات" : "الرغبات") : (bucket == .needs ? "Needs" : "Wants")
+            let key = "ghaf.budget.observed.\(monthKey).bucket.\(bucket.rawValue)"
+            let total = monthly.filter { BudgetAllocation.bucket(forCategory: $0.category) == bucket }
+                .reduce(Decimal.zero) { $0 + $1.spendingAmount }
+            let isLatest = latest.map { BudgetAllocation.bucket(forCategory: $0.category) == bucket && Date.now.timeIntervalSince($0.createdAt) < 120 } ?? false
+            let previous = UserDefaults.standard.string(forKey: key).flatMap { Decimal(string: $0) }
+                ?? (isLatest ? max(Decimal.zero, total - latest!.spendingAmount) : total)
+            notifyThresholds(name: name, eventKey: "bucket-\(bucket.rawValue)", total: total,
+                             limit: monthlyIncome * BudgetAllocation.share(bucket), previous: previous)
+            UserDefaults.standard.set(NSDecimalNumber(decimal: total).stringValue, forKey: key)
+        }
     }
 }

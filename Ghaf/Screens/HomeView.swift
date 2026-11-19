@@ -36,6 +36,9 @@ struct GhafHomeView: View {
     @State private var backupImportError: String?
     @State private var showInsights = false
     @State private var showInbox = false
+#if DEBUG
+    @State private var showNotificationSettings = false
+#endif
     @State private var inboxTargetID: String?
     @State private var selectedTransaction: GhafTransaction?
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
@@ -199,6 +202,12 @@ struct GhafHomeView: View {
             .sheet(isPresented: $showInbox) {
                 GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
+#if DEBUG
+            .sheet(isPresented: $showNotificationSettings) {
+                NavigationStack { GhafNotificationSettingsView(settings: settings) }
+                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            }
+#endif
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
@@ -215,11 +224,25 @@ struct GhafHomeView: View {
                 GhafEventNotifications.configure()
                 if let target = GhafEventNotifications.consumePendingTarget(), !target.isEmpty {
                     inboxTargetID = target
+                    router.selectedTab = 0
                     showInbox = true
                 }
+#if DEBUG
+                switch GhafScreenshotFixture.screen {
+                case "inbox-proof", "inbox-empty", "home-inbox-count":
+                    GhafScreenshotFixture.configureInbox(context: modelContext, settings: settings)
+                    showInbox = GhafScreenshotFixture.screen != "home-inbox-count"
+                case "notification-settings": showNotificationSettings = true
+                default: break
+                }
+                if ProcessInfo.processInfo.arguments.contains("-ghafDebugEvent") {
+                    GhafEventNotifications.scheduleDebugEvent()
+                }
+#endif
             }
             .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.openInboxItem)) { note in
                 inboxTargetID = note.object as? String
+                router.selectedTab = 0
                 showInbox = true
             }
             .alert(ar ? "تعذر استيراد النسخة" : "Could not import backup", isPresented: Binding(
