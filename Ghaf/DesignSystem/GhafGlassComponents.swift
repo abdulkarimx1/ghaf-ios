@@ -44,7 +44,6 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.layoutDirection) private var direction
     func body(content: Content) -> some View {
         content.background {
             if glass.enabled && !reduceTransparency {
@@ -55,7 +54,7 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
                     shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
-                .overlay { shape.stroke(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: direction == .rightToLeft ? .topTrailing : .topLeading, endPoint: direction == .rightToLeft ? .bottomLeading : .bottomTrailing), lineWidth: contrast == .increased ? 1.6 : 1) }
+                .overlay { GhafShapeRim(theme: theme, shape: shape, contrast: contrast) }
             } else { shape.fill(fallback) }
         }
     }
@@ -82,12 +81,10 @@ private struct GhafGlassBackground: View {
 private struct GhafGlassGlowBlobs: View {
     let size: CGSize
     let theme: GhafTheme
-    private var motion: GhafTiltMotion { .shared }
     var body: some View {
-        let tilt = motion.tilt
         ZStack {
-            Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18 + CGFloat(tilt.x) * 8, y: size.height * 0.2)
-            Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64 + CGFloat(tilt.y) * 8)
+            Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18, y: size.height * 0.2)
+            Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64)
         }
     }
 }
@@ -125,7 +122,7 @@ private struct GhafControlGlass: ViewModifier {
             if #available(iOS 26, *), !prominent {
                 content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
             } else {
-                content.overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(prominent ? 0.4 : 0.45), .white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: .normal) }
             }
         } else { content }
     }
