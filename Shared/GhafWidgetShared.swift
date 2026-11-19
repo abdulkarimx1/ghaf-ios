@@ -108,6 +108,33 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     }()
     private static let key = "ghaf.widget.snapshot"
 
+    struct Heartbeat: Codable {
+        let date: Date
+        let family: String
+        let kind: String
+        let loadedFrom: String
+        let groupID: String
+        let hasSharedContainer: Bool
+        let keychainGroup: String?
+    }
+    private static let heartbeatKey = "ghaf.widget.heartbeat"
+
+    static func recordHeartbeat(family: String, kind: String, source: String) {
+        let value = Heartbeat(date: .now, family: family, kind: kind,
+                              loadedFrom: source,
+                              groupID: groupID, hasSharedContainer: hasSharedContainer,
+                              keychainGroup: GhafWidgetKeychain.accessGroup)
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        if hasSharedContainer { UserDefaults(suiteName: groupID)?.set(data, forKey: heartbeatKey) }
+        _ = GhafWidgetKeychain.writeHeartbeat(data)
+    }
+
+    static var lastHeartbeat: Heartbeat? {
+        let groupData = hasSharedContainer ? UserDefaults(suiteName: groupID)?.data(forKey: heartbeatKey) : nil
+        let keychainData = GhafWidgetKeychain.readHeartbeat()
+        return [groupData, keychainData].compactMap { $0 }.compactMap { try? JSONDecoder().decode(Heartbeat.self, from: $0) }.max { $0.date < $1.date }
+    }
+
     /// True when the signer kept the App Group, so app and widget see the same container.
     static var hasSharedContainer: Bool {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) != nil
@@ -115,10 +142,15 @@ struct GhafWidgetSnapshot: Codable, Equatable {
 
     /// Reads the App Group first, then the shared keychain, keeping the newer of the two.
     static func load() -> GhafWidgetSnapshot? {
+        loadWithSource().snapshot
+    }
+
+    static func loadWithSource() -> (snapshot: GhafWidgetSnapshot?, source: String) {
         let decode = { (data: Data?) in data.flatMap { try? JSONDecoder().decode(GhafWidgetSnapshot.self, from: $0) } }
         let fromGroup = hasSharedContainer ? decode(UserDefaults(suiteName: groupID)?.data(forKey: key)) : nil
         let fromKeychain = decode(GhafWidgetKeychain.read())
-        return [fromGroup, fromKeychain].compactMap { $0 }.max { $0.updated < $1.updated }
+        guard let newest = [fromGroup, fromKeychain].compactMap({ $0 }).max(by: { $0.updated < $1.updated }) else { return (nil, "none") }
+        return (newest, fromKeychain.map { $0.updated > (fromGroup?.updated ?? .distantPast) } == true ? "keychain" : "group")
     }
 
     /// Writes to every channel that works on this install and returns which ones did.
@@ -151,6 +183,7 @@ struct GhafWidgetSnapshot: Codable, Equatable {
 /// (wildcard profiles do); otherwise both calls fail quietly and the widget asks the user to open Ghaf.
 enum GhafWidgetKeychain {
     private static let service = "ghaf.widget.snapshot"
+    private static let heartbeatService = "ghaf.widget.heartbeat"
 
     /// The team prefix the signer gave this install, read from the default access group of a probe item.
     static let accessGroup: String? = {
@@ -191,6 +224,25 @@ enum GhafWidgetKeychain {
         guard let group = accessGroup else { return nil }
         var q = query(group)
         q[kSecReturnData] = true
+        var result: CFTypeRef?
+        return SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
+    }
+
+    static func writeHeartbeat(_ data: Data) -> Bool {
+        guard let group = accessGroup else { return false }
+        let q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: heartbeatService,
+                                  kSecAttrAccount: "heartbeat", kSecAttrAccessGroup: group]
+        if SecItemUpdate(q as CFDictionary, [kSecValueData: data] as CFDictionary) == errSecSuccess { return true }
+        var add = q
+        add[kSecValueData] = data
+        add[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    static func readHeartbeat() -> Data? {
+        guard let group = accessGroup else { return nil }
+        let q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: heartbeatService,
+                                  kSecAttrAccount: "heartbeat", kSecAttrAccessGroup: group, kSecReturnData: true]
         var result: CFTypeRef?
         return SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess ? result as? Data : nil
     }

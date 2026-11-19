@@ -14,14 +14,22 @@ struct GhafConfigEntry<Config: WidgetConfigurationIntent>: TimelineEntry {
 }
 
 struct GhafConfigProvider<Config: WidgetConfigurationIntent>: AppIntentTimelineProvider {
+    let kind: String
     func placeholder(in context: Context) -> GhafConfigEntry<Config> { .init(date: .now, snapshot: .sample, config: Config()) }
     func snapshot(for configuration: Config, in context: Context) async -> GhafConfigEntry<Config> {
-        .init(date: .now, snapshot: context.isPreview ? .sample : GhafWidgetSnapshot.load(), config: configuration)
+        let snapshot: GhafWidgetSnapshot?
+        let source: String
+        if context.isPreview { snapshot = .sample; source = "none" }
+        else { let loaded = GhafWidgetSnapshot.loadWithSource(); snapshot = loaded.snapshot; source = loaded.source }
+        if !context.isPreview { GhafWidgetSnapshot.recordHeartbeat(family: String(describing: context.family), kind: kind, source: source) }
+        return .init(date: .now, snapshot: snapshot, config: configuration)
     }
     func timeline(for configuration: Config, in context: Context) async -> Timeline<GhafConfigEntry<Config>> {
         // The app reloads widgets on every recorded transaction; midnight rolls "today" over and moves due dates.
         let midnight = Calendar.current.startOfDay(for: .now.addingTimeInterval(86_400))
-        return Timeline(entries: [.init(date: .now, snapshot: GhafWidgetSnapshot.load(), config: configuration)], policy: .after(midnight))
+        let loaded = GhafWidgetSnapshot.loadWithSource()
+        GhafWidgetSnapshot.recordHeartbeat(family: String(describing: context.family), kind: kind, source: loaded.source)
+        return Timeline(entries: [.init(date: .now, snapshot: loaded.snapshot, config: configuration)], policy: .after(midnight))
     }
 }
 
@@ -257,7 +265,7 @@ private extension View {
 struct GhafRecentWidget: Widget {
     static let kind = "GhafRecent"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafRecentConfig.self, provider: GhafConfigProvider<GhafRecentConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafRecentConfig.self, provider: GhafConfigProvider<GhafRecentConfig>(kind: Self.kind)) { entry in
             GhafRecentView(entry: entry).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Latest transaction")
@@ -362,7 +370,7 @@ struct GhafRecentView: View {
 struct GhafSpendingWidget: Widget {
     static let kind = "GhafSpending"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafSpendingConfig.self, provider: GhafConfigProvider<GhafSpendingConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafSpendingConfig.self, provider: GhafConfigProvider<GhafSpendingConfig>(kind: Self.kind)) { entry in
             GhafSpendingView(entry: entry).ghafTap(GhafSpendingWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Spending")
@@ -434,7 +442,7 @@ struct GhafSpendingView: View {
 struct GhafBudgetWidget: Widget {
     static let kind = "GhafBudget"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafBudgetConfig.self, provider: GhafConfigProvider<GhafBudgetConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafBudgetConfig.self, provider: GhafConfigProvider<GhafBudgetConfig>(kind: Self.kind)) { entry in
             GhafBudgetView(entry: entry).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Budget")
@@ -542,7 +550,7 @@ struct GhafBudgetView: View {
 struct GhafCategoriesWidget: Widget {
     static let kind = "GhafCategories"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafCategoriesConfig.self, provider: GhafConfigProvider<GhafCategoriesConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafCategoriesConfig.self, provider: GhafConfigProvider<GhafCategoriesConfig>(kind: Self.kind)) { entry in
             GhafCategoriesView(entry: entry).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Where it went")
@@ -622,7 +630,7 @@ struct GhafCategoriesView: View {
 struct GhafBillsWidget: Widget {
     static let kind = "GhafBills"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafBillsConfig.self, provider: GhafConfigProvider<GhafBillsConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafBillsConfig.self, provider: GhafConfigProvider<GhafBillsConfig>(kind: Self.kind)) { entry in
             GhafBillsView(entry: entry).ghafTap(GhafBillsWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }
         .configurationDisplayName("Upcoming payments")
