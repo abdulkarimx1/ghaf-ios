@@ -367,15 +367,15 @@ struct GhafTabView: View {
             else { router.selectedTab = tab }
         })
         TabView(selection: selection) {
-            GhafHomeView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 0, initialTab: true, reduceMotion: reduceMotion)
+            GhafHomeView(settings: settings)
                 .tabItem { tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home", attentionCount: subscriptionReviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
                 .tag(0)
 
-            GhafTransactionsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 3, initialTab: false, reduceMotion: reduceMotion)
+            GhafTransactionsView(settings: settings)
                 .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
                 .tag(3)
 
-            GhafAIView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 1, initialTab: false, reduceMotion: reduceMotion)
+            GhafAIView(settings: settings)
                 // A full-colour Ghaf tree as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
@@ -386,11 +386,11 @@ struct GhafTabView: View {
                 }
                 .tag(1)
 
-            GhafStatsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 2, initialTab: false, reduceMotion: reduceMotion)
+            GhafStatsView(settings: settings)
                 .tabItem { tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats") }
                 .tag(2)
 
-            GhafSettingsView(settings: settings).ghafTabEntrance(selected: router.selectedTab == 4, initialTab: false, reduceMotion: reduceMotion)
+            GhafSettingsView(settings: settings)
                 .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
         }
@@ -483,39 +483,6 @@ private struct GhafTabBarGlass: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         if enabled { content.toolbarBackground(.ultraThinMaterial, for: .tabBar) }
         else { content }
-    }
-}
-
-private struct GhafTabEntrance: ViewModifier {
-    let selected: Bool
-    let initialTab: Bool
-    let reduceMotion: Bool
-    @State private var visible = false
-    @State private var appeared = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(visible ? 1 : 0)
-            .offset(y: reduceMotion || visible ? 0 : 8)
-            .onAppear {
-                appeared = true
-                if initialTab { visible = true }
-                else if selected { withAnimation(.easeOut(duration: 0.24)) { visible = true } }
-            }
-            .onChange(of: selected) { _, isSelected in
-                guard appeared else { return }
-                if isSelected {
-                    withAnimation(.easeOut(duration: 0.24)) { visible = true }
-                } else {
-                    visible = false
-                }
-            }
-    }
-}
-
-private extension View {
-    func ghafTabEntrance(selected: Bool, initialTab: Bool, reduceMotion: Bool) -> some View {
-        modifier(GhafTabEntrance(selected: selected, initialTab: initialTab, reduceMotion: reduceMotion))
     }
 }
 
