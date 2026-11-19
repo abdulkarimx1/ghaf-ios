@@ -72,10 +72,9 @@ struct GhafAutomationGuideView: View {
                 .frame(maxWidth: 600)
                 .frame(maxWidth: .infinity)
             }
-            .overlay(alignment: .top) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 LinearGradient(colors: [theme.background, theme.background.opacity(0)], startPoint: .top, endPoint: .bottom)
                     .frame(height: 28)
-                    .ignoresSafeArea(edges: .top)
                     .allowsHitTesting(false)
             }
         }
