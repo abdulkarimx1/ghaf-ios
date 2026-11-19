@@ -175,6 +175,23 @@ struct GhafAutomationGuideView: View {
                         .multilineTextAlignment(.trailing)
                 }
             }
+            Button {
+                expandedAutomation = .bank
+                automationPage = 2
+                onGuideTap()
+            } label: {
+                Text(text(
+                    "Turning a bank on here doesn’t connect it. In Shortcuts, choose these same apps in the Notification trigger (step 3).",
+                    "تفعيل البنك هنا لا يربطه بحسابك. اختر التطبيقات نفسها ضمن مشغّل “Notification” في “Shortcuts” (الخطوة 3)."
+                ))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(ar ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(text("Opens step 3 of the bank automation guide", "يفتح الخطوة 3 من دليل أتمتة البنك"))
             if chosenBanks.isEmpty {
                 VStack(spacing: 16) {
                     Text(text("Choose the banks you get messages from", "اختر البنوك التي تصلك رسائل منها"))
@@ -326,6 +343,7 @@ struct GhafAutomationGuideView: View {
             .buttonStyle(.plain)
             if expandedAutomation == automation || isFixtureExpanded(automation) { automationInstructions(automation) }
         }
+        .id(automation == .bank ? "bank-automation" : "wallet-automation")
     }
 
     private struct GuideStep: Identifiable {
@@ -568,13 +586,28 @@ struct GhafAutomationGuideView: View {
         if GhafBrand.match(bank.name) != nil {
             GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: size)
         } else {
+            let hex = GhafUAEBank.match([bank.name])?.colors.0 ?? bankMonogramColor(for: bank.id)
+            let color = Color(red: Double((hex >> 16) & 0xFF) / 255,
+                              green: Double((hex >> 8) & 0xFF) / 255,
+                              blue: Double(hex & 0xFF) / 255)
             Text(String((ar ? bank.nameArabic : bank.name).trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
                 .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-                .foregroundStyle(theme.isDark ? theme.primaryText : theme.accent)
+                .foregroundStyle(.white)
                 .frame(width: size, height: size)
-                .background((theme.isDark ? theme.primaryText : theme.accent).opacity(theme.isDark ? 0.12 : 0.14), in: Circle())
+                .background(color, in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
                 .accessibilityHidden(true)
         }
+    }
+
+    private func bankMonogramColor(for id: String) -> UInt32 {
+        [
+            "alrajhi": 0x008B68, "snb": 0x005A4A, "riyad": 0x005B45,
+            "nbk": 0x009B61, "qnb": 0x6F1D5B, "dohabank": 0xAF1E2D,
+            "nbb": 0xC92335, "bankmuscat": 0xB51E2D, "alinma": 0x008D72,
+            "albilad": 0x225E42, "kfh": 0x14713D, "boubyan": 0xA6193C,
+            "bbk": 0xB31F35, "sohar": 0x008E79, "nbo": 0x6E2C91,
+            "bankdhofar": 0x064A79, "qib": 0x851B4B
+        ][id] ?? 0x475569
     }
 
     private func automationMark(_ kind: GhafStatusChip.Kind) -> some View {
@@ -618,7 +651,7 @@ struct GhafAutomationGuideView: View {
     }
 
     private func bankStatus(enabled: Bool, lastSeen: Double, skipped: Int) -> String {
-        if !enabled { return text("Capture off · \(skipped) skipped", "التسجيل متوقف · تم تجاوز \(skipped)") }
+        if !enabled { return text("Off: Ghaf ignores this bank’s alerts · \(skipped) skipped", "متوقف: يتجاهل غاف تنبيهات هذا البنك · تم تجاهل \(skipped)") }
         guard lastSeen > 0 else { return text("No messages yet", "لا توجد رسائل بعد") }
         let date = Date(timeIntervalSince1970: lastSeen)
         return text("Last message \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))",
