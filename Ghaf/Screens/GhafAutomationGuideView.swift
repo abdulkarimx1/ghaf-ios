@@ -283,27 +283,14 @@ struct GhafAutomationGuideView: View {
     }
 
     private func automationInstructions(_ automation: Automation) -> some View {
-        let lines: [String] = automation == .bank
-            ? [text("Shortcuts › Automation › + › App › Notification", "الاختصارات › الأتمتة › + › App › Notification"),
-               text("Choose: \(chosenBanks.joined(separator: ", "))", "اختر: \(chosenBanks.map { name in GhafBankSupportDirectory.contacts.first(where: { $0.name == name })?.nameArabic ?? name }.joined(separator: "، "))"),
-               text("Add Ghaf › Log bank message › Run Immediately", "أضف غاف › Log bank message › Run Immediately")]
-            : [text("Shortcuts › Automation › + › Transaction", "الاختصارات › الأتمتة › + › Transaction"),
-               text("Choose all cards", "اختر كل البطاقات"),
-               text("Add Ghaf › Add Apple Pay purchase", "أضف غاف › Add Apple Pay purchase")]
+        let paths = automation == .bank
+            ? [[ ["Shortcuts", "Automation", "+"], ["App", "Notification"] ], [ ["Ghaf", "Log bank message"], ["Run Immediately"] ]]
+            : [[ ["Shortcuts", "Automation", "+"], ["Transaction"] ], [ ["Ghaf", "Add Apple Pay purchase"] ]]
+        let banks = chosenBanks.map { name in GhafBankSupportDirectory.contacts.first(where: { $0.name == name })?.nameArabic ?? name }.joined(separator: "، ")
         return VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                HStack(alignment: .top, spacing: 10) {
-                    Text("\(index + 1)")
-                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
-                        .foregroundStyle(theme.accentContrast)
-                        .frame(width: 28, height: 28)
-                        .background(theme.accent, in: Circle())
-                    Text(line)
-                        .font(GhafTypography.body(15, languageCode: settings.languageCode))
-                        .foregroundStyle(theme.primaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            instructionRow(1, prose: text("Open these Shortcuts screens:", "افتح شاشات الاختصارات التالية:"), path: paths[0])
+            instructionRow(2, prose: automation == .bank ? text("Choose: \(chosenBanks.joined(separator: ", "))", "اختر: \(banks)") : text("Choose all cards", "اختر كل البطاقات"))
+            instructionRow(3, prose: text("Add this Ghaf action:", "أضف إجراء غاف التالي:"), path: paths[1])
             Button(action: openShortcuts) {
                 Text(text("Open Shortcuts", "فتح الاختصارات"))
                     .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .semibold))
@@ -312,13 +299,43 @@ struct GhafAutomationGuideView: View {
                     .background(theme.primaryText, in: Capsule())
             }
             .buttonStyle(.plain)
-            .padding(.top, 8)
         }
         .padding(.horizontal, 16)
         .padding(.leading, 52)
         .padding(.trailing, 16)
         .padding(.top, 16)
         .padding(.bottom, 20)
+    }
+
+    private func instructionRow(_ number: Int, prose: String, path: [[String]] = []) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(number)")
+                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
+                .foregroundStyle(theme.accentContrast)
+                .frame(width: 28, height: 28)
+                .background(theme.accent, in: Circle())
+            VStack(alignment: ar ? .trailing : .leading, spacing: 4) {
+                Text(prose).font(GhafTypography.body(15, languageCode: settings.languageCode)).foregroundStyle(theme.primaryText).fixedSize(horizontal: false, vertical: true)
+                if !path.isEmpty {
+                    ForEach(Array(path.enumerated()), id: \.offset) { _, labels in
+                        HStack(spacing: 4) {
+                            ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
+                                if index > 0 { Text(ar ? "‹" : "›").font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium)).foregroundStyle(theme.secondaryText) }
+                                Text("“\(label)”")
+                                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
+                                    .foregroundStyle(theme.primaryText)
+                                    .padding(.horizontal, 7).padding(.vertical, 4)
+                                    .background(theme.primaryText.opacity(theme.isDark ? 0.12 : 0.07), in: Capsule())
+                                    .fixedSize()
+                                    .environment(\.layoutDirection, .leftToRight)
+                            }
+                        }
+                        .environment(\.layoutDirection, .leftToRight)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private var testSection: some View {
