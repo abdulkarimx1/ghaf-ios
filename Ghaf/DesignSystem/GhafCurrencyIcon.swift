@@ -116,9 +116,11 @@ struct GhafMoneyLabel: View {
     }
 
     private var number: String {
-        let digits = GhafCurrencyDigits.fractionDigits(for: currency)
-        let formatter = Self.formatters[languageCode == "ar" ? "ar" : "en"]![digits]!
-        return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+        return Self.formatter(languageCode: languageCode, currency: currency).string(from: amount as NSDecimalNumber) ?? "\(amount)"
+    }
+
+    static func formatter(languageCode: String, currency: String) -> NumberFormatter {
+        formatters[languageCode == "ar" ? "ar" : "en"]![GhafCurrencyDigits.fractionDigits(for: currency)]!
     }
 
     @ViewBuilder private var numberText: some View {

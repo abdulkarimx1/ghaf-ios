@@ -17,12 +17,11 @@ struct GhafAmountField: View {
     @State private var presented = false
     @State private var keyPress = 0
     @State private var replaceOnNextKey = true
-    @Environment(\.locale) private var locale
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
-    private var separator: String { languageCode == "ar" ? "٫" : locale.decimalSeparator ?? "." }
+    private var separator: String { GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency ?? "AED").decimalSeparator ?? "." }
 
     var body: some View {
         Button { openPad() } label: {
@@ -192,11 +191,7 @@ struct GhafAmountField: View {
     }
 
     private func localized(_ text: String) -> String {
-        guard languageCode == "ar" else { return text.replacingOccurrences(of: ".", with: separator) }
-        return text.replacingOccurrences(of: ".", with: separator).map { char in
-            guard let digit = char.wholeNumberValue, (0...9).contains(digit) else { return char }
-            return Character(UnicodeScalar(0x0660 + digit)!)
-        }.map(String.init).joined()
+        text.replacingOccurrences(of: ".", with: separator)
     }
 
     private func amountDisplay(_ text: String) -> String {
