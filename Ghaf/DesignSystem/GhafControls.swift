@@ -39,6 +39,106 @@ struct GhafFormDivider: View {
     var body: some View { Divider().overlay(theme.outline).padding(.leading, inset) }
 }
 
+struct GhafFormMenuRow<Content: View>: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let value: String
+    let theme: GhafTheme
+    let languageCode: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        Menu { content() } label: {
+            GhafFormRow(icon: icon, tint: tint, title: title, theme: theme, languageCode: languageCode) {
+                HStack(spacing: 7) {
+                    Text(value)
+                    Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct GhafFormToggleRow: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    @Binding var isOn: Bool
+    let theme: GhafTheme
+    let languageCode: String
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            HStack(spacing: 12) {
+                GhafIconBadge(symbol: icon, tint: tint, size: 40, theme: theme)
+                Text(title).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+        }
+        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+        .frame(minHeight: 64)
+    }
+}
+
+struct GhafFormDateRow: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    @Binding var selection: Date
+    @Binding var isExpanded: Bool
+    let theme: GhafTheme
+    let languageCode: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button {
+                let change = { isExpanded.toggle() }
+                if reduceMotion { change() } else { withAnimation(.spring(response: 0.35, dampingFraction: 0.85), change) }
+            } label: {
+                GhafFormRow(icon: icon, tint: tint, title: title, theme: theme, languageCode: languageCode) {
+                    HStack(spacing: 7) {
+                        Text(selection.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: languageCode))))
+                        Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            if isExpanded {
+                DatePicker(title, selection: $selection, displayedComponents: .date)
+                    .datePickerStyle(.graphical).tint(theme.accent).labelsHidden()
+                    .environment(\.colorScheme, theme.isDark ? .dark : .light)
+                    .environment(\.locale, Locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE"))
+                    .padding(.horizontal, 4).padding(.bottom, 12)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+}
+
+struct GhafFormActionRow: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let value: String
+    let theme: GhafTheme
+    let languageCode: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            GhafFormRow(icon: icon, tint: tint, title: title, theme: theme, languageCode: languageCode) {
+                HStack(spacing: 7) {
+                    Text(value)
+                    Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct GhafToggleStyle: ToggleStyle {
     let theme: GhafTheme
     let languageCode: String

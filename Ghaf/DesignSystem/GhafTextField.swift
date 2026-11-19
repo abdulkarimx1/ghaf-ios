@@ -8,6 +8,7 @@ struct GhafTextField: View {
     let languageCode: String
     var icon: String? = nil
     var label: String? = nil
+    var chromeless = false
     var multiline = false
     var clearable = true
     var keyboard: UIKeyboardType = .default
@@ -19,7 +20,16 @@ struct GhafTextField: View {
 
     @FocusState private var focused: Bool
 
-    var body: some View {
+    @ViewBuilder var body: some View {
+      if chromeless {
+        fieldContent.padding(.horizontal, 16).frame(minHeight: label == nil ? 56 : 64)
+      } else {
+        fieldContent.padding(.horizontal, 16).frame(minHeight: label == nil ? 56 : 64)
+            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
+      }
+    }
+
+    private var fieldContent: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let label {
                 Text(label).font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
@@ -27,8 +37,8 @@ struct GhafTextField: View {
             HStack(spacing: 10) {
                 if let icon { Image(systemName: icon).foregroundStyle(theme.secondaryText).accessibilityHidden(true) }
                 Group {
-                    if multiline { TextField(text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText), axis: .vertical) }
-                    else { TextField(text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText)) }
+                    if multiline { TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText), axis: .vertical) }
+                    else { TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText)) }
                 }
                 .focused(focusBinding ?? $focused)
                 .font(GhafTypography.body(17, languageCode: languageCode))
@@ -47,9 +57,6 @@ struct GhafTextField: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .frame(minHeight: label == nil ? 56 : 64)
-        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
         .overlay {
             if focusBinding?.wrappedValue ?? focused {
                 RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(theme.accent, lineWidth: 1.5).allowsHitTesting(false)

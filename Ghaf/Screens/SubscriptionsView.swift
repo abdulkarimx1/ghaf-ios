@@ -468,59 +468,30 @@ private struct GhafSubscriptionEditor: View {
                     }
 
                     GhafFormCard(theme: theme) {
-                        Button { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showDatePicker.toggle() } } label: {
-                            GhafFormRow(icon: "calendar", tint: theme.accent, title: ar ? "التجديد القادم" : "Next renewal",
-                                        theme: theme, languageCode: settings.languageCode) {
-                                HStack(spacing: 7) {
-                                    Text(nextDate.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: settings.languageCode))))
-                                    Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
-                                }
-                            }.buttonStyle(.plain)
-                        }
-                        if showDatePicker {
-                            DatePicker(ar ? "موعد التجديد" : "Next renewal", selection: $nextDate, displayedComponents: .date)
-                                .datePickerStyle(.graphical).tint(theme.accent).labelsHidden()
-                                .environment(\.colorScheme, theme.isDark ? .dark : .light)
-                                .padding(.horizontal, 4).padding(.bottom, 12)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
+                        GhafFormDateRow(icon: "calendar", tint: theme.accent, title: ar ? "التجديد القادم" : "Next renewal",
+                                        selection: $nextDate, isExpanded: $showDatePicker, theme: theme, languageCode: settings.languageCode)
                         GhafFormDivider(theme: theme)
-                        Menu {
+                        GhafFormMenuRow(icon: "bell.badge", tint: theme.close, title: ar ? "التذكير" : "Reminder",
+                                        value: reminderName, theme: theme, languageCode: settings.languageCode) {
                             Picker(ar ? "التذكير" : "Reminder", selection: $reminderDays) {
                                 Text(ar ? "في نفس اليوم" : "Same day").tag(0)
                                 Text(ar ? "قبل يوم" : "1 day before").tag(1)
                                 Text(ar ? "قبل يومين" : "2 days before").tag(2)
                                 Text(ar ? "قبل أسبوع" : "1 week before").tag(7)
                             }
-                        } label: {
-                            GhafFormRow(icon: "bell.badge", tint: theme.close, title: ar ? "التذكير" : "Reminder",
-                                        theme: theme, languageCode: settings.languageCode) {
-                                HStack(spacing: 7) { Text(reminderName); Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7) }
-                            }
                         }
                         GhafFormDivider(theme: theme)
-                        Menu {
+                        GhafFormMenuRow(icon: "creditcard", tint: theme.accent, title: ar ? "حساب الدفع" : "Paid from",
+                                        value: accounts.first(where: { $0.id == accountID })?.name ?? (ar ? "غير محدد" : "Not specified"),
+                                        theme: theme, languageCode: settings.languageCode) {
                             Picker(ar ? "حساب الدفع" : "Paid from", selection: $accountID) {
                                 Text(ar ? "غير محدد" : "Not specified").tag(UUID?.none)
                                 ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
                             }
-                        } label: {
-                            GhafFormRow(icon: "creditcard", tint: theme.accent, title: ar ? "حساب الدفع" : "Paid from",
-                                        theme: theme, languageCode: settings.languageCode) {
-                                HStack(spacing: 7) {
-                                    Text(accounts.first(where: { $0.id == accountID })?.name ?? (ar ? "غير محدد" : "Not specified"))
-                                    Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
-                                }
-                            }
                         }
                         GhafFormDivider(theme: theme)
-                        Toggle(isOn: $active) {
-                            HStack(spacing: 12) {
-                                GhafIconBadge(symbol: "power", tint: theme.comfortable, size: 40, theme: theme)
-                                Text(ar ? "نشط" : "Active").font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
-                            }
-                        }
-                        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: settings.languageCode))
+                        GhafFormToggleRow(icon: "power", tint: theme.comfortable, title: ar ? "نشط" : "Active",
+                                          isOn: $active, theme: theme, languageCode: settings.languageCode)
                     }
                     .padding(.top, 24)
                     if subscription != nil {

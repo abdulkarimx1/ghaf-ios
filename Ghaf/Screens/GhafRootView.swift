@@ -187,6 +187,9 @@ struct GhafRootView: View {
             case "insights": GhafStatsView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
+            case "salary-settings": GhafSalarySettingsView(settings: currentSettings)
+            case "account-editor": NavigationStack { GhafAccountEditorView(account: nil, settings: currentSettings) }
+            case "new-transaction": GhafTabView(settings: currentSettings)
             case "amount-pad": GhafTabView(settings: currentSettings)
             case nil where GhafScreenshotFixture.tab == "subscriptions": GhafSubscriptionsView(settings: currentSettings)
             default: GhafTabView(settings: currentSettings)

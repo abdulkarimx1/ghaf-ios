@@ -156,7 +156,7 @@ struct GhafHomeView: View {
             .ghafStatusBarFade(theme: theme)
 #if DEBUG
             .onAppear {
-                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "amount-pad" { showQuickAdd = true }
+                if GhafScreenshotFixture.enabled, ["amount-pad", "new-transaction"].contains(GhafScreenshotFixture.screen ?? "") { showQuickAdd = true }
             }
 #endif
             .onChange(of: router.homeReselects) { _, _ in
@@ -750,17 +750,24 @@ struct GhafQuickAddView: View {
     @State private var toAccountID: UUID?
     private var isTransfer: Bool { direction == "transfer" }
     private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
+    private var presentAmountPadOnAppear: Bool {
+        #if DEBUG
+        GhafScreenshotFixture.screen != "new-transaction"
+        #else
+        true
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     amountHeader
-                    VStack(spacing: 0) {
+                    GhafFormCard(theme: theme) {
                       if isTransfer {
-                        row(ar ? "من" : "From", icon: "arrow.up.forward.circle") { accountPicker($selectedAccountID) }
+                        accountPicker($selectedAccountID, title: ar ? "من" : "From", icon: "arrow.up.forward.circle")
                         divider
-                        row(ar ? "إلى" : "To", icon: "arrow.down.forward.circle") { accountPicker($toAccountID) }
+                        accountPicker($toAccountID, title: ar ? "إلى" : "To", icon: "arrow.down.forward.circle")
                         divider
                       } else {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
@@ -772,7 +779,7 @@ struct GhafQuickAddView: View {
                             GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
                         }
                         divider
-                        row(ar ? "الحساب" : "Account", icon: "wallet.pass") { accountPicker($selectedAccountID) }
+                        accountPicker($selectedAccountID, title: ar ? "الحساب" : "Account", icon: "wallet.pass")
                         divider
                       }
                         row(ar ? "التاريخ" : "Date", icon: "calendar") {
@@ -783,8 +790,6 @@ struct GhafQuickAddView: View {
                             TextField(ar ? "اختياري" : "Optional", text: $note).multilineTextAlignment(.trailing)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .ghafCard(theme: theme)
 
                     NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
                         Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
@@ -822,9 +827,6 @@ struct GhafQuickAddView: View {
                         .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Color.clear.frame(width: 48, height: 44).accessibilityHidden(true)
-                }
             }
         }
         .tint(theme.accent)
@@ -851,7 +853,7 @@ struct GhafQuickAddView: View {
                 }
             }
             GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
-                            theme: theme, languageCode: lang, fontSize: 44, presentOnAppear: true)
+                            theme: theme, languageCode: lang, fontSize: 44, presentOnAppear: presentAmountPadOnAppear)
                 .padding(.horizontal, 16)
         }
         .padding(.vertical, 22)
@@ -873,35 +875,28 @@ struct GhafQuickAddView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private func accountPicker(_ selection: Binding<UUID?>) -> some View {
-        GhafMenuRow(title: ar ? "الحساب" : "Account", value: activeAccounts.first(where: { $0.id == selection.wrappedValue }).map { "\($0.name) · \($0.currency)" } ?? (ar ? "اختر" : "Choose"), theme: theme, languageCode: lang, compact: true) {
+    private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String) -> some View {
+        let value = activeAccounts.first(where: { $0.id == selection.wrappedValue }).map { "\($0.name) · \($0.currency)" } ?? (ar ? "اختر" : "Choose")
+        return Menu {
             Picker(ar ? "الحساب" : "Account", selection: selection) {
                 if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
                 ForEach(activeAccounts, id: \.id) { account in
                     Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                 }
             }
+        } label: {
+            row(title, icon: icon) {
+                HStack(spacing: 7) { Text(value); Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)) }
+            }
         }
     }
 
-    private var divider: some View { Divider().overlay(theme.outline).padding(.leading, 38) }
+    private var divider: some View { GhafFormDivider(theme: theme) }
 
-    private func row<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 26)
-            Text(title)
-                .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.primaryText)
-                .fixedSize()
-            Spacer(minLength: 12)
-            content()
-                .font(GhafTypography.body(15, languageCode: lang))
-                .tint(theme.accent)
+    private func row<Content: View>(_ title: String, icon: String, @ViewBuilder content: @escaping () -> Content) -> some View {
+        GhafFormRow(icon: icon, tint: theme.accent, title: title, theme: theme, languageCode: lang) {
+            content().tint(theme.accent).foregroundStyle(theme.primaryText)
         }
-        .frame(minHeight: 54)
     }
 
     /// Money moved between the user's own accounts: out of one, into the other, both as Transfers, so
