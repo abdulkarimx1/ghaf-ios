@@ -382,6 +382,7 @@ struct GhafSubscriptionsView: View {
 private struct GhafSubscriptionEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(\.colorScheme) private var colorScheme
     let settings: GhafSettings
     let accounts: [GhafAccount]
     let subscription: GhafSubscription?
@@ -396,19 +397,28 @@ private struct GhafSubscriptionEditor: View {
     @State private var active = true
     @State private var saveFailed = false
 
+    private var theme: GhafTheme {
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section(settings.languageCode == "ar" ? "تفاصيل الاشتراك" : "Subscription details") {
-                    TextField(settings.languageCode == "ar" ? "اسم الخدمة" : "Service name", text: $name)
-                    TextField(settings.languageCode == "ar" ? "المبلغ" : "Amount", text: $amount).keyboardType(.decimalPad)
+                    GhafTextField(text: $name, placeholder: settings.languageCode == "ar" ? "اسم الخدمة" : "Service name", theme: theme, languageCode: settings.languageCode)
+                    GhafAmountField(value: $amount, currency: currency,
+                                    label: settings.languageCode == "ar" ? "المبلغ" : "Amount",
+                                    theme: theme, languageCode: settings.languageCode)
                     Picker(settings.languageCode == "ar" ? "العملة" : "Currency", selection: $currency) {
                         ForEach(["AED","SAR","KWD","BHD","OMR","QAR"], id: \.self) { Text($0).tag($0) }
                     }
+                    .frame(minHeight: 56)
                     Picker(settings.languageCode == "ar" ? "دورة الفوترة" : "Billing cycle", selection: $cycle) {
                         ForEach(GhafBillingCycle.allCases) { Text($0.title(language: settings.languageCode)).tag($0) }
                     }
+                    .frame(minHeight: 56)
                     DatePicker(settings.languageCode == "ar" ? "موعد التجديد القادم" : "Next renewal", selection: $nextDate, displayedComponents: .date)
+                        .frame(minHeight: 56)
                 }
                 Section(settings.languageCode == "ar" ? "التذكير والحساب" : "Reminder & account") {
                     Picker(settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", selection: $reminderDays) {
@@ -417,10 +427,12 @@ private struct GhafSubscriptionEditor: View {
                         Text(settings.languageCode == "ar" ? "قبل يومين" : "2 days before").tag(2)
                         Text(settings.languageCode == "ar" ? "قبل أسبوع" : "1 week before").tag(7)
                     }
+                    .frame(minHeight: 56)
                     Picker(settings.languageCode == "ar" ? "الحساب" : "Payment account", selection: $accountID) {
                         Text(settings.languageCode == "ar" ? "غير محدد" : "Not specified").tag(UUID?.none)
                         ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
                     }
+                    .frame(minHeight: 56)
                     Toggle(settings.languageCode == "ar" ? "نشط" : "Active", isOn: $active)
                 }
                 if subscription != nil {

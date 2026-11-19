@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import GhafCore
+import UIKit
 
 struct GhafAccountsView: View {
     @Environment(\.colorScheme) private var systemColorScheme
@@ -211,12 +212,12 @@ struct GhafAccountEditorView: View {
 
                 group(ar ? "الحساب" : "Account") {
                     fieldRow(ar ? "الاسم" : "Name") {
-                        TextField(ar ? "مثال: المشرق" : "e.g. Mashreq", text: $name)
+                        GhafTextField(text: $name, placeholder: ar ? "مثال: المشرق" : "e.g. Mashreq", theme: theme, languageCode: lang)
                     }
                     if !isCash {
                     fieldRow(ar ? "البنك" : "Bank") {
                         HStack(spacing: 6) {
-                            TextField(ar ? "البنك أو الجهة" : "Bank or institution", text: $institution)
+                            GhafTextField(text: $institution, placeholder: ar ? "البنك أو الجهة" : "Bank or institution", theme: theme, languageCode: lang)
                             Menu {
                                 ForEach(GhafUAEBank.all) { bank in
                                     Button(ar ? bank.ar : bank.en) { institution = bank.en }
@@ -251,25 +252,24 @@ struct GhafAccountEditorView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(ar ? "الرصيد المتاح الآن" : "Available right now")
                             .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        HStack(spacing: 8) {
-                            GhafCurrencyIcon(currency: currency, size: 26).foregroundStyle(theme.primaryText)
-                            TextField("0.00", text: $balanceText)
-                                .font(GhafTypography.number(30, weight: .bold))
-                                .keyboardType(.decimalPad)
-                        }
-                        .environment(\.layoutDirection, .leftToRight)
+                        GhafAmountField(value: $balanceText, currency: currency,
+                                        label: ar ? "الرصيد المتاح الآن" : "Available balance",
+                                        theme: theme, languageCode: lang)
                     }
                     .padding(.vertical, 12)
                     .overlay(alignment: .bottom) { Divider().overlay(theme.outline) }
                     if accountType == .credit {
                         fieldRow(ar ? "الحد الائتماني" : "Credit limit") {
-                            TextField(ar ? "اختياري" : "Optional", text: $creditLimitText).keyboardType(.decimalPad)
+                            GhafAmountField(value: $creditLimitText, currency: currency,
+                                            label: ar ? "الحد الائتماني" : "Credit limit",
+                                            theme: theme, languageCode: lang)
                         }
                     }
                     if !isCash {
                         fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
-                            TextField("1234", text: $lastFourDigits)
-                                .keyboardType(.numberPad)
+                            GhafAmountField(value: $lastFourDigits, currency: nil,
+                                            label: ar ? "آخر ٤ أرقام" : "Last 4 digits",
+                                            theme: theme, languageCode: lang, integerMode: true, maxDigits: 4)
                                 .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
                         }
                     }
@@ -423,7 +423,7 @@ struct GhafAccountEditorView: View {
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .frame(minHeight: 50)
+        .frame(minHeight: 56)
         .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
     }
 
@@ -431,7 +431,7 @@ struct GhafAccountEditorView: View {
         Toggle(label, isOn: isOn)
             .font(GhafTypography.body(15, languageCode: lang, weight: .medium))
             .foregroundStyle(theme.primaryText)
-            .frame(minHeight: 50)
+            .frame(minHeight: 56)
             .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
     }
 
@@ -607,8 +607,9 @@ struct GhafCardRequestView: View {
                     VStack(spacing: 0) {
                         field(ar ? "البنك" : "Bank", text: $bank, prompt: ar ? "مثال: مصرف عجمان" : "e.g. Ajman Bank")
                         field(ar ? "اسم البطاقة" : "Card name", text: $cardName, prompt: ar ? "مثال: بلاتينيوم" : "e.g. Platinum")
-                        field(ar ? "رابط (اختياري)" : "Link (optional)", text: $link, prompt: ar ? "صفحة البطاقة على موقع البنك" : "Card page on the bank's site", divider: false)
-                            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        field(ar ? "رابط (اختياري)" : "Link (optional)", text: $link,
+                              prompt: ar ? "صفحة البطاقة على موقع البنك" : "Card page on the bank's site",
+                              divider: false, keyboard: .URL, autocorrection: false, capitalization: .never)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 4)
                     .ghafCard(theme: theme)
@@ -617,12 +618,7 @@ struct GhafCardRequestView: View {
                             .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                             .foregroundStyle(theme.secondaryText)
                             .padding(.horizontal, 6)
-                        TextField(ar ? "الألوان والشعار والنقوش…" : "Colours, logo, pattern…", text: $looks, axis: .vertical)
-                            .lineLimit(3...6)
-                            .font(GhafTypography.body(16, languageCode: lang))
-                            .foregroundStyle(theme.primaryText)
-                            .padding(16)
-                            .ghafCard(theme: theme)
+                        GhafTextField(text: $looks, placeholder: ar ? "الألوان والشعار والنقوش…" : "Colours, logo, pattern…", theme: theme, languageCode: lang, multiline: true)
                     }
                     Label(ar ? "لا تكتب رقم بطاقتك أو أي بيانات خاصة." : "Don't include your card number or other private details.",
                           systemImage: "lock.fill")
@@ -656,18 +652,18 @@ struct GhafCardRequestView: View {
         }
     }
 
-    private func field(_ label: String, text: Binding<String>, prompt: String, divider: Bool = true) -> some View {
+    private func field(_ label: String, text: Binding<String>, prompt: String, divider: Bool = true,
+                       keyboard: UIKeyboardType = .default, autocorrection: Bool = true,
+                       capitalization: TextInputAutocapitalization = .sentences) -> some View {
         HStack(spacing: 12) {
             Text(label)
                 .font(GhafTypography.body(15, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
                 .frame(minWidth: 96, alignment: .leading)
-            TextField(prompt, text: text)
-                .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.primaryText)
-                .multilineTextAlignment(.trailing)
+            GhafTextField(text: text, placeholder: prompt, theme: theme, languageCode: lang,
+                          keyboard: keyboard, autocorrection: autocorrection, capitalization: capitalization)
         }
-        .frame(minHeight: 50)
+        .frame(minHeight: 56)
         .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
     }
 
