@@ -249,20 +249,23 @@ struct GhafSalarySettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-            Section {
-                Toggle(
-                    settings.languageCode == "ar" ? "تفعيل دورة الراتب" : "Track my salary cycle",
-                    isOn: $enabled
-                )
-                .tint(theme.accent)
-            } footer: {
-                Text(settings.languageCode == "ar"
-                     ? "سيطلب منك غاف تأكيد وصول الراتب في يوم الاستحقاق."
-                     : "Ghaf will ask you to confirm whether your salary arrived on its scheduled day.")
-            }
+            Toggle(
+                settings.languageCode == "ar" ? "تفعيل دورة الراتب" : "Track my salary cycle",
+                isOn: $enabled
+            )
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: settings.languageCode))
+            .padding(.horizontal, 16).frame(minHeight: 56).ghafCard(theme: theme, radius: 16)
+            Text(settings.languageCode == "ar"
+                 ? "سيطلب منك غاف تأكيد وصول الراتب في يوم الاستحقاق."
+                 : "Ghaf will ask you to confirm whether your salary arrived on its scheduled day.")
+                .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .padding(16).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme, radius: 16)
 
             if enabled {
-                Section(settings.languageCode == "ar" ? "تفاصيل الراتب" : "SALARY DETAILS") {
+                Text(settings.languageCode == "ar" ? "تفاصيل الراتب" : "SALARY DETAILS")
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
+                    .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                     GhafMenuRow(title: settings.languageCode == "ar" ? "يوم الراتب" : "Salary day", value: "\(salaryDay)", theme: theme, languageCode: settings.languageCode) {
                         Picker(settings.languageCode == "ar" ? "يوم الراتب" : "Salary day", selection: $salaryDay) {
                             ForEach(1...31, id: \.self) { day in
@@ -284,41 +287,38 @@ struct GhafSalarySettingsView: View {
                     }
 
                     if let selectedAccount = activeAccounts.first(where: { $0.id == accountID }) {
-                        LabeledContent(
+                    LabeledContent(
                             settings.languageCode == "ar" ? "عملة الراتب" : "Salary currency",
                             value: selectedAccount.currency
                         )
+                    .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
+                    .padding(.horizontal, 16).frame(minHeight: 56).ghafCard(theme: theme, radius: 16)
                     }
 
                     Toggle(
                         settings.languageCode == "ar" ? "تذكيري في يوم الراتب" : "Notify me on salary day",
                         isOn: $reminderEnabled
                     )
-                    .tint(theme.accent)
-                }
+                    .toggleStyle(GhafToggleStyle(theme: theme, languageCode: settings.languageCode))
+                    .padding(.horizontal, 16).frame(minHeight: 56).ghafCard(theme: theme, radius: 16)
 
                 if activeAccounts.isEmpty {
-                    Section {
-                        Text(settings.languageCode == "ar"
-                             ? "أضف حساباً بنكياً أولاً من صفحة الحسابات."
-                             : "Add a bank account first from Accounts.")
-                            .foregroundStyle(theme.secondaryText)
-                    }
+                    Text(settings.languageCode == "ar"
+                         ? "أضف حساباً بنكياً أولاً من صفحة الحسابات."
+                         : "Add a bank account first from Accounts.")
+                        .foregroundStyle(theme.secondaryText).padding(16).ghafCard(theme: theme, radius: 16)
                 }
             }
 
             if !errorMessage.isEmpty {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(theme.over)
-                }
+                Text(errorMessage).foregroundStyle(theme.over).padding(16).ghafCard(theme: theme, radius: 16)
             }
 
-            Section {
-                Button(settings.languageCode == "ar" ? "حفظ إعدادات الراتب" : "Save salary settings", action: save)
-                    .fontWeight(.semibold)
+            Button(settings.languageCode == "ar" ? "حفظ إعدادات الراتب" : "Save salary settings", action: save)
+                .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
             }
-            }
+            .padding(.horizontal, GhafMetrics.gutter)
+            .padding(.bottom, 40)
         }
         .ghafBackground(theme: theme)
         .tint(theme.accent)

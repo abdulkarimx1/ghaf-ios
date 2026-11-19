@@ -405,7 +405,9 @@ private struct GhafSubscriptionEditor: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                Section(settings.languageCode == "ar" ? "تفاصيل الاشتراك" : "Subscription details") {
+                Text(settings.languageCode == "ar" ? "تفاصيل الاشتراك" : "Subscription details")
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
+                    .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                     GhafTextField(text: $name, placeholder: settings.languageCode == "ar" ? "اسم الخدمة" : "Service name", theme: theme, languageCode: settings.languageCode)
                     GhafAmountField(value: $amount, currency: currency,
                                     label: settings.languageCode == "ar" ? "المبلغ" : "Amount",
@@ -421,8 +423,9 @@ private struct GhafSubscriptionEditor: View {
                         }
                     }
                     GhafDateRow(title: settings.languageCode == "ar" ? "موعد التجديد القادم" : "Next renewal", selection: $nextDate, components: .date, theme: theme, languageCode: settings.languageCode)
-                }
-                Section(settings.languageCode == "ar" ? "التذكير والحساب" : "Reminder & account") {
+                Text(settings.languageCode == "ar" ? "التذكير والحساب" : "Reminder & account")
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
+                    .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                     GhafMenuRow(title: settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", value: reminderName, theme: theme, languageCode: settings.languageCode) {
                         Picker(settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", selection: $reminderDays) {
                             Text(settings.languageCode == "ar" ? "في نفس اليوم" : "Same day").tag(0)
@@ -438,9 +441,10 @@ private struct GhafSubscriptionEditor: View {
                         }
                     }
                     Toggle(settings.languageCode == "ar" ? "نشط" : "Active", isOn: $active)
-                }
+                        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: settings.languageCode))
+                        .padding(.horizontal, 16).frame(minHeight: 56).ghafCard(theme: theme, radius: 16)
                 if subscription != nil {
-                    Section {
+                    VStack {
                         Button(settings.languageCode == "ar" ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
                             guard let subscription else { return dismiss() }
                             context.delete(subscription)
@@ -453,9 +457,11 @@ private struct GhafSubscriptionEditor: View {
                                 saveFailed = true
                             }
                         }
-                    }
+                    }.padding(.top, 8)
                 }
                 }
+                .padding(.horizontal, GhafMetrics.gutter)
+                .padding(.bottom, 40)
             }
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
