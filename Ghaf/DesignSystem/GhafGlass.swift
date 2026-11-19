@@ -130,9 +130,22 @@ private struct GhafGlassRim: View {
 }
 
 struct GhafShapeRim<S: Shape>: View {
-    let theme: GhafTheme
+    let isDark: Bool
     let shape: S
     let contrast: ColorSchemeContrast
+
+    init(theme: GhafTheme, shape: S, contrast: ColorSchemeContrast) {
+        self.isDark = theme.isDark
+        self.shape = shape
+        self.contrast = contrast
+    }
+
+    init(isDark: Bool, shape: S, contrast: ColorSchemeContrast) {
+        self.isDark = isDark
+        self.shape = shape
+        self.contrast = contrast
+    }
+
     private var motion: GhafTiltMotion { .shared }
     var body: some View {
         let tilt = motion.tilt
@@ -140,7 +153,7 @@ struct GhafShapeRim<S: Shape>: View {
         let shift = CGFloat(tilt.y) * 0.18
         let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shift, y: 0.5 - sin(angle) * 0.5)
         let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shift, y: 0.5 + sin(angle) * 0.5)
-        shape.stroke(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.6 : 1)
+        shape.stroke(LinearGradient(colors: isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.6 : 1)
     }
 }
 

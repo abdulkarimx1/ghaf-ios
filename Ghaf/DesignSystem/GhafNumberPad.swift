@@ -11,7 +11,6 @@ struct GhafAmountField: View {
     @State private var presented = false
     @State private var keyPress = 0
     @Environment(\.locale) private var locale
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
     private var separator: String { (languageCode == "ar" ? Locale(identifier: "ar_AE") : locale).decimalSeparator ?? "." }

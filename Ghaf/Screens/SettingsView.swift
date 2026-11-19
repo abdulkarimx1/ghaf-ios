@@ -232,7 +232,7 @@ struct GhafSettingsView: View {
                 }
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 16).frame(height: 36)
+                .padding(.horizontal, 16).frame(minHeight: 44)
                 .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                 .shadow(color: theme.shadow, radius: 8, y: 3)
             }
@@ -321,16 +321,16 @@ struct GhafSettingsView: View {
                 .buttonStyle(.ghafPress).disabled(drive.isBusy)
                 Button(ar ? "قطع الاتصال" : "Disconnect", role: .destructive) { drive.signOut() }
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .buttonStyle(.bordered)
             } else {
                 Button { Task { await driveRun { try await drive.signIn() } } } label: {
                     Label(ar ? "تسجيل الدخول عبر Google" : "Sign in with Google", systemImage: "person.crop.circle.badge.plus")
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 56)
                         .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.accent)
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
                 .disabled(drive.isBusy)
             }
             if drive.isBusy { ProgressView().frame(maxWidth: .infinity) }
@@ -373,7 +373,7 @@ struct GhafSettingsView: View {
                             Image(systemName: "camera.fill")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundStyle(theme.accentContrast)
-                                .frame(width: 32, height: 32)
+                                .frame(width: 44, height: 44)
                                 .background(theme.accent, in: Circle())
                                 .overlay(Circle().stroke(theme.surface, lineWidth: 3))
                         }
@@ -587,7 +587,7 @@ HStack(spacing: 8) {
             if glassEnabled {
                 Picker(ar ? "الشدة" : "Intensity", selection: $glassIntensity) {
                     Text(ar ? "خفيف" : "Subtle").tag("subtle"); Text(ar ? "متوازن" : "Balanced").tag("balanced"); Text(ar ? "قوي" : "Bold").tag("bold")
-                }.pickerStyle(.segmented)
+                }.pickerStyle(.segmented).frame(minHeight: 56)
                 Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
                 Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
                 Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
@@ -743,11 +743,8 @@ HStack(spacing: 8) {
                 .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
             HStack(spacing: 8) {
-                TextField(ar ? "فئة جديدة" : "New category", text: $newCategory)
-                    .font(GhafTypography.body(15, languageCode: languageCode))
-                    .padding(.horizontal, 14).frame(minHeight: 48)
-                    .background(theme.background, in: Capsule())
-                    .onSubmit(addCategory)
+                GhafTextField(text: $newCategory, placeholder: ar ? "فئة جديدة" : "New category", theme: theme,
+                              languageCode: languageCode, onSubmit: addCategory)
                 Button(action: addCategory) {
                     Image(systemName: "plus")
                         .font(.system(size: 16, weight: .bold))
@@ -962,10 +959,7 @@ HStack(spacing: 8) {
                 GhafAmountField(value: text, currency: settings.currency, label: placeholder,
                                 theme: theme, languageCode: languageCode)
             } else {
-                TextField(placeholder, text: text)
-                    .font(GhafTypography.body(15, languageCode: languageCode))
-                    .padding(.horizontal, 14).frame(minHeight: 56)
-                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
+                GhafTextField(text: text, placeholder: placeholder, theme: theme, languageCode: languageCode)
             }
         }
     }

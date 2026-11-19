@@ -122,9 +122,7 @@ struct GhafVoiceEntryView: View {
                         ForEach($drafts) { $draft in
                             VStack(alignment: .leading, spacing: 10) {
                                 HStack(alignment: .firstTextBaseline) {
-                                    TextField(isArabic ? "اسم المتجر" : "Merchant", text: $draft.merchant)
-                                        .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                                        .foregroundStyle(theme.primaryText)
+                                    GhafTextField(text: $draft.merchant, placeholder: isArabic ? "اسم المتجر" : "Merchant", theme: theme, languageCode: settings.languageCode)
                                     Spacer(minLength: 8)
                                     GhafAmountField(value: $draft.amountText, currency: draft.currency,
                                                     label: isArabic ? "المبلغ" : "Amount",
@@ -136,6 +134,7 @@ struct GhafVoiceEntryView: View {
                                             Text(GhafLocalization.category($0, languageCode: settings.languageCode)).tag($0)
                                         }
                                     }
+                                    .frame(minHeight: 56)
                                     .pickerStyle(.menu)
                                     .tint(theme.accent)
                                     Spacer()
@@ -143,10 +142,12 @@ struct GhafVoiceEntryView: View {
                                         Text(isArabic ? "مصروف" : "Expense").tag("debit")
                                         Text(isArabic ? "دخل" : "Income").tag("credit")
                                     }
+                                    .frame(minHeight: 56)
                                     .pickerStyle(.menu)
                                     .tint(theme.accent)
                                 }
                                 DatePicker(isArabic ? "التاريخ والوقت" : "Date and time", selection: $draft.date, displayedComponents: [.date, .hourAndMinute])
+                                    .frame(minHeight: 56)
                                     .font(GhafTypography.body(11, languageCode: settings.languageCode))
                                     .tint(theme.accent)
                             }
@@ -165,6 +166,7 @@ struct GhafVoiceEntryView: View {
                                     Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                                 }
                             }
+                            .frame(minHeight: 56)
                             .pickerStyle(.menu)
                             .tint(theme.accent)
                         }

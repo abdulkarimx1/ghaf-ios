@@ -117,12 +117,14 @@ private struct GhafControlGlass: ViewModifier {
     let theme: GhafTheme
     let enabled: Bool
     let prominent: Bool
+    @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         if enabled {
             if #available(iOS 26, *), !prominent {
                 content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
+                    .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
             } else {
-                content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: .normal) }
+                content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
             }
         } else { content }
     }
@@ -163,7 +165,7 @@ struct GhafPillButton: View {
                 }
             }
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 56)
             .padding(.horizontal, 10)
             .background {
                 if prominent {
@@ -204,6 +206,7 @@ struct GhafSectionHeader: View {
                 Button(actionTitle, action: action)
                     .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                     .foregroundStyle(theme.accent)
+                    .frame(minHeight: 44)
                     .buttonStyle(.ghafPress)
             }
         }
@@ -218,6 +221,8 @@ struct GhafIconBadge: View {
     var size: CGFloat = 44
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         Image(systemName: symbol)
@@ -227,7 +232,7 @@ struct GhafIconBadge: View {
             .background {
                 if glass.enabled && !reduceTransparency {
                     Circle().fill(.thinMaterial).overlay(Circle().fill(tint.opacity(0.12)))
-                        .overlay(Circle().strokeBorder(.white.opacity(0.28), lineWidth: 0.8))
+                        .overlay { GhafShapeRim(isDark: colorScheme == .dark, shape: Circle(), contrast: contrast) }
                 } else { Circle().fill(tint.opacity(0.14)) }
             }
             .accessibilityHidden(true)

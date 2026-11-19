@@ -250,7 +250,7 @@ struct GhafStatsView: View {
                         Text(periods[item.rawValue])
                             .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                             .foregroundStyle(period == item ? theme.accentContrast : theme.secondaryText)
-                            .frame(minWidth: 54, minHeight: 40)
+                            .frame(minWidth: 54, minHeight: 44)
                             .background(period == item ? accent : theme.elevatedSurface, in: Capsule())
                     }
                     .buttonStyle(.ghafPress)
