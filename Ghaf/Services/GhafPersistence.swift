@@ -1,15 +1,43 @@
 import Foundation
 import SwiftData
+import OSLog
+import GhafCore
 
 @MainActor
 enum GhafPersistence {
     private static var sharedContainer: ModelContainer?
 
     static func shared() throws -> ModelContainer {
-        if let sharedContainer { return sharedContainer }
+        if let sharedContainer {
+            cleanMerchantDataIfNeeded(in: ModelContext(sharedContainer))
+            return sharedContainer
+        }
         let container = try makeContainer()
         sharedContainer = container
+        cleanMerchantDataIfNeeded(in: ModelContext(container))
         return container
+    }
+
+    private static func cleanMerchantDataIfNeeded(in context: ModelContext) {
+        let flag = "ghaf.migration.merchantClean.v1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        do {
+            let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+            var cleaned = 0
+            for transaction in transactions {
+                guard let merchant = transaction.merchant else { continue }
+                let value = MerchantName.clean(merchant)
+                let baseline = merchant.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                    .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+                if value != baseline { transaction.merchant = value; cleaned += 1 }
+            }
+            try MerchantCategorizer.rekeyRules(context: context, save: false)
+            try context.save()
+            UserDefaults.standard.set(true, forKey: flag)
+            Logger(subsystem: "Ghaf", category: "Persistence").info("\(cleaned, privacy: .public)")
+        } catch {
+            context.rollback()
+        }
     }
 
     static func makeContainer() throws -> ModelContainer {

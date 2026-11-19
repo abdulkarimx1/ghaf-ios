@@ -5,6 +5,35 @@ final class BankMessageParserTests: XCTestCase {
     private let parser = BankMessageParser()
     private let referenceDate = Date(timeIntervalSince1970: 1_800_000_000)
 
+    func testParsesSpelledDateAndCleansTruncatedMerchant() throws {
+        let sample = "Purchase of AED 18.00 with your card at KOOKH AL SHAY CAFETER on Thursday, 19 November 2026, 6:11 am"
+        let transaction = try XCTUnwrap(parser.parse(sample, sender: nil, referenceDate: referenceDate))
+        let calendar = Calendar(identifier: .gregorian)
+        XCTAssertEqual(MerchantName.expand(MerchantName.clean(transaction.merchant ?? ""), known: []), "KOOKH AL SHAY CAFETERIA")
+        XCTAssertEqual(calendar.dateComponents(in: TimeZone.current, from: transaction.date).year, 2026)
+        XCTAssertEqual(calendar.dateComponents(in: TimeZone.current, from: transaction.date).month, 11)
+        XCTAssertEqual(calendar.dateComponents(in: TimeZone.current, from: transaction.date).day, 19)
+        XCTAssertEqual(calendar.dateComponents(in: TimeZone.current, from: transaction.date).hour, 6)
+        XCTAssertEqual(calendar.dateComponents(in: TimeZone.current, from: transaction.date).minute, 11)
+    }
+
+    func testParsesAlternativeSpelledDateForms() throws {
+        for phrase in ["19 November 2026 06:11", "19 Nov 2026 6:11 PM", "Nov 19, 2026 6:11am"] {
+            let transaction = try XCTUnwrap(parser.parse("Purchase of AED 18.00 at SAMPLE SHOP on \(phrase)", sender: nil, referenceDate: referenceDate))
+            XCTAssertEqual(Calendar.current.component(.year, from: transaction.date), 2026, phrase)
+        }
+    }
+
+    func testCleansArabicMerchantBeforeDatedTail() throws {
+        let transaction = try XCTUnwrap(parser.parse(
+            "تم خصم مبلغ 18.00 AED لدى مقهى النور بتاريخ ١٩/١١/٢٠٢٦",
+            sender: nil,
+            referenceDate: referenceDate
+        ))
+        XCTAssertEqual(transaction.merchant, "مقهى النور")
+        XCTAssertEqual(Calendar.current.component(.year, from: transaction.date), 2026)
+    }
+
     func testIgnoresMashreqTransferRequestBecauseItIsNotConfirmed() {
         // SYNTHETIC PLACEHOLDER matching the format; no real reference or
         // phone number is included in the repository.
