@@ -25,6 +25,7 @@ struct GhafHomeView: View {
     private var transactions: [GhafTransaction]
     @Query(sort: \GhafAccount.sortOrder)
     private var accounts: [GhafAccount]
+    @Query private var subscriptions: [GhafSubscription]
 
     @State private var showQuickAdd = false
     @State private var showVoiceEntry = false
@@ -34,7 +35,11 @@ struct GhafHomeView: View {
     @State private var showBackupImporter = false
     @State private var backupImportError: String?
     @State private var showInsights = false
-    @State private var showReview = false
+    @State private var showInbox = false
+#if DEBUG
+    @State private var showNotificationSettings = false
+#endif
+    @State private var inboxTargetID: String?
     @State private var selectedTransaction: GhafTransaction?
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
     @AppStorage(GhafAutomationStatus.walletRunKey) private var walletLastRun: Double = 0
@@ -58,6 +63,12 @@ struct GhafHomeView: View {
         )
     }
 
+    private var inboxCount: Int {
+        transactions.filter(\.needsReview).count
+            + subscriptions.filter(\.needsConfirmation).count
+            + GhafEventNotifications.events.count
+    }
+
     /// Everything Home shows, derived in one pass per render instead of once per view.
     private struct Summary {
         var accountBalances: [UUID: Decimal] = [:]
@@ -69,7 +80,6 @@ struct GhafHomeView: View {
         var topCategory: (name: String, amount: Decimal)?
         /// Spending by category, largest first.
         var categories: [(name: String, amount: Decimal)] = []
-        var reviewCount = 0
         /// The selected period, and spending in the one before it (same currency rules).
         var interval: DateInterval?
         var previousSpent: Decimal = 0
@@ -102,7 +112,6 @@ struct GhafHomeView: View {
         summary.interval = interval
         var byCategory: [String: Decimal] = [:]
         for transaction in transactions {
-            if transaction.needsReview { summary.reviewCount += 1 }
             guard let interval else { continue }
             let date = transaction.date
             if date >= interval.end { continue }
@@ -132,13 +141,12 @@ struct GhafHomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
-                    header.ghafEntrance(0)
                     if automationNeedsAttention && Date.now.timeIntervalSince1970 >= automationWarningDismissedUntil {
                         automationWarningCard
                     }
                     if accounts.contains(where: { !$0.isArchived }) {
                         balanceCard(summary).ghafEntrance(1)
-                        actionRow(summary).ghafEntrance(2)
+                        actionRow().ghafEntrance(2)
                         insightCard(summary).ghafEntrance(3)
                         recentActivity.ghafEntrance(4)
                     } else {
@@ -154,6 +162,22 @@ struct GhafHomeView: View {
             .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
             .ghafStatusBarFade(theme: theme)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                header
+                    .ghafScreenPadding()
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .background {
+                        LinearGradient(stops: [
+                            .init(color: theme.background, location: 0),
+                            .init(color: theme.background, location: 0.62),
+                            .init(color: theme.background.opacity(0), location: 1)
+                        ], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 44 + 12 + 28, alignment: .top)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .accessibilityHidden(true)
+                    }
+            }
 #if DEBUG
             .onAppear {
                 if GhafScreenshotFixture.enabled, ["amount-pad", "new-transaction"].contains(GhafScreenshotFixture.screen ?? "") { showQuickAdd = true }
@@ -175,9 +199,15 @@ struct GhafHomeView: View {
             .sheet(isPresented: $showInsights) {
                 GhafInsightsView(settings: settings).presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showReview) {
-                GhafReviewInboxView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            .sheet(isPresented: $showInbox) {
+                GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
+#if DEBUG
+            .sheet(isPresented: $showNotificationSettings) {
+                NavigationStack { GhafNotificationSettingsView(settings: settings) }
+                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            }
+#endif
             .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
@@ -189,6 +219,31 @@ struct GhafHomeView: View {
                 } catch {
                     backupImportError = error.localizedDescription
                 }
+            }
+            .onAppear {
+                GhafEventNotifications.configure()
+                if let target = GhafEventNotifications.consumePendingTarget(), !target.isEmpty {
+                    inboxTargetID = target
+                    router.selectedTab = 0
+                    showInbox = true
+                }
+#if DEBUG
+                switch GhafScreenshotFixture.screen {
+                case "inbox-proof", "inbox-empty", "home-inbox-count":
+                    GhafScreenshotFixture.configureInbox(context: modelContext, settings: settings)
+                    showInbox = GhafScreenshotFixture.screen != "home-inbox-count"
+                case "notification-settings": showNotificationSettings = true
+                default: break
+                }
+                if ProcessInfo.processInfo.arguments.contains("-ghafDebugEvent") {
+                    GhafEventNotifications.scheduleDebugEvent()
+                }
+#endif
+            }
+            .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.openInboxItem)) { note in
+                inboxTargetID = note.object as? String
+                router.selectedTab = 0
+                showInbox = true
             }
             .alert(ar ? "تعذر استيراد النسخة" : "Could not import backup", isPresented: Binding(
                 get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
@@ -481,14 +536,35 @@ struct GhafHomeView: View {
 
     // MARK: Big pill actions
 
-    private func actionRow(_ summary: Summary) -> some View {
+    private func actionRow() -> some View {
         HStack(spacing: 10) {
             GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
                            prominent: true) { showQuickAdd = true }
             GhafPillButton(title: ar ? "اشتراكات" : "Subs", icon: "repeat", theme: theme,
                            languageCode: lang) { showSubscriptions = true }
-            GhafPillButton(title: ar ? "مراجعة" : "Review", icon: "tray.full.fill", theme: theme,
-                           languageCode: lang, badge: summary.reviewCount) { showReview = true }
+            Button { showInbox = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "tray.full.fill").font(.system(size: 16, weight: .bold))
+                    Text(ar ? "الوارد" : "Inbox")
+                        .font(GhafTypography.body(15, languageCode: lang, weight: .bold))
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                    if inboxCount > 0 {
+                        Text("\(inboxCount)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                            .padding(.horizontal, 7).frame(minHeight: 22)
+                            .background(theme.accent.opacity(0.14), in: Capsule())
+                            .overlay(Capsule().stroke(theme.accent.opacity(0.35), lineWidth: 1))
+                    }
+                }
+                .foregroundStyle(theme.primaryText)
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .padding(.horizontal, 10)
+                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.ghafPress)
+            .accessibilityLabel(ar ? "الوارد، \(inboxCount)" : "Inbox, \(inboxCount)")
         }
     }
 

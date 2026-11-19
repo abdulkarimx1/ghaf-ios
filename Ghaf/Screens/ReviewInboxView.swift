@@ -14,10 +14,16 @@ struct GhafReviewInboxView: View {
     @Query(sort: \GhafAccount.sortOrder)
     private var accounts: [GhafAccount]
 
+    @Query(filter: #Predicate<GhafSubscription> { $0.needsConfirmation }, sort: \GhafSubscription.nextPaymentDate)
+    private var detectedSubscriptions: [GhafSubscription]
+
     @State private var selectedTransaction: GhafTransaction?
+    @State private var showSubscriptions = false
+    @State private var alerts = GhafEventNotifications.events
     @State private var confirmed = 0
 
     let settings: GhafSettings
+    var initialTargetID: String? = nil
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -29,23 +35,49 @@ struct GhafReviewInboxView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    header.ghafEntrance(0)
-                    if reviewTransactions.isEmpty {
-                        allClear.ghafEntrance(1)
-                    } else {
-                        ForEach(reviewTransactions, id: \.id) { transaction in
-                            card(transaction)
-                                .transition(.asymmetric(insertion: .opacity, removal: .scale(scale: 0.9).combined(with: .opacity)))
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        header.ghafEntrance(0)
+                        if reviewTransactions.isEmpty && detectedSubscriptions.isEmpty && alerts.isEmpty {
+                            allClear.ghafEntrance(1)
+                        } else {
+                            if !reviewTransactions.isEmpty {
+                                inboxSection(ar ? "تحتاج إلى مراجعة" : "Needs review") {
+                                    ForEach(reviewTransactions, id: \.id) { transaction in
+                                        card(transaction).id(transaction.id.uuidString)
+                                    }
+                                }
+                            }
+                            if !detectedSubscriptions.isEmpty {
+                                inboxSection(ar ? "اشتراكات مرصودة" : "Detected subscriptions") {
+                                    ForEach(detectedSubscriptions, id: \.id) { subscription in
+                                        detectedSubscriptionRow(subscription).id(subscription.id.uuidString)
+                                    }
+                                }
+                            }
+                            if !alerts.isEmpty {
+                                inboxSection(ar ? "التنبيهات" : "Alerts") {
+                                    ForEach(alerts) { event in
+                                        alertRow(event).id(event.itemID ?? event.id)
+                                    }
+                                }
+                            }
                         }
                     }
+                    .ghafScreenPadding()
+                    .padding(.top, 18)
+                    .padding(.bottom, 30)
+                    .frame(maxWidth: 620)
+                    .frame(maxWidth: .infinity)
                 }
-                .ghafScreenPadding()
-                .padding(.top, 18)
-                .padding(.bottom, 30)
-                .frame(maxWidth: 620)
-                .frame(maxWidth: .infinity)
+                .onAppear {
+                    GhafEventNotifications.configure()
+                    if let initialTargetID { DispatchQueue.main.async { proxy.scrollTo(initialTargetID, anchor: .top) } }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) { _ in
+                    alerts = GhafEventNotifications.events
+                }
             }
             .ghafBackground(theme: theme)
             .toolbar {
@@ -60,27 +92,19 @@ struct GhafReviewInboxView: View {
                                       appearanceMode: settings.appearanceMode, languageCode: lang, accounts: activeAccounts)
                     .presentationDragIndicator(.visible).ghafDirection(lang)
             }
+            .sheet(isPresented: $showSubscriptions) {
+                GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(lang)
+            }
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
     private var header: some View {
         VStack(spacing: 8) {
-            GhafStatusMark(tint: reviewTransactions.isEmpty ? theme.comfortable : theme.close) {
-                Image(systemName: reviewTransactions.isEmpty ? "checkmark" : "tray.full.fill")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(reviewTransactions.isEmpty ? theme.comfortable : theme.close)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            Text(reviewTransactions.isEmpty ? (ar ? "كل شيء مؤكد" : "All confirmed")
-                 : ar ? "\(reviewTransactions.count) للمراجعة" : "\(reviewTransactions.count) to review")
+            Text(ar ? "الوارد" : "Inbox")
                 .font(GhafTypography.display(30, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
-                .contentTransition(.numericText())
-            Text(reviewTransactions.isEmpty
-                 ? (ar ? "لا توجد عمليات تنتظر قرارك." : "Nothing is waiting for you.")
-                 : (ar ? "أكّد الصحيح وصحّح الباقي. كل تصحيح يتعلمه غاف للمرة القادمة."
-                       : "Confirm what's right, fix what isn't. Ghaf learns every correction."))
+            Text(ar ? "العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, subscriptions and alerts that need your attention.")
                 .font(GhafTypography.body(14, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
         }
@@ -89,14 +113,55 @@ struct GhafReviewInboxView: View {
     }
 
     private var allClear: some View {
-        Text(ar ? "العمليات التي لا يتأكد منها غاف، مثل حساب غير معروف أو فئة غير واضحة، تظهر هنا."
-                : "Anything Ghaf isn't sure about, like an unknown account or an unclear category, shows up here.")
-            .font(GhafTypography.body(14, languageCode: lang))
-            .foregroundStyle(theme.secondaryText)
-            .multilineTextAlignment(.center)
-            .padding(GhafMetrics.cardPadding)
-            .frame(maxWidth: .infinity)
-            .ghafCard(theme: theme)
+        VStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(theme.comfortable)
+            Text(ar ? "لا شيء ينتظر مراجعتك" : "You're all caught up")
+                .font(GhafTypography.heading(20, languageCode: lang)).foregroundStyle(theme.primaryText)
+            Text(ar ? "ستظهر هنا العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, detected subscriptions and alerts will appear here.")
+                .font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .padding(24).frame(maxWidth: .infinity).frame(minHeight: 300)
+        .ghafCard(theme: theme)
+    }
+
+    private func inboxSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(GhafTypography.heading(19, languageCode: lang)).foregroundStyle(theme.primaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            content()
+        }
+    }
+
+    private func detectedSubscriptionRow(_ subscription: GhafSubscription) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "repeat.circle.fill").font(.system(size: 22)).foregroundStyle(theme.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(subscription.name).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Text(ar ? "رُصد اشتراك متكرر. راجعه قبل تفعيله." : "A recurring charge was detected. Review it before tracking.")
+                    .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+            }
+            Spacer(minLength: 8)
+            Button(ar ? "مراجعة" : "Review") { showSubscriptions = true }
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
+        }
+        .padding(16).ghafCard(theme: theme)
+    }
+
+    private func alertRow(_ event: GhafInboxEvent) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: event.kind == .budgetThreshold ? "chart.bar.fill" : event.kind == .subscriptionDue ? "calendar" : "bell.fill")
+                .font(.system(size: 17, weight: .semibold)).foregroundStyle(theme.accent).frame(width: 34, height: 34)
+                .background(theme.accent.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Text(event.message).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                Text(event.date.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang))))
+                    .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16).ghafCard(theme: theme)
     }
 
     /// Why Ghaf held this one back, in the order the user should fix things.
