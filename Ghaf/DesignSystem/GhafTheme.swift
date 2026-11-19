@@ -57,7 +57,7 @@ struct GhafTheme {
                         en: "Arts, heritage and lanterns", ar: "الفنون والتراث والفوانيس"),
         "Ajman": City(accent: (rgb(0x13704F), rgb(0x5FD3A0)), glow: (rgb(0x3FB283), rgb(0xA8F0CF)),
                       canvas: (rgb(0xEDF3EF), rgb(0x0A0F0D)), card: (rgb(0xFBFEFC), rgb(0x151C19)),
-                      en: "Mangroves and the corniche", ar: "أشجار القرم والكورنيش"),
+                      en: "The corniche and the creek", ar: "الكورنيش والخور"),
         "Umm Al Quwain": City(accent: (rgb(0x0F6E7D), rgb(0x62CFDD)), glow: (rgb(0x3AB3C2), rgb(0xA6EEF6)),
                               canvas: (rgb(0xECF4F5), rgb(0x090F10)), card: (rgb(0xFBFEFE), rgb(0x141C1E)),
                               en: "Lagoons and quiet water", ar: "البحيرات والمياه الهادئة"),
@@ -66,7 +66,7 @@ struct GhafTheme {
                                en: "Jebel Jais at sunset", ar: "جبل جيس عند الغروب"),
         "Fujairah": City(accent: (rgb(0x55622A), rgb(0xBFD07A)), glow: (rgb(0x8FA34A), rgb(0xE0EDA8)),
                          canvas: (rgb(0xF1F2EC), rgb(0x0D0E0A)), card: (rgb(0xFDFDF9), rgb(0x191B14)),
-                         en: "Hajar mountains and dates", ar: "جبال الحجر والنخيل"),
+                         en: "Hajar mountains and the sea", ar: "جبال الحجر والبحر"),
         "Graphite": City(accent: (rgb(0x111214), rgb(0xF2F2F4)), glow: (rgb(0x6B6E76), rgb(0xC8CAD0)),
                          canvas: (rgb(0xF2F3F5), rgb(0x0B0C0E)), card: (.white, rgb(0x17181B)),
                          en: "Quiet and neutral", ar: "هادئ ومحايد")
