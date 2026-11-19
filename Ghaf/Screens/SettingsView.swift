@@ -61,6 +61,8 @@ struct GhafSettingsView: View {
     @State private var fixtureGlassPresented = false
 #endif
 
+    @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
 
     private var theme: GhafTheme {
@@ -77,26 +79,36 @@ struct GhafSettingsView: View {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     profileHeader
 
-                    // One quiet Pro card; the plans, the reason Ghaf is paid and the terms all live on its page.
-                    NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "sparkles").font(.system(size: 20, weight: .bold)).foregroundStyle(theme.accentContrast)
-                                .frame(width: 48, height: 48)
-                                .background(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Ghaf Pro").font(GhafTypography.heading(17, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                                Text(ar ? "ادعم غاف واحصل على المزيد" : "Support Ghaf and get more")
-                                    .font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: ar ? "chevron.left" : "chevron.right")
-                                .font(.system(size: 13, weight: .bold)).foregroundStyle(theme.secondaryText)
+                    if proUnlocked {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sparkles").foregroundStyle(theme.accent)
+                            Text(ar ? "أنت مشترك في Pro" : "You're on Pro")
+                                .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                            Spacer()
                         }
                         .padding(GhafMetrics.cardPadding)
                         .ghafCard(theme: theme)
+                    } else {
+                        NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Ghaf Pro")
+                                    .font(GhafTypography.heading(22, languageCode: languageCode).weight(.bold))
+                                    .foregroundStyle(theme.primaryText)
+                                Text(ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.")
+                                    .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                                Text(ar ? "عرض الخطط" : "See plans")
+                                    .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
+                                    .foregroundStyle(theme.accentContrast)
+                                    .frame(maxWidth: .infinity, minHeight: 56)
+                                    .background(theme.accent, in: Capsule())
+                            }
+                            .padding(GhafMetrics.cardPadding)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(theme.accent.opacity(theme.isDark ? 0.12 : 0.07), in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+                            .ghafCard(theme: theme)
+                        }
+                        .buttonStyle(.ghafPress)
                     }
-                    .buttonStyle(.ghafPress)
 
                     menuGroup(ar ? "المال" : "Money") {
                         menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
@@ -158,6 +170,7 @@ struct GhafSettingsView: View {
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear {
                 loadSettings()
+                proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
 #if DEBUG
                 if GhafScreenshotFixture.enabled, GhafScreenshotFixture.screen == "settings-glass" { fixtureGlassPresented = true }
 #endif
