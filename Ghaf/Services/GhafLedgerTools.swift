@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -13,6 +14,7 @@ enum GhafLedgerContext {
     static var languageCode = "en"
     /// Set by the chart tool when the model decides a chart helps; read once by the chat.
     static var requestedChart: (kind: String, style: String)?
+    static var modelContext: ModelContext?
 }
 
 #if canImport(FoundationModels)
