@@ -54,7 +54,7 @@ private struct GhafSparkline: View {
 struct GhafTrendsWidget: Widget {
     static let kind = "GhafTrends"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: Self.kind, intent: GhafTrendsConfig.self, provider: GhafConfigProvider<GhafTrendsConfig>()) { entry in
+        AppIntentConfiguration(kind: Self.kind, intent: GhafTrendsConfig.self, provider: GhafConfigProvider<GhafTrendsConfig>(kind: Self.kind)) { entry in
             GhafTrendsView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
                 .containerBackground(for: .widget) { GhafTile(entry.config.style, entry.snapshot).background }
         }

@@ -10,7 +10,11 @@ import UIKit
 enum GhafWidgetSync {
     static let liveActivityKey = "ghaf.liveActivity"
     /// Which channels the last refresh could write, shown in Notifications & widgets so a broken install is visible.
-    static private(set) var lastChannels: (group: Bool, keychain: Bool)?
+    static private(set) var lastChannels: (group: Bool, keychain: Bool)? = {
+        guard let values = UserDefaults.standard.dictionary(forKey: "ghaf.widget.channels"),
+              let group = values["group"] as? Bool, let keychain = values["keychain"] as? Bool else { return nil }
+        return (group, keychain)
+    }()
 
     /// Recomputes what the widgets show and asks WidgetKit to redraw them.
     static func refresh(context: ModelContext) {
@@ -88,6 +92,8 @@ enum GhafWidgetSync {
                              symbol: GhafCategoryIcon.builtIn($0.category)?.symbol ?? "repeat") }
         }
         lastChannels = snapshot.save()
+        UserDefaults.standard.set(["group": lastChannels?.group ?? false, "keychain": lastChannels?.keychain ?? false],
+                                  forKey: "ghaf.widget.channels")
         WidgetCenter.shared.reloadAllTimelines()
     }
 
