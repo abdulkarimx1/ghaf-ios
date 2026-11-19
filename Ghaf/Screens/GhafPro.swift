@@ -34,7 +34,8 @@ struct GhafProView: View {
     var showsClose = true
 
     @State private var plan: GhafProPlan = .yearly
-    @State private var showPrototypePurchase = false
+    @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+    @State private var restoreMessage: String?
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -85,16 +86,40 @@ struct GhafProView: View {
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
 
-                Button { showPrototypePurchase = true } label: {
-                    Text(ar ? "متابعة شراء تجريبي" : "Continue with test purchase")
-                        .frame(maxWidth: .infinity)
-                }
-                .ghafProminentButton(theme: theme, languageCode: lang)
-
-                Button { showPrototypePurchase = true } label: { Text(ar ? "استعادة المشتريات" : "Restore purchases") }
+                if proUnlocked {
+                    Label(ar ? "أنت على Pro (تجريبي)" : "You're on Pro (test)", systemImage: "checkmark.circle.fill")
+                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.credit)
+                        .frame(minHeight: 44)
+                    Button(ar ? "إنهاء الاختبار" : "End test") {
+                        UserDefaults.standard.set(false, forKey: "ghaf.pro.testUnlocked")
+                        proUnlocked = false
+                    }
                     .font(GhafTypography.body(15, languageCode: lang, weight: .medium))
                     .foregroundStyle(theme.secondaryText)
                     .frame(minHeight: 44)
+                } else {
+                    Button {
+                        UserDefaults.standard.set(true, forKey: "ghaf.pro.testUnlocked")
+                        proUnlocked = true
+                        restoreMessage = nil
+                    } label: {
+                        Text(ar ? "متابعة شراء تجريبي" : "Continue with test purchase")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .ghafProminentButton(theme: theme, languageCode: lang)
+
+                    Button {
+                        proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+                        restoreMessage = proUnlocked ? (ar ? "تمت استعادة Pro (تجريبي)" : "Pro (test) restored") : (ar ? "لا توجد مشتريات لاستعادتها" : "Nothing to restore")
+                    } label: { Text(ar ? "استعادة المشتريات" : "Restore purchases") }
+                        .font(GhafTypography.body(15, languageCode: lang, weight: .medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .frame(minHeight: 44)
+                    if let restoreMessage {
+                        Text(restoreMessage).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                    }
+                }
 
                 Text(ar ? "الأسعار أمثلة فقط. هذا الإصدار لا يتصل بمتجر Apple ولا يأخذ أي دفعة." : "Example prices only. This build does not connect to the App Store or take payment.")
                     .font(GhafTypography.body(12, languageCode: lang))
@@ -119,7 +144,6 @@ struct GhafProView: View {
             }
         }
         .sensoryFeedback(.selection, trigger: plan)
-        .sheet(isPresented: $showPrototypePurchase) { GhafProSheet(settings: settings, feature: ("Ghaf Pro", "غاف Pro")).ghafDirection(lang) }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
