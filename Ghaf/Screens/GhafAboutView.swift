@@ -72,10 +72,10 @@ struct GhafAboutView: View {
     }
 
     private var hero: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Image("GhafBrandMark")
                 .resizable().scaledToFit()
-                .frame(width: 92, height: 92)
+                .frame(width: 76, height: 76)
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
                 .scaleEffect(appeared ? 1 : 0.7)
@@ -90,15 +90,10 @@ struct GhafAboutView: View {
                 .padding(.horizontal, 12).padding(.vertical, 5)
                 .background(theme.accentContrast.opacity(0.15), in: Capsule())
         }
-        // Text follows the accent's own contrast colour, so light accents (Graphite, dark mode) get dark text.
-        .foregroundStyle(theme.accentContrast)
+        .foregroundStyle(theme.primaryText)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 30)
-        .background {
-            ZStack {
-                LinearGradient(colors: [theme.accent, theme.glow], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
-        }
+        .padding(.vertical, 20)
+        .background(theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 

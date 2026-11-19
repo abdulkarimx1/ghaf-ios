@@ -295,6 +295,16 @@ struct GhafAccountEditorView: View {
         .contentMargins(.bottom, 112, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .ghafBackground(theme: theme)
+        .overlay(alignment: .top) {
+            LinearGradient(stops: [.init(color: theme.background.opacity(0), location: 0),
+                                   .init(color: theme.background, location: 0.2),
+                                   .init(color: theme.background.opacity(0), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(height: 40)
+                .offset(y: -44)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .tint(theme.accent)
         .safeAreaInset(edge: .bottom) {
             GhafDetailActionBar(theme: theme, languageCode: lang,

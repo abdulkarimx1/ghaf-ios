@@ -299,7 +299,6 @@ struct GhafSegmented<Value: Hashable>: View {
     let theme: GhafTheme
     var languageCode = "en"
     var selectionIsActive = true
-    @Namespace private var selectionAnimation
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -313,7 +312,7 @@ struct GhafSegmented<Value: Hashable>: View {
                         .foregroundStyle(selectionIsActive && selection == option.0 ? theme.accentContrast : theme.secondaryText)
                         .frame(maxWidth: .infinity, minHeight: GhafMetrics.segmentedSegmentHeight)
                         .background {
-                            if selectionIsActive && selection == option.0 { Capsule().fill(theme.accent).matchedGeometryEffect(id: "selection", in: selectionAnimation) }
+                            if selectionIsActive && selection == option.0 { Capsule().fill(theme.accent) }
                         }
                         .contentShape(Capsule())
                 }
