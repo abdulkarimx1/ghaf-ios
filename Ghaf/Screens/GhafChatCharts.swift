@@ -135,6 +135,7 @@ enum GhafChatChartBuilder {
 }
 
 struct GhafChatChartView: View {
+    @Environment(\.ghafGlass) private var glass
     let chart: GhafChatChart
     let theme: GhafTheme
     let languageCode: String
@@ -239,8 +240,13 @@ struct GhafChatChartView: View {
 
     private var bars: some View {
         Chart(chart.points) { point in
+            if glass.enabled && chart.style == .line {
+                LineMark(x: .value("Day", point.label), y: .value(chart.currency, drawn ? point.value : 0))
+                    .foregroundStyle(theme.accent.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 6, lineCap: .round)).blur(radius: 6)
+                    .interpolationMethod(.catmullRom)
+            }
             BarMark(x: .value("Label", point.label), y: .value(chart.currency, drawn ? point.value : 0))
-                .foregroundStyle(point.label == selected || (selected == nil && point.highlight)
+                .foregroundStyle(glass.enabled || point.label == selected || (selected == nil && point.highlight)
                                  ? AnyShapeStyle(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom))
                                  : AnyShapeStyle(theme.accent.opacity(isDimmed(point) ? 0.18 : 0.35)))
                 .cornerRadius(7)
@@ -251,7 +257,11 @@ struct GhafChatChartView: View {
                     }
                 }
         }
-        .chartYAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine().foregroundStyle(glass.enabled ? Color.white.opacity(0.05) : .clear)
+            }
+        }
         // Headroom so the value labels above the tallest bar are never cut off.
         .chartYScale(domain: 0...(maxValue * 1.25))
         .chartXAxis {
@@ -337,6 +347,10 @@ struct GhafChatChartView: View {
                         Text(point.value, format: .number.precision(.fractionLength(0)))
                             .font(.system(size: 11, weight: .bold)).foregroundStyle(theme.primaryText)
                     }
+            }
+            if glass.enabled && chart.style == .line && point.highlight {
+                PointMark(x: .value("Day", point.label), y: .value(chart.currency, point.value))
+                    .foregroundStyle(.white).symbolSize(100).shadow(color: theme.accent.opacity(0.8), radius: 7)
             }
         }
         .chartXAxis { AxisMarks(values: .stride(by: 5)) }
