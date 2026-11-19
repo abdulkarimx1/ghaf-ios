@@ -11,7 +11,7 @@ enum GhafScreenshotFixture {
     static var theme: String { value("GhafTheme") ?? "Graphite" }
     static var appearance: String { value("GhafAppearance") ?? "Light" }
     static var language: String { value("GhafLanguage") ?? "en" }
-    static var tab: String { value("GhafTab") ?? "home" }
+    static var tab: String { value("GhafTab") ?? (["ai-typing", "ai-conversation"].contains(value("GhafScreen") ?? "") ? "ai" : "home") }
     static var selection: String? { value("GhafSelection") }
     static var period: String? { value("GhafPeriod") }
     static var screen: String? {
