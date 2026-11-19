@@ -353,8 +353,11 @@ struct GhafAIView: View {
                             .foregroundStyle(theme.primaryText)
                             .padding(.horizontal, 16)
                             .frame(minHeight: 40)
-                            .background(.ultraThinMaterial.opacity(0.6), in: Capsule())
-                            .background(.white.opacity(0.07), in: Capsule())
+                            .background {
+                                if glassStyle.enabled { Capsule().fill(Color.clear) }
+                                else { Capsule().fill(.ultraThinMaterial.opacity(0.6)).overlay(Capsule().fill(.white.opacity(0.07))) }
+                            }
+                            .ghafGlassShape(theme: theme, shape: Capsule(), fallback: .clear)
                             .overlay(Capsule().stroke(.white.opacity(0.14)))
                     }
                     .buttonStyle(.ghafPress)
@@ -613,8 +616,12 @@ struct GhafAIView: View {
                 .accessibilityLabel(voiceMode ? (ar ? "إيقاف المحادثة الصوتية" : "Stop talking") : (ar ? "تحدث مع غاف" : "Talk with Ghaf"))
             }
             .padding(6)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .background {
+                let shape = RoundedRectangle(cornerRadius: 30, style: .continuous)
+                if glassStyle.enabled { shape.fill(Color.clear) }
+                else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.12))) }
+            }
+            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 30, style: .continuous), fallback: .clear)
             .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .stroke((recorder.isRecording || isThinking || inputFocused) ? theme.accent.opacity(0.8) : .white.opacity(0.28),
                         lineWidth: (recorder.isRecording || isThinking || inputFocused) ? 1.5 : 1)

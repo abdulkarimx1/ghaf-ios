@@ -190,7 +190,7 @@ struct GhafAboutView: View {
                 Image(systemName: symbol)
                     .font(.system(size: 18, weight: .semibold))
                     .frame(width: 52, height: 52)
-                    .background(theme.surface, in: Circle())
+                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
                     .foregroundStyle(theme.primaryText)
                 Text(name)
                     .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))

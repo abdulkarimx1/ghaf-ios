@@ -1013,7 +1013,7 @@ struct GhafOnboardingView: View {
                         }
                     }
                     .padding(14)
-                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.outline, lineWidth: 1))
                 }
 
@@ -1078,7 +1078,7 @@ struct GhafOnboardingView: View {
                     .font(GhafTypography.body(14, languageCode: languageCode))
                     .keyboardType(.decimalPad)
                     .padding(12)
-                    .background(theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                    .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 12), fallback: theme.surface)
 
                     Picker(
                         languageCode == "ar" ? "إيداع الراتب في" : "Salary is deposited into",
@@ -1197,7 +1197,7 @@ struct GhafOnboardingView: View {
             .keyboardType(numeric ? .decimalPad : .default)
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
-            .background(theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 14, style: .continuous), fallback: theme.surface)
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.outline, lineWidth: 1))
     }
 

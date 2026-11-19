@@ -709,7 +709,7 @@ private struct GhafSubscriptionDetailView: View {
                 .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.primaryText)
                 .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 12)
-                .background(theme.surface, in: Capsule())
+                .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
         }
         .padding(.horizontal, 4)
     }

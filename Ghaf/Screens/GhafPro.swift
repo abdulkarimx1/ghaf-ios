@@ -197,7 +197,7 @@ struct GhafProView: View {
                     .environment(\.layoutDirection, .leftToRight)
             }
             .padding(16)
-            .background(theme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 20, style: .continuous), fallback: theme.surface)
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(selected ? theme.accent : theme.outline, lineWidth: selected ? 2 : 1))
         }
         .buttonStyle(.ghafPress)
@@ -309,7 +309,7 @@ struct GhafProSheet: View {
                     Spacer()
                     Button { dismiss() } label: {
                         Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText)
-                            .frame(width: 44, height: 44).background(theme.elevatedSurface, in: Circle())
+                            .frame(width: 44, height: 44).ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.elevatedSurface)
                     }
                     .accessibilityLabel(ar ? "إغلاق" : "Close")
                 }
@@ -372,7 +372,7 @@ struct GhafProSheet: View {
             .padding(.horizontal, GhafMetrics.gutter).padding(.top, 16).padding(.bottom, 20)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .background(theme.surface)
+        .ghafGlassShape(theme: theme, shape: Rectangle(), fallback: theme.surface)
         .presentationDetents([.large, .fraction(0.78)])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(36)

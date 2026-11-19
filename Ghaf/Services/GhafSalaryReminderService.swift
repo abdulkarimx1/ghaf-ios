@@ -102,7 +102,7 @@ struct GhafSalaryCheckInView: View {
                         .font(GhafTypography.number(25, weight: .bold))
                         .keyboardType(.decimalPad)
                         .padding(15)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 14), fallback: theme.surface)
                 }
 
                 VStack(alignment: .leading, spacing: 7) {

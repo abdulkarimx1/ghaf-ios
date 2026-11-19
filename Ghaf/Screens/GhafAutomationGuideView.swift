@@ -127,7 +127,7 @@ struct GhafAutomationGuideView: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 4)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 22, style: .continuous), fallback: theme.surface)
     }
 
     private var shortcutReadyCard: some View {
@@ -167,7 +167,7 @@ struct GhafAutomationGuideView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(18)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 22, style: .continuous), fallback: theme.surface)
         .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.outline, lineWidth: 1))
     }
 
@@ -211,7 +211,7 @@ struct GhafAutomationGuideView: View {
                 Button { withAnimation(.snappy) { step = max(0, step - 1) } } label: {
                     Image(systemName: "chevron.backward").font(.system(size: 17, weight: .bold))
                         .foregroundStyle(theme.primaryText)
-                        .frame(width: 48, height: 48).background(theme.surface, in: Circle())
+                        .frame(width: 48, height: 48).ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
                 }
                 .disabled(step == 0)
                 .accessibilityLabel(localized("Previous step", "الخطوة السابقة"))

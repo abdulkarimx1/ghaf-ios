@@ -170,7 +170,7 @@ struct GhafBudgetView: View {
                     .foregroundStyle(theme.secondaryText)
                 }
                 .padding(14)
-                .background(theme.elevatedSurface.opacity(0.6), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 18, style: .continuous), fallback: theme.elevatedSurface.opacity(0.6))
             }
         }
         .padding(18)

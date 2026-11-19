@@ -22,6 +22,10 @@ extension View {
         modifier(GhafGlassSurface(theme: theme, radius: radius, hero: true, fallback: fallback))
     }
 
+    func ghafGlassShape<S: Shape>(theme: GhafTheme, shape: S, fallback: Color) -> some View {
+        modifier(GhafGlassShapeSurface(theme: theme, shape: shape, fallback: fallback))
+    }
+
     /// Full-width primary action: a bold accent capsule.
     func ghafProminentButton(theme: GhafTheme, languageCode: String = "en") -> some View {
         buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, prominent: true))
@@ -30,6 +34,29 @@ extension View {
     /// Full-width secondary action: a tonal capsule.
     func ghafGlassButton(theme: GhafTheme, languageCode: String = "en") -> some View {
         buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, prominent: false))
+    }
+}
+
+private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
+    let theme: GhafTheme
+    let shape: S
+    let fallback: Color
+    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    func body(content: Content) -> some View {
+        content.background {
+            if glass.enabled && !reduceTransparency {
+                let opacity: Double = glass.intensity == .subtle ? 0.35 : glass.intensity == .balanced ? 0.45 : 0.55
+                let material: Material = glass.intensity == .subtle ? .ultraThin : glass.intensity == .balanced ? .thin : .regular
+                ZStack {
+                    shape.fill(material)
+                    shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
+                    if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
+                }
+                .overlay { shape.stroke(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: contrast == .increased ? 1.6 : 1) }
+            } else { shape.fill(fallback) }
+        }
     }
 }
 

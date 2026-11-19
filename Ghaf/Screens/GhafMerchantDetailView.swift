@@ -34,7 +34,7 @@ struct GhafMerchantDetailView: View {
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .frame(maxWidth: .infinity)
                         .padding(14)
-                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
                         .foregroundStyle(theme.accent)
                 }
                 .buttonStyle(.ghafPress)
@@ -142,7 +142,7 @@ struct GhafMerchantDetailView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
     }
 
     /// Spending at a physical place; online services and subscriptions have no shop to show.

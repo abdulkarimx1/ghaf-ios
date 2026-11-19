@@ -233,7 +233,7 @@ struct GhafSettingsView: View {
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.primaryText)
                 .padding(.horizontal, 16).frame(height: 36)
-                .background(theme.surface, in: Capsule())
+                .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                 .shadow(color: theme.shadow, radius: 8, y: 3)
             }
             .frame(maxWidth: .infinity)

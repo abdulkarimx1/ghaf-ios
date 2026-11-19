@@ -206,7 +206,7 @@ struct GhafChatChartView: View {
             }
         }
         .padding(3)
-        .background(theme.elevatedSurface, in: Capsule())
+        .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.elevatedSurface)
     }
 
     var body: some View {

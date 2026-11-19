@@ -76,7 +76,7 @@ struct GhafScreenTitle: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 44, height: 44)
-                        .background(theme.surface, in: Circle())
+                        .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
                         .shadow(color: theme.shadow, radius: 8, y: 3)
                 }
                 .buttonStyle(.ghafPress)
