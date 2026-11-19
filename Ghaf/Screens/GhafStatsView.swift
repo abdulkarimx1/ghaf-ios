@@ -16,6 +16,7 @@ struct GhafStatsView: View {
     @State private var period: Period = .month
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
+    @State private var selectedBreakdownDay: Date?
     @State private var showPro = false
     @State private var showProSheet = false
 
@@ -37,6 +38,7 @@ struct GhafStatsView: View {
     // MARK: Data
 
     private struct Bucket: Identifiable { let start: Date; let total: Double; var id: Date { start } }
+    private struct DayBar: Identifiable { let date: Date; let amount: Double; var id: Date { date } }
     private struct Slice: Identifiable { let category: String; let total: Double; var id: String { category } }
 
     private var interval: DateInterval {
@@ -373,26 +375,55 @@ struct GhafStatsView: View {
     }
 
     private func weekBreakdown(_ bucket: Bucket, transactions: [GhafTransaction]) -> some View {
-        let days = (0..<7).compactMap { offset -> (Date, Decimal)? in
-            guard let date = calendar.date(byAdding: .day, value: offset, to: bucket.start), date < interval.end, date <= .now else { return nil }
-            let amount = transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }
-                .reduce(Decimal.zero) { $0 + $1.spendingAmount }
-            return (date, amount)
+        let days = (0..<7).compactMap { offset -> DayBar? in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: bucket.start) else { return nil }
+            let amount = date <= .now && date < interval.end
+                ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
+                : 0
+            return DayBar(date: date, amount: NSDecimalNumber(decimal: amount).doubleValue)
         }
-        let maximum = max(1, days.map { NSDecimalNumber(decimal: $0.1).doubleValue }.max() ?? 0)
-        return HStack(alignment: .bottom, spacing: 6) {
-            ForEach(days, id: \.0) { date, amount in
-                VStack(spacing: 4) {
-                    Text(GhafCompactNumber.string(NSDecimalNumber(decimal: amount).doubleValue, languageCode: lang))
-                        .font(GhafTypography.body(9, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
-                    Capsule().fill(theme.accent.opacity(0.6))
-                        .frame(height: max(4, 34 * NSDecimalNumber(decimal: amount).doubleValue / maximum))
-                    Text(date.formatted(.dateTime.day().locale(Locale(identifier: lang))))
-                        .font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                }.frame(maxWidth: .infinity)
+        let first = days.first?.date ?? bucket.start
+        let last = calendar.date(byAdding: .day, value: 6, to: bucket.start) ?? bucket.start
+        let range = "\(first.formatted(.dateTime.day().locale(Locale(identifier: lang))))–\(last.formatted(.dateTime.day().locale(Locale(identifier: lang)))) \(last.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))"
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("\(range) · \(ar ? "حسب اليوم" : "by day")")
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
+            Chart(days) { day in
+                BarMark(x: .value("Day", chartKey(day.date)),
+                        y: .value("Spent", day.amount))
+                    .foregroundStyle(theme.accent.opacity(calendar.isDateInToday(day.date) ? 1 : 0.35))
+                    .cornerRadius(6)
+                    .annotation(position: .top, spacing: 3) {
+                        if selectedBreakdownDay == day.date {
+                            Text(GhafCompactNumber.string(day.amount, languageCode: lang))
+                                .font(GhafTypography.body(10, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                        }
+                    }
             }
+            .chartOverlay { proxy in
+                GeometryReader { geometry in
+                    Rectangle().fill(.clear).contentShape(Rectangle()).gesture(SpatialTapGesture().onEnded { value in
+                        guard let frame = proxy.plotFrame else { return }
+                        let x = value.location.x - geometry[frame].minX
+                        guard let label: String = proxy.value(atX: x), let day = days.first(where: { chartKey($0.date) == label }) else { return }
+                        selectedBreakdownDay = selectedBreakdownDay == day.date ? nil : day.date
+                    })
+                }
+            }
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        if let key = value.as(String.self), let day = days.first(where: { chartKey($0.date) == key }) {
+                            Text(day.date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: lang))))
+                                .foregroundStyle(theme.secondaryText.opacity(day.date > .now ? 0.4 : 1))
+                        }
+                    }
+                }
+            }
+            .chartYAxis(.hidden)
+            .frame(height: 78)
         }
-        .padding(.horizontal, 14).padding(.vertical, 12)
+        .padding(GhafMetrics.cardPadding).ghafStatsCard(theme: theme, radius: 22)
         .accessibilityLabel(ar ? "تفصيل المصروف اليومي لهذا الأسبوع" : "Daily spending breakdown for this week")
     }
 
