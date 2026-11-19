@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 
 struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Query private var settings: [GhafSettings]
 
@@ -47,6 +48,7 @@ struct GhafRootView: View {
                     .zIndex(20)
             }
         }
+        .toggleStyle(GhafToggleStyle(theme: GhafTheme.resolve(name: settings.first?.themeName ?? "Abu Dhabi", appearanceMode: settings.first?.appearanceMode ?? "System", systemIsDark: systemColorScheme == .dark), languageCode: languageCode))
         .environment(\.locale, Locale(identifier: languageCode))
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -613,7 +615,7 @@ struct GhafOnboardingView: View {
                 .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 Image(systemName: "arrow.down").font(.system(size: 20, weight: .bold)).foregroundStyle(storyInk.opacity(0.7))
                 HStack(spacing: 12) {
-                    GhafCategoryIcon(category: "Groceries", tint: storyInk)
+                    GhafCategoryIcon(category: "Groceries", tint: storyInk, theme: theme)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(localized("Carrefour", "كارفور")).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
                         Text(localized("Groceries · Mashreq", "بقالة · المشرق")).font(GhafTypography.body(12, languageCode: languageCode)).opacity(0.7)
@@ -967,14 +969,7 @@ struct GhafOnboardingView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 onboardingLabel(languageCode == "ar" ? "كيف تريد بدء الأرصدة؟" : "HOW SHOULD BALANCES START?")
-                Picker(
-                    languageCode == "ar" ? "طريقة بدء الأرصدة" : "Starting balances",
-                    selection: $balanceSetupMode
-                ) {
-                    Text(languageCode == "ar" ? "ابدأ من الصفر" : "Start at zero").tag("zero")
-                    Text(languageCode == "ar" ? "أدخل الأرصدة الحالية" : "Enter current balances").tag("manual")
-                }
-                .pickerStyle(.segmented)
+                GhafSegmented(options: [("zero", languageCode == "ar" ? "ابدأ من الصفر" : "Start at zero"), ("manual", languageCode == "ar" ? "أدخل الأرصدة الحالية" : "Enter current balances")], selection: $balanceSetupMode, theme: theme, languageCode: languageCode)
             }
 
             VStack(alignment: .leading, spacing: 12) {
@@ -1101,7 +1096,7 @@ struct GhafOnboardingView: View {
                                 Text("\(day)").tag(day)
                             }
                         }
-                        .pickerStyle(.menu)
+
                         .tint(theme.accent)
                     }
 
@@ -1118,7 +1113,7 @@ struct GhafOnboardingView: View {
                                 .tag(Optional(draft.id))
                         }
                     }
-                    .pickerStyle(.menu)
+
                     .tint(theme.accent)
 
                     Toggle(isOn: $salaryReminderEnabled) {

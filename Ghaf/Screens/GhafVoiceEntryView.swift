@@ -129,24 +129,17 @@ struct GhafVoiceEntryView: View {
                                                     theme: theme, languageCode: settings.languageCode)
                                 }
                                 HStack {
-                                    Picker(isArabic ? "الفئة" : "Category", selection: $draft.category) {
-                                        ForEach(settings.categories, id: \.self) {
-                                            Text(GhafLocalization.category($0, languageCode: settings.languageCode)).tag($0)
+                                    GhafMenuRow(title: isArabic ? "الفئة" : "Category", value: GhafLocalization.category(draft.category, languageCode: settings.languageCode), theme: theme, languageCode: settings.languageCode) {
+                                        Picker(isArabic ? "الفئة" : "Category", selection: $draft.category) {
+                                            ForEach(settings.categories, id: \.self) { category in
+                                                Text(GhafLocalization.category(category, languageCode: settings.languageCode)).tag(category)
+                                            }
                                         }
                                     }
-                                    .frame(minHeight: 56)
-                                    .pickerStyle(.menu)
-                                    .tint(theme.accent)
                                     Spacer()
-                                    Picker(isArabic ? "النوع" : "Type", selection: $draft.direction) {
-                                        Text(isArabic ? "مصروف" : "Expense").tag("debit")
-                                        Text(isArabic ? "دخل" : "Income").tag("credit")
-                                    }
-                                    .frame(minHeight: 56)
-                                    .pickerStyle(.menu)
-                                    .tint(theme.accent)
+                                    GhafSegmented(options: [("debit", isArabic ? "مصروف" : "Expense"), ("credit", isArabic ? "دخل" : "Income")], selection: $draft.direction, theme: theme, languageCode: settings.languageCode)
                                 }
-                                DatePicker(isArabic ? "التاريخ والوقت" : "Date and time", selection: $draft.date, displayedComponents: [.date, .hourAndMinute])
+                                GhafDateRow(title: isArabic ? "التاريخ والوقت" : "Date and time", selection: $draft.date, components: [.date, .hourAndMinute], theme: theme, languageCode: settings.languageCode)
                                     .frame(minHeight: 56)
                                     .font(GhafTypography.body(11, languageCode: settings.languageCode))
                                     .tint(theme.accent)
@@ -161,14 +154,11 @@ struct GhafVoiceEntryView: View {
                                 .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
                                 .tracking(1.1)
                                 .foregroundStyle(theme.secondaryText)
-                            Picker(isArabic ? "الحساب" : "Account", selection: $selectedAccountID) {
-                                ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in
-                                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                            GhafMenuRow(title: isArabic ? "الحساب" : "Account", value: accounts.first(where: { $0.id == selectedAccountID })?.name ?? (isArabic ? "غير محدد" : "Not set"), theme: theme, languageCode: settings.languageCode) {
+                                Picker(isArabic ? "الحساب" : "Account", selection: $selectedAccountID) {
+                                    ForEach(accounts.filter { !$0.isArchived }, id: \.id) { account in Text("\(account.name) · \(account.currency)").tag(Optional(account.id)) }
                                 }
                             }
-                            .frame(minHeight: 56)
-                            .pickerStyle(.menu)
-                            .tint(theme.accent)
                         }
 
                         Button(action: saveDrafts) {

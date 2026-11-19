@@ -188,7 +188,8 @@ struct GhafPlacePicker: View {
                     }
                 }
                 .frame(height: 220)
-                List {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
                     if results.isEmpty && !searching {
                         Text(query.isEmpty ? (ar ? "اكتب اسم المتجر أو المطعم كما في الرسالة." : "Type the shop or restaurant name as it appears in the message.")
                                            : (ar ? "لا نتائج. جرّب جزءاً من الاسم أو اسم المنطقة." : "No results. Try part of the name, or add the area."))
@@ -218,9 +219,15 @@ struct GhafPlacePicker: View {
                             }
                             .frame(minHeight: 44)
                         }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 14)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .ghafBackground(theme: theme)
             }
             .overlay { if searching { ProgressView() } }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),

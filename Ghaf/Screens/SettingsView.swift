@@ -592,9 +592,7 @@ HStack(spacing: 8) {
             }
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
-                Picker(ar ? "الشدة" : "Intensity", selection: $glassIntensity) {
-                    Text(ar ? "خفيف" : "Subtle").tag("subtle"); Text(ar ? "متوازن" : "Balanced").tag("balanced"); Text(ar ? "قوي" : "Bold").tag("bold")
-                }.pickerStyle(.segmented).frame(minHeight: 56)
+                GhafSegmented(options: [("subtle", ar ? "خفيف" : "Subtle"), ("balanced", ar ? "متوازن" : "Balanced"), ("bold", ar ? "قوي" : "Bold")], selection: $glassIntensity, theme: theme, languageCode: languageCode)
                 Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
                 Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
                 Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
@@ -602,7 +600,7 @@ HStack(spacing: 8) {
                     .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
             }
         }
-        .toggleStyle(.switch)
+        .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
         .disabled(reduceTransparency)
     }
 
@@ -795,7 +793,7 @@ HStack(spacing: 8) {
         let builtIn = CategoryTaxonomy.category(named: category) != nil
         return VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                GhafCategoryIcon(category: category, tint: theme.accent)
+                GhafCategoryIcon(category: category, tint: theme.accent, theme: theme)
                 Text(GhafLocalization.category(category, languageCode: languageCode))
                     .font(GhafTypography.heading(20, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
@@ -871,7 +869,7 @@ HStack(spacing: 8) {
     private func categoryTile(_ category: String, spent: Decimal) -> some View {
         let subs = settings.subcategories(of: category)
         return VStack(alignment: .leading, spacing: 10) {
-            GhafCategoryIcon(category: category, tint: theme.accent)
+            GhafCategoryIcon(category: category, tint: theme.accent, theme: theme)
             Text(GhafLocalization.category(category, languageCode: languageCode))
                 .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                 .foregroundStyle(theme.primaryText)

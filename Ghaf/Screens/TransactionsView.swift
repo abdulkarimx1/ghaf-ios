@@ -137,7 +137,7 @@ struct GhafTransactionsView: View {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
                                 }
                                 .buttonStyle(.ghafPress)
-                                .listRowBackground(theme.surface)
+                                .listRowBackground(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.surface))
                                 .listRowSeparatorTint(theme.outline)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
@@ -157,7 +157,7 @@ struct GhafTransactionsView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
@@ -263,7 +263,7 @@ struct GhafTransactionsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            GhafIconBadge(symbol: "magnifyingglass", tint: theme.secondaryText, size: 56)
+            GhafIconBadge(symbol: "magnifyingglass", tint: theme.secondaryText, size: 56, theme: theme)
             Text(ar ? "لا توجد عمليات" : "No transactions found")
                 .font(GhafTypography.heading(18, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
@@ -367,12 +367,7 @@ struct GhafTransactionEditor: View {
                     editorField("Merchant", text: $merchant)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
-                    Picker(languageCode == "ar" ? "النوع" : "Direction", selection: $direction) {
-                        Text(languageCode == "ar" ? "مصروف" : "Expense").tag("debit")
-                        Text(languageCode == "ar" ? "دخل" : "Income").tag("credit")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(minHeight: 56)
+                    GhafSegmented(options: [("debit", languageCode == "ar" ? "مصروف" : "Expense"), ("credit", languageCode == "ar" ? "دخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
                     GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: languageCode, tint: theme.accent)
@@ -390,7 +385,7 @@ struct GhafTransactionEditor: View {
                                 Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
                             }
                         }
-                        .pickerStyle(.menu)
+
                         .tint(theme.accent)
                         .frame(minHeight: 56)
                     }
@@ -461,7 +456,7 @@ struct GhafTransactionEditor: View {
                     }
 
                     editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
-                    DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    GhafDateRow(title: languageCode == "ar" ? "التاريخ" : "Date", selection: $date, components: [.date, .hourAndMinute], theme: theme, languageCode: languageCode)
                         .tint(theme.accent)
 
                     editorLabel(languageCode == "ar" ? "ملاحظة" : "NOTE")

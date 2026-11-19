@@ -53,7 +53,7 @@ struct GhafSubscriptionsView: View {
                                           actionTitle: ar ? "إضافة" : "Add") { editorTarget = EditorTarget(subscription: nil) }
                         if tracked.isEmpty {
                             VStack(spacing: 10) {
-                                GhafIconBadge(symbol: "calendar.badge.clock", tint: theme.accent, size: 60)
+                                GhafIconBadge(symbol: "calendar.badge.clock", tint: theme.accent, size: 60, theme: theme)
                                 Text(ar ? "لا توجد اشتراكات بعد" : "No subscriptions yet")
                                     .font(GhafTypography.heading(19, languageCode: lang)).foregroundStyle(theme.primaryText)
                                 Text(ar ? "أضف خدماتك المتكررة ليذكّرك غاف بموعد التجديد." : "Add recurring services and Ghaf will remind you before renewal.")
@@ -403,36 +403,40 @@ private struct GhafSubscriptionEditor: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
                 Section(settings.languageCode == "ar" ? "تفاصيل الاشتراك" : "Subscription details") {
                     GhafTextField(text: $name, placeholder: settings.languageCode == "ar" ? "اسم الخدمة" : "Service name", theme: theme, languageCode: settings.languageCode)
                     GhafAmountField(value: $amount, currency: currency,
                                     label: settings.languageCode == "ar" ? "المبلغ" : "Amount",
                                     theme: theme, languageCode: settings.languageCode)
-                    Picker(settings.languageCode == "ar" ? "العملة" : "Currency", selection: $currency) {
-                        ForEach(["AED","SAR","KWD","BHD","OMR","QAR"], id: \.self) { Text($0).tag($0) }
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "العملة" : "Currency", value: currency, theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "العملة" : "Currency", selection: $currency) {
+                            ForEach(["AED","SAR","KWD","BHD","OMR","QAR"], id: \.self) { Text($0).tag($0) }
+                        }
                     }
-                    .frame(minHeight: 56)
-                    Picker(settings.languageCode == "ar" ? "دورة الفوترة" : "Billing cycle", selection: $cycle) {
-                        ForEach(GhafBillingCycle.allCases) { Text($0.title(language: settings.languageCode)).tag($0) }
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "دورة الفوترة" : "Billing cycle", value: cycle.title(language: settings.languageCode), theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "دورة الفوترة" : "Billing cycle", selection: $cycle) {
+                            ForEach(GhafBillingCycle.allCases) { Text($0.title(language: settings.languageCode)).tag($0) }
+                        }
                     }
-                    .frame(minHeight: 56)
-                    DatePicker(settings.languageCode == "ar" ? "موعد التجديد القادم" : "Next renewal", selection: $nextDate, displayedComponents: .date)
-                        .frame(minHeight: 56)
+                    GhafDateRow(title: settings.languageCode == "ar" ? "موعد التجديد القادم" : "Next renewal", selection: $nextDate, components: .date, theme: theme, languageCode: settings.languageCode)
                 }
                 Section(settings.languageCode == "ar" ? "التذكير والحساب" : "Reminder & account") {
-                    Picker(settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", selection: $reminderDays) {
-                        Text(settings.languageCode == "ar" ? "في نفس اليوم" : "Same day").tag(0)
-                        Text(settings.languageCode == "ar" ? "قبل يوم" : "1 day before").tag(1)
-                        Text(settings.languageCode == "ar" ? "قبل يومين" : "2 days before").tag(2)
-                        Text(settings.languageCode == "ar" ? "قبل أسبوع" : "1 week before").tag(7)
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", value: reminderName, theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "ذكّرني قبل" : "Remind me", selection: $reminderDays) {
+                            Text(settings.languageCode == "ar" ? "في نفس اليوم" : "Same day").tag(0)
+                            Text(settings.languageCode == "ar" ? "قبل يوم" : "1 day before").tag(1)
+                            Text(settings.languageCode == "ar" ? "قبل يومين" : "2 days before").tag(2)
+                            Text(settings.languageCode == "ar" ? "قبل أسبوع" : "1 week before").tag(7)
+                        }
                     }
-                    .frame(minHeight: 56)
-                    Picker(settings.languageCode == "ar" ? "الحساب" : "Payment account", selection: $accountID) {
-                        Text(settings.languageCode == "ar" ? "غير محدد" : "Not specified").tag(UUID?.none)
-                        ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "الحساب" : "Payment account", value: accounts.first(where: { $0.id == accountID })?.name ?? (settings.languageCode == "ar" ? "غير محدد" : "Not specified"), theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "الحساب" : "Payment account", selection: $accountID) {
+                            Text(settings.languageCode == "ar" ? "غير محدد" : "Not specified").tag(UUID?.none)
+                            ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                        }
                     }
-                    .frame(minHeight: 56)
                     Toggle(settings.languageCode == "ar" ? "نشط" : "Active", isOn: $active)
                 }
                 if subscription != nil {
@@ -451,7 +455,9 @@ private struct GhafSubscriptionEditor: View {
                         }
                     }
                 }
+                }
             }
+            .ghafBackground(theme: theme)
             .ghafKeyboardDone()
             .navigationTitle(settings.languageCode == "ar" ? "الاشتراك" : "Subscription")
             .navigationBarTitleDisplayMode(.inline)
@@ -468,6 +474,15 @@ private struct GhafSubscriptionEditor: View {
             }
         }
         .ghafDirection(settings.languageCode)
+    }
+
+    private var reminderName: String {
+        switch reminderDays {
+        case 0: settings.languageCode == "ar" ? "في نفس اليوم" : "Same day"
+        case 1: settings.languageCode == "ar" ? "قبل يوم" : "1 day before"
+        case 2: settings.languageCode == "ar" ? "قبل يومين" : "2 days before"
+        default: settings.languageCode == "ar" ? "قبل أسبوع" : "1 week before"
+        }
     }
 
     private func load() {

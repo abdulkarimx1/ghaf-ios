@@ -105,7 +105,7 @@ struct GhafAccountsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            GhafIconBadge(symbol: "wallet.pass.fill", tint: theme.accent, size: 60)
+            GhafIconBadge(symbol: "wallet.pass.fill", tint: theme.accent, size: 60, theme: theme)
             Text(settings.languageCode == "ar" ? "ابدأ بإضافة حسابك الأول" : "Add your first account")
                 .font(GhafTypography.heading(18, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)

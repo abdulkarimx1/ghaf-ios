@@ -163,7 +163,7 @@ struct GhafShapeRim<S: Shape>: View {
     }
 }
 
-private struct GhafGlassSheen: View {
+struct GhafGlassSheen: View {
     let theme: GhafTheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     private var motion: GhafTiltMotion { .shared }

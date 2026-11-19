@@ -58,10 +58,12 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
                         shape.fill(fallback)
                         shape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))
                     }
-                    if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
+                .overlay { GhafGlassSheen(theme: theme).clipShape(shape) }
+                .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) } }
                 .overlay { GhafShapeRim(theme: theme, shape: shape, contrast: contrast) }
-            } else { shape.fill(fallback) }
+                .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 18, x: 0, y: 8)
+            } else { shape.fill(fallback).shadow(color: theme.shadow, radius: 14, x: 0, y: 6) }
         }
     }
 }
@@ -126,11 +128,19 @@ private struct GhafControlGlass: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         if enabled {
-            if #available(iOS 26, *), !prominent, theme.name == "Graphite" {
-                content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
+            if theme.name == "Graphite" {
+                if #available(iOS 26, *), !prominent {
+                    content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
+                        .overlay { GhafGlassSheen(theme: theme).clipShape(Capsule()) }
+                        .overlay { if enabled { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Capsule()).allowsHitTesting(false) } }
+                        .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
+                } else { content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) } }
             } else {
-                content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
+                content.background(Capsule().fill(theme.surface).overlay(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))))
+                    .overlay { GhafGlassSheen(theme: theme).clipShape(Capsule()) }
+                    .overlay { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Capsule()).allowsHitTesting(false) }
+                    .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
+                    .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 18, x: 0, y: 8)
             }
         } else { content }
     }
@@ -227,6 +237,7 @@ struct GhafIconBadge: View {
     let symbol: String
     let tint: Color
     var size: CGFloat = 44
+    var theme: GhafTheme? = nil
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -238,9 +249,18 @@ struct GhafIconBadge: View {
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background {
-                if glass.enabled && !reduceTransparency {
+                if glass.enabled && !reduceTransparency, let theme, theme.name == "Graphite" {
                     Circle().fill(.thinMaterial).overlay(Circle().fill(tint.opacity(0.12)))
-                        .overlay { GhafShapeRim(isDark: colorScheme == .dark, shape: Circle(), contrast: contrast) }
+                        .overlay { GhafGlassSheen(theme: theme).clipShape(Circle()) }
+                        .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Circle()).allowsHitTesting(false) } }
+                        .overlay { GhafShapeRim(theme: theme, shape: Circle(), contrast: contrast) }
+                        .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 12, x: 0, y: 5)
+                } else if glass.enabled && !reduceTransparency, let theme {
+                    Circle().fill(theme.surface).overlay(Circle().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04)))
+                        .overlay { GhafGlassSheen(theme: theme).clipShape(Circle()) }
+                        .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Circle()).allowsHitTesting(false) } }
+                        .overlay { GhafShapeRim(theme: theme, shape: Circle(), contrast: contrast) }
+                        .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 12, x: 0, y: 5)
                 } else { Circle().fill(tint.opacity(0.14)) }
             }
             .accessibilityHidden(true)
@@ -269,7 +289,7 @@ struct GhafListRow<Trailing: View>: View {
             } else if let brandName {
                 GhafBrandBadge(name: brandName, fallbackTint: tint)
             } else {
-                GhafIconBadge(symbol: icon, tint: tint)
+                GhafIconBadge(symbol: icon, tint: tint, theme: theme)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -332,18 +352,19 @@ extension EnvironmentValues {
 struct GhafCategoryIcon: View {
     let category: String
     let tint: Color
+    var theme: GhafTheme? = nil
     @Environment(\.ghafCategoryMeta) private var meta
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Earthy palette drawn from the UAE (saffron, palm, Gulf water, dates, henna), each with a
+    /// Earthy palette drawn from the UAE (saffron, green, Gulf water, dates, henna), each with a
     /// lighter shade for dark mode so glyphs stay readable on dark cards.
     enum Palette: String {
-        case saffron, palm, gulf, ember, date, rose, coral, henna, sea, mint, stone, lavender
+        case saffron, green, gulf, ember, date, rose, coral, henna, sea, mint, stone, lavender
 
         var pair: (light: UInt32, dark: UInt32) {
             switch self {
             case .saffron: (0xC4741F, 0xF2A65A)
-            case .palm: (0x3E7B4C, 0x7FC48D)
+            case .green: (0x3E7B4C, 0x7FC48D)
             case .gulf: (0x2B68A0, 0x7EB4E8)
             case .ember: (0xB3452D, 0xF08A70)
             case .date: (0xA87A22, 0xE6BE66)
@@ -367,7 +388,7 @@ struct GhafCategoryIcon: View {
     private func color(named name: String?) -> Color? {
         switch name?.lowercased() {
         case "orange": color(.saffron)
-        case "green": color(.palm)
+        case "green": color(.green)
         case "blue": color(.gulf)
         case "red": color(.coral)
         case "yellow": color(.date)
@@ -382,7 +403,7 @@ struct GhafCategoryIcon: View {
     /// Built-in categories: symbol and palette colour.
     static func builtIn(_ category: String) -> (symbol: String, palette: Palette)? {
         switch category {
-        case "Groceries": ("basket.fill", .palm)
+        case "Groceries": ("basket.fill", .green)
         case "Dining": ("fork.knife", .saffron)
         case "Transport": ("car.fill", .gulf)
         case "Fuel": ("fuelpump.fill", .ember)
@@ -400,7 +421,7 @@ struct GhafCategoryIcon: View {
 
     /// One stable colour per category for charts: its own, else a palette colour picked from its name.
     static func chartColor(_ category: String, dark: Bool) -> Color {
-        let all: [Palette] = [.saffron, .gulf, .palm, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
+        let all: [Palette] = [.saffron, .gulf, .green, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
         let palette = builtIn(category)?.palette ?? all[abs(category.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % all.count]
         let hex = dark ? palette.pair.dark : palette.pair.light
         return Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
@@ -409,7 +430,7 @@ struct GhafCategoryIcon: View {
     /// Distinct colours for the categories shown together in one chart: built-in ones keep their own,
     /// the rest take palette colours nobody else in the chart uses.
     static func chartColors(for categories: [String], dark: Bool) -> [String: Color] {
-        let all: [Palette] = [.saffron, .gulf, .palm, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
+        let all: [Palette] = [.saffron, .gulf, .green, .rose, .henna, .sea, .date, .ember, .coral, .mint, .lavender, .stone]
         var used = Set(categories.compactMap { builtIn($0)?.palette })
         var result: [String: Color] = [:]
         for category in categories {
@@ -429,6 +450,6 @@ struct GhafCategoryIcon: View {
     var body: some View {
         let custom = meta[category]
         GhafIconBadge(symbol: custom?.icon ?? style.symbol,
-                      tint: color(named: custom?.color) ?? style.color)
+                      tint: color(named: custom?.color) ?? style.color, theme: theme)
     }
 }

@@ -1355,7 +1355,7 @@ private struct GhafChatHistorySheet: View {
             List {
                 Section {
                     Label(engineLabel, systemImage: "cpu")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.secondaryText)
                     if let turnOnCloud {
                         Button(action: turnOnCloud) {
                             Label(ar ? "فعّل الذكاء السحابي" : "Turn on Cloud AI", systemImage: "cloud.fill")
@@ -1372,7 +1372,7 @@ private struct GhafChatHistorySheet: View {
                     if chats.isEmpty {
                         Text(ar ? "لا توجد محادثات بعد. اسأل غاف أي شيء عن أموالك وستُحفظ هنا."
                                 : "No chats yet. Ask Ghaf anything about your money and it's kept here.")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.secondaryText)
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                             .padding(.vertical, 12)
@@ -1383,7 +1383,7 @@ private struct GhafChatHistorySheet: View {
                                 HStack {
                                     Text(chat.title)
                                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                                        .foregroundStyle(.primary)
+                                        .foregroundStyle(theme.primaryText)
                                         .lineLimit(1)
                                     if chat.id == currentID {
                                         Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(theme.accent)
@@ -1392,7 +1392,7 @@ private struct GhafChatHistorySheet: View {
                                 }
                                 Text(chat.updatedAt.formatted(.relative(presentation: .named).locale(Locale(identifier: languageCode))))
                                     .font(GhafTypography.body(12, languageCode: languageCode))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(theme.secondaryText)
                             }
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .contentShape(Rectangle())
@@ -1407,6 +1407,8 @@ private struct GhafChatHistorySheet: View {
                             : "Chats stay on this iPhone and aren't part of backups. Swipe to delete one.")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .ghafBackground(theme: theme)
             .navigationTitle(ar ? "غاف AI" : "Ghaf AI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

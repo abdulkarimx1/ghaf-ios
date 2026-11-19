@@ -656,7 +656,7 @@ struct GhafTransactionRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            GhafCategoryIcon(category: transaction.category, tint: theme.accent)
+            GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(merchantTitle)

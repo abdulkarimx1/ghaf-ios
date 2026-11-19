@@ -114,7 +114,7 @@ struct GhafSalaryCheckInView: View {
                             Text(account.name).tag(Optional(account.id))
                         }
                     }
-                    .pickerStyle(.menu)
+
                     .tint(theme.accent)
                 }
 
@@ -247,7 +247,8 @@ struct GhafSalarySettingsView: View {
     }
 
     var body: some View {
-        Form {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
             Section {
                 Toggle(
                     settings.languageCode == "ar" ? "تفعيل دورة الراتب" : "Track my salary cycle",
@@ -319,9 +320,9 @@ struct GhafSalarySettingsView: View {
                 Button(settings.languageCode == "ar" ? "حفظ إعدادات الراتب" : "Save salary settings", action: save)
                     .fontWeight(.semibold)
             }
+            }
         }
-        .scrollContentBackground(.hidden)
-        .background(theme.background)
+        .ghafBackground(theme: theme)
         .tint(theme.accent)
         .ghafPageTitle(settings.languageCode == "ar" ? "إعداد الراتب" : "Salary settings", languageCode: settings.languageCode, theme: theme)
         .onAppear(perform: load)

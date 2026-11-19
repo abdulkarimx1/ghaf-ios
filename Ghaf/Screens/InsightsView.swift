@@ -202,7 +202,7 @@ struct GhafInsightsView: View {
             } else {
                 ForEach(Array(categoryTotals.enumerated()), id: \.element.id) { index, item in
                     HStack(spacing: 11) {
-                        GhafCategoryIcon(category: item.category, tint: theme.accent)
+                        GhafCategoryIcon(category: item.category, tint: theme.accent, theme: theme)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(GhafLocalization.category(item.category, languageCode: settings.languageCode))
                                 .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
