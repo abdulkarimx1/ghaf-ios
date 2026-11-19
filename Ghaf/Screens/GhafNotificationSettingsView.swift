@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import WidgetKit
+import UIKit
 
 /// More › Notifications: what Ghaf can tell you, each one optional, and why iOS asks for permission.
 struct GhafNotificationSettingsView: View {
@@ -16,6 +18,7 @@ struct GhafNotificationSettingsView: View {
     @AppStorage(GhafWidgetSync.liveActivityKey) private var liveActivity = true
     @State private var denied = false
     @State private var widgetStatusVersion = 0
+    @State private var placedWidgetsReport = "Checking placed widgets…"
     /// The Pro feature just tapped, if any; drives the Ghaf Pro sheet.
     @State private var proFeature: ProFeature?
 
@@ -116,6 +119,9 @@ struct GhafNotificationSettingsView: View {
                     Text(heartbeat.map {
                         (ar ? "آخر تشغيل للودجت: " : "Widget heartbeat: ") + "\($0.kind), \($0.family), " + (ar ? ($0.loadedFrom == "group" ? "مجموعة التطبيق" : $0.loadedFrom == "keychain" ? "سلسلة المفاتيح" : "بلا بيانات") : $0.loadedFrom) + " · \($0.date.formatted(dateStyle))"
                     } ?? (ar ? "لم تشغّل الودجت بعد" : "The widget hasn't run yet"))
+                    Text(placedWidgetsReport)
+                    Text(diagnosticReport)
+                        .textSelection(.enabled)
                     if (!channels.group && !channels.keychain) || heartbeat?.loadedFrom == "none" {
                         Text(ar ? "لا تستطيع الودجت الوصول إلى بيانات غاف — لم تجد لقطة مشتركة قابلة للقراءة. تحقق من مجموعات المشاركة في أداة التوقيع.\n" + profileSummary
                              : "The widget can't reach Ghaf's data — it found no readable shared snapshot. Check the sharing groups in the signing tool.\n" + profileSummary)
@@ -131,9 +137,68 @@ struct GhafNotificationSettingsView: View {
                 widgetStatusVersion += 1
             }
             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+            Button(ar ? "نسخ التقرير" : "Copy report", systemImage: "doc.on.doc") {
+                UIPasteboard.general.string = diagnosticReport + "\n" + placedWidgetsReport
+            }
+            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         .ghafCard(theme: theme)
+        .task { refreshPlacedWidgets() }
+    }
+
+    private var diagnosticReport: String {
+        let app = Bundle.main
+        let appID = app.bundleIdentifier ?? "unknown"
+        let appProfile = GhafSigningProfile.current
+        let extensionURL = app.builtInPlugInsURL?.appendingPathComponent("GhafWidgets.appex")
+        let widget = extensionURL.flatMap(Bundle.init(url:))
+        let widgetID = widget?.bundleIdentifier
+        let widgetProfile = widget.map(GhafSigningProfile.load(from:)) ?? GhafSigningProfile()
+        let sharedGroups = Set(appProfile.appGroups).intersection(widgetProfile.appGroups).sorted()
+        let sharedKeychains = GhafSigningProfile.sharedKeychainGroups(app: appProfile.keychainGroups, widget: widgetProfile.keychainGroups)
+        let dateStyle = Date.FormatStyle(date: .numeric, time: .shortened).locale(Locale(identifier: ar ? "ar-AE" : "en-AE"))
+        func list(_ values: [String]) -> String { values.isEmpty ? (ar ? "لا يوجد" : "none") : values.sorted().joined(separator: ", ") }
+        func profile(_ value: GhafSigningProfile) -> String {
+            "\(ar ? "الاسم" : "name")=\(value.name ?? "none"); \(ar ? "الفريق" : "team")=\(value.teamID ?? "none"); \(ar ? "انتهاء الصلاحية" : "expires")=\(value.expiry?.formatted(dateStyle) ?? "none"); \(ar ? "مجموعات التطبيق" : "app groups")=[\(list(value.appGroups))]; \(ar ? "مجموعات سلسلة المفاتيح" : "keychain groups")=[\(list(value.keychainGroups))]"
+        }
+        var lines = ["\(ar ? "معرّف التطبيق" : "App bundle ID"): \(appID)",
+                     "\(ar ? "ملف توقيع التطبيق" : "App signing profile"): \(appProfile.exists ? profile(appProfile) : (ar ? "لا يوجد ملف توقيع مضمن" : "no embedded signing profile"))",
+                     "\(ar ? "معرّف الودجت" : "Widget bundle ID"): \(widgetID ?? (ar ? "ملف GhafWidgets.appex مفقود" : "missing GhafWidgets.appex"))",
+                     "\(ar ? "ملف توقيع الودجت" : "Widget signing profile"): \(widgetProfile.exists ? profile(widgetProfile) : (ar ? "لا يوجد ملف توقيع مضمن" : "no embedded signing profile"))",
+                     "\(ar ? "مجموعات التطبيق المشتركة" : "Shared App Groups"): [\(list(Array(sharedGroups)))]",
+                     "\(ar ? "مجموعات سلسلة المفاتيح المشتركة" : "Shared keychain groups"): [\(list(sharedKeychains))]"]
+        if widget == nil { lines.append(ar ? "تعذر العثور على امتداد الودجت داخل التطبيق" : "The widget extension is missing from the app") }
+        let widgetIDMatches = widgetID?.hasPrefix(appID + ".") == true
+        lines.append("\(ar ? "يبدأ معرّف الودجت بمعرّف التطبيق" : "Widget ID starts with app ID"): \(widgetIDMatches ? (ar ? "نعم" : "yes") : (ar ? "لا" : "no"))")
+        if widgetID != nil && !widgetIDMatches { lines.append(ar ? "معرّف الودجت لا يبدأ بمعرّف التطبيق" : "The widget's ID doesn't start with the app's ID") }
+        if appProfile.teamID != nil, widgetProfile.teamID != nil, appProfile.teamID != widgetProfile.teamID {
+            lines.append(ar ? "وُقّع الودجت بفريق مختلف" : "The widget was signed by a different team")
+        }
+        if widget != nil && !widgetProfile.exists {
+#if targetEnvironment(simulator)
+            lines.append(ar ? "لا يوجد ملف توقيع مضمن في إصدار المحاكي" : "No embedded signing profile in this simulator build")
+#else
+            lines.append(ar ? "لا يوجد ملف توقيع للودجت — لن يشغله iOS" : "The widget has no signing profile — iOS won't run it")
+#endif
+        }
+        if widget != nil && sharedGroups.isEmpty { lines.append(ar ? "لا توجد مجموعة تطبيق مشتركة بين التطبيق والودجت" : "App and widget share no App Group") }
+        return lines.joined(separator: "\n")
+    }
+
+    private func refreshPlacedWidgets() {
+        let kinds = ["GhafBalance", "GhafToday", "GhafRecent", "GhafSpending", "GhafBudget", "GhafCategories", "GhafBills", "GhafTrends"]
+        WidgetCenter.shared.getCurrentConfigurations { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let configurations):
+                    let counts = Dictionary(grouping: configurations.map { $0.kind }, by: { $0 }).mapValues { $0.count }
+                    placedWidgetsReport = kinds.map { "\($0): \(counts[$0, default: 0])" }.joined(separator: "\n")
+                case .failure(let error):
+                    placedWidgetsReport = (ar ? "تعذر قراءة الأدوات الموضوعة: " : "Could not read placed widgets: ") + error.localizedDescription
+                }
+            }
+        }
     }
 
     /// What the installer's profile grants, so a broken install can be diagnosed from a screenshot.

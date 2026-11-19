@@ -352,7 +352,7 @@ struct GhafAIView: View {
                             .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .padding(.horizontal, 16)
-                            .frame(minHeight: 40)
+                            .frame(minHeight: 44)
                             .background {
                                 if glassStyle.enabled { Capsule().fill(Color.clear) }
                                 else { Capsule().fill(.ultraThinMaterial.opacity(0.6)).overlay(Capsule().fill(.white.opacity(0.07))) }
@@ -419,7 +419,7 @@ struct GhafAIView: View {
                                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
                                     .foregroundStyle(theme.primaryText)
                                     .padding(.horizontal, 14)
-                                    .frame(minHeight: 40)
+                                    .frame(minHeight: 44)
                                     .background(.white.opacity(0.06), in: Capsule())
                                     .overlay(Capsule().stroke(.white.opacity(0.16), lineWidth: 1))
                             }
@@ -490,13 +490,12 @@ struct GhafAIView: View {
                 HStack(alignment: .top, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         // Name and amount stay editable until saved, in case speech was misheard.
-                        TextField(ar ? "الاسم" : "Name", text: $draft.merchant)
-                            .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .bold))
-                            .foregroundStyle(theme.primaryText)
+                        GhafTextField(text: $draft.merchant, placeholder: ar ? "الاسم" : "Name", theme: theme, languageCode: settings.languageCode)
                             .disabled(state != .pending)
                         GhafCategoryPicker(category: $draft.category, subcategory: $draft.subcategory,
                                            languageCode: settings.languageCode, tint: theme.accent)
                             .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
+                            .frame(minHeight: 56)
                             .disabled(state != .pending)
                         if state == .pending && isNewCategory(draft) {
                             Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
@@ -507,15 +506,10 @@ struct GhafAIView: View {
                         }
                     }
                     Spacer(minLength: 6)
-                    HStack(spacing: 4) {
-                        GhafCurrencyIcon(currency: draft.currency, size: 14)
-                        TextField("0", text: $draft.amountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .font(GhafTypography.number(17, weight: .heavy))
-                            .fixedSize()
-                            .disabled(state != .pending)
-                    }
+                    GhafAmountField(value: $draft.amountText, currency: draft.currency,
+                                    label: ar ? "المبلغ" : "Amount", theme: theme,
+                                    languageCode: settings.languageCode)
+                        .disabled(state != .pending)
                     .foregroundStyle(draft.direction == "credit" ? theme.credit : theme.primaryText)
                     .environment(\.layoutDirection, .leftToRight)
                 }
@@ -564,12 +558,8 @@ struct GhafAIView: View {
         let hasText = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return VStack(spacing: 6) {
             HStack(alignment: .bottom, spacing: 8) {
-                TextField(voicePlaceholder, text: $prompt, axis: .vertical)
-                    .font(GhafTypography.body(15, languageCode: settings.languageCode))
-                    .lineLimit(1...4)
-                    .focused($inputFocused)
-                    .submitLabel(.send)
-                    .onSubmit { send(prompt) }
+                GhafTextField(text: $prompt, placeholder: voicePlaceholder, theme: theme, languageCode: settings.languageCode,
+                              multiline: true, focusBinding: $inputFocused, submitLabel: .send, onSubmit: { send(prompt) })
                     .padding(.leading, 14).padding(.vertical, 12)
 
                 // A multi-line field turns Return into a new line, so closing the keyboard needs its own button.
@@ -578,7 +568,7 @@ struct GhafAIView: View {
                         Image(systemName: "keyboard.chevron.compact.down")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(theme.secondaryText)
-                            .frame(width: 40, height: 46)
+                            .frame(width: 44, height: 46)
                     }
                     .accessibilityLabel(ar ? "إخفاء لوحة المفاتيح" : "Hide keyboard")
                     .transition(.scale.combined(with: .opacity))

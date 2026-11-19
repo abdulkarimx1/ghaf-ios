@@ -5,14 +5,12 @@ import UniformTypeIdentifiers
 import PhotosUI
 
 private enum GhafSettingsPrompt: Identifiable {
-    case deleteData
     case importBackup
     case importExpend
     case message(String)
 
     var id: String {
         switch self {
-        case .deleteData: return "delete"
         case .importBackup: return "import"
         case .importExpend: return "import-expend"
         case .message(let value): return "message-\(value)"
@@ -53,6 +51,7 @@ struct GhafSettingsView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var prompt: GhafSettingsPrompt?
+    @State private var showDeleteConfirmation = false
     @State private var hasLoadedSettings = false
     @State private var categoryToRemove: String?
     @State private var editingCategory: String?
@@ -120,7 +119,7 @@ struct GhafSettingsView: View {
                         menuRow(ar ? "عن غاف" : "About Ghaf", icon: "leaf.fill") { GhafAboutView(settings: settings) }
                     }
 
-                    Button(role: .destructive) { prompt = .deleteData } label: {
+                    Button(role: .destructive) { showDeleteConfirmation = true } label: {
                         Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
                             .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                             .foregroundStyle(theme.over)
@@ -173,13 +172,6 @@ struct GhafSettingsView: View {
             }
             .alert(item: $prompt) { selectedPrompt in
                 switch selectedPrompt {
-                case .deleteData:
-                    return Alert(
-                        title: Text(languageCode == "ar" ? "حذف جميع البيانات؟" : "Delete all data?"),
-                        message: Text(languageCode == "ar" ? "سيتم حذف جميع العمليات والإعدادات وقواعد تصنيف التجار المحفوظة نهائياً." : "All transactions, settings and learned merchant rules will be permanently deleted."),
-                        primaryButton: .destructive(Text(languageCode == "ar" ? "حذف كل شيء" : "Delete everything"), action: deleteAllData),
-                        secondaryButton: .cancel()
-                    )
                 case .importBackup:
                     return Alert(
                         title: Text(languageCode == "ar" ? "استعادة نسخة غاف؟" : "Restore Ghaf backup?"),
@@ -205,6 +197,21 @@ struct GhafSettingsView: View {
                         dismissButton: .default(Text(languageCode == "ar" ? "حسناً" : "OK"))
                     )
                 }
+            }
+            .confirmationDialog(languageCode == "ar" ? "حذف كل شيء من هذا الـ iPhone؟" : "Delete everything on this iPhone?",
+                                isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button(languageCode == "ar" ? "إنشاء نسخة احتياطية أولاً" : "Export a backup first") {
+                    createBackup()
+                    prompt = .message(languageCode == "ar"
+                        ? "أُنشئت النسخة. افتح البيانات والنسخ الاحتياطي لمشاركتها أو حفظها قبل الحذف."
+                        : "The backup is ready. Open Data and backup to save or share it before deleting.")
+                }
+                Button(languageCode == "ar" ? "حذف كل شيء" : "Delete everything", role: .destructive, action: deleteAllData)
+                Button(languageCode == "ar" ? "إلغاء" : "Cancel", role: .cancel) {}
+            } message: {
+                Text(languageCode == "ar"
+                     ? "سيتم حذف الحسابات والعمليات والإعدادات والسمات وذاكرة الذكاء الاصطناعي. لا يمكن التراجع. يُنصح بتصدير نسخة احتياطية أولاً."
+                     : "Accounts, transactions, settings, themes and AI memory will be erased. This can't be undone. Export a backup first if you want to keep a copy.")
             }
     }
 
@@ -232,7 +239,7 @@ struct GhafSettingsView: View {
                 }
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 16).frame(height: 36)
+                .padding(.horizontal, 16).frame(minHeight: 44)
                 .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                 .shadow(color: theme.shadow, radius: 8, y: 3)
             }
@@ -321,16 +328,16 @@ struct GhafSettingsView: View {
                 .buttonStyle(.ghafPress).disabled(drive.isBusy)
                 Button(ar ? "قطع الاتصال" : "Disconnect", role: .destructive) { drive.signOut() }
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .buttonStyle(.bordered)
             } else {
                 Button { Task { await driveRun { try await drive.signIn() } } } label: {
                     Label(ar ? "تسجيل الدخول عبر Google" : "Sign in with Google", systemImage: "person.crop.circle.badge.plus")
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 56)
                         .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.accent)
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
                 .disabled(drive.isBusy)
             }
             if drive.isBusy { ProgressView().frame(maxWidth: .infinity) }
@@ -373,7 +380,7 @@ struct GhafSettingsView: View {
                             Image(systemName: "camera.fill")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundStyle(theme.accentContrast)
-                                .frame(width: 32, height: 32)
+                                .frame(width: 44, height: 44)
                                 .background(theme.accent, in: Circle())
                                 .overlay(Circle().stroke(theme.surface, lineWidth: 3))
                         }
@@ -587,7 +594,7 @@ HStack(spacing: 8) {
             if glassEnabled {
                 Picker(ar ? "الشدة" : "Intensity", selection: $glassIntensity) {
                     Text(ar ? "خفيف" : "Subtle").tag("subtle"); Text(ar ? "متوازن" : "Balanced").tag("balanced"); Text(ar ? "قوي" : "Bold").tag("bold")
-                }.pickerStyle(.segmented)
+                }.pickerStyle(.segmented).frame(minHeight: 56)
                 Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
                 Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
                 Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
@@ -691,13 +698,10 @@ HStack(spacing: 8) {
                             .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
                             .foregroundStyle(theme.primaryText)
                         Spacer()
-                        TextField(languageCode == "ar" ? "٠" : "0", text: budgetBinding(for: category))
-                            .font(GhafTypography.number(14))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 106)
-                            .padding(.horizontal, 12).frame(minHeight: 46)
-                            .background(theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        GhafAmountField(value: budgetBinding(for: category), currency: settings.currency,
+                                        label: GhafLocalization.category(category, languageCode: languageCode),
+                                        theme: theme, languageCode: languageCode)
+                            .frame(width: 132)
                     }
                 }
             }
@@ -746,11 +750,8 @@ HStack(spacing: 8) {
                 .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
             HStack(spacing: 8) {
-                TextField(ar ? "فئة جديدة" : "New category", text: $newCategory)
-                    .font(GhafTypography.body(15, languageCode: languageCode))
-                    .padding(.horizontal, 14).frame(minHeight: 48)
-                    .background(theme.background, in: Capsule())
-                    .onSubmit(addCategory)
+                GhafTextField(text: $newCategory, placeholder: ar ? "فئة جديدة" : "New category", theme: theme,
+                              languageCode: languageCode, onSubmit: addCategory)
                 Button(action: addCategory) {
                     Image(systemName: "plus")
                         .font(.system(size: 16, weight: .bold))
@@ -902,7 +903,7 @@ HStack(spacing: 8) {
     private var backupCard: some View {
         settingsCard(languageCode == "ar" ? "البيانات والنسخ الاحتياطي" : "Data and backup", subtitle: languageCode == "ar" ? "تصدير نسخة من بياناتك أو استعادتها" : "Move or keep a copy of your local records") {
             Button(action: createBackup) {
-                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير العمليات والإعدادات وقواعد التجار" : "Export transactions, settings and learned merchants", icon: "square.and.arrow.up")
+                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير الحسابات والعمليات والاشتراكات والإعدادات والذاكرة والتفضيلات" : "Export accounts, transactions, subscriptions, settings, memories and preferences", icon: "square.and.arrow.up")
             }
             .buttonStyle(.ghafPress)
 
@@ -924,6 +925,27 @@ HStack(spacing: 8) {
                 .font(GhafTypography.body(11, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(languageCode == "ar" ? "ملاحظة: لا تتضمن النسخة محادثات غاف AI المحفوظة." : "Saved Ghaf AI conversations are not included in backups.")
+                .font(GhafTypography.body(11, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            #if DEBUG
+            Button {
+                Task {
+                    do {
+                        let result = try await GhafBackupService.debugRoundTripCheck(context: modelContext)
+                        prompt = .message("Backup round-trip: \(result)")
+                    } catch {
+                        prompt = .message(error.localizedDescription)
+                    }
+                }
+            } label: {
+                settingsActionRow(languageCode == "ar" ? "فحص النسخ الاحتياطي (للتطوير)" : "Run backup round-trip check (Debug)",
+                                  detail: languageCode == "ar" ? "يصدر نسخة ثم يمسح بيانات هذا المحاكي ويستعيدها للتحقق" : "Exports, resets this simulator's Ghaf data, restores it, then compares models and preferences",
+                                  icon: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.ghafPress)
+            #endif
         }
     }
 
@@ -960,12 +982,14 @@ HStack(spacing: 8) {
         text: Binding<String>,
         numeric: Bool = false
     ) -> some View {
-        TextField(placeholder, text: text)
-            .font(GhafTypography.body(15, languageCode: languageCode))
-            .keyboardType(numeric ? .decimalPad : .default)
-            .padding(.horizontal, 14).frame(minHeight: 50)
-            .background(theme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.outline, lineWidth: 1))
+        Group {
+            if numeric {
+                GhafAmountField(value: text, currency: settings.currency, label: placeholder,
+                                theme: theme, languageCode: languageCode)
+            } else {
+                GhafTextField(text: text, placeholder: placeholder, theme: theme, languageCode: languageCode)
+            }
+        }
     }
 
     private func settingsActionRow(_ title: String, detail: String, icon: String) -> some View {
@@ -1160,18 +1184,16 @@ HStack(spacing: 8) {
     }
 
     private func deleteAllData() {
-        do {
-            let transactions = try modelContext.fetch(FetchDescriptor<GhafTransaction>())
-            let rules = try modelContext.fetch(FetchDescriptor<MerchantCategoryRule>())
-            let settings = try modelContext.fetch(FetchDescriptor<GhafSettings>())
-
-            transactions.forEach { modelContext.delete($0) }
-            rules.forEach { modelContext.delete($0) }
-            settings.forEach { modelContext.delete($0) }
-
-            try modelContext.save()
-        } catch {
-            prompt = .message(languageCode == "ar" ? "تعذر حذف جميع البيانات." : "Could not delete all data.")
+        let arabic = languageCode == "ar"
+        Task {
+            do {
+                let issues = try await GhafResetService.run(context: modelContext)
+                prompt = issues.isEmpty ? nil : .message(arabic
+                    ? "حُذفت البيانات، لكن تعذّر حذف بعض ملفات الجهاز أو عناصر سلسلة المفاتيح: \(issues.joined(separator: ", "))"
+                    : "Data was deleted, but some device files or keychain items could not be removed: \(issues.joined(separator: ", "))")
+            } catch {
+                prompt = .message(arabic ? "تعذر حذف جميع البيانات: \(error.localizedDescription)" : "Could not delete all data: \(error.localizedDescription)")
+            }
         }
     }
 }

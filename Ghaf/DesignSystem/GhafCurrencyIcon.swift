@@ -84,7 +84,7 @@ struct GhafCurrencyPicker: View {
             .foregroundStyle(tint)
             .fixedSize()
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .frame(minHeight: 56)
             .background(tint.opacity(0.12), in: Capsule())
         }
         .accessibilityLabel(GhafCurrencyIcon.name(selection, languageCode: languageCode))

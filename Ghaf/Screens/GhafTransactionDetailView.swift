@@ -112,7 +112,7 @@ struct GhafTransactionDetailView: View {
             Label(status.title, systemImage: status.symbol + ".circle.fill")
                 .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                 .foregroundStyle(status.tint)
-                .frame(maxWidth: .infinity, minHeight: 40)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .background(status.tint.opacity(0.12), in: Capsule())
         }
         .padding(18)

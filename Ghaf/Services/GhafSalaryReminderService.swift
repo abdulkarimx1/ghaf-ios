@@ -98,11 +98,9 @@ struct GhafSalaryCheckInView: View {
                         .font(GhafTypography.body(10, languageCode: settings.languageCode, weight: .bold))
                         .tracking(1.1)
                         .foregroundStyle(theme.secondaryText)
-                    TextField("0.00", text: $amountText)
-                        .font(GhafTypography.number(25, weight: .bold))
-                        .keyboardType(.decimalPad)
-                        .padding(15)
-                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 14), fallback: theme.surface)
+                    GhafAmountField(value: $amountText, currency: activeAccounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency,
+                                    label: settings.languageCode == "ar" ? "المبلغ المستلم" : "Amount received",
+                                    theme: theme, languageCode: settings.languageCode, fontSize: 25)
                 }
 
                 VStack(alignment: .leading, spacing: 7) {
@@ -273,11 +271,9 @@ struct GhafSalarySettingsView: View {
                         }
                     }
 
-                    TextField(
-                        settings.languageCode == "ar" ? "المبلغ المتوقع (اختياري)" : "Expected amount (optional)",
-                        text: $amountText
-                    )
-                    .keyboardType(.decimalPad)
+                    GhafAmountField(value: $amountText, currency: activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency,
+                                    label: settings.languageCode == "ar" ? "المبلغ المتوقع (اختياري)" : "Expected amount (optional)",
+                                    theme: theme, languageCode: settings.languageCode)
 
                     Picker(
                         settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account",

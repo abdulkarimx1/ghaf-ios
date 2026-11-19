@@ -209,28 +209,9 @@ struct GhafTransactionsView: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(theme.secondaryText)
-            TextField(ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank", text: $searchText)
-                .font(GhafTypography.body(15, languageCode: lang))
-                .foregroundStyle(theme.primaryText)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .submitLabel(.search)
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(theme.secondaryText)
-                }
-                .buttonStyle(.ghafPress)
-                .accessibilityLabel(ar ? "مسح البحث" : "Clear search")
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 50)
-        .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
-        .shadow(color: theme.shadow, radius: 8, y: 3)
+        GhafTextField(text: $searchText, placeholder: ar ? "ابحث عن متجر أو فئة" : "Search merchant, category or bank",
+                      theme: theme, languageCode: lang, icon: "magnifyingglass", autocorrection: false,
+                      capitalization: .never, submitLabel: .search)
     }
 
     private func filterBar(count: Int) -> some View {
@@ -271,7 +252,7 @@ struct GhafTransactionsView: View {
                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 .lineLimit(1)
                 .padding(.horizontal, 14)
-                .frame(height: 40)
+                .frame(minHeight: 44)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.primaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
         }
@@ -378,11 +359,9 @@ struct GhafTransactionEditor: View {
                         .foregroundStyle(theme.primaryText)
 
                     editorLabel(languageCode == "ar" ? "المبلغ" : "AMOUNT")
-                    TextField("0.00", text: $amount)
-                        .font(GhafTypography.number(30, weight: .bold))
-                        .keyboardType(.decimalPad)
-                        .padding(15)
-                        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 15), fallback: theme.surface)
+                    GhafAmountField(value: $amount, currency: transaction.currency,
+                                    label: languageCode == "ar" ? "المبلغ" : "Amount",
+                                    theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
                     editorField("Merchant", text: $merchant)
@@ -393,12 +372,13 @@ struct GhafTransactionEditor: View {
                         Text(languageCode == "ar" ? "دخل" : "Income").tag("credit")
                     }
                     .pickerStyle(.segmented)
+                    .frame(minHeight: 56)
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
                     GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: languageCode, tint: theme.accent)
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .padding(13)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
                         .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
 
                     if !accounts.isEmpty {
@@ -412,6 +392,7 @@ struct GhafTransactionEditor: View {
                         }
                         .pickerStyle(.menu)
                         .tint(theme.accent)
+                        .frame(minHeight: 56)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -444,7 +425,7 @@ struct GhafTransactionEditor: View {
                                 .font(GhafTypography.body(11, languageCode: languageCode))
                                 .foregroundStyle(theme.secondaryText)
 
-                            HStack(spacing: 10) {
+                            VStack(spacing: 10) {
                                 Link(destination: URL(string: "tel:\(contact.localDialString)")!) {
                                     Label(
                                         languageCode == "ar" ? "محلي · \(contact.localPhone)" : "Local · \(contact.localPhone)",
@@ -452,8 +433,8 @@ struct GhafTransactionEditor: View {
                                     )
                                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                                 }
-                                .buttonStyle(.bordered)
-                                .tint(theme.accent)
+                                .ghafGlassButton(theme: theme, languageCode: languageCode)
+                                .frame(maxWidth: .infinity, minHeight: 56)
 
                                 Link(destination: URL(string: "tel:\(contact.internationalDialString)")!) {
                                     Label(
@@ -462,8 +443,8 @@ struct GhafTransactionEditor: View {
                                     )
                                     .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                                 }
-                                .buttonStyle(.bordered)
-                                .tint(theme.accent)
+                                .ghafGlassButton(theme: theme, languageCode: languageCode)
+                                .frame(maxWidth: .infinity, minHeight: 56)
                             }
 
                             Link(
@@ -519,11 +500,7 @@ struct GhafTransactionEditor: View {
     }
 
     private func editorField(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .font(GhafTypography.body(15, languageCode: languageCode))
-            .padding(13)
-            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))
+        GhafTextField(text: text, placeholder: placeholder, theme: theme, languageCode: languageCode)
     }
 
     private func save() {

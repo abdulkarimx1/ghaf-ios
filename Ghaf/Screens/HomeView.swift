@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 private struct HomeAccountsZoomSource: ViewModifier {
     let namespace: Namespace.ID
@@ -30,10 +31,15 @@ struct GhafHomeView: View {
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
     @State private var showAccounts = false
+    @State private var showBackupImporter = false
+    @State private var backupImportError: String?
     @State private var showInsights = false
     @State private var showReview = false
     @State private var selectedTransaction: GhafTransaction?
     @AppStorage(GhafAutomationStatus.lastRunKey) private var automationLastRun: Double = 0
+    @AppStorage(GhafAutomationStatus.walletRunKey) private var walletLastRun: Double = 0
+    @AppStorage(GhafAutomationStatus.setupCompletedKey) private var automationSetupCompleted: Double = 0
+    @AppStorage(GhafAutomationStatus.warningDismissedUntilKey) private var automationWarningDismissedUntil: Double = 0
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
@@ -127,10 +133,17 @@ struct GhafHomeView: View {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     header.ghafEntrance(0)
-                    balanceCard(summary).ghafEntrance(1)
-                    actionRow(summary).ghafEntrance(2)
-                    insightCard(summary).ghafEntrance(3)
-                    recentActivity.ghafEntrance(4)
+                    if automationNeedsAttention && Date.now.timeIntervalSince1970 >= automationWarningDismissedUntil {
+                        automationWarningCard
+                    }
+                    if accounts.contains(where: { !$0.isArchived }) {
+                        balanceCard(summary).ghafEntrance(1)
+                        actionRow(summary).ghafEntrance(2)
+                        insightCard(summary).ghafEntrance(3)
+                        recentActivity.ghafEntrance(4)
+                    } else {
+                        emptyAccountsState
+                    }
                 }
                 .padding(.horizontal, GhafMetrics.gutter)
                 .padding(.top, 8)
@@ -164,6 +177,19 @@ struct GhafHomeView: View {
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
+            .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
+                do {
+                    let url = try result.get()
+                    try GhafBackupService.restore(from: url, context: modelContext)
+                } catch {
+                    backupImportError = error.localizedDescription
+                }
+            }
+            .alert(ar ? "تعذر استيراد النسخة" : "Could not import backup", isPresented: Binding(
+                get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
+            )) {
+                Button(ar ? "حسناً" : "OK", role: .cancel) { backupImportError = nil }
+            } message: { Text(backupImportError ?? "") }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
                     GhafAutomationGuideView(settings: settings)
@@ -189,6 +215,70 @@ struct GhafHomeView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
+    private var messageRunHistory: [Double] { UserDefaults.standard.array(forKey: GhafAutomationStatus.messageHistoryKey) as? [Double] ?? [] }
+    private var walletRunHistory: [Double] { UserDefaults.standard.array(forKey: GhafAutomationStatus.walletHistoryKey) as? [Double] ?? [] }
+
+    private var emptyAccountsState: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "wallet.pass")
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(theme.accent)
+            Text(ar ? "أضف حسابك الأول" : "Add your first account")
+                .font(GhafTypography.heading(22, languageCode: lang))
+                .foregroundStyle(theme.primaryText)
+            Text(ar ? "أضف حساباً لعرض رصيدك ومتابعة عملياتك." : "Add an account to see your balance and track activity.")
+                .font(GhafTypography.body(15, languageCode: lang))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
+            Button { showAccounts = true } label: {
+                Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
+                    .frame(maxWidth: .infinity).frame(height: 56)
+            }
+            .ghafProminentButton(theme: theme, languageCode: lang)
+            Button { showBackupImporter = true } label: {
+                Label(ar ? "استيراد نسخة غاف الاحتياطية" : "Import Ghaf backup", systemImage: "arrow.down.doc")
+                    .frame(maxWidth: .infinity).frame(height: 56)
+            }
+            .ghafGlassButton(theme: theme, languageCode: lang)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, minHeight: 320)
+        .ghafGlassHero(theme: theme, radius: 28)
+        .multilineTextAlignment(.center)
+    }
+
+    private var automationNeedsAttention: Bool {
+        let now = Date.now.timeIntervalSince1970
+        guard automationSetupCompleted > 0 else { return false }
+        if automationLastRun == 0 { return now - automationSetupCompleted >= 24 * 60 * 60 }
+        if walletLastRun > 0, now - walletLastRun >= 14 * 24 * 60 * 60 { return true }
+        let runs = (messageRunHistory + walletRunHistory).sorted().suffix(10)
+        let gaps = zip(runs, runs.dropFirst()).map { $1 - $0 }.sorted()
+        guard !gaps.isEmpty, automationLastRun > 0 else { return false }
+        let median = gaps[gaps.count / 2]
+        return now - automationLastRun >= max(4 * 24 * 60 * 60, median * 3)
+    }
+
+    private var automationWarningCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(ar ? "هناك خطوة ناقصة" : "Something is missing", systemImage: "exclamationmark.circle.fill")
+                .font(GhafTypography.body(15, languageCode: lang, weight: .bold))
+                .foregroundStyle(theme.primaryText)
+            Text(ar ? "لا يستطيع غاف فحص الأتمتة مباشرة. لم تصل رسالة حديثاً؛ تحقق من إعداد الاختصار." : "Ghaf can’t inspect your automations directly. No recent run arrived; check your Shortcut setup.")
+                .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+            HStack {
+                Button(ar ? "إصلاح الإعداد" : "Fix setup") { showAutomationGuide = true }
+                    .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                Spacer()
+                Button(ar ? "إخفاء ٧ أيام" : "Dismiss for 7 days") {
+                    automationWarningDismissedUntil = Date.now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970
+                }
+                .font(GhafTypography.body(12, languageCode: lang))
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 18), fallback: theme.surface)
+    }
 
     // MARK: Header: greeting, accounts pill, hide-balances eye
 
@@ -204,20 +294,22 @@ struct GhafHomeView: View {
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
             Spacer(minLength: 8)
-            Button { showAccounts = true } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "wallet.bifold.fill").font(.system(size: 13, weight: .bold))
-                    Text(ar ? "الحسابات" : "Accounts")
-                        .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                    Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
+            if accounts.contains(where: { !$0.isArchived }) {
+                Button { showAccounts = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wallet.bifold.fill").font(.system(size: 13, weight: .bold))
+                        Text(ar ? "الحسابات" : "Accounts")
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
+                        Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
+                    }
+                    .foregroundStyle(theme.primaryText)
+                    .padding(.horizontal, 14).frame(height: 40)
+                    .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
+                    .shadow(color: theme.shadow, radius: 8, y: 3)
                 }
-                .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 14).frame(height: 40)
-                .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
-                .shadow(color: theme.shadow, radius: 8, y: 3)
+                .buttonStyle(.ghafPress)
+                .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
             }
-            .buttonStyle(.ghafPress)
-            .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
             Button {
                 withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
             } label: {
@@ -649,7 +741,6 @@ struct GhafQuickAddView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
-    @FocusState private var amountFocused: Bool
     @State private var subcategory: String?
     @State private var toAccountID: UUID?
     private var isTransfer: Bool { direction == "transfer" }
@@ -731,7 +822,6 @@ struct GhafQuickAddView: View {
                 ?? accounts.first(where: { !$0.isArchived })?.id
             if startAsTransfer { direction = "transfer" }
             toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
-            amountFocused = true
         }
     }
 
@@ -746,20 +836,9 @@ struct GhafQuickAddView: View {
                     directionChip("transfer", ar ? "تحويل" : "Transfer", "arrow.left.arrow.right")
                 }
             }
-            HStack(alignment: .center, spacing: 8) {
-                GhafCurrencyIcon(currency: currency, size: 28)
-                    .foregroundStyle(theme.secondaryText)
-                TextField("0", text: $amount)
-                    .font(GhafTypography.number(52, weight: .heavy))
-                    .keyboardType(.decimalPad)
-                    .focused($amountFocused)
-                    .fixedSize()
-                    .foregroundStyle(direction == "credit" ? theme.credit : theme.primaryText)
-            }
-            .environment(\.layoutDirection, .leftToRight)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .onTapGesture { amountFocused = true }
+            GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
+                            theme: theme, languageCode: lang, fontSize: 44, presentOnAppear: true)
+                .padding(.horizontal, 16)
         }
         .padding(.vertical, 22)
         .frame(maxWidth: .infinity)

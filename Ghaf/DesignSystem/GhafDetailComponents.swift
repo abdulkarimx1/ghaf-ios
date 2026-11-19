@@ -81,7 +81,7 @@ struct GhafDetailActionBar: View {
                     Image(systemName: secondarySymbol)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
-                        .frame(width: 64, height: 54)
+                        .frame(width: 64, height: 56)
                         .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                 }
                 .buttonStyle(.ghafPress)

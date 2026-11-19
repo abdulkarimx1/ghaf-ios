@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import GhafCore
+import CoreFoundation
 
 private struct GhafBackupPayload: Codable {
     var version: Int
@@ -11,6 +12,17 @@ private struct GhafBackupPayload: Codable {
     var accounts: [GhafAccountBackup]?
     var subscriptions: [GhafSubscriptionBackup]?
     var glass: GhafGlassBackup?
+    var memories: [GhafMemoryBackup]?
+    var preferences: GhafBackupPreferences?
+}
+
+private struct GhafBackupPreferences: Codable {
+    var version: Int
+    var values: [String: GhafBackupPreference]
+}
+
+private enum GhafBackupPreference: Codable {
+    case bool(Bool), string(String), integer(Int), double(Double), data(Data)
 }
 
 private struct GhafGlassBackup: Codable {
@@ -36,9 +48,11 @@ private struct GhafSubscriptionBackup: Codable {
     var notes: String?
     /// A pending price-rise prompt; optional so backups from before 1.19 still import.
     var proposedAmount: Decimal?
+    var createdAt: Date?
 }
 
 private struct GhafSettingsBackup: Codable {
+    var id: UUID?
     var userName: String
     var languageCode: String?
     var hasSeenAutomationIntro: Bool?
@@ -62,6 +76,7 @@ private struct GhafSettingsBackup: Codable {
     var lastSalaryDecisionKey: String?
     var salaryReminderEnabled: Bool?
     var biometricLockEnabled: Bool?
+    var createdAt: Date?
 }
 
 private struct GhafTransactionBackup: Codable {
@@ -81,6 +96,20 @@ private struct GhafTransactionBackup: Codable {
     var note: String?
     var createdAt: Date
     var accountID: UUID?
+    var originalAmount: Decimal?
+    var originalCurrency: String?
+    var exchangeRate: Decimal?
+    var exchangeRateDate: Date?
+}
+
+private struct GhafMemoryBackup: Codable {
+    var id: UUID
+    var text: String
+    var kind: String
+    var source: String
+    var createdAt: Date
+    var updatedAt: Date
+    var lastUsedAt: Date?
 }
 
 private struct GhafAccountBackup: Codable {
@@ -132,8 +161,10 @@ enum GhafBackupService {
         let rules = try context.fetch(FetchDescriptor<MerchantCategoryRule>())
         let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
         let subscriptions = try context.fetch(FetchDescriptor<GhafSubscription>())
+        let memories = try context.fetch(FetchDescriptor<GhafMemory>())
 
         let settingsBackup = GhafSettingsBackup(
+            id: settings.id,
             userName: settings.userName,
             languageCode: settings.languageCode,
             hasSeenAutomationIntro: settings.hasSeenAutomationIntro,
@@ -155,7 +186,8 @@ enum GhafBackupService {
             salaryAccountID: settings.salaryAccountID,
             lastSalaryDecisionKey: settings.lastSalaryDecisionKey,
             salaryReminderEnabled: settings.salaryReminderEnabled,
-            biometricLockEnabled: settings.biometricLockEnabled
+            biometricLockEnabled: settings.biometricLockEnabled,
+            createdAt: settings.createdAt
         )
 
         let transactionBackups = transactions.map { transaction in
@@ -175,7 +207,11 @@ enum GhafBackupService {
                 isReversal: transaction.isReversal,
                 note: transaction.note,
                 createdAt: transaction.createdAt,
-                accountID: transaction.accountID
+                accountID: transaction.accountID,
+                originalAmount: transaction.originalAmount,
+                originalCurrency: transaction.originalCurrency,
+                exchangeRate: transaction.exchangeRate,
+                exchangeRateDate: transaction.exchangeRateDate
             )
         }
 
@@ -211,7 +247,7 @@ enum GhafBackupService {
         }
 
         let payload = GhafBackupPayload(
-            version: 3,
+            version: 4,
             exportedAt: .now,
             settings: settingsBackup,
             transactions: transactionBackups,
@@ -222,13 +258,16 @@ enum GhafBackupService {
                                        billingCycle: $0.billingCycle, nextPaymentDate: $0.nextPaymentDate,
                                        category: $0.category, accountID: $0.accountID, reminderDays: $0.reminderDays,
                                        isActive: $0.isActive, needsConfirmation: $0.needsConfirmation, notes: $0.notes,
-                                       proposedAmount: $0.proposedAmount)
+                                       proposedAmount: $0.proposedAmount, createdAt: $0.createdAt)
             },
             glass: GhafGlassBackup(enabled: UserDefaults.standard.object(forKey: "ghaf.glass.enabled") as? Bool ?? true,
                                    intensity: UserDefaults.standard.string(forKey: "ghaf.glass.intensity") ?? "balanced",
                                    grain: UserDefaults.standard.object(forKey: "ghaf.glass.grain") as? Bool ?? true,
                                    glow: UserDefaults.standard.object(forKey: "ghaf.glass.glow") as? Bool ?? true,
-                                   tilt: UserDefaults.standard.object(forKey: "ghaf.glass.tilt") as? Bool ?? true)
+                                   tilt: UserDefaults.standard.object(forKey: "ghaf.glass.tilt") as? Bool ?? true),
+            memories: memories.map { .init(id: $0.id, text: $0.text, kind: $0.kind, source: $0.source,
+                                           createdAt: $0.createdAt, updatedAt: $0.updatedAt, lastUsedAt: $0.lastUsedAt) },
+            preferences: exportPreferences()
         )
 
         let encoder = JSONEncoder()
@@ -242,7 +281,7 @@ enum GhafBackupService {
         return url
     }
 
-    /// Replaces current Ghaf data with a v1, v2 or v3 backup. Subscriptions are only replaced when the backup has them.
+    /// Replaces current Ghaf data with a supported v1–v4 backup. Chats remain local and are not in the backup format.
     static func restore(from url: URL, context: ModelContext) throws {
         let accessGranted = url.startAccessingSecurityScopedResource()
         defer {
@@ -254,7 +293,10 @@ enum GhafBackupService {
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(GhafBackupPayload.self, from: data)
 
-        guard (1...3).contains(payload.version) else {
+        guard (1...4).contains(payload.version) else {
+            throw GhafBackupError.unsupportedVersion
+        }
+        if let preferences = payload.preferences, preferences.version != 1 {
             throw GhafBackupError.unsupportedVersion
         }
 
@@ -274,19 +316,13 @@ enum GhafBackupService {
         try context.fetch(FetchDescriptor<GhafAccount>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafSettings>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<MerchantCategoryRule>()).forEach { context.delete($0) }
+        try context.fetch(FetchDescriptor<GhafMemory>()).forEach { context.delete($0) }
         let oldSubscriptions = payload.subscriptions == nil ? [] : try context.fetch(FetchDescriptor<GhafSubscription>())
         // Read ids now: a deleted model's properties can't be read after the save.
         let oldReminderIDs = oldSubscriptions.map(\.id)
         oldSubscriptions.forEach { context.delete($0) }
 
         let source = payload.settings
-        if let glass = payload.glass {
-            UserDefaults.standard.set(glass.enabled, forKey: "ghaf.glass.enabled")
-            UserDefaults.standard.set(glass.intensity, forKey: "ghaf.glass.intensity")
-            UserDefaults.standard.set(glass.grain, forKey: "ghaf.glass.grain")
-            UserDefaults.standard.set(glass.glow, forKey: "ghaf.glass.glow")
-            UserDefaults.standard.set(glass.tilt, forKey: "ghaf.glass.tilt")
-        }
         let settings = GhafSettings(
             userName: source.userName,
             languageCode: source.languageCode ?? "en",
@@ -308,6 +344,8 @@ enum GhafBackupService {
             salaryReminderEnabled: source.salaryReminderEnabled ?? false,
             biometricLockEnabled: source.biometricLockEnabled ?? false
         )
+        settings.id = source.id ?? settings.id
+        settings.createdAt = source.createdAt ?? settings.createdAt
         settings.categories = source.categories
         settings.categoryMeta = source.categoryMeta ?? [:]
         settings.categoryBudgets = source.categoryBudgets
@@ -358,6 +396,10 @@ enum GhafBackupService {
             transaction.note = item.note
             transaction.subcategory = item.subcategory
             transaction.createdAt = item.createdAt
+            transaction.originalAmount = item.originalAmount
+            transaction.originalCurrency = item.originalCurrency
+            transaction.exchangeRate = item.exchangeRate
+            transaction.exchangeRateDate = item.exchangeRateDate
             context.insert(transaction)
         }
 
@@ -381,7 +423,14 @@ enum GhafBackupService {
             )
             subscription.needsConfirmation = item.needsConfirmation
             subscription.proposedAmount = item.proposedAmount
+            subscription.createdAt = item.createdAt ?? subscription.createdAt
             context.insert(subscription)
+        }
+
+        for item in payload.memories ?? [] {
+            let memory = GhafMemory(text: item.text, kind: item.kind, source: item.source)
+            memory.id = item.id; memory.createdAt = item.createdAt; memory.updatedAt = item.updatedAt; memory.lastUsedAt = item.lastUsedAt
+            context.insert(memory)
         }
 
         do {
@@ -391,8 +440,120 @@ enum GhafBackupService {
             throw error
         }
         oldReminderIDs.forEach { GhafSubscriptionReminderService.cancel(id: $0) }
+        if let preferences = payload.preferences, preferences.version == 1 {
+            restorePreferences(preferences)
+        } else if let glass = payload.glass {
+            preferenceKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+            restoreGlass(glass)
+        } else {
+            preferenceKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        }
         for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }
+    }
+
+    #if DEBUG
+    static func debugRoundTripCheck(context: ModelContext) async throws -> String {
+        struct Snapshot: Equatable {
+            var counts: [Int]
+            var settings: [String]
+            var accounts: [String]
+            var transactions: [String]
+            var subscriptions: [String]
+            var rules: [String]
+            var memories: [String]
+            var preferences: Data
+        }
+        func json<T: Encodable>(_ value: T) throws -> String {
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+            return String(decoding: try encoder.encode(value), as: UTF8.self)
+        }
+        func snapshot() throws -> Snapshot {
+            let settings = try context.fetch(FetchDescriptor<GhafSettings>())
+            let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
+            let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+            let subscriptions = try context.fetch(FetchDescriptor<GhafSubscription>())
+            let rules = try context.fetch(FetchDescriptor<MerchantCategoryRule>())
+            let memories = try context.fetch(FetchDescriptor<GhafMemory>())
+            let preferenceEncoder = JSONEncoder(); preferenceEncoder.outputFormatting = [.sortedKeys]
+            return Snapshot(
+                counts: [settings.count, accounts.count, transactions.count, subscriptions.count, rules.count, memories.count],
+                settings: try settings.map { "\($0.id)|\($0.themeName)|\($0.appearanceMode)|\($0.currency)|\($0.languageCode)|\($0.categories)|\(try json($0.categoryBudgets))|\(try json($0.categoryMeta))" }.sorted(),
+                accounts: accounts.map { "\($0.id)|\($0.name)|\($0.institution ?? "")|\($0.cardDesign ?? "")|\($0.isArchived)|\($0.sortOrder)|\($0.openingBalance)|\($0.openingDate)|\($0.lastFourDigits ?? "")|\($0.creditLimit ?? 0)" }.sorted(),
+                transactions: transactions.map { "\($0.id)|\($0.fingerprint)|\($0.amount)|\($0.originalAmount ?? 0)|\($0.originalCurrency ?? "")|\($0.exchangeRate ?? 0)|\($0.exchangeRateDate?.timeIntervalSince1970 ?? 0)" }.sorted(),
+                subscriptions: subscriptions.map { "\($0.id)|\($0.name)|\($0.amount)|\($0.billingCycle)|\($0.nextPaymentDate.timeIntervalSince1970)|\($0.createdAt.timeIntervalSince1970)" }.sorted(),
+                rules: rules.map { "\($0.normalizedMerchant)|\($0.category)|\($0.subcategory ?? "")|\($0.hits)|\($0.updatedAt.timeIntervalSince1970)" }.sorted(),
+                memories: memories.map { "\($0.id)|\($0.text)|\($0.kind)|\($0.source)|\($0.createdAt.timeIntervalSince1970)|\($0.updatedAt.timeIntervalSince1970)|\($0.lastUsedAt?.timeIntervalSince1970 ?? 0)" }.sorted(),
+                preferences: try preferenceEncoder.encode(exportPreferences())
+            )
+        }
+
+        print("Ghaf backup round-trip: exporting")
+        let expected = try snapshot()
+        let exported = try export(context: context)
+        let data = try Data(contentsOf: exported)
+        try? FileManager.default.removeItem(at: exported)
+        print("Ghaf backup round-trip: resetting")
+        let warnings = try await GhafResetService.run(context: context)
+        print("Ghaf backup round-trip: restoring")
+        let recoveryURL = FileManager.default.temporaryDirectory.appendingPathComponent("GhafRoundTrip-\(UUID().uuidString).json")
+        try data.write(to: recoveryURL, options: .atomic)
+        do {
+            try restore(from: recoveryURL, context: context)
+            print("Ghaf backup round-trip: comparing")
+            guard try snapshot() == expected else {
+                throw GhafBackupError.invalidBackup("round-trip model counts or fields differ; recovery file: \(recoveryURL.path)")
+            }
+            try FileManager.default.removeItem(at: recoveryURL)
+            return warnings.isEmpty ? "Counts and key fields matched." : "Counts and key fields matched; reset cleanup warnings: \(warnings.joined(separator: ", "))"
+        } catch {
+            throw GhafBackupError.invalidBackup("round-trip failed; recovery file: \(recoveryURL.path); \(error.localizedDescription)")
+        }
+    }
+    #endif
+
+    private static let preferenceKeys = [
+        "ghaf.hideBalances", "ghaf.weekStart", "ghaf.glass.enabled", "ghaf.glass.intensity", "ghaf.glass.grain",
+        "ghaf.glass.glow", "ghaf.glass.tilt", "ghaf.ai.cloudEnabled", "ghaf.ai.modelLearning", "ghaf.ai.memoryEnabled",
+        "ghaf.ai.speakReplies", "ghaf.notify.autoTransaction", "ghaf.notify.morning",
+        "ghaf.notify.evening", "ghaf.notify.weekly", "ghaf.liveActivity", "ghaf.places.byMerchant",
+        "ghaf.places.byTransaction", "ghaf.voice.learnedPause"
+    ]
+
+    private static func exportPreferences() -> GhafBackupPreferences {
+        var values: [String: GhafBackupPreference] = [:]
+        for key in preferenceKeys {
+            guard let value = UserDefaults.standard.object(forKey: key) else { continue }
+            if let data = value as? Data { values[key] = .data(data) }
+            else if let string = value as? String { values[key] = .string(string) }
+            else if let number = value as? NSNumber {
+                if CFGetTypeID(number) == CFBooleanGetTypeID() { values[key] = .bool(number.boolValue) }
+                else if CFNumberIsFloatType(number as CFNumber) { values[key] = .double(number.doubleValue) }
+                else { values[key] = .integer(number.intValue) }
+            }
+        }
+        return GhafBackupPreferences(version: 1, values: values)
+    }
+
+    private static func restorePreferences(_ preferences: GhafBackupPreferences) {
+        preferenceKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        for (key, value) in preferences.values where preferenceKeys.contains(key) {
+            switch value {
+            case .bool(let value): UserDefaults.standard.set(value, forKey: key)
+            case .string(let value): UserDefaults.standard.set(value, forKey: key)
+            case .integer(let value): UserDefaults.standard.set(value, forKey: key)
+            case .double(let value): UserDefaults.standard.set(value, forKey: key)
+            case .data(let value): UserDefaults.standard.set(value, forKey: key)
+            }
+        }
+    }
+
+    private static func restoreGlass(_ glass: GhafGlassBackup) {
+        UserDefaults.standard.set(glass.enabled, forKey: "ghaf.glass.enabled")
+        UserDefaults.standard.set(glass.intensity, forKey: "ghaf.glass.intensity")
+        UserDefaults.standard.set(glass.grain, forKey: "ghaf.glass.grain")
+        UserDefaults.standard.set(glass.glow, forKey: "ghaf.glass.glow")
+        UserDefaults.standard.set(glass.tilt, forKey: "ghaf.glass.tilt")
     }
 }
