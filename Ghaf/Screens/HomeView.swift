@@ -830,13 +830,21 @@ struct GhafQuickAddView: View {
             .navigationTitle(ar ? "عملية جديدة" : "New transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(ar ? "إلغاء" : "Cancel") { dismiss() }
-                }
                 ToolbarItem(placement: .principal) {
-                    Text(ar ? "عملية جديدة" : "New transaction")
-                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.primaryText)
+                    ZStack {
+                        Text(ar ? "عملية جديدة" : "New transaction")
+                            .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                        HStack {
+                            Button(ar ? "إلغاء" : "Cancel") { dismiss() }
+                                .foregroundStyle(theme.accent)
+                                .frame(width: 64, alignment: .leading)
+                            Spacer()
+                            Color.clear.frame(width: 64)
+                        }
+                        .padding(.horizontal, GhafMetrics.gutter)
+                    }
+                    .frame(width: UIScreen.main.bounds.width, height: 44)
                 }
             }
         }
