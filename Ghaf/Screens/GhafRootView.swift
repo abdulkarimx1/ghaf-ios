@@ -337,8 +337,6 @@ struct GhafTabView: View {
     @Environment(\.ghafGlass) private var glass
     @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }) private var reviewItems: [GhafTransaction]
     @Query(filter: #Predicate<GhafSubscription> { $0.needsConfirmation }) private var subscriptionReviewItems: [GhafSubscription]
-    /// Current frame of the Ghaf AI icon's tap animation (0 = at rest).
-    @State private var aiFrame = 0
     @State private var expandedOrb = false
     @State private var showOrbOverlay = false
     /// A stable reference in the environment: switching tabs never changes the tabs' inputs.
@@ -379,7 +377,7 @@ struct GhafTabView: View {
                 // A full-colour Ghaf tree as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
-                    tabIcon(Image(uiImage: showOrbOverlay ? UIImage() : GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1, frame: aiFrame)),
+                    tabIcon(Image(uiImage: showOrbOverlay ? UIImage() : GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1)),
                             router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
                         .onLongPressGesture(minimumDuration: 0.45) { router.typeQuestion?() }
                         .accessibilityAction(named: Text("Type a question")) { router.typeQuestion?() }
@@ -455,16 +453,6 @@ struct GhafTabView: View {
                     showOrbOverlay = false
                 }
             }
-        }
-        .task(id: router.selectedTab) {
-            // Opening Ghaf AI plays the tree's grow-and-sway once, frame by frame (tab icons can't animate otherwise).
-            guard router.selectedTab == 1, !reduceMotion else { return }
-            for frame in 1...GhafAITabIcon.frameCount {
-                aiFrame = frame
-                try? await Task.sleep(for: .milliseconds(28))
-                if Task.isCancelled { break }
-            }
-            aiFrame = 0
         }
         .environment(router)
         .environment(\.ghafCategoryMeta, categoryMeta)
@@ -1599,27 +1587,21 @@ private struct GhafWelcomeLaunchScreen: View {
 }
 
 
-/// Ghaf AI's tab icon: a glass orb in the theme's colours, kept in full colour. `frame` 1...frameCount
-/// draws the twirl played when the tab opens; 0 is at rest.
+/// Ghaf AI's tab icon: a glass orb in the theme's colours, kept in full colour.
 @MainActor
 enum GhafAITabIcon {
-    static let frameCount = 16
     private static var cache: [String: UIImage] = [:]
 
-    static func image(theme: GhafTheme, selected: Bool, frame: Int = 0) -> UIImage {
-        let key = "\(theme.name)-\(theme.isDark)-\(selected)-\(frame)"
+    static func image(theme: GhafTheme, selected: Bool) -> UIImage {
+        let key = "\(theme.name)-\(theme.isDark)-\(selected)"
         if let cached = cache[key] { return cached }
-        let t = Double(frame) / Double(frameCount)          // 0...1 through the opening swirl
-        let lift = sin(t * .pi)                             // rises then settles
         // The Ghaf AI orb, drawn by the same code as the AI screen. The dark palette's accent and glow are
-        // the brighter pair, so it reads on light and dark tab bars. On open its light swirls once, then settles.
+        // the brighter pair, so it reads on light and dark tab bars.
         let side: CGFloat = selected ? 32 : 29
         let lit = GhafTheme.resolve(name: theme.name, appearanceMode: "Dark", systemIsDark: true)
-        let mark = GhafAIOrbFace(theme: lit, mood: frame == 0 ? .idle : .thinking, level: 0,
-                                 time: 3.1 + t * 3, still: frame == 0, halo: false)
+        let mark = GhafAIOrbFace(theme: lit, mood: .idle, level: 0, time: 3.1, still: true, halo: false)
             .frame(width: side, height: side)
             .opacity(selected ? 1 : 0.82)
-            .scaleEffect(1 + 0.08 * lift)
             .frame(width: 40, height: 40)
         let renderer = ImageRenderer(content: mark)
         renderer.scale = 3

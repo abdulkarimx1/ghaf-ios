@@ -354,6 +354,7 @@ struct GhafCityScene: View {
 struct GhafCityBackdrop: View {
     let theme: GhafTheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isVisible = false
 
     /// Where each coastal scene's water is (x from…to, in scene units), so a dhow rides on it, not in the sky.
     private static let water: [String: ClosedRange<CGFloat>] = ["Dubai": 0.64...0.86, "Umm Al Quwain": 0.08...0.5, "Fujairah": 0.08...0.6]
@@ -361,7 +362,7 @@ struct GhafCityBackdrop: View {
     var body: some View {
         let city = GhafTheme.canonical(theme.name)
         if city != "Graphite" {
-            TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion)) { context in
+            TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion || !isVisible)) { context in
                 let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
                 scene(city: city, t: t)
             }
@@ -373,6 +374,8 @@ struct GhafCityBackdrop: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+            .onAppear { isVisible = true }
+            .onDisappear { isVisible = false }
         }
     }
 
