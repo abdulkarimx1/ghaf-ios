@@ -181,8 +181,8 @@ struct GhafAutomationGuideView: View {
                 onGuideTap()
             } label: {
                 Text(text(
-                    "Turning a bank on here doesn’t connect it. In Shortcuts, choose these same apps in the Notification trigger (step 3).",
-                    "تفعيل البنك هنا لا يربطه بحسابك. اختر التطبيقات نفسها ضمن مشغّل “Notification” في “Shortcuts” (الخطوة 3)."
+                    "Turning a bank on here doesn’t connect it. In Shortcuts, choose this bank as the sender for text messages or choose its app for notifications.",
+                    "تفعيل البنك هنا لا يربطه بغاف. في «الاختصارات»، اختر مُرسِل البنك للرسائل النصية أو تطبيقه للإشعارات."
                 ))
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
