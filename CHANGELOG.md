@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.24 (38)
+
+### English
+- Online card purchases are captured from bank text messages, with a new "Bank text messages" automation guide. Merchant names no longer include "using … card".
+- Purchases appear faster, and the latest one can show as a Live Activity for 5 minutes (amounts hidden when locked; choose total balance, card balance or hidden).
+- Budget is now a petal chart: each category's petal fills as you spend. New allocation presets 60/20/20 and 60/30/10.
+- Statistics month view shows weekly points with a daily breakdown.
+- Review is now Notifications, with gentle tab marks instead of red badges and alerts tied to real events.
+- Ghaf AI: no big orb (the tab-bar orb reacts instead) and status text from the real steps.
+- Category icons on purchases; bigger Spent and Income on Transactions; fitted purchase and Pro sheets; Subscriptions title lowered and opens faster.
+- New Profile with streaks, a Ghaf Pro card on More, Terms and Privacy moved to About.
+- Smoother wallet cards and glass tilt; cleaner launch screen.
+- Widgets are packaged so FlareStore signs them again.
+
+### العربية
+- تُسجَّل مشتريات البطاقة عبر الإنترنت من رسائل البنك النصية، مع دليل أتمتة جديد لرسائل البنك. ولم تعد أسماء التجار تتضمن «using … card».
+- تظهر العمليات أسرع، ويمكن عرض آخر عملية كنشاط مباشر لمدة ٥ دقائق (تُخفى المبالغ عند القفل، مع اختيار الرصيد الكلي أو رصيد البطاقة أو الإخفاء).
+- الميزانية أصبحت مخططاً على شكل بتلات تمتلئ كل بتلة منها مع الصرف، مع خيارَي توزيع جديدين ٦٠/٢٠/٢٠ و٦٠/٣٠/١٠.
+- عرض الشهر في الإحصاءات يعرض نقاطاً أسبوعية مع تفصيل يومي.
+- «المراجعة» أصبحت «الإشعارات»، مع علامات هادئة على التبويبات بدل الدوائر الحمراء، وتنبيهات مرتبطة بأحداث حقيقية.
+- غاف AI: أُزيلت الكرة الكبيرة (تتفاعل كرة شريط التبويبات بدلاً منها)، ونص الحالة يعكس الخطوات الفعلية.
+- أيقونات الفئات على العمليات، وأرقام صرف ودخل أكبر في العمليات، ونوافذ عمليات و Pro بحجم محتواها، وعنوان الاشتراكات أنزل وفتحها أسرع.
+- صفحة ملف شخصي جديدة مع سلاسل الأيام، وبطاقة غاف Pro في «المزيد»، ونقل الشروط والخصوصية إلى «حول غاف».
+- بطاقات محفظة وميلان زجاج أكثر سلاسة، وشاشة بدء أنظف.
+- تجهيز الأدوات بحيث يوقّعها FlareStore من جديد.
+
 ## 1.23 (37)
 
 ### English
