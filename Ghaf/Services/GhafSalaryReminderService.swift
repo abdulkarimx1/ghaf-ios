@@ -258,12 +258,9 @@ struct GhafSalarySettingsView: View {
                      ? "سيطلب منك غاف تأكيد وصول الراتب في يوم الاستحقاق."
                      : "Ghaf will ask you to confirm whether your salary arrived on its scheduled day.")
                     .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                    .foregroundStyle(theme.secondaryText).padding(.horizontal, 4)
+                    .foregroundStyle(theme.secondaryText).padding(.horizontal, 4).padding(.bottom, 12)
 
                 if enabled {
-                    Text(settings.languageCode == "ar" ? "تفاصيل الراتب" : "SALARY DETAILS")
-                        .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
-                        .foregroundStyle(theme.secondaryText).padding(.horizontal, 4).padding(.top, 8)
                     GhafFormCard(theme: theme) {
                         GhafFormMenuRow(icon: "calendar", tint: theme.accent,
                                         title: settings.languageCode == "ar" ? "يوم الراتب" : "Salary day",
@@ -274,19 +271,20 @@ struct GhafSalarySettingsView: View {
                         }
                         GhafFormDivider(theme: theme)
                         GhafFormRow(icon: "banknote", tint: theme.comfortable,
-                                    title: settings.languageCode == "ar" ? "المبلغ المتوقع (اختياري)" : "Expected amount (optional)",
+                                    title: settings.languageCode == "ar" ? "المبلغ المتوقع" : "Expected",
                                     theme: theme, languageCode: settings.languageCode) {
                             GhafAmountField(value: $amountText,
                                             currency: activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency,
-                                            label: "", theme: theme, languageCode: settings.languageCode, fontSize: 20, chromeless: true)
+                                            label: "", theme: theme, languageCode: settings.languageCode, fontSize: 15, chromeless: true)
+                                .frame(width: 132)
                         }
                         GhafFormDivider(theme: theme)
                         GhafFormMenuRow(icon: "wallet.pass", tint: theme.accent,
                                         title: settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account",
-                                        value: activeAccounts.first(where: { $0.id == accountID }).map { "\($0.name) · \($0.currency)" } ?? "",
+                                        value: activeAccounts.first(where: { $0.id == accountID })?.name ?? "",
                                         theme: theme, languageCode: settings.languageCode) {
                             Picker(settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account", selection: $accountID) {
-                                ForEach(activeAccounts, id: \.id) { Text("\($0.name) · \($0.currency)").tag(Optional($0.id)) }
+                                ForEach(activeAccounts, id: \.id) { Text($0.name).tag(Optional($0.id)) }
                             }
                         }
                         if let account = activeAccounts.first(where: { $0.id == accountID }) {

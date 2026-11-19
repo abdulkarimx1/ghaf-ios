@@ -169,7 +169,7 @@ struct GhafFormMenuRow<Content: View>: View {
         Menu { content() } label: {
             GhafFormRow(icon: icon, tint: tint, title: title, theme: theme, languageCode: languageCode) {
                 HStack(spacing: 7) {
-                    Text(value)
+                    Text(value).truncationMode(.middle)
                     Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
                 }
             }
