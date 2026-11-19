@@ -126,7 +126,6 @@ private struct GhafControlGlass: ViewModifier {
                 content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
             } else {
                 content.overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(prominent ? 0.4 : 0.45), .white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
-                    .overlay(alignment: .top) { Capsule().fill(.white.opacity(prominent ? 0.12 : 0.06)).frame(height: 1) }
             }
         } else { content }
     }

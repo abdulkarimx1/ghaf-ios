@@ -106,7 +106,7 @@ struct GhafGlassSurface: ViewModifier {
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
                 .overlay { GhafGlassRim(theme: theme, shape: shape, contrast: contrast, direction: direction) }
-                .overlay(alignment: .bottom) { if hero { Rectangle().fill(theme.accent.opacity(0.75)).frame(height: 1.5).blur(radius: 1).clipShape(shape) } }
+                .overlay { if hero { shape.strokeBorder(LinearGradient(colors: [.clear, theme.accent.opacity(0.75)], startPoint: UnitPoint(x: 0.5, y: 0.8), endPoint: .bottom), lineWidth: 1.5) } }
                 .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 18, x: 0, y: 8)
             } else {
                 shape.fill(fallback ?? theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6)
