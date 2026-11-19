@@ -161,12 +161,11 @@ struct GhafBudgetView: View {
                         .opacity(!bucketSelected || item == bucket ? 1 : 0.3)
                         .accessibilityLabel(names[item.rawValue])
                         .accessibilityValue(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
-                    if bucketSelected && item == bucket {
-                        SectorMark(angle: .value("Selected share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
-                                   innerRadius: .ratio(0.95), outerRadius: .ratio(1), angularInset: 2)
-                            .foregroundStyle(theme.primaryText)
-                            .accessibilityHidden(true)
-                    }
+                    SectorMark(angle: .value("Selected share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
+                               innerRadius: .ratio(0.95), outerRadius: .ratio(1), angularInset: 2)
+                        .foregroundStyle(theme.primaryText)
+                        .opacity(bucketSelected && item == bucket ? 1 : 0)
+                        .accessibilityHidden(true)
                 }
                 .frame(width: 200, height: 200)
                 .chartOverlay { proxy in

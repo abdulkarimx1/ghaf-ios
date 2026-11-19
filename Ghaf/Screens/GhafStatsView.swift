@@ -247,16 +247,17 @@ struct GhafStatsView: View {
                     .opacity(selected == nil || selected?.id == bucket.id ? 1 : 0.3)
                     .accessibilityLabel(bucketLabel(bucket.start))
                     .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total), currency: currency, languageCode: lang))
-                if let selected, selected.id == bucket.id {
-                    RuleMark(x: .value("Date", chartKey(bucket.start)))
-                        .foregroundStyle(theme.secondaryText.opacity(0.5))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                    PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                        .symbol { Circle().fill(accent).frame(width: 14, height: 14).overlay(Circle().stroke(theme.surface, lineWidth: 3)) }
-                        .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
-                            selectionBubble(amount: bucket.total, date: bucket.start)
-                        }
-                }
+                let isSelected = selected?.id == bucket.id
+                RuleMark(x: .value("Date", chartKey(bucket.start)))
+                    .foregroundStyle(theme.secondaryText.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    .opacity(isSelected ? 1 : 0)
+                PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
+                    .symbol { Circle().fill(accent).frame(width: 14, height: 14).overlay(Circle().stroke(theme.surface, lineWidth: 3)) }
+                    .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        selectionBubble(amount: bucket.total, date: bucket.start).opacity(isSelected ? 1 : 0)
+                    }
+                    .opacity(isSelected ? 1 : 0)
             }
             .chartOverlay { proxy in
                 GeometryReader { geometry in
