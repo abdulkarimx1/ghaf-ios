@@ -165,104 +165,135 @@ struct GhafStatsView: View {
         let heading = selected.map { bucketLabel($0.start) }
             ?? selectedCategory.map { GhafLocalization.category($0, languageCode: lang) }
             ?? (ar ? "المصروف · \(periodNames[period.rawValue])" : "Spent · \(periodNames[period.rawValue])")
-        return VStack(spacing: 6) {
+        return VStack(spacing: 8) {
             Text(heading)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .contentTransition(.opacity)
-            GhafMoneyLabel(amount: Decimal(selected?.total ?? spent), currency: currency, languageCode: lang, size: 38)
+            GhafMoneyLabel(amount: Decimal(selected?.total ?? spent), currency: currency, languageCode: lang, size: 40)
                 .foregroundStyle(theme.primaryText)
                 .contentTransition(.numericText())
                 .environment(\.layoutDirection, .leftToRight)
-            if let change, selected == nil {
+            if let change, selected == nil, selectedCategory == nil {
                 Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
                       + (ar ? " عن الفترة السابقة" : " vs previous"),
                       systemImage: change > 0 ? "arrow.up.right" : "arrow.down.right")
-                    .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(change > 0 ? theme.over : theme.credit)
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background((change > 0 ? theme.over : theme.credit).opacity(0.16), in: Capsule())
             } else {
-                Text(selected != nil ? (ar ? "ارفع إصبعك لرؤية المجموع" : "Lift your finger to see the total")
+                Text(selected != nil || selectedCategory != nil ? (ar ? "اضغط مرة أخرى لرؤية المجموع" : "Tap again for the total")
                                      : (ar ? "لا توجد بيانات للفترة السابقة" : "No data for the previous period"))
                     .font(GhafTypography.body(12, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
                     .padding(.vertical, 5)
             }
             Chart(data) { bucket in
-                if glass.enabled {
-                    LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(accent.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 6, lineCap: .round)).blur(radius: 6)
-                        .interpolationMethod(.monotone)
-                }
-                AreaMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                    .foregroundStyle(LinearGradient(colors: [accent.opacity(0.4), accent.opacity(0)], startPoint: .top, endPoint: .bottom))
+                AreaMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
+                    .foregroundStyle(accent.opacity(0.1))
                     .interpolationMethod(.monotone)
-                LineMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                    .opacity(selected == nil || selected?.id == bucket.id ? 1 : 0.3)
+                LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                     .foregroundStyle(accent)
                     .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                if glass.enabled, bucket.id == data.max(by: { $0.total < $1.total })?.id {
-                    PointMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(.white).symbolSize(110)
-                        .shadow(color: accent.opacity(0.85), radius: 8)
-                }
+                    .opacity(selected == nil || selected?.id == bucket.id ? 1 : 0.3)
+                PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
+                    .symbolSize(selected?.id == bucket.id ? 110 : 24)
+                    .foregroundStyle(accent)
+                    .opacity(selected == nil || selected?.id == bucket.id ? 1 : 0.3)
+                    .accessibilityLabel(bucketLabel(bucket.start))
+                    .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total), currency: currency, languageCode: lang))
                 if let selected, selected.id == bucket.id {
-                    RuleMark(x: .value("Date", axisLabel(bucket.start)))
+                    RuleMark(x: .value("Date", chartKey(bucket.start)))
                         .foregroundStyle(theme.secondaryText.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                    PointMark(x: .value("Date", axisLabel(bucket.start)), y: .value(currency, bucket.total))
+                    PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                         .symbol { Circle().fill(accent).frame(width: 14, height: 14).overlay(Circle().stroke(theme.surface, lineWidth: 3)) }
                         .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
-                            Text(axisLabel(bucket.start))
-                                .font(GhafTypography.body(11, languageCode: lang, weight: .bold))
-                                .foregroundStyle(theme.surface)
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(theme.primaryText, in: Capsule())
+                            selectionBubble(amount: bucket.total, date: bucket.start)
                         }
                 }
             }
-            .chartXSelection(value: $selectedLabel)
+            .chartOverlay { proxy in
+                GeometryReader { geometry in
+                    Rectangle().fill(.clear).contentShape(Rectangle())
+                        .gesture(SpatialTapGesture().onEnded { value in
+                            guard let anchor = proxy.plotFrame else { selectedLabel = nil; return }
+                            selectBucket(at: value.location, plotFrame: geometry[anchor], proxy: proxy, data: data)
+                        })
+                        .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { value in
+                            guard let anchor = proxy.plotFrame, let label: String = proxy.value(atX: value.location.x - geometry[anchor].minX) else { return }
+                            selectedLabel = label
+                        })
+                }
+            }
+            .accessibilityRepresentation {
+                VStack {
+                    ForEach(data) { bucket in
+                        Button {
+                            withAnimation(.snappy) {
+                                selectedLabel = selectedLabel == chartKey(bucket.start) ? nil : chartKey(bucket.start)
+                            }
+                        } label: { Text(bucketLabel(bucket.start)) }
+                            .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total), currency: currency, languageCode: lang))
+                            .accessibilityAddTraits(selected?.id == bucket.id ? .isSelected : [])
+                    }
+                }
+            }
             // A new chart per period, faded in: Charts animating between different label sets produces NaN geometry.
             .id(period)
             .transition(.opacity)
             .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(glass.enabled ? Color.white.opacity(0.05) : .clear)
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                    AxisGridLine().foregroundStyle(theme.outline.opacity(0.45))
                 }
             }
             .chartXAxis {
-                AxisMarks(values: data.map { axisLabel($0.start) }.filter { shown.contains($0) }) { _ in
-                    AxisValueLabel().foregroundStyle(theme.secondaryText)
+                AxisMarks(values: data.map { chartKey($0.start) }.filter { shown.contains($0) }) { value in
+                    AxisValueLabel {
+                        if let key = value.as(String.self), let bucket = data.first(where: { chartKey($0.start) == key }) {
+                            Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                        }
+                    }
                 }
             }
-            .frame(height: 180)
+            .overlay(alignment: .topTrailing) { Text(GhafCompactNumber.string(data.map(\.total).max() ?? 0, languageCode: lang)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText).padding(.top, 2) }
+            .frame(height: 200)
             .padding(.top, 14)
             .environment(\.layoutDirection, .leftToRight)
             .sensoryFeedback(.selection, trigger: selected?.id)
             .accessibilityLabel(ar ? "اتجاه الصرف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
 
-            HStack(spacing: 6) {
-                ForEach(Period.allCases, id: \.self) { item in
-                    Button {
-                        withAnimation(.snappy) { period = item; selectedLabel = nil; selectedCategory = nil }
-                    } label: {
-                        Text(periods[item.rawValue])
-                            .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                            .foregroundStyle(period == item ? theme.accentContrast : theme.secondaryText)
-                            .frame(minWidth: 54, minHeight: 44)
-                            .background(period == item ? accent : theme.elevatedSurface, in: Capsule())
-                    }
-                    .buttonStyle(.ghafPress)
-                    .accessibilityLabel(periodNames[item.rawValue])
-                    .accessibilityAddTraits(period == item ? .isSelected : [])
-                }
-            }
+            GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme, languageCode: lang)
             .padding(.top, 8)
+            .onChange(of: period) { _, _ in selectedLabel = nil; selectedCategory = nil }
         }
         .frame(maxWidth: .infinity)
         .padding(GhafMetrics.heroPadding)
-        .ghafGlassHero(theme: theme, radius: 30)
+        .ghafStatsCard(theme: theme, radius: 30)
+    }
+
+    private func selectBucket(at location: CGPoint, plotFrame: CGRect, proxy: ChartProxy, data: [Bucket]) {
+        let relativeX = location.x - plotFrame.minX
+        let key: String? = proxy.value(atX: relativeX, as: String.self)
+        guard let key, let bucket = data.first(where: { chartKey($0.start) == key }),
+              let pointX = proxy.position(forX: key), let pointY = proxy.position(forY: bucket.total) else {
+            withAnimation(.snappy) { selectedLabel = nil }
+            return
+        }
+        let dx = location.x - plotFrame.minX - pointX
+        let dy = location.y - plotFrame.minY - pointY
+        withAnimation(.snappy) { selectedLabel = dx * dx + dy * dy < 784 && selectedLabel != key ? key : nil }
+    }
+
+    private func selectionBubble(amount: Double, date: Date) -> some View {
+        Text("\(GhafFormat.shownMoney(Decimal(amount), currency: currency, languageCode: lang)) · \(bucketLabel(date))")
+            .font(GhafTypography.number(13, weight: .bold))
+            .foregroundStyle(theme.surface)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(theme.primaryText, in: Capsule())
     }
 
     // MARK: Budget entry
