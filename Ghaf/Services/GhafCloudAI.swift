@@ -1,4 +1,31 @@
 import Foundation
+import Observation
+
+enum GhafAIStage: Hashable {
+    case listening, transcribing
+    case checkingTransactions(count: Int, period: String)
+    case addingPurchases(Int), askingAI, drawingChart, preparingDraft
+
+    func label(languageCode: String) -> String {
+        let ar = languageCode == "ar"
+        switch self {
+        case .listening: return ar ? "غاف يستمع…" : "Listening…"
+        case .transcribing: return ar ? "يحوّل كلامك إلى نص" : "Turning your voice into text"
+        case .checkingTransactions(let count, let period):
+            return ar ? "يراجع \(count) عملية · \(period)" : "Checking \(count) transactions · \(period)"
+        case .addingPurchases(let count): return ar ? "يحسب \(count) عملية شراء" : "Adding up \(count) purchases"
+        case .askingAI: return ar ? "يسأل غاف AI" : "Asking Ghaf AI"
+        case .drawingChart: return ar ? "يرسم مخططك" : "Drawing your chart"
+        case .preparingDraft: return ar ? "يجهز مسودة لمراجعتها" : "Preparing a draft for you to confirm"
+        }
+    }
+}
+
+@MainActor @Observable
+final class GhafAIProgress {
+    static let shared = GhafAIProgress()
+    var stage: GhafAIStage?
+}
 
 /// Optional cloud replies through Ghaf's own server (backend/ghaf-ai-worker), which holds the model
 /// keys. Off until the user turns it on. Sends the question, totals-only facts and the ledger's answer,
@@ -54,6 +81,7 @@ enum GhafCloudAI {
             "mode": await conversational ? "voice" : "chat"
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        await MainActor.run { GhafAIProgress.shared.stage = .askingAI }
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 429 { throw Failure.dailyLimit }
