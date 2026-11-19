@@ -20,7 +20,7 @@ public enum MerchantName {
             + "|" + digit + #"{1,2}\s+"# + months + word
             + "|" + numericDate + "(?!" + digit + ")"
             + "|" + time + "))"
-        let noise = #"(?:card\s+ending|ending\s+with|xx[0-9*]|ref\b|auth\b|avl\.?\s*bal\b|available\s+balance\b)"#
+        let noise = #"(?:(?:using|via)\s+(?:[\p{L}\d-]+\s+){0,4}?(?:card|account)\b|باستخدام\s+بطاقة|card\s+ending|ending\s+with|xx[0-9*]|ref\b|auth\b|avl\.?\s*bal\b|available\s+balance\b)"#
         let tail = #"\s+(?:"# + dated + "|" + noise + ").*$"
         if let regex = try? NSRegularExpression(pattern: tail, options: [.caseInsensitive]) {
             let range = NSRange(value.startIndex..<value.endIndex, in: value)

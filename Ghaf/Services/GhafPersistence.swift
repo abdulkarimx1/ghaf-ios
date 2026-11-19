@@ -19,7 +19,8 @@ enum GhafPersistence {
     }
 
     private static func cleanMerchantDataIfNeeded(in context: ModelContext) {
-        let flag = "ghaf.migration.merchantClean.v1"
+        // v2: also strips a trailing "using … card" clause (re-runs the same idempotent cleanup).
+        let flag = "ghaf.migration.merchantClean.v2"
         guard !UserDefaults.standard.bool(forKey: flag) else { return }
         do {
             let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
