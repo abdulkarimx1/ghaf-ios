@@ -42,12 +42,13 @@ struct GhafAboutView: View {
     }
 
     var body: some View {
-        ScrollView {
+        ScrollViewReader { proxy in
+            ScrollView {
             VStack(spacing: 18) {
                 hero
                 featureCarousel.ghafEntrance(1)
                 story.ghafEntrance(2)
-                actions.ghafEntrance(3)
+                actions.ghafEntrance(3).id("about-actions")
                 socials.ghafEntrance(4)
                 footer
             }
@@ -60,6 +61,15 @@ struct GhafAboutView: View {
         .environment(\.locale, Locale(identifier: lang))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .onAppear { withAnimation(.spring(duration: 0.8, bounce: 0.3)) { appeared = true } }
+#if DEBUG
+            .task {
+                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.destination == "about-proof" {
+                    await Task.yield()
+                    proxy.scrollTo("about-actions", anchor: .bottom)
+                }
+            }
+#endif
+        }
     }
 
     private var hero: some View {
