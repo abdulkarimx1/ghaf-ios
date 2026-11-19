@@ -88,7 +88,7 @@ struct GhafTransactionDetailView: View {
                 GhafBrandBadge(name: merchantName, fallbackTint: theme.accent, size: 46)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(merchantName)
-                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .font(GhafTypography.userContent(merchantName, size: 17, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(1)
                     Text(transaction.date.formatted(.dateTime.weekday(.wide).day().month().hour().minute().locale(Locale(identifier: lang))))

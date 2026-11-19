@@ -163,7 +163,7 @@ struct GhafSubscriptionsView: View {
                         .font(GhafTypography.body(12, languageCode: lang, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text(item.name)
-                        .font(GhafTypography.heading(18, languageCode: lang))
+                        .font(GhafTypography.userContent(item.name, size: 18, languageCode: lang, heading: true))
                         .foregroundStyle(theme.primaryText)
                     Text(whenText(item.nextPaymentDate) + " · " + item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))))
                         .font(GhafTypography.body(13, languageCode: lang))
@@ -349,7 +349,7 @@ struct GhafSubscriptionsView: View {
             ForEach(due) { item in
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.name).font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+                        Text(item.name).font(GhafTypography.userContent(item.name, size: 15, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                         Text(item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))))
                             .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
@@ -426,8 +426,8 @@ private struct GhafSubscriptionEditor: View {
                         .font(GhafTypography.number(26, weight: .bold)).foregroundStyle(theme.accent)
                         .frame(width: 64, height: 64).background(theme.accent.opacity(0.14), in: Circle())
                         .padding(.top, 8)
-                    TextField(ar ? "اسم الخدمة" : "Service name", text: $name, prompt: Text(ar ? "اسم الخدمة" : "Service name").foregroundStyle(theme.secondaryText))
-                        .font(GhafTypography.heading(24, languageCode: settings.languageCode))
+                    TextField(ar ? "اسم الخدمة" : "Service name", text: $name, prompt: Text(ar ? "اسم الخدمة" : "Service name").font(GhafTypography.body(24, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText))
+                        .font(GhafTypography.userContent(name, size: 24, languageCode: settings.languageCode, heading: true))
                         .foregroundStyle(theme.primaryText).tint(theme.accent).multilineTextAlignment(.center)
                         .focused($nameFocused).submitLabel(.done)
                         .frame(minWidth: 160, maxWidth: .infinity, minHeight: 40)
@@ -664,7 +664,7 @@ private struct GhafSubscriptionDetailView: View {
                 GhafBrandBadge(name: subscription.name, fallbackTint: theme.accent, size: 60, theme: theme)
             }
             Text(subscription.name)
-                .font(GhafTypography.heading(24, languageCode: lang))
+                .font(GhafTypography.userContent(subscription.name, size: 24, languageCode: lang, heading: true))
                 .foregroundStyle(theme.primaryText)
             let account = accounts.first { $0.id == subscription.accountID }?.name
             let status = subscription.isActive ? nil : (ar ? "متوقف" : "Paused")

@@ -665,7 +665,7 @@ struct GhafTransactionRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(merchantTitle)
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.userContent(merchantTitle, size: 16, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
 

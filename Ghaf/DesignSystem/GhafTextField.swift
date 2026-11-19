@@ -41,7 +41,7 @@ struct GhafTextField: View {
                     else { TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(theme.secondaryText)) }
                 }
                 .focused(focusBinding ?? $focused)
-                .font(GhafTypography.body(17, languageCode: languageCode))
+                .font(GhafTypography.userContent(text.isEmpty ? placeholder : text, size: 17, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
                 .tint(theme.accent)
                 .keyboardType(keyboard)

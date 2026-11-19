@@ -284,7 +284,7 @@ struct GhafListRow<Trailing: View>: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    .font(GhafTypography.userContent(title, size: 16, languageCode: languageCode, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
                 if let subtitle, !subtitle.isEmpty {

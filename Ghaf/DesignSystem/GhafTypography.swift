@@ -44,6 +44,14 @@ enum GhafTypography {
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight == .regular ? .medium : weight, design: .rounded)
     }
+
+    static func userContent(_ text: String, size: CGFloat, languageCode: String, weight: Font.Weight = .regular, heading: Bool = false) -> Font {
+        let scalars = text.unicodeScalars
+        let containsLatin = scalars.contains { (0x0041...0x005A).contains($0.value) || (0x0061...0x007A).contains($0.value) }
+        let containsArabic = scalars.contains { (0x0600...0x06FF).contains($0.value) || (0x0750...0x077F).contains($0.value) || (0x08A0...0x08FF).contains($0.value) }
+        let scriptLanguage = containsLatin ? "en" : containsArabic ? "ar" : languageCode
+        return heading ? self.heading(size, languageCode: scriptLanguage) : body(size, languageCode: scriptLanguage, weight: weight)
+    }
 }
 
 struct GhafScreenTitle: View {
