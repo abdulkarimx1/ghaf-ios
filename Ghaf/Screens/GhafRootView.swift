@@ -1344,7 +1344,7 @@ struct GhafOnboardingView: View {
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
 
-            onboardingPoint(icon: "checkmark.circle", title: localized("No shortcut to build", "لا حاجة لإنشاء اختصار"), description: localized("Ghaf provides the Log Bank Message action for you.", "يوفر غاف إجراء تسجيل رسالة البنك جاهزاً."))
+            onboardingPoint(icon: "checkmark.circle", title: localized("No shortcut to build", "لا حاجة لإنشاء اختصار"), description: localized("Ghaf provides the Capture Bank Alert action for you.", "يوفر غاف إجراء Capture Bank Alert جاهزاً."))
             onboardingPoint(icon: "person.crop.circle", title: localized("One iOS confirmation step", "خطوة تأكيد واحدة في iOS"), description: localized("You create the personal automation trigger because iOS keeps those under your control.", "تنشئ محفّز الأتمتة الشخصية بنفسك لأن iOS يضع هذه الخطوة تحت تحكمك."))
 
             Button {

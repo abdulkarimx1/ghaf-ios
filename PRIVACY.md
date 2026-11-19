@@ -7,7 +7,7 @@ Ghaf is a personal finance and budgeting app for iPhone. It is designed to keep 
 ## Information Ghaf handles
 
 - **Financial records:** transactions, merchant names, categories, balances, accounts, budgets, notes and settings are stored locally in the app's SwiftData database.
-- **Bank messages:** Ghaf processes only message text that the user explicitly passes to the Log Bank Message action through Apple Shortcuts. Ghaf does not independently read SMS messages or notifications.
+- **Bank messages:** Ghaf processes only message text that the user explicitly passes to the Capture Bank Alert action through Apple Shortcuts. Ghaf does not independently read SMS messages or notifications.
 - **Voice entry:** when the user starts voice entry, Ghaf requests microphone and Speech Recognition permission. iOS Speech Recognition is used to create an editable transcript. On-device recognition is preferred when supported by the selected language and device; otherwise Apple's speech service may process the audio under Apple's own terms. Ghaf does not send audio or transcripts to a Ghaf-operated server.
 - **Biometric protection:** when enabled, Face ID or device authentication is handled by iOS. Ghaf does not receive or store biometric data.
 
@@ -50,7 +50,7 @@ For privacy questions, use the contact channel provided on the Ghaf App Store li
 ## المعلومات التي يتعامل معها غاف
 
 - **السجلات المالية:** تُحفظ العمليات وأسماء المتاجر والفئات والأرصدة والحسابات والميزانيات والملاحظات والإعدادات محلياً في قاعدة بيانات التطبيق.
-- **الرسائل البنكية:** يعالج غاف فقط نص الرسائل الذي يختار المستخدم تمريره صراحةً إلى إجراء «تسجيل رسالة بنكية» عبر تطبيق الاختصارات من Apple. لا يقرأ غاف الرسائل النصية أو الإشعارات من تلقاء نفسه.
+- **الرسائل البنكية:** يعالج غاف فقط نص الرسائل الذي يختار المستخدم تمريره صراحةً إلى إجراء «Capture Bank Alert» عبر تطبيق الاختصارات من Apple. لا يقرأ غاف الرسائل النصية أو الإشعارات من تلقاء نفسه.
 - **الإضافة بالصوت:** عند بدء التسجيل، يطلب غاف إذن الميكروفون والتعرّف على الكلام. يستخدم التطبيق خدمة التعرّف على الكلام في iOS لإنشاء نص قابل للمراجعة والتعديل. تُفضّل المعالجة على الجهاز عندما تدعمها اللغة والجهاز؛ وفي غير ذلك قد تعالج Apple الصوت عبر خدماتها ووفق شروطها الخاصة. لا يرسل غاف التسجيلات أو النصوص إلى خادم تابع لغاف.
 - **الحماية البيومترية:** عند تفعيلها، يتولى iOS التحقق عبر Face ID أو رمز دخول الجهاز. لا يتلقى غاف البيانات البيومترية ولا يخزنها.
 

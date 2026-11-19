@@ -42,7 +42,7 @@ struct GhafPrivacyPolicyView: View {
                     isArabic ? "الرسائل البنكية" : "Bank messages",
                     isArabic
                     ? "يعالج غاف فقط نص الرسالة الذي تختار تمريره صراحةً إلى إجراء تسجيل الرسالة البنكية عبر تطبيق الاختصارات من Apple. لا يقرأ غاف رسائل SMS أو إشعارات التطبيقات من تلقاء نفسه."
-                    : "Ghaf processes only message text that you explicitly pass to its Log Bank Message action through Apple Shortcuts. Ghaf does not independently read SMS messages or other apps' notifications."
+                    : "Ghaf processes only message text that you explicitly pass to its Capture Bank Alert action through Apple Shortcuts. Ghaf does not independently read SMS messages or other apps' notifications."
                 )
 
                 section(

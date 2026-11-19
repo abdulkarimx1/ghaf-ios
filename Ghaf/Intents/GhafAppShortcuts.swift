@@ -7,22 +7,19 @@ struct GhafAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: LogBankMessageIntent(),
             phrases: [
-                "Add a transaction from a bank notification in \(.applicationName)",
-                "Log a bank notification in \(.applicationName)",
-                "أضف عملية من رسالة بنكية في \(.applicationName)",
-                "سجّل عملية من إشعار بنكي في \(.applicationName)"
+                "Capture a bank alert with \(.applicationName)",
+                "Send a bank alert to \(.applicationName)"
             ],
-            shortTitle: "Log bank message",
+            shortTitle: "Capture Bank Alert",
             systemImageName: "arrow.down.circle"
         )
 
         AppShortcut(
             intent: LogWalletTransactionIntent(),
             phrases: [
-                "Add an Apple Pay purchase in \(.applicationName)",
-                "أضف عملية Apple Pay في \(.applicationName)"
+                "Capture an Apple Pay purchase with \(.applicationName)"
             ],
-            shortTitle: "Add Apple Pay purchase",
+            shortTitle: "Capture Apple Pay",
             systemImageName: "wallet.pass"
         )
     }

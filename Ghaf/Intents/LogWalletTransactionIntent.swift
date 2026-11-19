@@ -6,7 +6,7 @@ import GhafCore
 /// Receives Apple Pay purchases from the Shortcuts "Transaction" (Wallet) automation. The bank's
 /// message for the same purchase is then recognised as a duplicate, not a second purchase.
 struct LogWalletTransactionIntent: AppIntent, LiveActivityIntent {
-    static var title: LocalizedStringResource = "Add Apple Pay purchase"
+    static var title: LocalizedStringResource = "Capture Apple Pay"
     static var description = IntentDescription("Add an Apple Pay purchase to Ghaf from the Wallet transaction automation.")
     static var openAppWhenRun: Bool = false
 

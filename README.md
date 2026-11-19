@@ -114,7 +114,7 @@ Signing credentials and provisioning profiles must never be committed to this re
 
 ## Apple Shortcuts
 
-Ghaf exposes the **Log Bank Message** App Intent. A Personal Automation can pass the incoming bank message text and sender to this action. iOS controls which automation triggers can run automatically and which message contents are available.
+Ghaf exposes the **Capture Bank Alert** App Intent. A Personal Automation can pass the incoming bank message text and sender to this action. iOS controls which automation triggers can run automatically and which message contents are available.
 
 The app cannot independently read every other app's notifications or bypass iOS privacy restrictions.
 
