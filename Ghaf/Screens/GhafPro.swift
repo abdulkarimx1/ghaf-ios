@@ -244,7 +244,7 @@ struct GhafProSheet: View {
                 Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro")
                     .font(GhafTypography.heading(24, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
-                Text(feature.0 == "Ghaf Pro" ? (ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.") : feature.0)
+                Text(ar ? "تقارير أعمق وودجات وأنشطة مباشرة." : "Deeper reports, widgets, and Live Activities.")
                     .font(GhafTypography.body(15, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
@@ -258,6 +258,7 @@ struct GhafProSheet: View {
                         .background(theme.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
+                .accessibilityHint(ar ? "عرض خطط غاف Pro." : "Opens Ghaf Pro plans for \(feature.en).")
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
