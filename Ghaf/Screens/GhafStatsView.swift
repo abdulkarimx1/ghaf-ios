@@ -122,7 +122,11 @@ struct GhafStatsView: View {
                                                 subtitle: nil,
                                                 languageCode: lang, theme: theme)
                                 // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
-                                AnyView(trendHero(buckets(filtered), current: filtered, previous: previousFiltered).ghafEntrance(0)).id("trend-chart")
+                                let trendBuckets = buckets(filtered)
+                                AnyView(trendHero(trendBuckets, current: filtered, previous: previousFiltered).ghafEntrance(0)).id("trend-chart")
+                                if period == .month, let selected = selectedLabel.flatMap({ key in trendBuckets.first { chartKey($0.start) == key } }) {
+                                    AnyView(weekBreakdown(selected, transactions: filtered))
+                                }
                                 AnyView(whereItWent(slices(current)).ghafEntrance(1)).id("category-chart")
                                 AnyView(tiles(current).ghafEntrance(2))
                                 AnyView(budgetLink.ghafEntrance(3))
@@ -184,7 +188,10 @@ struct GhafStatsView: View {
         let locale = Locale(identifier: lang)
         switch period {
         case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
-        case .month: return date.formatted(.dateTime.day().locale(locale))
+        case .month:
+            let first = calendar.component(.day, from: date)
+            let lastDate = min(calendar.date(byAdding: .day, value: 6, to: date)!, interval.end.addingTimeInterval(-1))
+            return "\(first)–\(calendar.component(.day, from: lastDate))"
         case .quarter: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
         case .year: return date.formatted(.dateTime.month(.abbreviated).locale(locale))
         }
@@ -312,38 +319,19 @@ struct GhafStatsView: View {
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
                 }
             }
-            .chartXAxis(.hidden)
-            /*.chartXAxis {
-                AxisMarks(values: data.map { chartKey($0.start) }.filter { shown.contains($0) }) { value in
+            .chartXAxis {
+                AxisMarks(values: data.map { chartKey($0.start) }) { value in
                     AxisValueLabel {
                         if let key = value.as(String.self), let bucket = data.first(where: { chartKey($0.start) == key }) {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
                         }
                     }
                 }
-            }*/
+            }
             .frame(height: 200)
             .padding(.top, 14)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityLabel(ar ? "اتجاه الصرف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
-
-            if period == .month, let selected {
-                let days = (0..<7).compactMap { offset -> (Date, Decimal)? in
-                    guard let date = calendar.date(byAdding: .day, value: offset, to: selected.start), date < interval.end, date <= .now else { return nil }
-                    let value = current.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
-                    return (date, value)
-                }
-                HStack(alignment: .bottom, spacing: 6) {
-                    ForEach(days, id: \.0) { date, amount in
-                        VStack(spacing: 4) {
-                            Text(GhafCompactNumber.string(NSDecimalNumber(decimal: amount).doubleValue, languageCode: lang)).font(GhafTypography.body(9, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
-                            Capsule().fill(accent.opacity(0.6)).frame(height: max(4, 34 * (NSDecimalNumber(decimal: amount).doubleValue / max(days.map { NSDecimalNumber(decimal: $0.1).doubleValue }.max() ?? 1, 1))))
-                            Text(date.formatted(.dateTime.day().locale(Locale(identifier: lang)))).font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        }.frame(maxWidth: .infinity)
-                    }
-                }
-                .accessibilityLabel(ar ? "تفصيل المصروف اليومي لهذا الأسبوع" : "Daily spending breakdown for this week")
-            }
 
             GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme, languageCode: lang)
                 .scaleEffect(x: 1, y: 52.0 / 56.0)
@@ -380,6 +368,30 @@ struct GhafStatsView: View {
 
     private func tapTrendBucket(_ key: String) {
         selectedLabel = selectedLabel == key ? nil : key
+    }
+
+    private func weekBreakdown(_ bucket: Bucket, transactions: [GhafTransaction]) -> some View {
+        let days = (0..<7).compactMap { offset -> (Date, Decimal)? in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: bucket.start), date < interval.end, date <= .now else { return nil }
+            let amount = transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }
+                .reduce(Decimal.zero) { $0 + $1.spendingAmount }
+            return (date, amount)
+        }
+        let maximum = max(1, days.map { NSDecimalNumber(decimal: $0.1).doubleValue }.max() ?? 0)
+        return HStack(alignment: .bottom, spacing: 6) {
+            ForEach(days, id: \.0) { date, amount in
+                VStack(spacing: 4) {
+                    Text(GhafCompactNumber.string(NSDecimalNumber(decimal: amount).doubleValue, languageCode: lang))
+                        .font(GhafTypography.body(9, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
+                    Capsule().fill(theme.accent.opacity(0.6))
+                        .frame(height: max(4, 34 * NSDecimalNumber(decimal: amount).doubleValue / maximum))
+                    Text(date.formatted(.dateTime.day().locale(Locale(identifier: lang))))
+                        .font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                }.frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .accessibilityLabel(ar ? "تفصيل المصروف اليومي لهذا الأسبوع" : "Daily spending breakdown for this week")
     }
 
 #if DEBUG
