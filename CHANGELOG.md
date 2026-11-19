@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.25 (39)
+
+### English
+- Faster charts: Budget opens in under a second, Statistics opens on the month total, and period changes no longer replay animations.
+- Budget lists spending categories only (no Salary, Transfers or Reimbursements).
+- Statistics: clear dates on the 3-month chart, category icons for top merchants, matching summary tiles, and a period selector that always highlights the right period.
+- Content fades softly under the top of every screen instead of colliding with it.
+- Transactions: all filters fit, a cleaner sort button, and day headings that scroll with the list.
+- Real bank logos in bank automation.
+- Shortcuts actions renamed to Capture Bank Alert and Capture Apple Pay. Existing automations keep working.
+- Profile has Change photo and Edit name buttons; About Ghaf is shorter; account editor and archive warning no longer overlap.
+- Restoring a backup also cleans merchant names like "… using … card".
+
+### العربية
+- مخططات أسرع: تفتح الميزانية في أقل من ثانية، وتفتح الإحصاءات على إجمالي الشهر، ولم يعد تغيير الفترة يعيد تشغيل الحركات.
+- تعرض الميزانية فئات الصرف فقط (دون الراتب والتحويلات والمبالغ المستردة).
+- الإحصاءات: تواريخ واضحة في مخطط الأشهر الثلاثة، وأيقونات الفئات لأكثر التجار صرفاً، وبطاقات ملخص متناسقة، ومحدد فترة يبرز الفترة الصحيحة دائماً.
+- يتلاشى المحتوى بهدوء أسفل أعلى كل شاشة بدل أن يتداخل معه.
+- العمليات: تظهر جميع عوامل التصفية كاملة، وزر ترتيب أبسط، وعناوين الأيام تتحرك مع القائمة.
+- شعارات البنوك الحقيقية في أتمتة البنوك.
+- إجراءات الاختصارات أصبحت Capture Bank Alert و Capture Apple Pay، وتبقى الأتمتة الحالية تعمل.
+- أزرار «تغيير الصورة» و«تعديل الاسم» في الملف الشخصي، وصفحة «حول غاف» أقصر، ولم يعد محرر الحساب وتحذير الأرشفة يتداخلان.
+- استعادة النسخة الاحتياطية تنظّف أيضاً أسماء التجار مثل «… using … card».
+
 ## 1.24 (38)
 
 ### English
