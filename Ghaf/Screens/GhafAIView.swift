@@ -347,7 +347,7 @@ struct GhafAIView: View {
                 : ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"]
             GhafFlowLayout(spacing: 10) {
                 ForEach(chips, id: \.self) { chip in
-                    GhafSecondaryButton(title: chip, theme: theme, languageCode: settings.languageCode) { send(chip) }
+                    GhafSecondaryButton(title: chip, theme: theme, languageCode: settings.languageCode, compact: true) { send(chip) }
                 }
             }
             .frame(maxWidth: .infinity)

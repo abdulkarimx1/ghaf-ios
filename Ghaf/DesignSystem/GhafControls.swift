@@ -24,6 +24,7 @@ struct GhafSecondaryButton: View {
     let theme: GhafTheme
     let languageCode: String
     var symbol: String? = nil
+    var compact = false
     var action: () -> Void
 
     var body: some View {
@@ -31,14 +32,15 @@ struct GhafSecondaryButton: View {
             HStack(spacing: 8) {
                 if let symbol { Image(systemName: symbol).font(.system(size: 17, weight: .medium)) }
                 Text(title)
-                    .lineLimit(2)
+                    .lineLimit(compact ? 1 : 2)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: symbol == nil ? 184 : 155)
+                    .minimumScaleFactor(compact ? 0.85 : 1)
+                    .frame(maxWidth: compact ? nil : (symbol == nil ? 184 : 155))
             }
-            .font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
+            .font(GhafTypography.body(compact ? 15 : 17, languageCode: languageCode, weight: .medium))
             .foregroundStyle(theme.primaryText)
             .padding(.horizontal, 18)
-            .frame(minHeight: GhafMetrics.compactButtonHeight)
+            .frame(minHeight: compact ? 44 : GhafMetrics.compactButtonHeight)
             .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
             .contentShape(Capsule())
         }
@@ -53,7 +55,8 @@ struct GhafFlowLayout: Layout {
         let width = proposal.width ?? .infinity
         var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let ideal = subview.sizeThatFits(.unspecified)
+            let size = ideal.width > width ? subview.sizeThatFits(ProposedViewSize(width: width, height: nil)) : ideal
             if x > 0 && x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
             x += (x == 0 ? 0 : spacing) + size.width
             rowHeight = max(rowHeight, size.height)
@@ -65,7 +68,8 @@ struct GhafFlowLayout: Layout {
         var rows: [[(Int, CGSize)]] = [[]]
         var rowWidths: [CGFloat] = [0], rowHeights: [CGFloat] = [0]
         for (index, subview) in subviews.enumerated() {
-            let size = subview.sizeThatFits(.unspecified)
+            let ideal = subview.sizeThatFits(.unspecified)
+            let size = ideal.width > bounds.width ? subview.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil)) : ideal
             let current = rows.count - 1
             if !rows[current].isEmpty && rowWidths[current] + spacing + size.width > bounds.width {
                 rows.append([]); rowWidths.append(0); rowHeights.append(0)
