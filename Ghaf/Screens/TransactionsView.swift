@@ -235,7 +235,14 @@ struct GhafTransactionsView: View {
                     filterButton("Review", label: ar ? "مراجعة" : "Review")
                 }
             }
+            .contentMargins(.trailing, 12, for: .scrollContent)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .trailing) {
+                LinearGradient(colors: [theme.background.opacity(0), theme.background],
+                               startPoint: ar ? .trailing : .leading, endPoint: ar ? .leading : .trailing)
+                    .frame(width: 16)
+                    .allowsHitTesting(false)
+            }
             GhafMenuRow(title: ar ? "ترتيب" : "Sort", value: sortOrderTitle, theme: theme, languageCode: lang, compact: true) {
                 Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
                     Text(ar ? "الأحدث" : "Newest").tag("Newest")
@@ -257,7 +264,7 @@ struct GhafTransactionsView: View {
             Text(label)
                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 .lineLimit(1)
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 12)
                 .frame(minHeight: GhafMetrics.compactButtonHeight)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.primaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
