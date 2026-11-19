@@ -132,7 +132,6 @@ struct GhafHomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
-                    header.ghafEntrance(0)
                     if automationNeedsAttention && Date.now.timeIntervalSince1970 >= automationWarningDismissedUntil {
                         automationWarningCard
                     }
@@ -154,6 +153,22 @@ struct GhafHomeView: View {
             .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
             .ghafStatusBarFade(theme: theme)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                header
+                    .ghafScreenPadding()
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .background {
+                        LinearGradient(stops: [
+                            .init(color: theme.background, location: 0),
+                            .init(color: theme.background, location: 0.62),
+                            .init(color: theme.background.opacity(0), location: 1)
+                        ], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 44 + 12 + 28, alignment: .top)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .accessibilityHidden(true)
+                    }
+            }
 #if DEBUG
             .onAppear {
                 if GhafScreenshotFixture.enabled, ["amount-pad", "new-transaction"].contains(GhafScreenshotFixture.screen ?? "") { showQuickAdd = true }
