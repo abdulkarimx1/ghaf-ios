@@ -62,7 +62,7 @@ struct GhafStatsView: View {
     }
 
     private var bucketUnit: Calendar.Component {
-        switch period { case .week, .month: .day; case .quarter, .year: .month }
+        switch period { case .week, .month: .day; case .quarter: .weekOfYear; case .year: .month }
     }
 
     private func expenses(in range: DateInterval) -> [GhafTransaction] {
@@ -189,8 +189,13 @@ struct GhafStatsView: View {
         let data = all.filter { $0.start <= .now }
         // Plotted by a short label per bucket, not by date: date-unit marks by week or month crash Charts (NaN).
         let selected = selectedLabel.flatMap { key in data.first { chartKey($0.start) == key } }
-        let shown = Set(data.enumerated().filter { index, _ in
-            switch period { case .week, .quarter: true; case .month: index % 7 == 0; case .year: index % 3 == 0 }
+        let shown = Set(data.enumerated().filter { index, bucket in
+            switch period {
+            case .week: true
+            case .month: index % 7 == 0
+            case .quarter: index == 0 || !calendar.isDate(bucket.start, equalTo: data[index - 1].start, toGranularity: .month)
+            case .year: index % 3 == 0
+            }
         }.map { chartKey($0.element.start) })
         let spent = total(current)
         let before = total(previous)
