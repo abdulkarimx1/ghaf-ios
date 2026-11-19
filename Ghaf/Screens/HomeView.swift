@@ -734,6 +734,8 @@ struct GhafQuickAddView: View {
     @State private var direction = "debit"
     @State private var note = ""
     @State private var date = Date()
+    @State private var dateExpanded = false
+    @State private var noteExpanded = false
     @State private var errorMessage = ""
 
     private var theme: GhafTheme {
@@ -771,8 +773,10 @@ struct GhafQuickAddView: View {
                         divider
                       } else {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
-                            TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
-                                .multilineTextAlignment(.trailing)
+                            HStack(spacing: 7) {
+                                TextField(ar ? "اسم المتجر" : "Store name", text: $merchant).multilineTextAlignment(.trailing)
+                                Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
+                            }
                         }
                         divider
                         row(ar ? "الفئة" : "Category", icon: "square.grid.2x2") {
@@ -782,12 +786,19 @@ struct GhafQuickAddView: View {
                         accountPicker($selectedAccountID, title: ar ? "الحساب" : "Account", icon: "wallet.pass")
                         divider
                       }
-                        row(ar ? "التاريخ" : "Date", icon: "calendar") {
-                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden().tint(theme.accent).environment(\.colorScheme, theme.isDark ? .dark : .light)
-                        }
+                        dateRow
                         divider
-                        row(ar ? "ملاحظة" : "Note", icon: "text.alignleft") {
-                            TextField(ar ? "اختياري" : "Optional", text: $note).multilineTextAlignment(.trailing)
+                        VStack(spacing: 0) {
+                            GhafFormActionRow(icon: "text.alignleft", tint: theme.accent, title: ar ? "ملاحظة" : "Note",
+                                              value: note.isEmpty ? (ar ? "اختياري" : "Optional") : note,
+                                              theme: theme, languageCode: lang) { noteExpanded.toggle() }
+                            if noteExpanded {
+                                TextField(ar ? "اكتب ملاحظة" : "Write a note", text: $note, axis: .vertical)
+                                    .font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.primaryText)
+                                    .padding(16).frame(minHeight: 56, alignment: .leading)
+                                    .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18))
+                                    .padding(.leading, 52).padding(.bottom, 10)
+                            }
                         }
                     }
 
@@ -806,7 +817,7 @@ struct GhafQuickAddView: View {
                     }
                 }
                 .ghafScreenPadding()
-                .padding(.top, 8).padding(.bottom, 20)
+                .padding(.top, 8).padding(.bottom, 120)
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)
             }
@@ -844,35 +855,32 @@ struct GhafQuickAddView: View {
     /// Expense or income, then the amount, large and centred like the rest of Ghaf's money.
     private var amountHeader: some View {
         let currency = accounts.first { $0.id == selectedAccountID }?.currency ?? settings.currency
-        return VStack(spacing: 14) {
-            HStack(spacing: 8) {
-                directionChip("debit", ar ? "مصروف" : "Expense", "arrow.down.right")
-                directionChip("credit", ar ? "دخل" : "Income", "arrow.up.right")
-                if activeAccounts.count > 1 {
-                    directionChip("transfer", ar ? "تحويل" : "Transfer", "arrow.left.arrow.right")
-                }
-            }
+        return VStack(spacing: 24) {
             GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
-                            theme: theme, languageCode: lang, fontSize: 44, presentOnAppear: presentAmountPadOnAppear)
-                .padding(.horizontal, 16)
+                            theme: theme, languageCode: lang, fontSize: 48, chromeless: true, presentOnAppear: presentAmountPadOnAppear)
+            GhafSegmented(options: [("debit", ar ? "مصروف" : "Expense"), ("credit", ar ? "دخل" : "Income"), ("transfer", ar ? "تحويل" : "Transfer")],
+                          selection: $direction, theme: theme, languageCode: lang)
         }
-        .padding(.vertical, 22)
+        .padding(.top, 14)
         .frame(maxWidth: .infinity)
-        .ghafCard(theme: theme)
     }
 
-    private func directionChip(_ value: String, _ title: String, _ icon: String) -> some View {
-        let selected = direction == value
-        return Button { withAnimation(.snappy) { direction = value } } label: {
-            Label(title, systemImage: icon)
-                .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                .lineLimit(1).minimumScaleFactor(0.65)
-                .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
-                .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
-                .background(selected ? theme.accent : theme.primaryText.opacity(0.06), in: Capsule())
+    private var dateRow: some View {
+        VStack(spacing: 0) {
+            GhafFormActionRow(icon: "calendar", tint: theme.accent, title: ar ? "التاريخ" : "Date",
+                              value: date.formatted(.dateTime.month(.abbreviated).day().year().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))) + " · " +
+                                date.formatted(.dateTime.hour().minute().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))),
+                              theme: theme, languageCode: lang) { dateExpanded.toggle() }
+            if dateExpanded {
+                DatePicker(ar ? "التاريخ" : "Date", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
+                    .environment(\.colorScheme, theme.isDark ? .dark : .light)
+                DatePicker(ar ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.compact).labelsHidden().tint(theme.accent)
+                    .padding(.horizontal, 12).padding(.bottom, 12)
+            }
         }
-        .buttonStyle(.ghafPress)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .buttonStyle(.plain)
     }
 
     private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String) -> some View {
