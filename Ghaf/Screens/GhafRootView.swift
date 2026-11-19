@@ -362,7 +362,7 @@ struct GhafTabView: View {
         let selection = Binding(get: { router.selectedTab }, set: { tab in
             if tab == 0 && router.selectedTab == 0 { router.homeReselects += 1 }
             if tab == 1 && router.selectedTab == 1 { router.startVoice?() }
-            else { router.selectedTab = tab }
+            else { withTransaction(Transaction(animation: nil)) { router.selectedTab = tab } }
         })
         TabView(selection: selection) {
             GhafHomeView(settings: settings)
