@@ -142,7 +142,7 @@ struct GhafBudgetView: View {
         let names = ar ? ["الأساسيات", "الرغبات", "الادخار"] : ["Needs", "Wants", "Savings"]
         let notes = ar ? ["إيجار، فواتير، بقالة، سيارة", "مطاعم، تسوق، ترفيه", "ما يبقى من دخلك"]
                        : ["Rent, bills, groceries, car", "Dining, shopping, fun", "What's left of your income"]
-        let colors = [theme.accent, theme.glow, theme.credit]
+        let colors = [theme.accent, theme.close, theme.comfortable]
         let planned = bucketSelected ? income * BudgetAllocation.share(bucket) : income
         let used: Decimal = bucketSelected ? (bucket == .needs ? needs : bucket == .wants ? wants : max(income - needs - wants, 0)) : needs + wants
         let ratio = planned > 0 ? min(max(NSDecimalNumber(decimal: used / planned).doubleValue, 0), 1.5) : 0
@@ -168,12 +168,12 @@ struct GhafBudgetView: View {
                     SectorMark(angle: .value("Share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
                                innerRadius: .ratio(0.62), outerRadius: .ratio(1), angularInset: 2)
                         .foregroundStyle(colors[item.rawValue])
-                        .opacity(!bucketSelected || item == bucket ? 1 : 0.3)
+                        .opacity(!bucketSelected || item == bucket ? 1 : 0.45)
                         .accessibilityLabel(names[item.rawValue])
                         .accessibilityValue(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
                     SectorMark(angle: .value("Selected share", NSDecimalNumber(decimal: BudgetAllocation.share(item)).doubleValue),
                                innerRadius: .ratio(0.95), outerRadius: .ratio(1), angularInset: 2)
-                        .foregroundStyle(theme.primaryText)
+                        .foregroundStyle(colors[item.rawValue])
                         .opacity(bucketSelected && item == bucket ? 1 : 0)
                         .accessibilityHidden(true)
                 }
@@ -221,19 +221,22 @@ struct GhafBudgetView: View {
                 .accessibilityElement(children: .contain)
 
                 GhafSegmented(options: Array(zip(BudgetAllocation.Bucket.allCases, names)), selection: allocationSelection, theme: theme, languageCode: lang)
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
                     ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
                         Button { toggleBucket(item) } label: {
-                            VStack(spacing: 6) {
-                                HStack(spacing: 6) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 5) {
                                     Circle().fill(colors[item.rawValue]).frame(width: 8, height: 8)
-                                    Text(names[item.rawValue]).lineLimit(1)
+                                    Text(names[item.rawValue]).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
                                     Text("\(Int(truncating: (BudgetAllocation.share(item) * 100) as NSNumber))%")
+                                        .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
                                 }
-                                Text(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang)).lineLimit(1).minimumScaleFactor(0.75)
+                                Text(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))
+                                    .font(GhafTypography.body(13, languageCode: lang))
+                                    .foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
                             }
-                            .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, minHeight: 56)
+                            .foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .accessibilityLabel("\(names[item.rawValue]), \(GhafFormat.shownMoney(income * BudgetAllocation.share(item), currency: currency, languageCode: lang))")
                         .accessibilityAddTraits(bucketSelected && bucket == item ? .isSelected : [])
