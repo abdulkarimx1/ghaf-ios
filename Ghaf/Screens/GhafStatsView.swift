@@ -328,13 +328,12 @@ struct GhafStatsView: View {
         let top = Array(data.prefix(5))
         let most = top.first?.total ?? 1
         return VStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .center, spacing: 3) {
                 Text(ar ? "أين ذهب المال" : "Where it went")
-                    .font(GhafTypography.heading(16, languageCode: lang))
+                    .font(GhafTypography.heading(20, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
-                Spacer()
-                Text(ar ? "اضغط شريطاً لتصفية الرسم" : "Tap a bar to filter the chart")
-                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                Text(ar ? "اضغط فئة للتصفية" : "Tap a category to filter")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
             }
             if top.isEmpty {
@@ -347,18 +346,18 @@ struct GhafStatsView: View {
                     ForEach(top) { slice in
                         let on = selectedCategory == slice.category
                         Button { toggle(slice.category) } label: {
-                            VStack(spacing: 6) {
+                            VStack(spacing: 12) {
                                 Spacer(minLength: 0)
-                                Text(whole(slice.total))
+                                Text(GhafCompactNumber.string(slice.total, languageCode: lang))
                                     .font(GhafTypography.number(11, weight: .bold))
                                     .foregroundStyle(on ? theme.primaryText : theme.secondaryText)
                                     .lineLimit(1).minimumScaleFactor(0.7)
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(on ? theme.accent : theme.primaryText.opacity(0.09))
+                                    .fill(GhafCategoryIcon.chartColor(slice.category, dark: theme.isDark).opacity(on ? 1 : selectedCategory == nil ? 0.85 : 0.3))
                                     .frame(height: max(10, 92 * slice.total / most))
                                 Text(GhafLocalization.category(slice.category, languageCode: lang))
-                                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
-                                    .foregroundStyle(theme.secondaryText)
+                                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                                    .foregroundStyle(theme.primaryText)
                                     // Two lines: Arabic names like "السيارة والمواصلات" don't fit one.
                                     .lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.8)
                             }
