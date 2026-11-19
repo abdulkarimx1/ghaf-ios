@@ -68,10 +68,10 @@ struct GhafInsightsView: View {
                     GhafScreenTitle(title: settings.languageCode == "ar" ? "التحليلات" : "Insights",
                                     subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
                                     languageCode: settings.languageCode, theme: theme, onClose: { dismiss() })
-                    headlineCard.ghafEntrance(0)
-                    forecastCard.ghafEntrance(1)
-                    categoryChart(totals).ghafEntrance(2)
-                    categoryList(totals).ghafEntrance(3)
+                    headlineCard
+                    forecastCard
+                    categoryChart(totals)
+                    categoryList(totals)
                 }
                 .ghafScreenPadding()
                 .padding(.top, 12)
@@ -80,6 +80,7 @@ struct GhafInsightsView: View {
                 .frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
+            .ghafStatusBarFade(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
         }
         .ghafDirection(settings.languageCode)

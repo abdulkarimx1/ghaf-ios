@@ -36,10 +36,13 @@ struct GhafWalletStack: View {
                     GhafMoneyLabel(amount: balances[account.id] ?? account.openingBalance, currency: account.currency,
                                    languageCode: languageCode, size: 40)
                         .foregroundStyle(theme.primaryText)
-                        .contentTransition(.numericText())
                 }
                 .padding(.top, 6)
                 .accessibilityElement(children: .combine)
+                .transaction {
+                    $0.animation = nil
+                    $0.disablesAnimations = true
+                }
             }
             deck
             if accounts.count > 1 { pageIndicator }
@@ -140,6 +143,7 @@ private struct GhafWalletCarousel: View {
     let theme: GhafTheme
     let onEdit: (GhafAccount) -> Void
     let onMove: (GhafAccount, Int) -> Void
+    @GestureState private var dragOffset: CGFloat = 0
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
     private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
@@ -153,19 +157,24 @@ private struct GhafWalletCarousel: View {
                 .frame(width: width * 0.8, height: 60)
                 .blur(radius: 22)
                 .offset(y: cardHeight / 2 + 6)
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: step) {
+            GeometryReader { geometry in
+                HStack(spacing: step) {
                     ForEach(Array(accounts.enumerated()), id: \.element.id) { itemIndex, account in
                         walletCard(account, at: itemIndex)
                     }
                 }
-                .scrollTargetLayout()
+                .offset(x: (geometry.size.width - width) / 2 - CGFloat(index) * (width + step) + dragOffset)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 12)
+                    .updating($dragOffset) { value, state, _ in state = value.translation.width }
+                    .onEnded { value in
+                        guard abs(value.translation.width) > width * 0.18 else { return }
+                        let next = min(max(index + (value.translation.width < 0 ? 1 : -1), 0), accounts.count - 1)
+                        withAnimation(deckAnimation) { selectedID = accounts[next].id }
+                    })
             }
-            .scrollIndicators(.hidden)
-            .contentMargins(.horizontal, max(0, (UIScreen.main.bounds.width - width) / 2), for: .scrollContent)
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $selectedID, anchor: .center)
             .frame(height: cardHeight + 50)
+            .clipped()
         }
             .accessibilityElement()
             .accessibilityLabel(accounts.indices.contains(index) ? accounts[index].name : "")
@@ -197,6 +206,6 @@ private struct GhafWalletCarousel: View {
     }
 
     private var deckAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.18) : .interpolatingSpring(stiffness: 260, damping: 26)
+        .easeOut(duration: reduceMotion ? 0 : 0.18)
     }
 }
