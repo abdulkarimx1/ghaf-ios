@@ -17,8 +17,13 @@ enum GhafCloudAI {
 
     /// What turning it on means, shown wherever it can be switched on.
     static func disclosure(ar: Bool) -> String {
-        ar ? "إجابات أذكى عبر خادم غاف باستخدام Gemini من Google أو Gemma على Cloudflare. يُرسل سؤالك وملخص مجاميعك وإجابة سجلك فقط، وليس قائمة عملياتك أو أرقام حساباتك. لا تُحفظ أسئلتك؛ يُحفظ فقط عدد الأسئلة اليومي لمدة يومين. الخطة المجانية: ٢٠ سؤالاً يومياً، وبعدها يجيب غاف من جهازك."
-           : "Smarter replies through Ghaf's server, using Google Gemini or Gemma on Cloudflare. Sends your question, a summary of your totals and the ledger's answer, never your transaction list or account numbers. Questions aren't stored; only a daily question count is kept, for two days. Free plan: 20 questions a day, then Ghaf answers on your iPhone."
+        ar ? "يرسل خادم غاف سؤالك ورسائلك الأخيرة وملخص المجاميع والحسابات وأبرز التجار وذكرياتك المحفوظة إلى Gemini من Google أو Cloudflare AI للرد. لا تُرسل قائمة العمليات أو أرقام الحسابات."
+           : "Ghaf routes your question, recent messages and a summary of totals, accounts, top merchants and saved memories through its server to Google Gemini or Cloudflare AI. Your transaction list and account numbers aren't sent."
+    }
+
+    static func liveDisclosure(ar: Bool) -> String {
+        ar ? "في المكالمة المباشرة، يُرسل صوتك مباشرةً إلى Google للتحدث مع غاف."
+           : "For live calls, your voice is streamed to Google so Ghaf can talk with you."
     }
 
     /// Random, not tied to the user or the device hardware; survives reinstall so the daily limit holds.
