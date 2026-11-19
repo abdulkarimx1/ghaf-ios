@@ -1,6 +1,7 @@
 import Foundation
 import AppIntents
 import CoreLocation
+import GhafCore
 
 /// Receives Apple Pay purchases from the Shortcuts "Transaction" (Wallet) automation. The bank's
 /// message for the same purchase is then recognised as a duplicate, not a second purchase.
@@ -23,7 +24,7 @@ struct LogWalletTransactionIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let cleanAmount = amount.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanMerchant = merchant.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanMerchant = MerchantName.clean(merchant)
         guard !cleanAmount.isEmpty, !cleanMerchant.isEmpty else {
             return .result(value: "Missing amount or merchant. Nothing saved.")
         }

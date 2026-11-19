@@ -140,7 +140,7 @@ enum MerchantCategorizer {
     ]
 
     static func normalize(_ merchant: String) -> String {
-        CategoryMatcher.normalize(merchant)
+        MerchantName.key(merchant)
     }
 
     // MARK: Learned model
@@ -182,6 +182,7 @@ enum MerchantCategorizer {
 
     private static func ruleSuggestion(for merchant: String?, context: ModelContext) -> CategoryMatcher.Match? {
         guard let merchant, !merchant.isEmpty else { return nil }
+        try? rekeyRules(context: context)
         let catalog = (try? context.fetch(FetchDescriptor<GhafSettings>()).first)?.catalog
             ?? Dictionary(uniqueKeysWithValues: GhafDefaults.defaultCategories.map { ($0, [String]()) })
         var learned: [String: CategoryMatcher.Rule] = [:]
@@ -189,8 +190,11 @@ enum MerchantCategorizer {
         for (name, category) in seededRules where catalog[category] != nil {
             learned[normalize(name)] = CategoryMatcher.Rule(category: category, subcategory: nil, hits: 0)
         }
-        for rule in (try? context.fetch(FetchDescriptor<MerchantCategoryRule>())) ?? [] where catalog[rule.category] != nil {
-            learned[rule.normalizedMerchant] = CategoryMatcher.Rule(category: rule.category, subcategory: rule.subcategory, hits: rule.hits)
+        let rules = ((try? context.fetch(FetchDescriptor<MerchantCategoryRule>())) ?? []).sorted { $0.updatedAt < $1.updatedAt }
+        for rule in rules where catalog[rule.category] != nil {
+            let value = CategoryMatcher.Rule(category: rule.category, subcategory: rule.subcategory, hits: rule.hits)
+            learned[CategoryMatcher.normalize(rule.normalizedMerchant)] = value
+            learned[MerchantName.key(rule.normalizedMerchant)] = value
         }
         return CategoryMatcher.match(merchant, catalog: catalog, learned: learned)
     }
@@ -219,9 +223,8 @@ enum MerchantCategorizer {
         invalidateLearner()
         let key = normalize(merchant)
         guard !key.isEmpty, category != "Other" else { return }
-
-        let descriptor = FetchDescriptor<MerchantCategoryRule>(predicate: #Predicate { $0.normalizedMerchant == key })
-        if let existing = try context.fetch(descriptor).first {
+        try rekeyRules(context: context, save: false)
+        if let existing = try context.fetch(FetchDescriptor<MerchantCategoryRule>()).first(where: { $0.normalizedMerchant == key }) {
             existing.hits = existing.category == category && existing.subcategory == subcategory ? existing.hits + 1 : 1
             existing.category = category
             existing.subcategory = subcategory
@@ -232,5 +235,20 @@ enum MerchantCategorizer {
             context.insert(rule)
         }
         if saveImmediately { try context.save() }
+    }
+
+    /// Folds legacy and current keys into one rule while retaining the latest confirmed category.
+    static func rekeyRules(context: ModelContext, save: Bool = true) throws {
+        let rules = try context.fetch(FetchDescriptor<MerchantCategoryRule>())
+        let groups = Dictionary(grouping: rules, by: { MerchantName.key($0.normalizedMerchant) })
+        var changed = false
+        for (key, matches) in groups where !key.isEmpty && (matches.count > 1 || matches[0].normalizedMerchant != key) {
+            changed = true
+            let keeper = matches.max { $0.updatedAt < $1.updatedAt }!
+            for duplicate in matches where duplicate !== keeper { context.delete(duplicate) }
+            keeper.hits = matches.reduce(0) { $0 + $1.hits }
+            keeper.normalizedMerchant = key
+        }
+        if save && changed { try context.save() }
     }
 }

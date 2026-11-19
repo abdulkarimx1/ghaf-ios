@@ -57,6 +57,11 @@ final class TransactionIngestionService {
             )
         }
 
+        let existing = try context.fetch(FetchDescriptor<GhafTransaction>(sortBy: [SortDescriptor(\.date, order: .reverse)]))
+        var knownKeys = Set<String>()
+        let knownMerchants = existing.prefix(500).compactMap(\.merchant).filter { knownKeys.insert(MerchantName.key($0)).inserted }
+        let merchant = rawParsed.merchant.map { MerchantName.expand(MerchantName.clean($0), known: knownMerchants) }
+
         // An authorization hold is not money that has moved; the posted message records it.
         if rawParsed.kind == .pending {
             return TransactionIngestionResult(
@@ -78,12 +83,14 @@ final class TransactionIngestionService {
         // rate, keeping the original amount. Without any rate it stays in its own currency, in review.
         let targetCurrency = (matchedAccount ?? (activeBankAccounts.count == 1 ? activeBankAccounts.first : nil))?.currency
             ?? (try? GhafPersistence.settings(in: context).currency) ?? rawParsed.currency
-        var parsed = rawParsed
+        var parsed = ParsedTransaction(amount: rawParsed.amount, currency: rawParsed.currency, merchant: merchant,
+                                       date: rawParsed.date, direction: rawParsed.direction, confidence: rawParsed.confidence,
+                                       bank: rawParsed.bank, kind: rawParsed.kind)
         var fx: (rate: Decimal, date: Date)?
         if rawParsed.currency != targetCurrency, let rates = GhafExchangeRates.cached,
            let converted = rates.convert(rawParsed.amount, from: rawParsed.currency, to: targetCurrency),
            let rate = rates.rate(from: rawParsed.currency, to: targetCurrency) {
-            parsed = ParsedTransaction(amount: converted, currency: targetCurrency, merchant: rawParsed.merchant,
+            parsed = ParsedTransaction(amount: converted, currency: targetCurrency, merchant: merchant,
                                        date: rawParsed.date, direction: rawParsed.direction, confidence: rawParsed.confidence,
                                        bank: rawParsed.bank, kind: rawParsed.kind)
             fx = (rate, rates.updated)

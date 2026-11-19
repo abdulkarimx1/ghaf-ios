@@ -60,6 +60,7 @@ public enum MerchantName {
     public static func key(_ name: String) -> String {
         var value = clean(name).folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US"))
             .lowercased()
+        value = value.replacingOccurrences(of: #"(?i)(?:\s+(?:br|branch)\s*#?\s*\d+|\s+#\s*\d+)$"#, with: "", options: .regularExpression)
         for (from, to) in [("أ", "ا"), ("إ", "ا"), ("آ", "ا"), ("ى", "ي"), ("ة", "ه")] { value = value.replacingOccurrences(of: from, with: to) }
         value = value.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
         let suffixes: Set<String> = ["llc", "fze", "fzco", "est", "establishment", "trading", "co", "company", "cafeteria", "cafeter", "restaurant", "restauran", "br", "branch"]

@@ -31,6 +31,6 @@ public enum CrossSourceDuplicate {
     }
 
     static func key(_ merchant: String) -> String {
-        merchant.lowercased().filter { $0.isLetter || $0 == " " }.split(separator: " ").joined(separator: " ")
+        MerchantName.key(merchant)
     }
 }
