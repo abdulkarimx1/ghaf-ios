@@ -345,24 +345,12 @@ struct GhafAIView: View {
             let chips = ar
                 ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "ما الاشتراكات القادمة؟"]
                 : ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"]
-            VStack(spacing: 8) {
+            GhafFlowLayout(spacing: 10) {
                 ForEach(chips, id: \.self) { chip in
-                    Button { send(chip) } label: {
-                        Text(chip)
-                            .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                            .foregroundStyle(theme.primaryText)
-                            .padding(.horizontal, 16)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background {
-                                if glassStyle.enabled { Capsule().fill(Color.clear) }
-                                else { Capsule().fill(.ultraThinMaterial.opacity(0.6)).overlay(Capsule().fill(.white.opacity(0.07))) }
-                            }
-                            .ghafGlassShape(theme: theme, shape: Capsule(), fallback: .clear)
-                            .overlay(Capsule().stroke(.white.opacity(0.14)))
-                    }
-                    .buttonStyle(.ghafPress)
+                    GhafSecondaryButton(title: chip, theme: theme, languageCode: settings.languageCode) { send(chip) }
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.top, 26)
             Spacer(minLength: 12)
         }
@@ -411,19 +399,10 @@ struct GhafAIView: View {
                     .transition(.scale(scale: 0.92, anchor: .topLeading).combined(with: .opacity))
             }
             if !item.suggestions.isEmpty && item.id == messages.last?.id && !isThinking {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 8) {
+                ScrollView {
+                    GhafFlowLayout(spacing: 10) {
                         ForEach(item.suggestions, id: \.self) { suggestion in
-                            Button { send(suggestion) } label: {
-                                Text(suggestion)
-                                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
-                                    .foregroundStyle(theme.primaryText)
-                                    .padding(.horizontal, 14)
-                                    .frame(minHeight: 44)
-                                    .background(.white.opacity(0.06), in: Capsule())
-                                    .overlay(Capsule().stroke(.white.opacity(0.16), lineWidth: 1))
-                            }
-                            .buttonStyle(.ghafPress)
+                            GhafSecondaryButton(title: suggestion, theme: theme, languageCode: settings.languageCode) { send(suggestion) }
                         }
                     }
                 }
@@ -1394,7 +1373,7 @@ private struct GhafChatHistorySheet: View {
                                     .font(GhafTypography.body(12, languageCode: languageCode))
                                     .foregroundStyle(theme.secondaryText)
                             }
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.rowHeight, alignment: .leading)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

@@ -308,7 +308,7 @@ struct GhafHomeView: View {
                         Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
                     }
                     .foregroundStyle(theme.primaryText)
-                    .padding(.horizontal, 14).frame(height: 40)
+                    .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
                     .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
                     .shadow(color: theme.shadow, radius: 8, y: 3)
                 }
@@ -795,7 +795,7 @@ struct GhafQuickAddView: View {
                         Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.accent)
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                     }
                     .buttonStyle(.ghafPress)
 
@@ -868,7 +868,7 @@ struct GhafQuickAddView: View {
                 .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                 .lineLimit(1).minimumScaleFactor(0.65)
                 .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
-                .padding(.horizontal, 16).frame(minHeight: 38)
+                .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
                 .background(selected ? theme.accent : theme.primaryText.opacity(0.06), in: Capsule())
         }
         .buttonStyle(.ghafPress)

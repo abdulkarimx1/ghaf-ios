@@ -112,8 +112,9 @@ struct GhafTransactionDetailView: View {
             Label(status.title, systemImage: status.symbol + ".circle.fill")
                 .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                 .foregroundStyle(status.tint)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(status.tint.opacity(0.12), in: Capsule())
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(status.tint.opacity(theme.isDark ? 0.22 : 0.14), in: Capsule())
+                .overlay(Capsule().stroke(status.tint.opacity(0.35), lineWidth: 1))
         }
         .padding(18)
         .ghafCard(theme: theme)

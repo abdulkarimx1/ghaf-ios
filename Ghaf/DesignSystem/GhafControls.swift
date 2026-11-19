@@ -1,5 +1,117 @@
 import SwiftUI
 
+struct GhafPrimaryButton: View {
+    let title: String
+    let theme: GhafTheme
+    let languageCode: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.accentContrast)
+                .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
+                .background(theme.accent, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.ghafPress)
+    }
+}
+
+struct GhafSecondaryButton: View {
+    let title: String
+    let theme: GhafTheme
+    let languageCode: String
+    var symbol: String? = nil
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if let symbol { Image(systemName: symbol).font(.system(size: 17, weight: .medium)) }
+                Text(title)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: symbol == nil ? 184 : 155)
+            }
+            .font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
+            .foregroundStyle(theme.primaryText)
+            .padding(.horizontal, 18)
+            .frame(minHeight: GhafMetrics.compactButtonHeight)
+            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.ghafPress)
+    }
+}
+
+struct GhafFlowLayout: Layout {
+    var spacing: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
+            x += (x == 0 ? 0 : spacing) + size.width
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: proposal.width ?? x, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var rows: [[(Int, CGSize)]] = [[]]
+        var rowWidths: [CGFloat] = [0], rowHeights: [CGFloat] = [0]
+        for (index, subview) in subviews.enumerated() {
+            let size = subview.sizeThatFits(.unspecified)
+            let current = rows.count - 1
+            if !rows[current].isEmpty && rowWidths[current] + spacing + size.width > bounds.width {
+                rows.append([]); rowWidths.append(0); rowHeights.append(0)
+            }
+            let row = rows.count - 1
+            rowWidths[row] += (rows[row].isEmpty ? 0 : spacing) + size.width
+            rowHeights[row] = max(rowHeights[row], size.height)
+            rows[row].append((index, size))
+        }
+        var y = bounds.minY
+        for row in rows.indices {
+            var x = bounds.minX + (bounds.width - rowWidths[row]) / 2
+            for (index, size) in rows[row] {
+                subviews[index].place(at: CGPoint(x: x, y: y + (rowHeights[row] - size.height) / 2), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += rowHeights[row] + spacing
+        }
+    }
+}
+
+struct GhafChecklistCard: View {
+    let items: [String]
+    let theme: GhafTheme
+    let languageCode: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Image(systemName: "checkmark")
+                        .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
+                        .foregroundStyle(theme.comfortable)
+                    Text(item)
+                        .font(GhafTypography.body(18, languageCode: languageCode))
+                        .foregroundStyle(theme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(24)
+        .ghafCard(theme: theme, radius: 24)
+    }
+}
+
 struct GhafFormCard<Content: View>: View {
     let theme: GhafTheme
     @ViewBuilder var content: () -> Content
@@ -162,8 +274,7 @@ struct GhafToggleStyle: ToggleStyle {
                 .background {
                     if configuration.isOn { Capsule().fill(theme.accent) }
                     else {
-                        Capsule().fill(theme.elevatedSurface)
-                        if theme.name != "Graphite" { Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04)) }
+                        Capsule().fill(theme.primaryText.opacity(0.08))
                     }
                 }
             }
@@ -193,9 +304,9 @@ struct GhafSegmented<Value: Hashable>: View {
                     if reduceMotion { selection = option.0 }
                     else { withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { selection = option.0 } }
                 } label: {
-                    Text(option.1).font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                    Text(option.1).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .foregroundStyle(selection == option.0 ? theme.accentContrast : theme.secondaryText)
-                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .frame(maxWidth: .infinity, minHeight: GhafMetrics.segmentedSegmentHeight)
                         .background {
                             if selection == option.0 { Capsule().fill(theme.accent).matchedGeometryEffect(id: "selection", in: selectionAnimation) }
                         }
@@ -205,7 +316,8 @@ struct GhafSegmented<Value: Hashable>: View {
                 .accessibilityAddTraits(selection == option.0 ? .isSelected : [])
             }
         }
-        .padding(2)
+        .padding(4)
+        .frame(height: GhafMetrics.segmentedTrackHeight)
         .background {
             Capsule().fill(theme.elevatedSurface)
             if theme.name != "Graphite" { Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04)) }
@@ -264,10 +376,11 @@ struct GhafStatusChip: View {
     }
     var body: some View {
         Label(title, systemImage: symbol)
-            .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+            .font(GhafTypography.body(15, languageCode: languageCode, weight: .medium))
             .foregroundStyle(color)
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(Capsule().fill(color.opacity(0.14)))
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            .frame(minHeight: 40)
+            .background(Capsule().fill(color.opacity(theme.isDark ? 0.22 : 0.14)))
             .overlay(Capsule().stroke(color.opacity(0.35), lineWidth: 1))
     }
 }

@@ -449,7 +449,7 @@ private struct GhafSubscriptionEditor: View {
                             Text(currency).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
                             Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
                         }
-                        .foregroundStyle(theme.primaryText).padding(.horizontal, 14).frame(height: 36)
+                        .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
                         .background(theme.elevatedSurface, in: Capsule())
                     }
                     .padding(.top, 8)
@@ -502,7 +502,7 @@ private struct GhafSubscriptionEditor: View {
                             catch { context.rollback(); saveFailed = true }
                         }
                         .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
-                        .foregroundStyle(theme.over).frame(maxWidth: .infinity, minHeight: 44).padding(.top, 20)
+                        .foregroundStyle(theme.over).frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight).padding(.top, 20)
                     }
                 }
                 .ghafScreenPadding().padding(.bottom, 24).frame(maxWidth: 620).frame(maxWidth: .infinity)
@@ -534,7 +534,7 @@ private struct GhafSubscriptionEditor: View {
                 Button { save() } label: {
                     Text(ar ? "حفظ" : "Save").font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
                         .foregroundStyle(valid ? theme.accentContrast : theme.secondaryText)
-                        .padding(.horizontal, 14).frame(height: 34)
+                        .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
                         .background(valid ? theme.accent : theme.accent.opacity(0.10), in: Capsule())
                 }
                 .buttonStyle(.plain).disabled(!valid)

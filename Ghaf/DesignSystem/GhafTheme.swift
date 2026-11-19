@@ -163,6 +163,11 @@ private func rgb(_ hex: UInt32) -> Color {
 /// Spacing and corner radii shared by every screen.
 enum GhafMetrics {
     static let gutter: CGFloat = 20
+    static let buttonHeight: CGFloat = 56
+    static let compactButtonHeight: CGFloat = 44
+    static let rowHeight: CGFloat = 64
+    static let segmentedTrackHeight: CGFloat = 52
+    static let segmentedSegmentHeight: CGFloat = 44
     static let cardPadding: CGFloat = 16
     static let heroPadding: CGFloat = 20
     static let cardRadius: CGFloat = 24

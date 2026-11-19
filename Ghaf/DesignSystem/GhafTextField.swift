@@ -25,7 +25,7 @@ struct GhafTextField: View {
         fieldContent.padding(.horizontal, 16).frame(minHeight: label == nil ? 56 : 64)
       } else {
         fieldContent.padding(.horizontal, 16).frame(minHeight: label == nil ? 56 : 64)
-            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
+            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
       }
     }
 

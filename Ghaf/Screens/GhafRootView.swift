@@ -137,7 +137,7 @@ struct GhafRootView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 30)
-                        .frame(height: 48)
+                        .frame(height: GhafMetrics.buttonHeight)
                         .background(Color.accentColor, in: Capsule())
                 }
                 .padding(.top, 4)
@@ -185,6 +185,7 @@ struct GhafRootView: View {
         if GhafScreenshotFixture.enabled, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
             case "insights": GhafStatsView(settings: currentSettings)
+            case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
             case "salary-settings": GhafSalarySettingsView(settings: currentSettings)
@@ -283,6 +284,24 @@ struct GhafRootView: View {
         try? modelContext.save()
     }
 }
+
+#if DEBUG
+private struct GhafFixtureTransactionDetailView: View {
+    let settings: GhafSettings
+    @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
+    @Query private var accounts: [GhafAccount]
+
+    var body: some View {
+        Group {
+            if let transaction = transactions.first {
+                NavigationStack { GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts) }
+            } else {
+                ContentUnavailableView("No fixture transaction", systemImage: "receipt")
+            }
+        }
+    }
+}
+#endif
 
 // MARK: - Main Tab Navigation
 

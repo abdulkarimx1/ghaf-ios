@@ -217,7 +217,7 @@ struct GhafPlacePicker: View {
                                         .foregroundStyle(theme.secondaryText)
                                 }
                             }
-                            .frame(minHeight: 44)
+                            .frame(minHeight: GhafMetrics.rowHeight)
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 14)

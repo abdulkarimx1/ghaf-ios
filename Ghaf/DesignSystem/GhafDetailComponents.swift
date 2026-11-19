@@ -40,6 +40,7 @@ struct GhafDetailRow<Value: View>: View {
                 .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 11)
+        .frame(minHeight: GhafMetrics.rowHeight)
         .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
         .accessibilityElement(children: .combine)
     }
@@ -87,10 +88,7 @@ struct GhafDetailActionBar: View {
                 .buttonStyle(.ghafPress)
                 .accessibilityLabel(secondaryLabel)
             }
-            Button(action: primaryAction) {
-                Text(primaryTitle).frame(maxWidth: .infinity)
-            }
-            .ghafProminentButton(theme: theme, languageCode: languageCode)
+            GhafPrimaryButton(title: primaryTitle, theme: theme, languageCode: languageCode, action: primaryAction)
         }
         .ghafScreenPadding()
         .padding(.top, 10)

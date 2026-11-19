@@ -110,7 +110,7 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(GhafTypography.body(17, languageCode: languageCode, weight: .bold))
+            .font(GhafTypography.body(17, languageCode: languageCode, weight: prominent ? .semibold : .bold))
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 56)
             .padding(.horizontal, 18)
@@ -220,7 +220,8 @@ struct GhafSectionHeader: View {
                 Button(actionTitle, action: action)
                     .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                     .foregroundStyle(theme.accent)
-                    .frame(minHeight: 44)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: GhafMetrics.compactButtonHeight)
                     .buttonStyle(.ghafPress)
             }
         }

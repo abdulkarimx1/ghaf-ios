@@ -257,8 +257,8 @@ struct GhafTransactionsView: View {
             Text(label)
                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 .lineLimit(1)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
+                .padding(.horizontal, 18)
+                .frame(minHeight: GhafMetrics.compactButtonHeight)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.primaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
         }

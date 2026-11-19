@@ -126,7 +126,7 @@ struct GhafSettingsView: View {
                         Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
                             .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                             .foregroundStyle(theme.over)
-                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                             .background(theme.over.opacity(0.1), in: Capsule())
                     }
                     .buttonStyle(.ghafPress)
@@ -252,9 +252,8 @@ struct GhafSettingsView: View {
                 }
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 16).frame(minHeight: 44)
-                .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
-                .shadow(color: theme.shadow, radius: 8, y: 3)
+                .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
+                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
@@ -412,7 +411,8 @@ struct GhafSettingsView: View {
                         GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
                     }
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                    .frame(minHeight: 44)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: GhafMetrics.compactButtonHeight)
                 }
                 Text(name.isEmpty ? (ar ? "مرحباً بك في غاف" : "Welcome to Ghaf") : name)
                     .font(GhafTypography.display(26, languageCode: languageCode))

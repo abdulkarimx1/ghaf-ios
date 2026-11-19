@@ -203,7 +203,7 @@ struct GhafReviewInboxView: View {
             .foregroundStyle(missing ? theme.close : theme.primaryText)
         }
         .padding(.horizontal, 12).padding(.vertical, 9)
-        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight, alignment: .leading)
         .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 14, style: .continuous), fallback: theme.elevatedSurface)
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(missing ? theme.close.opacity(0.5) : .clear, lineWidth: 1))
     }
