@@ -289,7 +289,7 @@ struct GhafAutomationGuideView: View {
         let banks = chosenBanks.map { name in GhafBankSupportDirectory.contacts.first(where: { $0.name == name })?.nameArabic ?? name }.joined(separator: "، ")
         return VStack(alignment: .leading, spacing: 12) {
             instructionRow(1, prose: text("Open these Shortcuts screens:", "افتح شاشات الاختصارات التالية:"), path: paths[0])
-            instructionRow(2, prose: automation == .bank ? text("Choose: \(chosenBanks.joined(separator: ", "))", "اختر: \(banks)") : text("Choose all cards", "اختر كل البطاقات"))
+            instructionRow(2, prose: automation == .bank ? (chosenBanks.isEmpty ? text("Choose your bank apps (add them above first)", "اختر تطبيقات بنوكك (أضفها في الأعلى أولاً)") : text("Choose: \(chosenBanks.joined(separator: ", "))", "اختر: \(banks)")) : text("Choose all cards", "اختر كل البطاقات"))
             instructionRow(3, prose: text("Add this Ghaf action:", "أضف إجراء غاف التالي:"), path: paths[1])
             Button(action: openShortcuts) {
                 Text(text("Open Shortcuts", "فتح الاختصارات"))
