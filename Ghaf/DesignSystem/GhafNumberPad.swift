@@ -22,7 +22,7 @@ struct GhafAmountField: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
-    private var separator: String { (languageCode == "ar" ? Locale(identifier: "ar_AE") : locale).decimalSeparator ?? "." }
+    private var separator: String { languageCode == "ar" ? "٫" : locale.decimalSeparator ?? "." }
 
     var body: some View {
         Button { openPad() } label: {
@@ -60,16 +60,20 @@ struct GhafAmountField: View {
                 }
                 HStack(spacing: 8) {
                     if let currency { GhafCurrencyIcon(currency: currency, size: fontSize * 0.82).foregroundStyle(theme.primaryText) }
-                    let display = value.isEmpty ? placeholder : localized(paddedAmount(value))
+                    let display = amountDisplay(value.isEmpty ? placeholder : paddedAmount(value))
                     Group {
-                        if fontSize >= 28, let split = display.range(of: separator, options: .backwards) {
+                        if languageCode == "ar" {
+                            Text(display)
+                        } else if fontSize >= 28, let split = display.range(of: separator, options: .backwards) {
                             HStack(spacing: 0) {
                                 Text(String(display[..<split.lowerBound]))
                                 Text(String(display[split.lowerBound...])).opacity(0.45)
                             }
                         } else { Text(display) }
                     }
-                    .font(GhafTypography.number(fontSize, weight: .bold))
+                    .font(languageCode == "ar"
+                          ? GhafTypography.body(fontSize, languageCode: languageCode, weight: .bold)
+                          : GhafTypography.number(fontSize, weight: .bold))
                     .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
@@ -100,8 +104,10 @@ struct GhafAmountField: View {
                     Text(label).font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
                     HStack(spacing: 8) {
                         if let currency { GhafCurrencyIcon(currency: currency, size: 20) }
-                        Text(value.isEmpty ? placeholder : localized(value))
-                            .font(GhafTypography.number(fontSize, weight: .bold))
+                        Text(amountDisplay(value.isEmpty ? placeholder : value))
+                            .font(languageCode == "ar"
+                                  ? GhafTypography.body(fontSize, languageCode: languageCode, weight: .bold)
+                                  : GhafTypography.number(fontSize, weight: .bold))
                             .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
                             .lineLimit(1).minimumScaleFactor(0.6)
                             .contentTransition(.numericText())
@@ -191,5 +197,10 @@ struct GhafAmountField: View {
             guard let digit = char.wholeNumberValue, (0...9).contains(digit) else { return char }
             return Character(UnicodeScalar(0x0660 + digit)!)
         }.map(String.init).joined()
+    }
+
+    private func amountDisplay(_ text: String) -> String {
+        let display = localized(text)
+        return languageCode == "ar" ? "\u{2066}\(display)\u{2069}" : display
     }
 }
