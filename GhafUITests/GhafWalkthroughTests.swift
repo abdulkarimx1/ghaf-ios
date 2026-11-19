@@ -12,11 +12,11 @@ final class GhafWalkthroughTests: XCTestCase {
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
     }
 
-    func launch(_ extra: [String] = []) {
+    func launch(_ extra: [String] = [], appearance: String = "Dark") {
         app = XCUIApplication()
         let backup = ProcessInfo.processInfo.environment["GHAF_BACKUP"].map { ["-GhafRestoreBackup", $0] } ?? []
         app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite",
-                               "-GhafAppearance", "Dark", "-GhafLanguage", "en"] + extra
+                               "-GhafAppearance", appearance, "-GhafLanguage", "en"] + extra
         app.launch()
         _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
     }
@@ -103,5 +103,38 @@ final class GhafWalkthroughTests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
         timedTap(app.tabBars.buttons["Transactions"], "tab Transactions for restore cleanup")
         snap("restore-cleanup-transactions")
+    }
+
+    func testBankLogoProof() {
+        launch()
+        timedTap(app.tabBars.buttons["More"], "tab More for bank logo proof")
+        let bankAutomation = app.buttons["Bank automation"]
+        for _ in 0..<5 where !bankAutomation.exists { app.swipeUp(velocity: .fast) }
+        timedTap(bankAutomation, "open bank automation")
+        XCTAssertTrue(app.navigationBars["Your banks"].waitForExistence(timeout: 10))
+        timedTap(app.buttons["Add a bank"].firstMatch, "open bank picker")
+        XCTAssertTrue(app.navigationBars["Choose banks"].waitForExistence(timeout: 5))
+        for name in ["iVestor", "Mashreq", "ruya"] {
+            let bank = app.buttons[name]
+            XCTAssertTrue(bank.waitForExistence(timeout: 5), "Missing bank \(name)")
+            if !bank.isSelected { bank.tap() }
+        }
+        timedTap(app.buttons["Done"], "finish choosing three banks")
+        snap("bank-your-banks-after")
+        timedTap(app.buttons["Add a bank"].firstMatch, "reopen bank picker")
+        XCTAssertTrue(app.navigationBars["Choose banks"].waitForExistence(timeout: 5))
+        snap("bank-picker-dark-after-top")
+        app.swipeUp(velocity: .fast); snap("bank-picker-dark-after-middle")
+        app.swipeUp(velocity: .fast); snap("bank-picker-dark-after-bottom")
+        app.terminate()
+        launch(appearance: "Light")
+        timedTap(app.tabBars.buttons["More"], "tab More for light bank logo proof")
+        let lightBankAutomation = app.buttons["Bank automation"]
+        for _ in 0..<5 where !lightBankAutomation.exists { app.swipeUp(velocity: .fast) }
+        timedTap(lightBankAutomation, "open bank automation in light appearance")
+        XCTAssertTrue(app.navigationBars["Your banks"].waitForExistence(timeout: 10))
+        timedTap(app.buttons["Add a bank"].firstMatch, "open light bank picker")
+        XCTAssertTrue(app.navigationBars["Choose banks"].waitForExistence(timeout: 5))
+        snap("bank-picker-light-after")
     }
 }
