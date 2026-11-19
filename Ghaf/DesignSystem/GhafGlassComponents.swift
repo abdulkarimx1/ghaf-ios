@@ -257,7 +257,7 @@ struct GhafIconBadge: View {
                         .overlay { GhafShapeRim(theme: theme, shape: Circle(), contrast: contrast) }
                         .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 12, x: 0, y: 5)
                 } else if glass.enabled && !reduceTransparency, let theme {
-                    Circle().fill(theme.surface).overlay(Circle().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04)))
+                    Circle().fill(theme.surface).overlay(Circle().fill(tint.opacity(0.14)))
                         .overlay { GhafGlassSheen(theme: theme).clipShape(Circle()) }
                         .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Circle()).allowsHitTesting(false) } }
                         .overlay { GhafShapeRim(theme: theme, shape: Circle(), contrast: contrast) }
