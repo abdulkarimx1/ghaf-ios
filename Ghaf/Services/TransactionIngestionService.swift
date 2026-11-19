@@ -170,9 +170,9 @@ final class TransactionIngestionService {
             ? suggestion?.subcategory : nil
 
         let paidSubscription = parsed.direction == .debit && !isReversal ? try subscriptionPaid(by: parsed) : nil
-        let detectedSubscription = parsed.direction == .debit && !isReversal && paidSubscription == nil
-            ? try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)
-            : nil
+        if parsed.direction == .debit && !isReversal && paidSubscription == nil {
+            _ = try addSubscriptionIfRecurring(parsed, accountID: resolvedAccount?.id)
+        }
 
         // The bank charge is recorded once, here. The subscription stays on its due date until the
         // user confirms the deduction in Subscriptions; it never deducts money itself.
@@ -189,11 +189,8 @@ final class TransactionIngestionService {
         if let unusual, let merchant = parsed.merchant {
             notifyUnusual(merchant: merchant, parsed: parsed, typical: unusual.typical)
         } else {
-            let all = (try? context.fetch(FetchDescriptor<GhafTransaction>())) ?? []
-            let balance = resolvedAccount.map { GhafAccountBalanceCalculator.balance(for: $0, transactions: all) }
             let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
-            GhafDigestNotifications.transactionAdded(transaction, account: resolvedAccount, balance: balance,
-                                                     needsReview: needsReview, languageCode: language)
+            GhafDigestNotifications.transactionAdded(transaction, needsReview: needsReview, languageCode: language)
         }
         GhafDigestNotifications.reschedule(context: context)
         GhafWidgetSync.refresh(context: context)
@@ -205,25 +202,24 @@ final class TransactionIngestionService {
             Task { await GhafWidgetSync.showPurchase(transaction, account: account, balance: balance, needsReview: needsReview, arabic: arabic) }
         }
 
-        let subscriptionNote = paidSubscription.map { item in
-            item.proposedAmount != nil
-                ? " \(item.name) charged more than the \(item.amount) \(item.currency) you set. Update the price in Subscriptions."
-                : " Looks like the \(item.name) payment. Confirm it in Subscriptions."
-        }
-            ?? detectedSubscription.map { " Possible subscription: \($0.name). Confirm it in Subscriptions." } ?? ""
-
-        let amount = NSDecimalNumber(decimal: parsed.amount).stringValue
+        let amountFormatter = NumberFormatter()
+        amountFormatter.locale = Locale(identifier: "en_US_POSIX")
+        amountFormatter.minimumFractionDigits = 2
+        amountFormatter.maximumFractionDigits = 2
+        amountFormatter.numberStyle = .decimal
+        let amount = amountFormatter.string(from: NSDecimalNumber(decimal: parsed.amount)) ?? NSDecimalNumber(decimal: parsed.amount).stringValue
+        let savedName = parsed.merchant ?? category
         if needsReview {
             return TransactionIngestionResult(
                 status: .needsReview,
-                confirmation: "Transaction received. Review its category or account." + subscriptionNote,
+                confirmation: "Saved — needs review: \(savedName) · \(parsed.currency) \(amount)",
                 transactionID: transaction.id
             )
         }
 
         return TransactionIngestionResult(
             status: .saved,
-            confirmation: "Saved \(amount) \(parsed.currency)." + subscriptionNote,
+            confirmation: "Saved: \(savedName) · \(parsed.currency) \(amount)",
             transactionID: transaction.id
         )
     }
