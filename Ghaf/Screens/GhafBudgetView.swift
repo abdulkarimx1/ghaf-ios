@@ -226,7 +226,7 @@ struct GhafBudgetView: View {
                 }
                 .accessibilityElement(children: .contain)
 
-                GhafSegmented(options: Array(zip(BudgetAllocation.Bucket.allCases, names)), selection: allocationSelection, theme: theme, languageCode: lang)
+                GhafSegmented(options: Array(zip(BudgetAllocation.Bucket.allCases, names)), selection: allocationSelection, theme: theme, languageCode: lang, selectionIsActive: bucketSelected)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
                     ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
                         Button { toggleBucket(item) } label: {

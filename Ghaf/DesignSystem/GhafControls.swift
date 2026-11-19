@@ -298,6 +298,7 @@ struct GhafSegmented<Value: Hashable>: View {
     @Binding var selection: Value
     let theme: GhafTheme
     var languageCode = "en"
+    var selectionIsActive = true
     @Namespace private var selectionAnimation
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -309,15 +310,15 @@ struct GhafSegmented<Value: Hashable>: View {
                     else { withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { selection = option.0 } }
                 } label: {
                     Text(option.1).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                        .foregroundStyle(selection == option.0 ? theme.accentContrast : theme.secondaryText)
+                        .foregroundStyle(selectionIsActive && selection == option.0 ? theme.accentContrast : theme.secondaryText)
                         .frame(maxWidth: .infinity, minHeight: GhafMetrics.segmentedSegmentHeight)
                         .background {
-                            if selection == option.0 { Capsule().fill(theme.accent).matchedGeometryEffect(id: "selection", in: selectionAnimation) }
+                            if selectionIsActive && selection == option.0 { Capsule().fill(theme.accent).matchedGeometryEffect(id: "selection", in: selectionAnimation) }
                         }
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(selection == option.0 ? .isSelected : [])
+                .accessibilityAddTraits(selectionIsActive && selection == option.0 ? .isSelected : [])
             }
         }
         .padding(4)
