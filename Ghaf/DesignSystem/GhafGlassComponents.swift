@@ -44,6 +44,7 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.layoutDirection) private var direction
     func body(content: Content) -> some View {
         content.background {
             if glass.enabled && !reduceTransparency {
@@ -54,7 +55,7 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
                     shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
-                .overlay { shape.stroke(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: contrast == .increased ? 1.6 : 1) }
+                .overlay { shape.stroke(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: direction == .rightToLeft ? .topTrailing : .topLeading, endPoint: direction == .rightToLeft ? .bottomLeading : .bottomTrailing), lineWidth: contrast == .increased ? 1.6 : 1) }
             } else { shape.fill(fallback) }
         }
     }
