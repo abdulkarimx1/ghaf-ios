@@ -81,7 +81,7 @@ struct GhafNotificationSettingsView: View {
                         icon: "calendar", isOn: $subscriptionDue)
                     Divider().overlay(theme.outline)
                     row(ar ? "النشاط المباشر للعمليات" : "Live Activity for purchases",
-                        ar ? "آخر عملية على شاشة القفل وفي الجزيرة الديناميكية لمدة ١٥ دقيقة" : "The latest purchase on the Lock Screen and Dynamic Island for 15 minutes",
+                        ar ? "آخر عملية على شاشة القفل وفي الجزيرة الديناميكية لمدة ٥ دقائق" : "The latest purchase on the Lock Screen and Dynamic Island for 5 minutes",
                         icon: "bolt.badge.clock.fill", isOn: $liveActivity)
                 }
                 .padding(.horizontal, 16)
