@@ -7,7 +7,7 @@ import GhafCore
 /// Laid out like the approved canvas: trend hero, "Where it went" bars, two tiles, merchants.
 struct GhafStatsView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
     let settings: GhafSettings
 
@@ -17,6 +17,7 @@ struct GhafStatsView: View {
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
     @State private var showPro = false
+    @State private var showProSheet = false
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -24,6 +25,13 @@ struct GhafStatsView: View {
     private var calendar: Calendar { GhafCalendar.current }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    }
+    private var fixtureBudget: Bool {
+#if DEBUG
+        GhafScreenshotFixture.enabled && GhafScreenshotFixture.destination == "budget"
+#else
+        false
+#endif
     }
 
     // MARK: Data
@@ -97,6 +105,9 @@ struct GhafStatsView: View {
         let previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
         NavigationStack {
             ScrollView {
+                if fixtureBudget {
+                    GhafBudgetView(settings: settings)
+                } else {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     GhafScreenTitle(title: ar ? "الإحصائيات" : "Statistics",
                                     subtitle: nil,
@@ -114,14 +125,35 @@ struct GhafStatsView: View {
                 .padding(.bottom, 30)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
+                }
             }
             .scrollIndicators(.hidden)
             .ghafBackground(theme: theme)
             .toolbar(.hidden, for: .navigationBar)
             .sensoryFeedback(.selection, trigger: period)
             .sensoryFeedback(.selection, trigger: selectedCategory)
-            .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
+            .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
+            .onAppear {
+#if DEBUG
+                guard GhafScreenshotFixture.enabled else { return }
+                switch GhafScreenshotFixture.period {
+                case "W": period = .week
+                case "3M": period = .quarter
+                case "Y": period = .year
+                default: break
+                }
+                if GhafScreenshotFixture.destination == "pro-popup" { showPro = true }
+                if GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
+                if GhafScreenshotFixture.selection == "point" {
+                    let date = calendar.dateInterval(of: .day, for: Date.now.addingTimeInterval(-86_400))?.start ?? .now
+                    selectedLabel = chartKey(date)
+                }
+                if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
+
+#endif
+}
         }
+        .overlay { if showPro { proPopup.zIndex(2) } }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -316,7 +348,7 @@ struct GhafStatsView: View {
                 Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText)
             }
             .padding(GhafMetrics.cardPadding)
-            .ghafCard(theme: theme, radius: 22)
+            .ghafStatsCard(theme: theme, radius: 22)
         }
         .buttonStyle(.ghafPress)
     }
@@ -456,27 +488,41 @@ struct GhafStatsView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme)
+        .ghafStatsCard(theme: theme)
     }
 
     private var proCard: some View {
         Button { showPro = true } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "sparkles").font(.system(size: 24, weight: .bold)).foregroundStyle(theme.accentContrast)
-                    .frame(width: 54, height: 54)
-                    .background(theme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Ghaf Pro").font(GhafTypography.heading(17, languageCode: lang)).foregroundStyle(theme.primaryText)
-                    Text(ar ? "تقارير أعمق، ودجت، ونشاط مباشر على شاشة القفل." : "Deeper reports, widgets and Live Activities on your Lock Screen.")
-                        .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 4)
-                Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.secondaryText)
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles").foregroundStyle(theme.accent)
+                Text("Ghaf Pro").font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.secondaryText)
             }
-            .padding(16)
-            .ghafCard(theme: theme)
+            .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(.ghafPress)
+        .buttonStyle(.plain)
+    }
+
+    private var proPopup: some View {
+        ZStack {
+            theme.background.opacity(0.55).ignoresSafeArea().onTapGesture { closePro() }
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Pro").font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accentContrast).padding(.horizontal, 12).padding(.vertical, 7).background(theme.accent, in: Capsule())
+                    Spacer()
+                    Button { closePro() } label: { Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText).frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityLabel(ar ? "إغلاق" : "Close")
+                }
+                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro").font(GhafTypography.display(24, languageCode: lang)).foregroundStyle(theme.primaryText).multilineTextAlignment(.center)
+                Text(ar ? "تقارير أعمق، ودجت، ونشاط مباشر" : "Deeper reports, widgets and Live Activities").font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
+                Button { showPro = false; showProSheet = true } label: { Text(ar ? "عرض الخطط ←" : "See plans →").font(GhafTypography.body(16, languageCode: lang, weight: .bold)).frame(maxWidth: .infinity, minHeight: 56) }.ghafProminentButton(theme: theme, languageCode: lang)
+            }
+            .padding(22).frame(maxWidth: 360).background(theme.surface, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        }
+        .transition(.scale(scale: 0.92).combined(with: .opacity))
+        .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.82), value: showPro)
+    }
+
+    private func closePro() {
+        if reduceMotion { showPro = false } else { withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) { showPro = false } }
     }
 }

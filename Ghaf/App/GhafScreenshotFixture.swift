@@ -11,7 +11,12 @@ enum GhafScreenshotFixture {
     static var appearance: String { value("GhafAppearance") ?? "Light" }
     static var language: String { value("GhafLanguage") ?? "en" }
     static var tab: String { value("GhafTab") ?? "home" }
-    static var screen: String? { value("GhafScreen") }
+    static var selection: String? { value("GhafSelection") }
+    static var period: String? { value("GhafPeriod") }
+    static var screen: String? {
+        ["budget", "pro-popup", "pro-sheet"].contains(value("GhafScreen") ?? "") ? "insights" : value("GhafScreen")
+    }
+    static var destination: String? { value("GhafScreen") }
 
     private static func value(_ key: String) -> String? {
         guard let index = arguments.firstIndex(of: "-\(key)"), arguments.indices.contains(index + 1) else { return nil }
@@ -29,7 +34,7 @@ enum GhafScreenshotFixture {
     }
 
     private static func seed(_ context: ModelContext) {
-        let settings = GhafSettings(languageCode: language, currency: "AED", themeName: theme,
+        let settings = GhafSettings(languageCode: language, currency: "AED", monthlyIncome: 12000, themeName: theme,
                                     appearanceMode: appearance, hasCompletedOnboarding: true)
         context.insert(settings)
         let mashreq = GhafAccount(name: "Mashreq Current", institution: "Mashreq", accountType: .current,
