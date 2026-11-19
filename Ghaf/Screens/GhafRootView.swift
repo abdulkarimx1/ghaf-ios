@@ -249,6 +249,7 @@ final class GhafTabRouter {
 struct GhafTabView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.ghafGlass) private var glass
     @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }) private var reviewItems: [GhafTransaction]
     /// Current frame of the Ghaf AI icon's tap animation (0 = at rest).
     @State private var aiFrame = 0
@@ -299,6 +300,7 @@ struct GhafTabView: View {
                 .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
         }
+        .modifier(GhafTabBarGlass(enabled: glass.enabled))
         .tint(theme.accent)
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         .task(id: router.selectedTab) {
@@ -320,6 +322,15 @@ struct GhafTabView: View {
             settings.appearanceMode == "Dark" ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+}
+
+private struct GhafTabBarGlass: ViewModifier {
+    let enabled: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26, *) { content }
+        else if enabled { content.toolbarBackground(.ultraThinMaterial, for: .tabBar) }
+        else { content }
     }
 }
 

@@ -192,7 +192,7 @@ struct GhafSubscriptionsView: View {
         }
         .padding(.vertical, 22).padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .background(theme.ink, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .ghafGlassHero(theme: theme, radius: 28, fallback: theme.ink)
     }
 
     private func costMetric(_ title: String, _ value: String) -> some View {

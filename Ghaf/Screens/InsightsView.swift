@@ -135,7 +135,7 @@ struct GhafInsightsView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity)
-        .background(theme.ink, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .ghafGlassHero(theme: theme, radius: 28, fallback: theme.ink)
     }
 
     private func summaryCard(title: String, amount: Decimal, color: Color, symbol: String) -> some View {

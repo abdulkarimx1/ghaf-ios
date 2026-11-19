@@ -85,12 +85,12 @@ struct GhafGlassSurface: ViewModifier {
     let theme: GhafTheme
     var radius: CGFloat
     var hero = false
+    var fallback: Color? = nil
     @Environment(\.ghafGlass) private var glass
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.layoutDirection) private var direction
-    @Environment(GhafTiltMotion.self) private var motion
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
     func body(content: Content) -> some View {
         let active = glass.enabled && !reduceTransparency
@@ -102,23 +102,42 @@ struct GhafGlassSurface: ViewModifier {
                     shape.fill(material)
                     shape.fill((theme.isDark ? theme.surface : Color.white).opacity(opacity))
                     if hero { LinearGradient(colors: [theme.accent.opacity(0.55), .clear], startPoint: .bottom, endPoint: .top).frame(height: 100).frame(maxHeight: .infinity, alignment: .bottom).clipShape(shape) }
-                    RadialGradient(colors: [.white.opacity(theme.isDark ? 0.06 : 0.18), .clear], center: .topLeading, startRadius: 0, endRadius: 150)
-                        .offset(x: CGFloat(motion.tilt.x) * 12, y: CGFloat(motion.tilt.y) * 12).clipShape(shape)
+                    GhafGlassSheen(theme: theme).clipShape(shape)
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
-                .overlay {
-                    shape.strokeBorder(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: rimStart, endPoint: rimEnd), lineWidth: contrast == .increased ? 1.6 : 1)
-                }
+                .overlay { GhafGlassRim(theme: theme, shape: shape, contrast: contrast, direction: direction) }
                 .overlay(alignment: .bottom) { if hero { Rectangle().fill(theme.accent.opacity(0.75)).frame(height: 1.5).blur(radius: 1).clipShape(shape) } }
                 .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 18, x: 0, y: 8)
             } else {
-                shape.fill(theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6)
+                shape.fill(fallback ?? theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6)
                     .overlay { if theme.isDark { shape.stroke(theme.outline, lineWidth: 1) } }
             }
         }
     }
-    private var rimStart: UnitPoint { direction == .rightToLeft ? UnitPoint(x: 1 - motion.tilt.x * 0.25, y: 0) : UnitPoint(x: motion.tilt.x * 0.25, y: 0) }
-    private var rimEnd: UnitPoint { direction == .rightToLeft ? UnitPoint(x: motion.tilt.x * 0.25, y: 1) : UnitPoint(x: 1 - motion.tilt.x * 0.25, y: 1) }
+}
+
+private struct GhafGlassRim: View {
+    let theme: GhafTheme
+    let shape: RoundedRectangle
+    let contrast: ColorSchemeContrast
+    let direction: LayoutDirection
+    private var motion: GhafTiltMotion { .shared }
+    var body: some View {
+        let tilt = motion.tilt
+        let start = direction == .rightToLeft ? UnitPoint(x: 1 - tilt.x * 0.25, y: 0) : UnitPoint(x: tilt.x * 0.25, y: 0)
+        let end = direction == .rightToLeft ? UnitPoint(x: tilt.x * 0.25, y: 1) : UnitPoint(x: 1 - tilt.x * 0.25, y: 1)
+        shape.strokeBorder(LinearGradient(colors: theme.isDark ? [.white.opacity(0.55), .white.opacity(0.08), .white.opacity(0.02), .white.opacity(0.18)] : [.white.opacity(0.9), .black.opacity(0.06), .black.opacity(0.02), .white.opacity(0.5)], startPoint: start, endPoint: end), lineWidth: contrast == .increased ? 1.6 : 1)
+    }
+}
+
+private struct GhafGlassSheen: View {
+    let theme: GhafTheme
+    private var motion: GhafTiltMotion { .shared }
+    var body: some View {
+        let tilt = motion.tilt
+        RadialGradient(colors: [.white.opacity(theme.isDark ? 0.06 : 0.18), .clear], center: .topLeading, startRadius: 0, endRadius: 150)
+            .offset(x: CGFloat(tilt.x) * 12, y: CGFloat(tilt.y) * 12)
+    }
 }
 
 struct GhafGlassPreview: View {
@@ -139,7 +158,7 @@ struct GhafTiltLifecycle: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     func body(content: Content) -> some View {
-        content.environment(GhafTiltMotion.shared).environment(\.ghafGlass, style)
+        content.environment(\.ghafGlass, style)
             .onAppear { refresh() }
             .onChange(of: enabled) { _, _ in refresh() }
             .onChange(of: tilt) { _, _ in refresh() }

@@ -88,6 +88,7 @@ struct GhafAIView: View {
     @State private var offerCloud = false
     @State private var offerLiveConsent = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.ghafGlass) private var glassStyle
 
     let settings: GhafSettings
     private var ar: Bool { settings.languageCode == "ar" }
@@ -468,7 +469,11 @@ struct GhafAIView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .frame(maxWidth: 340, alignment: .leading)
-        .background { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.08))).overlay(shape.stroke(.white.opacity(0.14))) }
+        .background {
+            if glassStyle.enabled { shape.fill(Color.clear) }
+            else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.08))).overlay(shape.stroke(.white.opacity(0.14))) }
+        }
+        .ghafGlassHero(theme: theme, radius: 22, fallback: .clear)
         .contextMenu {
             Button { UIPasteboard.general.string = item.text } label: { Label(ar ? "نسخ" : "Copy", systemImage: "doc.on.doc") }
             ShareLink(item: item.text) { Label(ar ? "مشاركة" : "Share", systemImage: "square.and.arrow.up") }

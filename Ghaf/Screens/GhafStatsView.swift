@@ -247,7 +247,7 @@ struct GhafStatsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16).padding(.vertical, 20)
-        .ghafCard(theme: theme, radius: 30)
+        .ghafGlassHero(theme: theme, radius: 30)
     }
 
     // MARK: Budget entry

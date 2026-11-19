@@ -18,8 +18,8 @@ extension View {
         ghafCard(theme: theme, radius: radius)
     }
 
-    func ghafGlassHero(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
-        modifier(GhafGlassSurface(theme: theme, radius: radius, hero: true))
+    func ghafGlassHero(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius, fallback: Color? = nil) -> some View {
+        modifier(GhafGlassSurface(theme: theme, radius: radius, hero: true, fallback: fallback))
     }
 
     /// Full-width primary action: a bold accent capsule.
@@ -37,18 +37,29 @@ private struct GhafGlassBackground: View {
     let theme: GhafTheme
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(GhafTiltMotion.self) private var motion
     var body: some View {
         if glass.enabled && !reduceTransparency {
             GeometryReader { proxy in
                 ZStack {
                     if glass.ambientGlow {
-                        Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: proxy.size.width * 0.9).blur(radius: 100).position(x: proxy.size.width * 0.18 + CGFloat(motion.tilt.x) * 8, y: proxy.size.height * 0.2)
-                        Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: proxy.size.width * 0.8).blur(radius: 110).position(x: proxy.size.width * 0.82, y: proxy.size.height * 0.64 + CGFloat(motion.tilt.y) * 8)
+                        GhafGlassGlowBlobs(size: proxy.size, theme: theme)
                     }
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(0.04).blendMode(.overlay).allowsHitTesting(false) }
                 }
             }
+        }
+    }
+}
+
+private struct GhafGlassGlowBlobs: View {
+    let size: CGSize
+    let theme: GhafTheme
+    private var motion: GhafTiltMotion { .shared }
+    var body: some View {
+        let tilt = motion.tilt
+        ZStack {
+            Circle().fill(theme.accent.opacity(theme.isDark ? 0.22 : 0.14)).frame(width: size.width * 0.9).blur(radius: 100).position(x: size.width * 0.18 + CGFloat(tilt.x) * 8, y: size.height * 0.2)
+            Circle().fill(theme.glow.opacity(theme.isDark ? 0.16 : 0.1)).frame(width: size.width * 0.8).blur(radius: 110).position(x: size.width * 0.82, y: size.height * 0.64 + CGFloat(tilt.y) * 8)
         }
     }
 }
@@ -163,7 +174,7 @@ struct GhafSectionHeader: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .font(GhafTypography.heading(20, languageCode: languageCode))
-                .foregroundStyle(glass.enabled ? theme.secondaryText.opacity(0.85) : theme.primaryText)
+                .foregroundStyle(theme.primaryText)
             Spacer()
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
