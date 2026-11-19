@@ -777,7 +777,7 @@ struct GhafAIView: View {
         guard !text.isEmpty, !isThinking else { return }
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
-        if liveCallActive { liveCall.sendText(text); return }
+        if liveCallActive { liveGroundingSources.append(text); liveCall.sendText(text); return }
         if let intent = MemoryIntent.parse(text) {
             if memoryEnabled {
                 handleMemoryIntent(intent, source: "said")
