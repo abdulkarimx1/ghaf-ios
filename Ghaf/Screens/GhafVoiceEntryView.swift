@@ -130,9 +130,11 @@ struct GhafVoiceEntryView: View {
                                 }
                                 HStack {
                                     GhafMenuRow(title: isArabic ? "الفئة" : "Category", value: GhafLocalization.category(draft.category, languageCode: settings.languageCode), theme: theme, languageCode: settings.languageCode) {
-                                        Picker(isArabic ? "الفئة" : "Category", selection: $draft.category) {
-                                            ForEach(settings.categories, id: \.self) { category in
-                                                Text(GhafLocalization.category(category, languageCode: settings.languageCode)).tag(category)
+                                GhafMenuRow(title: isArabic ? "الفئة" : "Category", value: GhafLocalization.category(draft.category, languageCode: settings.languageCode), theme: theme, languageCode: settings.languageCode) {
+                                    Picker(isArabic ? "الفئة" : "Category", selection: $draft.category) {
+                                        ForEach(settings.categories, id: \.self) { category in
+                                            Text(GhafLocalization.category(category, languageCode: settings.languageCode)).tag(category)
+                                        }
                                             }
                                         }
                                     }

@@ -771,7 +771,7 @@ struct GhafQuickAddView: View {
                         divider
                       }
                         row(ar ? "التاريخ" : "Date", icon: "calendar") {
-                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden()
+                            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute]).labelsHidden().tint(theme.accent)
                         }
                         divider
                         row(ar ? "ملاحظة" : "Note", icon: "text.alignleft") {
@@ -859,13 +859,14 @@ struct GhafQuickAddView: View {
     }
 
     private func accountPicker(_ selection: Binding<UUID?>) -> some View {
-        Picker(ar ? "الحساب" : "Account", selection: selection) {
-            if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
-            ForEach(activeAccounts, id: \.id) { account in
-                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+        GhafMenuRow(title: ar ? "الحساب" : "Account", value: activeAccounts.first(where: { $0.id == selection.wrappedValue }).map { "\($0.name) · \($0.currency)" } ?? (ar ? "اختر" : "Choose"), theme: theme, languageCode: lang, compact: true) {
+            Picker(ar ? "الحساب" : "Account", selection: selection) {
+                if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
+                ForEach(activeAccounts, id: \.id) { account in
+                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                }
             }
         }
-        .labelsHidden()
     }
 
     private var divider: some View { Divider().overlay(theme.outline).padding(.leading, 38) }

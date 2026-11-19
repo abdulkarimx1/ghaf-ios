@@ -78,19 +78,29 @@ struct GhafMenuRow<Content: View>: View {
     let value: String
     let theme: GhafTheme
     let languageCode: String
+    var compact = false
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         Menu { content() } label: {
-            HStack(spacing: 12) {
-                Text(title).foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)
-                Text(value).foregroundStyle(theme.secondaryText)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText)
+            Group {
+                if compact {
+                    HStack(spacing: 8) {
+                        Text(value).foregroundStyle(theme.secondaryText)
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        Text(title).foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(value).foregroundStyle(theme.secondaryText)
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 56)
+                    .ghafCard(theme: theme, radius: 16)
+                }
             }
             .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-            .padding(.horizontal, 16)
-            .frame(minHeight: 56)
-            .ghafCard(theme: theme, radius: 16)
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)

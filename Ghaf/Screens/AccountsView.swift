@@ -230,10 +230,11 @@ struct GhafAccountEditorView: View {
                     }
                     }
                     fieldRow(ar ? "النوع" : "Type") {
-                        Picker("", selection: $accountType) {
-                            ForEach(GhafAccountType.allCases) { type in Text(accountTypeTitle(type)).tag(type) }
+                        GhafMenuRow(title: ar ? "النوع" : "Type", value: accountTypeTitle(accountType), theme: theme, languageCode: lang, compact: true) {
+                            Picker(ar ? "النوع" : "Type", selection: $accountType) {
+                                ForEach(GhafAccountType.allCases) { type in Text(accountTypeTitle(type)).tag(type) }
+                            }
                         }
-                        .labelsHidden()
                     }
                     Text(isCash ? (ar ? "محفظة كاش: النقود التي معك. تسجّل مصروفاتها بنفسك أو بصوتك، ولا ترتبط ببنك أو بطاقة."
                                      : "Cash wallet: the money in your pocket. You log its spending yourself or by voice; no bank or card.")

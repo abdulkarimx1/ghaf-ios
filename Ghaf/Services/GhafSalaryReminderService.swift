@@ -109,13 +109,13 @@ struct GhafSalaryCheckInView: View {
                         .tracking(1.1)
                         .foregroundStyle(theme.secondaryText)
 
-                    Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
-                        ForEach(activeAccounts, id: \.id) { account in
-                            Text(account.name).tag(Optional(account.id))
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "الحساب" : "Account", value: activeAccounts.first(where: { $0.id == selectedAccountID })?.name ?? "", theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "الحساب" : "Account", selection: $selectedAccountID) {
+                            ForEach(activeAccounts, id: \.id) { account in
+                                Text(account.name).tag(Optional(account.id))
+                            }
                         }
                     }
-
-                    .tint(theme.accent)
                 }
 
                 if showError {
@@ -263,12 +263,11 @@ struct GhafSalarySettingsView: View {
 
             if enabled {
                 Section(settings.languageCode == "ar" ? "تفاصيل الراتب" : "SALARY DETAILS") {
-                    Picker(
-                        settings.languageCode == "ar" ? "يوم الراتب" : "Salary day",
-                        selection: $salaryDay
-                    ) {
-                        ForEach(1...31, id: \.self) { day in
-                            Text("\(day)").tag(day)
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "يوم الراتب" : "Salary day", value: "\(salaryDay)", theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "يوم الراتب" : "Salary day", selection: $salaryDay) {
+                            ForEach(1...31, id: \.self) { day in
+                                Text("\(day)").tag(day)
+                            }
                         }
                     }
 
@@ -276,12 +275,11 @@ struct GhafSalarySettingsView: View {
                                     label: settings.languageCode == "ar" ? "المبلغ المتوقع (اختياري)" : "Expected amount (optional)",
                                     theme: theme, languageCode: settings.languageCode)
 
-                    Picker(
-                        settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account",
-                        selection: $accountID
-                    ) {
-                        ForEach(activeAccounts, id: \.id) { account in
-                            Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                    GhafMenuRow(title: settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account", value: activeAccounts.first(where: { $0.id == accountID }).map { "\($0.name) · \($0.currency)" } ?? "", theme: theme, languageCode: settings.languageCode) {
+                        Picker(settings.languageCode == "ar" ? "حساب الإيداع" : "Deposit account", selection: $accountID) {
+                            ForEach(activeAccounts, id: \.id) { account in
+                                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                            }
                         }
                     }
 

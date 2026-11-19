@@ -1010,16 +1010,13 @@ struct GhafOnboardingView: View {
                         )
                         .font(GhafTypography.body(13, languageCode: languageCode))
 
-                        Picker(
-                            languageCode == "ar" ? "نوع الحساب" : "Account type",
-                            selection: $draft.type
-                        ) {
-                            ForEach(GhafAccountType.allCases) { type in
-                                Text(accountTypeTitle(type)).tag(type)
+                        GhafMenuRow(title: languageCode == "ar" ? "نوع الحساب" : "Account type", value: accountTypeTitle(draft.type), theme: theme, languageCode: languageCode) {
+                            Picker(languageCode == "ar" ? "نوع الحساب" : "Account type", selection: $draft.type) {
+                                ForEach(GhafAccountType.allCases) { type in
+                                    Text(accountTypeTitle(type)).tag(type)
+                                }
                             }
                         }
-                        .font(GhafTypography.body(12, languageCode: languageCode))
-                        .tint(theme.accent)
 
                         HStack {
                             GhafCurrencyPicker(selection: $draft.currency, currencies: currencies, languageCode: languageCode, tint: theme.accent)
@@ -1091,30 +1088,26 @@ struct GhafOnboardingView: View {
                             .font(GhafTypography.body(13, languageCode: languageCode))
                             .foregroundStyle(theme.primaryText)
                         Spacer()
-                        Picker(languageCode == "ar" ? "يوم الراتب" : "Salary day", selection: $salaryDay) {
-                            ForEach(1...31, id: \.self) { day in
-                                Text("\(day)").tag(day)
+                        GhafMenuRow(title: languageCode == "ar" ? "يوم الراتب" : "Salary day", value: "\(salaryDay)", theme: theme, languageCode: languageCode, compact: true) {
+                            Picker(languageCode == "ar" ? "يوم الراتب" : "Salary day", selection: $salaryDay) {
+                                ForEach(1...31, id: \.self) { day in
+                                    Text("\(day)").tag(day)
+                                }
                             }
                         }
-
-                        .tint(theme.accent)
                     }
 
                     GhafAmountField(value: $salaryAmountText, currency: currency,
                                     label: languageCode == "ar" ? "قيمة الراتب (اختياري)" : "Expected salary amount (optional)",
                                     theme: theme, languageCode: languageCode)
 
-                    Picker(
-                        languageCode == "ar" ? "إيداع الراتب في" : "Salary is deposited into",
-                        selection: $salaryAccountDraftID
-                    ) {
-                        ForEach(accountDrafts) { draft in
-                            Text(draft.name.isEmpty ? accountTypeTitle(draft.type) : draft.name)
-                                .tag(Optional(draft.id))
+                    GhafMenuRow(title: languageCode == "ar" ? "إيداع الراتب في" : "Salary is deposited into", value: accountDrafts.first(where: { $0.id == salaryAccountDraftID }).map { $0.name.isEmpty ? accountTypeTitle($0.type) : $0.name } ?? "", theme: theme, languageCode: languageCode) {
+                        Picker(languageCode == "ar" ? "إيداع الراتب في" : "Salary is deposited into", selection: $salaryAccountDraftID) {
+                            ForEach(accountDrafts) { draft in
+                                Text(draft.name.isEmpty ? accountTypeTitle(draft.type) : draft.name).tag(Optional(draft.id))
+                            }
                         }
                     }
-
-                    .tint(theme.accent)
 
                     Toggle(isOn: $salaryReminderEnabled) {
                         Text(languageCode == "ar" ? "تذكيري في يوم الراتب" : "Remind me on salary day")

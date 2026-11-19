@@ -30,6 +30,14 @@ struct GhafTransactionsView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
+    private var sortOrderTitle: String {
+        switch sortOrder {
+        case "Oldest": ar ? "الأقدم أولاً" : "Oldest first"
+        case "Highest": ar ? "الأعلى مبلغاً" : "Highest amount"
+        case "Lowest": ar ? "الأقل مبلغاً" : "Lowest amount"
+        default: ar ? "الأحدث أولاً" : "Newest first"
+        }
+    }
 
     /// Filtered once per render; search reads account names from a dictionary, not a scan per row.
     private func filtered() -> [GhafTransaction] {
@@ -225,19 +233,13 @@ struct GhafTransactionsView: View {
                 }
             }
             .scrollClipDisabled()
-            Menu {
+            GhafMenuRow(title: ar ? "ترتيب" : "Sort", value: sortOrderTitle, theme: theme, languageCode: lang, compact: true) {
                 Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
                     Text(ar ? "الأحدث أولاً" : "Newest first").tag("Newest")
                     Text(ar ? "الأقدم أولاً" : "Oldest first").tag("Oldest")
                     Text(ar ? "الأعلى مبلغاً" : "Highest amount").tag("Highest")
                     Text(ar ? "الأقل مبلغاً" : "Lowest amount").tag("Lowest")
                 }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(theme.primaryText)
-                    .frame(width: 44, height: 44)
-                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
             }
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
         }
@@ -378,16 +380,14 @@ struct GhafTransactionEditor: View {
 
                     if !accounts.isEmpty {
                         editorLabel(languageCode == "ar" ? "الحساب أو البطاقة" : "ACCOUNT OR CARD")
-                        Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
-                            Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
-                            // Menu pickers draw images at their full asset size, so the currency stays text.
-                            ForEach(accounts, id: \.id) { account in
-                                Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                        GhafMenuRow(title: languageCode == "ar" ? "الحساب" : "Account", value: accounts.first(where: { $0.id == accountID }).map { "\($0.name) · \($0.currency)" } ?? (languageCode == "ar" ? "غير محدد" : "Unassigned"), theme: theme, languageCode: languageCode) {
+                            Picker(languageCode == "ar" ? "الحساب" : "Account", selection: $accountID) {
+                                Text(languageCode == "ar" ? "غير محدد" : "Unassigned").tag(nil as UUID?)
+                                ForEach(accounts, id: \.id) { account in
+                                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
+                                }
                             }
                         }
-
-                        .tint(theme.accent)
-                        .frame(minHeight: 56)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
