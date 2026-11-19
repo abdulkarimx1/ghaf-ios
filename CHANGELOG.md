@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.22 (36)
+
+### English
+- Ghaf Glass: a new look with frosted glass, a soft grain and a gentle glow, across every screen. Edges catch the light as you tilt your phone. Turn it off, change its strength, or switch off grain, glow or tilt in More › Appearance. Tilt pauses in Low Power Mode and with Reduce Motion.
+- Every widget has a new Glass effect option in Edit Widget.
+- Ghaf AI voice now looks like a chat: tap the waveform in the message bar to talk, and type at any time.
+- Cleaner merchant names: no more dates or times in titles, and names the bank cuts short are completed (CAFETER → CAFETERIA). Category learning and duplicate detection now treat these as one merchant.
+- Simpler payment notifications: the merchant and the amount, with no balances.
+- Smoother wallet cards that follow your finger, a faster welcome screen with more cards, and animated tab changes.
+- The map in purchase details is now a fixed preview; use Directions to open Maps.
+- New Widget status in More › Notifications to show whether your widgets can reach Ghaf's data.
+
+### العربية
+- زجاج غاف: مظهر جديد بزجاج مصنفر وملمس ناعم وتوهج خفيف في كل الشاشات، وحواف تلمع مع ميل الهاتف. يمكنك إيقافه أو تغيير قوته أو إيقاف الملمس أو التوهج أو الحركة من المزيد › المظهر. تتوقف الحركة في وضع توفير الطاقة ومع تقليل الحركة.
+- لكل أداة خيار جديد "تأثير الزجاج" في تعديل الأداة.
+- المحادثة الصوتية مع غاف أصبحت مثل الدردشة: اضغط على الموجة في شريط الرسائل لتتحدث، واكتب متى شئت.
+- أسماء تجار أنظف: لا تواريخ أو أوقات في العناوين، وتُكمَل الأسماء التي يقصّها البنك. وتتعامل ميزة تعلّم الفئات وكشف التكرار معها كتاجر واحد.
+- إشعارات دفع أبسط: اسم التاجر والمبلغ فقط دون أرصدة.
+- بطاقات محفظة أكثر سلاسة تتبع إصبعك، وشاشة ترحيب أسرع ببطاقات أكثر، وانتقالات متحركة بين التبويبات.
+- الخريطة في تفاصيل العملية أصبحت معاينة ثابتة؛ استخدم الاتجاهات لفتح الخرائط.
+- حالة الأدوات الجديدة في المزيد › الإشعارات لمعرفة ما إذا كانت أدواتك تصل إلى بيانات غاف.
+
 ## 1.21 (35)
 
 ### English
