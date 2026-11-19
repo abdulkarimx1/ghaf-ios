@@ -167,8 +167,10 @@ private struct GhafPageTitleScrollEffect: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
+        // The system soft edge alone didn't hide content under a custom background, so the same fade
+        // Ghaf uses under the status bar also covers the bar here (it sits below the toolbar items).
         if #available(iOS 26, *) {
-            content.scrollEdgeEffectStyle(.soft, for: .top)
+            content.scrollEdgeEffectStyle(.soft, for: .top).ghafStatusBarFade(theme: theme)
         } else {
             content
                 .toolbarBackground(

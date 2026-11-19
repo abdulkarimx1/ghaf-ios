@@ -265,7 +265,7 @@ struct GhafNotificationSettingsView: View {
                     .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
-                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
