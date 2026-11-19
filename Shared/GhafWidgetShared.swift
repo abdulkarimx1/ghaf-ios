@@ -95,18 +95,13 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     /// The App Group to use. Sideload tools re-sign with their own profile and often rename the group
     /// (AltStore lists the new names under `ALTAppGroups`; others only put them in the embedded profile),
     /// so every group the install actually grants is tried, Ghaf-named ones first.
-    static let groupID: String = {
-        let fallback = "group.com.ghaf.app"
-        // In the widget, Bundle.main is the extension; its app is two folders up (Ghaf.app/PlugIns/x.appex).
-        let app = Bundle(url: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent())
-        let listed = [Bundle.main, app].compactMap { $0?.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] }.flatMap { $0 }
-        // The widget's own bundle often has no profile listing the renamed group, so read the app's too.
-        let granted = ([Bundle.main, app].compactMap { $0 }.flatMap { GhafSigningProfile.load(from: $0).appGroups })
-            .sorted { $0.lowercased().contains("ghaf") && !$1.lowercased().contains("ghaf") }
-        return (listed + [fallback] + granted).first {
-            FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil
-        } ?? fallback
-    }()
+    static var groupIDs: [String] {
+        let groups = GhafSigningProfile.current.appGroups
+        let listed = Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] ?? []
+        return Array(Set(groups.isEmpty ? listed + ["group.com.ghaf.app"] : groups + listed))
+            .filter { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil }
+    }
+    static var groupID: String { groupIDs.first ?? "group.com.ghaf.app" }
     private static let key = "ghaf.widget.snapshot"
 
     struct Heartbeat: Codable {
@@ -126,19 +121,19 @@ struct GhafWidgetSnapshot: Codable, Equatable {
                               groupID: groupID, hasSharedContainer: hasSharedContainer,
                               keychainGroup: GhafWidgetKeychain.accessGroup)
         guard let data = try? JSONEncoder().encode(value) else { return }
-        if hasSharedContainer { UserDefaults(suiteName: groupID)?.set(data, forKey: heartbeatKey) }
+        for group in groupIDs { UserDefaults(suiteName: group)?.set(data, forKey: heartbeatKey) }
         _ = GhafWidgetKeychain.writeHeartbeat(data)
     }
 
     static var lastHeartbeat: Heartbeat? {
-        let groupData = hasSharedContainer ? UserDefaults(suiteName: groupID)?.data(forKey: heartbeatKey) : nil
+        let groupData = groupIDs.compactMap { UserDefaults(suiteName: $0)?.data(forKey: heartbeatKey) }
         let keychainData = GhafWidgetKeychain.readHeartbeat()
-        return [groupData, keychainData].compactMap { $0 }.compactMap { try? JSONDecoder().decode(Heartbeat.self, from: $0) }.max { $0.date < $1.date }
+        return (groupData + [keychainData].compactMap { $0 }).compactMap { try? JSONDecoder().decode(Heartbeat.self, from: $0) }.max { $0.date < $1.date }
     }
 
     /// True when the signer kept the App Group, so app and widget see the same container.
     static var hasSharedContainer: Bool {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) != nil
+        !groupIDs.isEmpty
     }
 
     /// Reads the App Group first, then the shared keychain, keeping the newer of the two.
@@ -148,7 +143,7 @@ struct GhafWidgetSnapshot: Codable, Equatable {
 
     static func loadWithSource() -> (snapshot: GhafWidgetSnapshot?, source: String) {
         let decode = { (data: Data?) in data.flatMap { try? JSONDecoder().decode(GhafWidgetSnapshot.self, from: $0) } }
-        let fromGroup = hasSharedContainer ? decode(UserDefaults(suiteName: groupID)?.data(forKey: key)) : nil
+        let fromGroup = groupIDs.compactMap { decode(UserDefaults(suiteName: $0)?.data(forKey: key)) }.max { $0.updated < $1.updated }
         let fromKeychain = decode(GhafWidgetKeychain.read())
         guard let newest = [fromGroup, fromKeychain].compactMap({ $0 }).max(by: { $0.updated < $1.updated }) else { return (nil, "none") }
         return (newest, fromKeychain.map { $0.updated > (fromGroup?.updated ?? .distantPast) } == true ? "keychain" : "group")
@@ -158,11 +153,8 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     @discardableResult
     func save() -> (group: Bool, keychain: Bool) {
         guard let data = try? JSONEncoder().encode(self) else { return (false, false) }
-        var group = false
-        if Self.hasSharedContainer, let defaults = UserDefaults(suiteName: Self.groupID) {
-            defaults.set(data, forKey: Self.key)
-            group = true
-        }
+        for group in Self.groupIDs { UserDefaults(suiteName: group)?.set(data, forKey: Self.key) }
+        let group = !Self.groupIDs.isEmpty
         return (group, GhafWidgetKeychain.write(data))
     }
 
@@ -187,7 +179,7 @@ enum GhafWidgetKeychain {
     private static let heartbeatService = "ghaf.widget.heartbeat"
 
     /// The team prefix the signer gave this install, read from the default access group of a probe item.
-    static let accessGroup: String? = {
+    static var accessGroup: String? {
         let probe: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: "ghaf.widget.probe",
                                       kSecAttrAccount: "probe", kSecReturnAttributes: true]
         var result: CFTypeRef?
@@ -202,10 +194,20 @@ enum GhafWidgetKeychain {
               let group = attributes[kSecAttrAccessGroup as String] as? String,
               let team = group.split(separator: ".").first, team.count == 10 else { return nil }
         // A wildcard profile ("TEAM.*") allows a shared name; otherwise only an explicitly granted group can be shared.
-        let granted = GhafSigningProfile.current.keychainGroups
-        if granted.isEmpty || granted.contains("\(team).*") { return "\(team).com.ghaf.shared" }
-        return granted.first { $0.lowercased().contains("shared") || $0.lowercased().contains("group") } ?? "\(team).com.ghaf.shared"
-    }()
+        let own = GhafSigningProfile.current.keychainGroups
+        let app: Bundle? = Bundle.main.bundleURL.pathExtension == "appex"
+            ? Bundle(url: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()) : .main
+        let widget: Bundle?
+        if Bundle.main.bundleURL.pathExtension == "appex" { widget = Bundle.main }
+        else if let url = Bundle.main.builtInPlugInsURL?.appendingPathComponent("GhafWidgets.appex") { widget = Bundle(url: url) }
+        else { widget = nil }
+        let appGroups = (app.map(GhafSigningProfile.load(from:))?.keychainGroups ?? own)
+        let widgetGroups = widget.map(GhafSigningProfile.load(from:))?.keychainGroups ?? own
+        let shared = GhafSigningProfile.sharedKeychainGroups(app: appGroups, widget: widgetGroups)
+        if let value = shared.first(where: { !$0.hasSuffix(".*") }) { return value }
+        if own.isEmpty || own.contains("\(team).*") { return "\(team).com.ghaf.shared" }
+        return own.first { $0.lowercased().contains("shared") || $0.lowercased().contains("group") } ?? "\(team).com.ghaf.shared"
+    }
 
     private static func query(_ group: String) -> [CFString: Any] {
         [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: "snapshot", kSecAttrAccessGroup: group]
@@ -255,12 +257,17 @@ struct GhafSigningProfile {
     var appGroups: [String] = []
     var keychainGroups: [String] = []
     var name: String?
+    var teamID: String?
+    var expiry: Date?
+    var exists = false
 
     static let current = load(from: .main)
 
     static func load(from bundle: Bundle) -> GhafSigningProfile {
         guard let url = bundle.url(forResource: "embedded", withExtension: "mobileprovision") else { return .init() }
-        return parse((try? Data(contentsOf: url)) ?? Data())
+        var profile = parse((try? Data(contentsOf: url)) ?? Data())
+        profile.exists = true
+        return profile
     }
 
     static func parse(_ data: Data) -> GhafSigningProfile {
@@ -271,7 +278,20 @@ struct GhafSigningProfile {
         let entitlements = plist["Entitlements"] as? [String: Any] ?? [:]
         return GhafSigningProfile(appGroups: entitlements["com.apple.security.application-groups"] as? [String] ?? [],
                                   keychainGroups: entitlements["keychain-access-groups"] as? [String] ?? [],
-                                  name: plist["Name"] as? String)
+                                  name: plist["Name"] as? String,
+                                  teamID: (plist["TeamIdentifier"] as? [String])?.first,
+                                  expiry: plist["ExpirationDate"] as? Date, exists: true)
+    }
+
+    static func sharedKeychainGroups(app: [String], widget: [String]) -> [String] {
+        let candidates = app.flatMap { a in widget.compactMap { w -> String? in
+            if a == w { return a }
+            if a.hasSuffix(".*"), w.hasPrefix(String(a.dropLast())) { return w }
+            if w.hasSuffix(".*"), a.hasPrefix(String(w.dropLast())) { return a }
+            if a.hasSuffix(".*"), w.hasSuffix(".*"), a == w { return "\(a.dropLast(1))com.ghaf.shared" }
+            return nil
+        }}
+        return Array(Set(candidates)).sorted()
     }
 }
 

@@ -70,12 +70,15 @@ struct GhafWidgetBackground: View {
     let tile: GhafTile
     let enabled: Bool
     @Environment(\.widgetRenderingMode) private var renderingMode
-    private static let grain: UIImage = {
+    private static let grain: UIImage? = {
         let n = 64
         var seed: UInt32 = 0x47484146
         let data = (0..<(n * n)).map { _ -> UInt8 in seed = 1664525 &* seed &+ 1013904223; return UInt8(seed >> 24) }
-        let provider = CGDataProvider(data: Data(data) as CFData)!
-        return UIImage(cgImage: CGImage(width: n, height: n, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: n, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)!)
+        guard let provider = CGDataProvider(data: Data(data) as CFData),
+              let image = CGImage(width: n, height: n, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: n,
+                                  space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0),
+                                  provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent) else { return nil }
+        return UIImage(cgImage: image)
     }()
     var body: some View {
         let glass = enabled && renderingMode == .fullColor
@@ -84,7 +87,9 @@ struct GhafWidgetBackground: View {
             if glass {
                 LinearGradient(colors: [tile.background.opacity(0.65), tile.background.opacity(0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 LinearGradient(colors: [.clear, tile.highlight.opacity(0.38)], startPoint: .top, endPoint: .bottom).frame(height: 40)
-                Image(uiImage: Self.grain).resizable(resizingMode: .tile).opacity(0.035).blendMode(.overlay).allowsHitTesting(false)
+                if let grain = Self.grain {
+                    Image(uiImage: grain).resizable(resizingMode: .tile).opacity(0.035).blendMode(.overlay).allowsHitTesting(false)
+                }
                 RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.42), .white.opacity(0.05), .white.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
             }
         }
