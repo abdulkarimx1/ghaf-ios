@@ -145,7 +145,7 @@ struct GhafHomeView: View {
                         emptyAccountsState
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 8)
                 .padding(.bottom, 28)
                 .frame(maxWidth: 560)
@@ -246,7 +246,7 @@ struct GhafHomeView: View {
             }
             .ghafGlassButton(theme: theme, languageCode: lang)
         }
-        .padding(24)
+        .padding(GhafMetrics.heroPadding)
         .frame(maxWidth: .infinity, minHeight: 320)
         .ghafGlassHero(theme: theme, radius: 28)
         .multilineTextAlignment(.center)
@@ -800,7 +800,7 @@ struct GhafQuickAddView: View {
                             .foregroundStyle(theme.over)
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 8).padding(.bottom, 20)
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)

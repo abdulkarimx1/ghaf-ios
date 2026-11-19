@@ -131,7 +131,7 @@ struct GhafProView: View {
                         .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
                 }
                 .multilineTextAlignment(.center)
-                .padding(20)
+                .padding(GhafMetrics.cardPadding)
                 .frame(maxWidth: .infinity)
                 .background(theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
 
@@ -151,7 +151,7 @@ struct GhafProView: View {
                 .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.accent)
             }
-            .padding(.horizontal, GhafMetrics.gutter)
+            .ghafScreenPadding()
             .padding(.bottom, 30)
             .frame(maxWidth: 560)
             .frame(maxWidth: .infinity)
@@ -249,7 +249,7 @@ struct GhafTermsView: View {
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 16)
+            .ghafScreenPadding().padding(.vertical, 16)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)
@@ -369,7 +369,7 @@ struct GhafProSheet: View {
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
             }
-            .padding(.horizontal, GhafMetrics.gutter).padding(.top, 16).padding(.bottom, 20)
+            .ghafScreenPadding().padding(.top, 16).padding(.bottom, 20)
         }
         .scrollBounceBehavior(.basedOnSize)
         .ghafGlassShape(theme: theme, shape: Rectangle(), fallback: theme.surface)

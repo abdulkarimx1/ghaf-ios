@@ -93,7 +93,7 @@ struct GhafSettingsView: View {
                             Image(systemName: ar ? "chevron.left" : "chevron.right")
                                 .font(.system(size: 13, weight: .bold)).foregroundStyle(theme.secondaryText)
                         }
-                        .padding(14)
+                        .padding(GhafMetrics.cardPadding)
                         .ghafCard(theme: theme)
                     }
                     .buttonStyle(.ghafPress)
@@ -138,7 +138,7 @@ struct GhafSettingsView: View {
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 12)
                 .padding(.bottom, 32)
                 .frame(maxWidth: 620)
@@ -307,7 +307,7 @@ struct GhafSettingsView: View {
     private func subpage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         ScrollView {
             VStack(spacing: 16) { content() }
-                .padding(.horizontal, GhafMetrics.gutter).padding(.top, 8).padding(.bottom, 32)
+                .ghafScreenPadding().padding(.top, 8).padding(.bottom, 32)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
         }
@@ -730,7 +730,7 @@ HStack(spacing: 8) {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
-            .padding(14)
+            .padding(GhafMetrics.cardPadding)
             .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
             .background(selected ? theme.accent : theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
@@ -897,7 +897,7 @@ HStack(spacing: 8) {
             .font(GhafTypography.body(12, languageCode: languageCode))
             .foregroundStyle(theme.secondaryText)
         }
-        .padding(14)
+        .padding(GhafMetrics.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .contextMenu {

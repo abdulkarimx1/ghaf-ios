@@ -109,7 +109,7 @@ struct GhafStatsView: View {
                     AnyView(merchants(current).ghafEntrance(4))
                     AnyView(proCard.ghafEntrance(5))
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 12)
                 .padding(.bottom, 30)
                 .frame(maxWidth: 620)
@@ -261,7 +261,7 @@ struct GhafStatsView: View {
             .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16).padding(.vertical, 20)
+        .padding(GhafMetrics.heroPadding)
         .ghafGlassHero(theme: theme, radius: 30)
     }
 
@@ -280,7 +280,7 @@ struct GhafStatsView: View {
                 Spacer(minLength: 4)
                 Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText)
             }
-            .padding(.horizontal, 16).padding(.vertical, 14)
+            .padding(GhafMetrics.cardPadding)
             .ghafCard(theme: theme, radius: 22)
         }
         .buttonStyle(.ghafPress)
@@ -337,7 +337,7 @@ struct GhafStatsView: View {
                 }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 14)
+        .padding(GhafMetrics.cardPadding)
         .ghafCard(theme: theme, radius: 24)
     }
 
@@ -366,7 +366,7 @@ struct GhafStatsView: View {
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.accentContrast.opacity(0.65))
             }
-            .frame(maxWidth: .infinity).padding(14)
+            .frame(maxWidth: .infinity).padding(GhafMetrics.cardPadding)
             .background(theme.accent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             VStack(spacing: 2) {
                 Text(ar ? "المشتريات" : "Purchases")
@@ -379,7 +379,7 @@ struct GhafStatsView: View {
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
             }
-            .frame(maxWidth: .infinity).padding(14)
+            .frame(maxWidth: .infinity).padding(GhafMetrics.cardPadding)
             .ghafCard(theme: theme, radius: 22)
         }
     }

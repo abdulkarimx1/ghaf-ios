@@ -1,6 +1,10 @@
 import SwiftUI
 
 extension View {
+    func ghafScreenPadding() -> some View {
+        padding(.horizontal, GhafMetrics.gutter)
+    }
+
     /// White rounded card with a soft shadow (hairline outline instead in dark mode).
     func ghafCard(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius) -> some View {
         modifier(GhafGlassSurface(theme: theme, radius: radius))

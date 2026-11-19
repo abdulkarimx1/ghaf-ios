@@ -317,7 +317,7 @@ struct GhafSalarySettingsView: View {
             Button(settings.languageCode == "ar" ? "حفظ إعدادات الراتب" : "Save salary settings", action: save)
                 .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
             }
-            .padding(.horizontal, GhafMetrics.gutter)
+            .ghafScreenPadding()
             .padding(.bottom, 40)
         }
         .ghafBackground(theme: theme)

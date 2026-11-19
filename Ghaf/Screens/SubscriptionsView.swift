@@ -88,7 +88,7 @@ struct GhafSubscriptionsView: View {
                     }
                     .ghafEntrance(3)
                 }
-                .padding(.horizontal, GhafMetrics.gutter).padding(.top, 8).padding(.bottom, 28)
+                .ghafScreenPadding().padding(.top, 8).padding(.bottom, 28)
                 .frame(maxWidth: 620).frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
@@ -249,7 +249,7 @@ struct GhafSubscriptionsView: View {
                 .environment(\.layoutDirection, .leftToRight)
         }
         .frame(maxWidth: .infinity)
-        .padding(14)
+        .padding(GhafMetrics.heroPadding)
         .ghafCard(theme: theme, radius: 22)
     }
 
@@ -471,7 +471,7 @@ private struct GhafSubscriptionEditor: View {
                     }.padding(.top, 8)
                 }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.bottom, 40)
             }
             .ghafBackground(theme: theme)
@@ -565,7 +565,7 @@ private struct GhafSubscriptionDetailView: View {
                     timeline.ghafEntrance(2)
                     reminderRow.ghafEntrance(3)
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 8).padding(.bottom, 20)
                 .frame(maxWidth: 620).frame(maxWidth: .infinity)
             }
@@ -752,7 +752,7 @@ private struct GhafSubscriptionDetailView: View {
             Button(ar ? "تغيير" : "Change") { editing = true }
                 .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 12)
+                .ghafScreenPadding().padding(.vertical, 12)
                 .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
         }
         .padding(.horizontal, 4)

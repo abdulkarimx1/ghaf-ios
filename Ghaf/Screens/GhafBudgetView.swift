@@ -50,7 +50,7 @@ struct GhafBudgetView: View {
                 if income > 0 { AnyView(paceRow(needs: needs, wants: wants)) }
                 AnyView(trendCard)
             }
-            .padding(.horizontal, 20)
+            .ghafScreenPadding()
             .padding(.top, 8)
             .padding(.bottom, 30)
             .frame(maxWidth: 620)
@@ -169,7 +169,7 @@ struct GhafBudgetView: View {
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                 }
-                .padding(14)
+                .padding(GhafMetrics.cardPadding)
                 .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 18, style: .continuous), fallback: theme.elevatedSurface.opacity(0.6))
             }
         }
@@ -211,7 +211,7 @@ struct GhafBudgetView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(theme.primaryText)
             }
-            .padding(.horizontal, 16).padding(.vertical, 14)
+            .padding(GhafMetrics.cardPadding)
             .ghafCard(theme: theme, radius: 22)
         }
         .buttonStyle(.ghafPress)
@@ -251,7 +251,7 @@ struct GhafBudgetView: View {
                 }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 14)
+            .padding(GhafMetrics.cardPadding)
         .ghafCard(theme: theme, radius: 22)
     }
 }

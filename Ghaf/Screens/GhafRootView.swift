@@ -561,7 +561,8 @@ struct GhafOnboardingView: View {
                     .id(step)
                     .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
                                             removal: .opacity))
-                    .padding(24)
+                    .padding(.horizontal, GhafMetrics.gutter)
+                    .padding(.vertical, 24)
                     .frame(minHeight: geometry.size.height, alignment: .topLeading)
                 }
             }
@@ -578,7 +579,7 @@ struct GhafOnboardingView: View {
                         .foregroundStyle(theme.secondaryText)
                 }
             }
-            .padding(.horizontal, 24)
+            .ghafScreenPadding()
             .padding(.top, 12)
             .padding(.bottom, 18)
             .background(theme.background)
@@ -658,7 +659,7 @@ struct GhafOnboardingView: View {
                     }
                     .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
                 }
-                .padding(14)
+                .padding(GhafMetrics.cardPadding)
                 .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 Image(systemName: "arrow.down").font(.system(size: 20, weight: .bold)).foregroundStyle(storyInk.opacity(0.7))
                 HStack(spacing: 12) {
@@ -671,10 +672,10 @@ struct GhafOnboardingView: View {
                     Image(systemName: "checkmark.circle.fill").font(.system(size: 22)).foregroundStyle(Color(red: 0.45, green: 0.85, blue: 0.55))
                 }
                 .foregroundStyle(storyInk)
-                .padding(14)
+                .padding(GhafMetrics.cardPadding)
                 .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
-            .padding(.horizontal, 24)
+            .ghafScreenPadding()
         case 3:
             VStack(spacing: 12) {
                 Text(localized("How much did I spend this week?", "كم صرفت هالأسبوع؟"))
@@ -698,7 +699,7 @@ struct GhafOnboardingView: View {
                 .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 24)
+            .ghafScreenPadding()
         default:
             EmptyView()
         }
@@ -783,7 +784,7 @@ struct GhafOnboardingView: View {
                 }
                 .padding(.top, 18)
             }
-            .padding(.horizontal, 24)
+            .ghafScreenPadding()
             .padding(.bottom, 12)
             .frame(width: geometry.size.width, alignment: .leading)
             .frame(minHeight: geometry.size.height, alignment: .bottom)
@@ -1085,7 +1086,7 @@ struct GhafOnboardingView: View {
                             }
                         }
                     }
-                    .padding(14)
+                    .padding(GhafMetrics.cardPadding)
                     .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.outline, lineWidth: 1))
                 }

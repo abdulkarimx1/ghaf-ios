@@ -128,7 +128,7 @@ struct GhafTransactionsView: View {
                         searchField
                         filterBar(count: list.count)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 4, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 8, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
@@ -145,7 +145,9 @@ struct GhafTransactionsView: View {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
                                 }
                                 .buttonStyle(.ghafPress)
-                                .listRowBackground(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.surface))
+                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
+                                .listRowBackground(Color.clear)
+                                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.surface))
                                 .listRowSeparatorTint(theme.outline)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
@@ -161,6 +163,7 @@ struct GhafTransactionsView: View {
                                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                                 .foregroundStyle(theme.secondaryText)
                                 .textCase(nil)
+                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 0, trailing: GhafMetrics.gutter))
                         }
                     }
                 }
@@ -242,7 +245,6 @@ struct GhafTransactionsView: View {
             }
             .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
         }
-        .padding(.horizontal, GhafMetrics.gutter)
     }
 
     private func filterButton(_ value: String, label: String) -> some View {
@@ -449,7 +451,7 @@ struct GhafTransactionEditor: View {
                             .font(GhafTypography.body(12, languageCode: languageCode))
                             .tint(theme.accent)
                         }
-                        .padding(14)
+                        .padding(GhafMetrics.cardPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 13), fallback: theme.surface)
                         .overlay(RoundedRectangle(cornerRadius: 13).stroke(theme.outline, lineWidth: 1))

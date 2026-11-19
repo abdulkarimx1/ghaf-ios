@@ -41,7 +41,7 @@ struct GhafReviewInboxView: View {
                         }
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 18)
                 .padding(.bottom, 30)
                 .frame(maxWidth: 620)
@@ -94,7 +94,7 @@ struct GhafReviewInboxView: View {
             .font(GhafTypography.body(14, languageCode: lang))
             .foregroundStyle(theme.secondaryText)
             .multilineTextAlignment(.center)
-            .padding(20)
+            .padding(GhafMetrics.cardPadding)
             .frame(maxWidth: .infinity)
             .ghafCard(theme: theme)
     }

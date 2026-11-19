@@ -92,7 +92,7 @@ struct GhafDetailActionBar: View {
             }
             .ghafProminentButton(theme: theme, languageCode: languageCode)
         }
-        .padding(.horizontal, GhafMetrics.gutter)
+        .ghafScreenPadding()
         .padding(.top, 10)
         .padding(.bottom, 6)
         .background(theme.background.opacity(0.94))

@@ -101,7 +101,7 @@ struct GhafPrivacyPolicyView: View {
                     .foregroundStyle(theme.secondaryText)
                     .padding(.top, 4)
             }
-            .padding(20)
+            .ghafScreenPadding().padding(.vertical, 20)
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
         }

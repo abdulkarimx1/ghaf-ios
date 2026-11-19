@@ -73,7 +73,7 @@ struct GhafInsightsView: View {
                     categoryChart(totals).ghafEntrance(2)
                     categoryList(totals).ghafEntrance(3)
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 12)
                 .padding(.bottom, 30)
                 .frame(maxWidth: 620)
@@ -184,7 +184,7 @@ struct GhafInsightsView: View {
                 .frame(height: CGFloat(min(categoryTotals.count, 6)) * 37 + 12)
             }
         }
-        .padding(20)
+        .padding(GhafMetrics.cardPadding)
         .ghafCard(theme: theme)
     }
 
@@ -228,7 +228,7 @@ struct GhafInsightsView: View {
                 }
             }
         }
-        .padding(20)
+        .padding(GhafMetrics.cardPadding)
         .ghafCard(theme: theme)
     }
 

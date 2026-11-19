@@ -73,7 +73,7 @@ struct GhafAutomationGuideView: View {
                 .frame(maxWidth: .infinity).frame(height: 56).ghafProminentButton(theme: theme, languageCode: settings.languageCode)
             }
         }
-        .padding(24).frame(maxWidth: 560, maxHeight: .infinity)
+        .ghafScreenPadding().padding(.vertical, 24).frame(maxWidth: 560, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .ghafBackground(theme: theme)
         .navigationTitle(ar ? "أتمتة البنك" : "Bank automation")

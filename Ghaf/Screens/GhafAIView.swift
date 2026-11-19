@@ -110,7 +110,7 @@ struct GhafAIView: View {
                             }
                             if isThinking && messages.last?.isStreaming != true { thinkingDots.id("thinking") }
                         }
-                        .padding(.horizontal, 16)
+                        .ghafScreenPadding()
                         .padding(.vertical, 12)
                         .frame(maxWidth: 620)
                         .frame(maxWidth: .infinity)
@@ -237,7 +237,7 @@ struct GhafAIView: View {
             }
             optionsMenu
         }
-        .padding(.horizontal, 20)
+        .ghafScreenPadding()
         .padding(.top, 8)
         .sheet(isPresented: $showHistory) {
             AnyView(GhafChatHistorySheet(
@@ -352,7 +352,7 @@ struct GhafAIView: View {
                             .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .padding(.horizontal, 16)
-                            .frame(minHeight: 44)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background {
                                 if glassStyle.enabled { Capsule().fill(Color.clear) }
                                 else { Capsule().fill(.ultraThinMaterial.opacity(0.6)).overlay(Capsule().fill(.white.opacity(0.07))) }
@@ -367,7 +367,7 @@ struct GhafAIView: View {
             Spacer(minLength: 12)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
+        .ghafScreenPadding()
     }
 
     // MARK: Messages
@@ -470,7 +470,7 @@ struct GhafAIView: View {
                 GhafInlineBars(chart: chart, theme: theme, languageCode: settings.languageCode)
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 14)
+        .padding(GhafMetrics.cardPadding)
         .frame(maxWidth: 340, alignment: .leading)
         .background {
             if glassStyle.enabled { shape.fill(Color.clear) }
@@ -547,7 +547,7 @@ struct GhafAIView: View {
                     }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 14)
+        .padding(GhafMetrics.cardPadding)
         .background(.white.opacity(0.08), in: Capsule())
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -619,7 +619,7 @@ struct GhafAIView: View {
             .shadow(color: theme.accent.opacity(recorder.isRecording || isThinking ? 0.35 : 0), radius: 14)
             .animation(.easeInOut(duration: 0.35), value: recorder.isRecording || isThinking || inputFocused)
         }
-        .padding(.horizontal, 20)
+        .ghafScreenPadding()
         .padding(.top, 8)
         .padding(.bottom, 10)
     }

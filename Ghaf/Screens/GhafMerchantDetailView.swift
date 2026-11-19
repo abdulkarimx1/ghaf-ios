@@ -33,7 +33,7 @@ struct GhafMerchantDetailView: View {
                     Label(ar ? "حدّد المكان" : "Choose place", systemImage: "mappin.and.ellipse")
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(14)
+                        .padding(GhafMetrics.cardPadding)
                         .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 16, style: .continuous), fallback: theme.surface)
                         .foregroundStyle(theme.accent)
                 }
@@ -89,7 +89,7 @@ struct GhafMerchantDetailView: View {
                     .font(GhafTypography.body(11, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             }
-            .padding(14)
+            .padding(GhafMetrics.cardPadding)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .ghafCard(theme: theme)

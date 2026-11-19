@@ -49,7 +49,7 @@ struct GhafNotificationSettingsView: View {
                               systemImage: "bell.slash.fill")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.over)
-                            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(GhafMetrics.cardPadding).frame(maxWidth: .infinity, alignment: .leading)
                             .background(theme.over.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .buttonStyle(.ghafPress)
@@ -84,7 +84,7 @@ struct GhafNotificationSettingsView: View {
                     .font(GhafTypography.body(12, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
             }
-            .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 12)
+            .ghafScreenPadding().padding(.vertical, 12)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
         .ghafBackground(theme: theme)

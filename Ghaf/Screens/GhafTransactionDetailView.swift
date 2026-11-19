@@ -52,7 +52,7 @@ struct GhafTransactionDetailView: View {
                     GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang)
                     bankContact
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.top, 8)
                 .padding(.bottom, 20)
                 .frame(maxWidth: 620)

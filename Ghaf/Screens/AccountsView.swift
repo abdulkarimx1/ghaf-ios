@@ -55,7 +55,7 @@ struct GhafAccountsView: View {
                     archivedAccounts(balances)
                 }
             }
-            .padding(.horizontal, GhafMetrics.gutter)
+            .ghafScreenPadding()
             .padding(.top, 4)
             .padding(.bottom, 30)
             .frame(maxWidth: 620)
@@ -293,7 +293,7 @@ struct GhafAccountEditorView: View {
                         .multilineTextAlignment(.center)
                 }
             }
-            .padding(.horizontal, GhafMetrics.gutter)
+            .ghafScreenPadding()
             .padding(.bottom, 20)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
@@ -633,7 +633,7 @@ struct GhafCardRequestView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
-                .padding(.horizontal, GhafMetrics.gutter)
+                .ghafScreenPadding()
                 .padding(.bottom, 20)
             }
             .scrollDismissesKeyboard(.interactively)

@@ -186,7 +186,7 @@ struct GhafVoiceEntryView: View {
                         .foregroundStyle(theme.over)
                 }
             }
-            .padding(20)
+            .ghafScreenPadding().padding(.vertical, 20)
             .frame(maxWidth: 600)
             .frame(maxWidth: .infinity)
         }

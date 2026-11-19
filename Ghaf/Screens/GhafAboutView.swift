@@ -51,7 +51,7 @@ struct GhafAboutView: View {
                 socials.ghafEntrance(4)
                 footer
             }
-            .padding(.horizontal, GhafMetrics.gutter)
+            .ghafScreenPadding()
             .padding(.top, 8).padding(.bottom, 28)
             .frame(maxWidth: 620).frame(maxWidth: .infinity)
         }
