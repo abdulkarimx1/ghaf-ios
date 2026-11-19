@@ -60,11 +60,19 @@ struct GhafAmountField: View {
                 }
                 HStack(spacing: 8) {
                     if let currency { GhafCurrencyIcon(currency: currency, size: fontSize * 0.82).foregroundStyle(theme.primaryText) }
-                    Text(value.isEmpty ? placeholder : localized(value))
-                        .font(GhafTypography.number(fontSize, weight: .bold))
-                        .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
-                        .lineLimit(1).minimumScaleFactor(0.5)
-                        .contentTransition(.numericText())
+                    let display = value.isEmpty ? placeholder : localized(paddedAmount(value))
+                    Group {
+                        if fontSize >= 28, let split = display.range(of: separator, options: .backwards) {
+                            HStack(spacing: 0) {
+                                Text(String(display[..<split.lowerBound]))
+                                Text(String(display[split.lowerBound...])).opacity(0.45)
+                            }
+                        } else { Text(display) }
+                    }
+                    .font(GhafTypography.number(fontSize, weight: .bold))
+                    .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
                 }
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
@@ -75,6 +83,13 @@ struct GhafAmountField: View {
     }
 
     private var placeholder: String { localized("0" + (digits > 0 ? "." + String(repeating: "0", count: digits) : "")) }
+
+    private func paddedAmount(_ value: String) -> String {
+        guard digits > 0, !integerMode else { return value }
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        let fraction = parts.count > 1 ? String(parts[1]) : ""
+        return String(parts[0]) + "." + fraction + String(repeating: "0", count: max(0, digits - fraction.count))
+    }
 
     private var keypad: some View {
         VStack(spacing: 12) {

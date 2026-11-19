@@ -317,7 +317,12 @@ struct GhafSalarySettingsView: View {
     }
 
     private func load() {
+#if DEBUG
+        enabled = GhafScreenshotFixture.enabled && GhafScreenshotFixture.screen == "salary-settings"
+            ? true : (settings.salaryEnabled ?? false)
+#else
         enabled = settings.salaryEnabled ?? false
+#endif
         salaryDay = settings.salaryDay ?? 28
         amountText = settings.salaryAmount.map(GhafFormat.decimal)
             ?? GhafFormat.decimal(settings.monthlyIncome)
