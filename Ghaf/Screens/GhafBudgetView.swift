@@ -15,12 +15,26 @@ private struct BudgetPetal: Shape {
             CGPoint(x: center.x + cos(angle * .pi / 180) * radius * r,
                     y: center.y + sin(angle * .pi / 180) * radius * r)
         }
+        let outerRadius = radius * outer, innerRadius = radius * inner
+        let petalWidth = outerRadius * CGFloat((end - start) * .pi / 180)
+        // Never more than half the radial depth, or the two side fillets cross and draw a spike.
+        let corner = min(18, petalWidth * 0.25, (outerRadius - innerRadius) / 2)
+        let outerInset = min((end - start) * 0.22, Double(atan(corner / max(outerRadius - corner, 1))) * 180 / .pi)
+        let innerInset = min((end - start) * 0.22, Double(atan(corner / max(innerRadius + corner, 1))) * 180 / .pi)
+        func arcControl(_ from: Double, _ to: Double, _ r: CGFloat) -> CGPoint {
+            let middle = (from + to) / 2
+            return point(middle, r / CGFloat(cos((to - from) * .pi / 360)))
+        }
         var path = Path()
-        path.move(to: point(start, inner))
-        path.addLine(to: point(start, outer))
-        path.addArc(center: center, radius: radius * outer, startAngle: .degrees(start), endAngle: .degrees(end), clockwise: false)
-        path.addLine(to: point(end, inner))
-        path.addArc(center: center, radius: radius * inner, startAngle: .degrees(end), endAngle: .degrees(start), clockwise: true)
+        path.move(to: point(start, outer - corner / radius))
+        path.addQuadCurve(to: point(start + outerInset, outer), control: point(start, outer))
+        path.addQuadCurve(to: point(end - outerInset, outer), control: arcControl(start + outerInset, end - outerInset, outer))
+        path.addQuadCurve(to: point(end, outer - corner / radius), control: point(end, outer))
+        path.addLine(to: point(end, inner + corner / radius))
+        path.addQuadCurve(to: point(end - innerInset, inner), control: point(end, inner))
+        path.addQuadCurve(to: point(start + innerInset, inner), control: arcControl(end - innerInset, start + innerInset, inner))
+        path.addQuadCurve(to: point(start, inner + corner / radius), control: point(start, inner))
+        path.addLine(to: point(start, outer - corner / radius))
         path.closeSubpath()
         return path
     }
@@ -176,79 +190,137 @@ struct GhafBudgetView: View {
     private var petalBudgetCard: some View {
         let rows = monthlySpendByCategory
         let all = rows.filter { $0.spent > 0 }
-        let shown = Array(all.prefix(7)) + (all.count > 7 ? [(name: ar ? "أخرى" : "Other", spent: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.spent }, budget: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.budget })] : [])
+        let grouped = all.count > 7
+        let shown = Array(all.prefix(grouped ? 6 : 7)) + (grouped ? [(name: ar ? "أخرى" : "Other", spent: all.dropFirst(6).reduce(Decimal.zero) { $0 + $1.spent }, budget: all.dropFirst(6).reduce(Decimal.zero) { $0 + $1.budget })] : [])
         let totalSpent = shown.reduce(Decimal.zero) { $0 + $1.spent }
         let totalBudget = shown.reduce(Decimal.zero) { $0 + $1.budget }
         let active = shown.first { $0.name == selectedCategory }
+        return GeometryReader { geometry in
+        let diameter = min(geometry.size.width - 32, 300)
+        let outerRadius = max(1, diameter / 2)
+        let innerRatio: CGFloat = 0.5
+        let innerRadius = outerRadius * innerRatio
         return VStack(spacing: 12) {
             Text(ar ? "ميزانية الفئات" : "Category budgets")
                 .font(GhafTypography.heading(20, languageCode: lang)).foregroundStyle(theme.primaryText)
             ZStack {
                 ForEach(Array(shown.enumerated()), id: \.offset) { index, item in
-                    let step = 360.0 / Double(max(shown.count, 1)), start = -90 + Double(index) * step + 1.3
-                    let end = -90 + Double(index + 1) * step - 1.3
+                    let step = 360.0 / Double(max(shown.count, 1))
+                    let gap = 6 / outerRadius * 180 / .pi
+                    let start = -90 + Double(index) * step + gap / 2
+                    let end = -90 + Double(index + 1) * step - gap / 2
                     let fraction = item.budget > 0 ? min(1, NSDecimalNumber(decimal: item.spent / item.budget).doubleValue) : 0
-                    let innerRadius = 0.30
-                    let fillRadius = petalsVisible || reduceMotion ? sqrt(innerRadius * innerRadius + fraction * (1 - innerRadius * innerRadius)) : innerRadius
-                    BudgetPetal(start: start, end: end, inner: innerRadius, outer: 1)
-                        .fill(theme.accent.opacity(0.12))
-                        .overlay(BudgetPetal(start: start, end: end, inner: innerRadius, outer: max(innerRadius, fillRadius)).fill(theme.accent))
-                        .overlay(BudgetPetal(start: start, end: end, inner: innerRadius, outer: 1).stroke(item.spent > item.budget ? theme.over : .clear, lineWidth: 2))
+                    let fillRadius = item.spent > item.budget ? 1 : (petalsVisible || reduceMotion ? sqrt(innerRatio * innerRatio + fraction * (1 - innerRatio * innerRatio)) : innerRatio)
+                    BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1)
+                        .fill(theme.primaryText.opacity(theme.isDark ? 0.07 : 0.05))
+                        .frame(width: outerRadius * 2, height: outerRadius * 2)
+                        .overlay {
+                            // A fill thinner than 6pt draws as a spike once corners are rounded; show none instead.
+                            if (fillRadius - innerRatio) * outerRadius >= 6 {
+                                BudgetPetal(start: start, end: end, inner: innerRatio, outer: fillRadius).fill(theme.accent)
+                            }
+                        }
+                        .overlay {
+                            BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1).stroke(item.spent > item.budget ? theme.over : .clear, lineWidth: 2)
+                        }
                         .opacity(selectedCategory == nil || selectedCategory == item.name ? 1 : 0.45)
-                        .contentShape(BudgetPetal(start: start, end: end, inner: innerRadius, outer: 1))
+                        .contentShape(BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1))
                 }
                 VStack(spacing: 3) {
                     if let active {
-                        Text(active.name).font(GhafTypography.body(12, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
-                        GhafMoneyLabel(amount: active.spent, currency: currency, languageCode: lang, size: 17, weight: .semibold)
-                        Text("of \(GhafFormat.shownMoney(active.budget, currency: currency, languageCode: lang)) · \(percent(active.spent, of: active.budget))%")
-                            .font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        Text(active.name).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).lineLimit(1)
+                        GhafMoneyLabel(amount: active.spent, currency: currency, languageCode: lang, size: 22, weight: .semibold)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        HStack(spacing: 3) {
+                            Text("of").font(GhafTypography.body(13, languageCode: lang))
+                            GhafMoneyLabel(amount: active.budget, currency: currency, languageCode: lang, size: 13)
+                            Text("· \(percent(active.spent, of: active.budget))%").font(GhafTypography.body(13, languageCode: lang))
+                        }.foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
                     } else {
-                        Text(ar ? "مصروف الشهر" : "This month") .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 17, weight: .semibold)
-                        Text("of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang))").font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        Text(ar ? "هذا الشهر" : "This month").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 22, weight: .semibold)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        HStack(spacing: 3) {
+                            Text("of").font(GhafTypography.body(13, languageCode: lang))
+                            GhafMoneyLabel(amount: totalBudget, currency: currency, languageCode: lang, size: 13)
+                        }.foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
                     }
-                }.multilineTextAlignment(.center).foregroundStyle(theme.primaryText).allowsHitTesting(false)
+            }.frame(width: max(0, innerRadius * 2 - 20)).multilineTextAlignment(.center).foregroundStyle(theme.primaryText).allowsHitTesting(false)
             }
-            .frame(width: 220, height: 220)
-            .frame(maxWidth: .infinity)
-            .contentShape(Circle())
+            .frame(width: diameter, height: diameter)
+            .contentShape(Rectangle())
             .gesture(SpatialTapGesture().onEnded { value in
-                let size = CGSize(width: 220, height: 220), point = CGPoint(x: value.location.x - size.width / 2, y: value.location.y - size.height / 2)
-                let radius = hypot(point.x, point.y) / (size.width / 2)
-                guard radius >= 0.30, radius <= 1, !shown.isEmpty else { withAnimation(.spring()) { selectedCategory = nil }; return }
+                let point = CGPoint(x: value.location.x - geometry.size.width / 2, y: value.location.y - outerRadius)
+                let radius = hypot(point.x, point.y) / outerRadius
+                guard radius >= innerRatio, radius <= 1, !shown.isEmpty else { withAnimation(.spring()) { selectedCategory = nil }; return }
                 let degrees = (atan2(point.y, point.x) * 180 / .pi + 450).truncatingRemainder(dividingBy: 360)
                 let index = min(shown.count - 1, Int(degrees / 360 * Double(shown.count)))
                 withAnimation(reduceMotion ? nil : .spring()) { selectedCategory = selectedCategory == shown[index].name ? nil : shown[index].name }
             })
+            .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(ar ? "ميزانية الشهر" : "Monthly category budgets")
-            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang))")
+            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map(\.name).joined(separator: ", "))")
             VStack(spacing: 0) {
                 ForEach(rows, id: \.name) { item in
+                    let category = shown.first(where: { $0.name == item.name })?.name
+                        ?? ((grouped && !all.prefix(6).contains(where: { $0.name == item.name })) ? (ar ? "أخرى" : "Other") : nil)
                     HStack(spacing: 8) {
-                        Button { selectedCategory = selectedCategory == item.name ? nil : item.name } label: {
-                            HStack(spacing: 6) {
-                                Text(item.name).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).lineLimit(1)
-                                if item.spent > item.budget { Text("!").foregroundStyle(theme.over).fontWeight(.bold) }
-                                Spacer(minLength: 2)
-                                Text("\(GhafFormat.shownMoney(item.spent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(item.budget, currency: currency, languageCode: lang)) · \(percent(item.spent, of: item.budget))%")
-                                    .font(GhafTypography.body(12, languageCode: lang)).lineLimit(1).minimumScaleFactor(0.7)
+                        Button {
+                            withAnimation(reduceMotion ? nil : .spring()) { selectedCategory = selectedCategory == category ? nil : category }
+                        } label: {
+                            HStack(spacing: 12) {
+                            GhafCategoryIcon(category: item.name, tint: theme.accent, theme: theme)
+                                .frame(width: 36, height: 36)
+                                .background(theme.accent.opacity(0.12), in: Circle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text(item.name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold)).lineLimit(2)
+                                }
+                                if item.spent > item.budget {
+                                    Label(ar ? "تجاوز بمقدار \(GhafFormat.shownMoney(item.spent - item.budget, currency: currency, languageCode: lang))" : "Over by \(GhafFormat.shownMoney(item.spent - item.budget, currency: currency, languageCode: lang))", systemImage: "exclamationmark.circle")
+                                        .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.over).lineLimit(1).minimumScaleFactor(0.65)
+                                } else {
+                                    // One line when it fits, otherwise two; never shrink the amounts below a readable size.
+
+                                    ViewThatFits(in: .horizontal) {
+
+                                        HStack(spacing: 3) { spentOf(item); Text("· \(percent(item.spent, of: item.budget))%") }
+
+                                        VStack(alignment: .leading, spacing: 1) { HStack(spacing: 3) { spentOf(item) }; Text("\(percent(item.spent, of: item.budget))%") }
+
+                                    }.font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
+                                }
                             }
-                            .foregroundStyle(theme.primaryText).frame(minHeight: 64).opacity(selectedCategory == nil || selectedCategory == item.name || (selectedCategory == (ar ? "أخرى" : "Other") && !all.prefix(7).contains(where: { $0.name == item.name })) ? 1 : 0.45)
-                            .accessibilityLabel("\(item.name), spent \(GhafFormat.shownMoney(item.spent, currency: currency, languageCode: lang)), budget \(GhafFormat.shownMoney(item.budget, currency: currency, languageCode: lang)), \(percent(item.spent, of: item.budget)) percent")
-                        }.buttonStyle(.plain)
-                            .accessibilityLabel("\(item.name), spent \(GhafFormat.shownMoney(item.spent, currency: currency, languageCode: lang)), budget \(GhafFormat.shownMoney(item.budget, currency: currency, languageCode: lang)), \(percent(item.spent, of: item.budget)) percent\(item.spent > item.budget ? ", over budget" : "")")
-                            .accessibilityAddTraits(selectedCategory == item.name ? .isSelected : [])
-                        if settings.categoryBudgets[item.name] == nil && !hasRecentSpending(item.name) {
-                            Text(ar ? "مقترحة" : "Suggested").font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            Spacer(minLength: 2)
+                            GeometryReader { proxy in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(theme.primaryText.opacity(theme.isDark ? 0.12 : 0.08))
+                                    Capsule().fill(item.spent > item.budget ? theme.over : theme.accent)
+                                        .frame(width: proxy.size.width * min(1, item.budget > 0 ? NSDecimalNumber(decimal: item.spent / item.budget).doubleValue : 0))
+                                }
+                            }
+                            .frame(width: 64, height: 6)
+                            }
+                            .frame(height: 64)
+                            .contentShape(Rectangle())
+                            .foregroundStyle(theme.primaryText)
+                            .opacity(selectedCategory == nil || selectedCategory == category ? 1 : 0.45)
                         }
-                        Button(ar ? "تعديل" : "Edit budget") { editingCategory = item.name; budgetEntry = NSDecimalNumber(decimal: item.budget).stringValue }.font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent).buttonStyle(.plain)
+                        .buttonStyle(.plain)
+                        Button {
+                        editingCategory = item.name
+                        budgetEntry = NSDecimalNumber(decimal: item.budget).stringValue
+                        } label: {
+                            Image(systemName: "chevron.forward").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText).frame(width: 32, height: 44)
+                        }
                     }
                     .accessibilityElement(children: .contain)
                 }
             }
         }
+        }
+        .frame(height: CGFloat(rows.count * 64) + 350)
         .padding(GhafMetrics.cardPadding).ghafStatsCard(theme: theme, radius: 22)
         .animation(reduceMotion ? nil : .spring(response: 0.7, dampingFraction: 0.82), value: petalsVisible)
     }
@@ -256,6 +328,12 @@ struct GhafBudgetView: View {
     private func hasRecentSpending(_ category: String) -> Bool {
         let start = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!
         return expenses(in: DateInterval(start: start, end: .now)).contains { $0.category == category }
+    }
+
+    @ViewBuilder private func spentOf(_ item: (name: String, spent: Decimal, budget: Decimal)) -> some View {
+        GhafMoneyLabel(amount: item.spent, currency: currency, languageCode: lang, size: 13, weight: .semibold)
+        Text(ar ? "من" : "of")
+        GhafMoneyLabel(amount: item.budget, currency: currency, languageCode: lang, size: 13, weight: .semibold)
     }
 
     private func percent(_ amount: Decimal, of budget: Decimal) -> Int {
