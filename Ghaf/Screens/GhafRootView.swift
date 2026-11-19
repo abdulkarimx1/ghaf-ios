@@ -666,6 +666,7 @@ struct GhafOnboardingView: View {
                     .frame(maxWidth: .infinity).frame(height: 56)
             }
             .ghafProminentButton(theme: theme, languageCode: languageCode)
+            .disabled(true)
             Button { showBackupImporter = true } label: {
                 Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
                     .frame(maxWidth: .infinity).frame(height: 56)
