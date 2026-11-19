@@ -12,14 +12,17 @@ struct GhafAIOrb: View {
     /// Microphone or voice loudness 0…1 while listening or speaking.
     var level: Float = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isVisible = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || !isVisible)) { context in
             GhafAIOrbFace(theme: theme, mood: mood, level: CGFloat(min(max(level, 0), 1)),
                           time: reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate,
                           still: reduceMotion)
         }
         .animation(.smooth(duration: 0.5), value: mood)
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
         .accessibilityHidden(true)
     }
 }
