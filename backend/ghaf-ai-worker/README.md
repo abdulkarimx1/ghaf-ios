@@ -17,9 +17,15 @@ is built into `GhafCloudAI.endpoint`).
   is reaching a limit, not a bill.
 - **Developer bypass:** requests with the `APP_TOKEN` secret in `X-Ghaf-Token` skip the limits
   (for testing from a Mac; never put it in the app).
-- **Received:** the question, totals-only facts, the ledger's own answer and the last few chat
+- **Received:** the question, totals-only facts (including saved memories when enabled), the ledger's own answer and the last few chat
   lines. **Not received:** the transaction list, notes, card or account numbers. **Stored:** only
   the daily counters. Google's Gemini API terms apply to requests it handles.
+
+`POST /live-token` mints a short-lived, single-use Gemini Live token. Calls are limited by
+`LIVE_DAILY_CALLS` (10 per device) and `LIVE_GLOBAL_DAILY_CALLS` (300 overall). The Arabic
+speaker is `LIVE_VOICE_AR` (default `Orus`) and English is `LIVE_VOICE_EN` (default `Puck`).
+`/speak` uses `TTS_VOICE_AR` (default `Orus`); its English voice remains `Aoede`. Its Aura
+fallback is English-only. These are Worker vars; `GEMINI_API_KEY` remains a Worker secret.
 
 ## Later: paid plan
 
