@@ -102,7 +102,11 @@ struct GhafAmountField: View {
                             .font(GhafTypography.number(23, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .frame(maxWidth: .infinity, minHeight: 64)
-                            .background(theme.name == "Graphite" ? theme.surface.opacity(0.72) : theme.surface.opacity(0.96), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .background {
+                                let keyShape = RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                if theme.name == "Graphite" { keyShape.fill(theme.surface.opacity(0.72)) }
+                                else { keyShape.fill(theme.surface).overlay(keyShape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))) }
+                            }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(key == "delete" ? (languageCode == "ar" ? "حذف" : "Delete") : localized(key))
@@ -118,25 +122,32 @@ struct GhafAmountField: View {
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
     }
 
-    private func openPad() { replaceOnNextKey = true; presented = true }
+    private func openPad() {
+        #if DEBUG
+        assert(Self.applying("7", to: "125.50", replace: true, digits: 2, maxDigits: 12, separator: ",") == "7")
+        assert(Self.applying("delete", to: "125.50", replace: true, digits: 2, maxDigits: 12, separator: ".").isEmpty)
+        #endif
+        replaceOnNextKey = true
+        presented = true
+    }
+
+    static func applying(_ key: String, to current: String, replace: Bool, digits: Int, maxDigits: Int, separator: String) -> String {
+        var value = replace ? "" : current
+        if key == "delete" { if !replace && !value.isEmpty { value.removeLast() }; return value }
+        if key == separator {
+            guard digits > 0, !value.contains(".") else { return value }
+            return value.isEmpty ? "0." : value + "."
+        }
+        let fraction = value.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first?.count ?? 0
+        let integral = value.split(separator: ".", omittingEmptySubsequences: false).first?.count ?? 0
+        guard fraction < digits || !value.contains("."), value.contains(".") || integral < maxDigits else { return value }
+        value += key
+        return value
+    }
 
     private func press(_ key: String) {
-        if replaceOnNextKey {
-            replaceOnNextKey = false
-            if key == "delete" { value = ""; keyPress += 1; return }
-            value = ""
-        }
-        if key == "delete" {
-            if !value.isEmpty { value.removeLast() }
-        } else if key == separator {
-            guard digits > 0, !value.contains(".") else { return }
-            value = value.isEmpty ? "0." : value + "."
-        } else {
-            let fraction = value.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first?.count ?? 0
-            let integral = value.split(separator: ".", omittingEmptySubsequences: false).first?.count ?? 0
-            guard fraction < digits || !value.contains("."), value.contains(".") || integral < maxDigits else { return }
-            value += key
-        }
+        value = Self.applying(key, to: value, replace: replaceOnNextKey, digits: digits, maxDigits: maxDigits, separator: separator)
+        replaceOnNextKey = false
         keyPress += 1
     }
 
