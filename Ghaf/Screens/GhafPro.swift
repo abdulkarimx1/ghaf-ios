@@ -276,111 +276,48 @@ struct GhafTermsView: View {
 /// The bottom sheet shown when a Pro feature is tapped. Purchases are not open yet, so the buy button is
 /// disabled and "Skip for now" carries on to the feature, which stays free until then.
 struct GhafProSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     let settings: GhafSettings
     let feature: (en: String, ar: String)
-    @State private var plan: GhafProPlan = .yearly
-    @State private var confirming = false
-    @State private var unlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
-    @State private var restoreMessage: String?
-    private let key = "ghaf.pro.testUnlocked"
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
-    private var features: [(String, String)] {
-        GhafProView(settings: settings, showsClose: false).features.map { ($0.1, $0.2) }
-    }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                HStack {
-                    Text("Pro").font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accentContrast).padding(.horizontal, 12).padding(.vertical, 7).background(theme.accent, in: Capsule())
-                    Spacer()
-                    Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText).frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityLabel(ar ? "إغلاق" : "Close")
+        NavigationStack {
+            VStack(spacing: 18) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro")
+                    .font(GhafTypography.heading(24, languageCode: lang))
+                    .foregroundStyle(theme.primaryText)
+                Text(feature.0 == "Ghaf Pro" ? (ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.") : feature.0)
+                    .font(GhafTypography.body(15, languageCode: lang))
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                NavigationLink {
+                    GhafProView(settings: settings, showsClose: false)
+                } label: {
+                    Text(ar ? "عرض الخطط" : "See plans")
+                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.accentContrast)
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .background(theme.accent, in: Capsule())
                 }
-                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro").font(GhafTypography.display(26, languageCode: lang)).foregroundStyle(theme.primaryText).multilineTextAlignment(.center)
-
-                if unlocked {
-                    VStack(spacing: 16) {
-                        Label(ar ? "تم فتح Pro (تجريبي)" : "Pro unlocked (test)", systemImage: "checkmark.circle.fill").font(GhafTypography.heading(19, languageCode: lang)).foregroundStyle(theme.credit)
-                        Button(ar ? "إنهاء الاختبار" : "End test") { UserDefaults.standard.set(false, forKey: key); unlocked = false }
-                            .font(GhafTypography.body(17, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText).frame(minHeight: 44)
-                    }.frame(maxWidth: .infinity).padding(24).background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                } else if confirming {
-                    VStack(spacing: 24) {
-                        Text(ar ? "شراء تجريبي · لن يتم الدفع · هذا الإصدار لا يحتوي على اشتراك حقيقي" : "Test purchase · no payment is taken · this build has no real subscription yet")
-                            .font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
-                        Button(ar ? "تأكيد الاختبار" : "Confirm test") { UserDefaults.standard.set(true, forKey: key); unlocked = true; confirming = false; restoreMessage = nil }
-                            .ghafProminentButton(theme: theme, languageCode: lang)
-                        Button(ar ? "إلغاء" : "Cancel") { confirming = false }
-                            .font(GhafTypography.body(17, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText).frame(minHeight: 44)
-                    }.frame(maxWidth: .infinity).padding(24).background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                } else {
-                    VStack(alignment: .leading, spacing: 28) {
-                        ForEach(Array(features.enumerated()), id: \.offset) { _, item in
-                            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                                Image(systemName: "checkmark").font(GhafTypography.body(17, languageCode: lang, weight: .semibold)).foregroundStyle(theme.credit)
-                                Text(item.0).font(GhafTypography.body(18, languageCode: lang)).foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-                    VStack(spacing: 0) {
-                        ForEach(Array(GhafProPlan.allCases.enumerated()), id: \.element.id) { index, item in
-                            planRow(item)
-                            if index < GhafProPlan.allCases.count - 1 { Divider().overlay(theme.outline).padding(.horizontal, 18) }
-                        }
-                    }.background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-                    Text(plan.price).font(GhafTypography.number(20, weight: .heavy)).foregroundStyle(theme.primaryText).environment(\.layoutDirection, .leftToRight)
-                    Button(ar ? "متابعة شراء تجريبي" : "Continue with test purchase") { confirming = true; restoreMessage = nil }
-                        .ghafProminentButton(theme: theme, languageCode: lang)
-                    Button(ar ? "استعادة المشتريات" : "Restore purchases") {
-                        unlocked = UserDefaults.standard.bool(forKey: key)
-                        restoreMessage = unlocked ? (ar ? "تمت استعادة Pro (تجريبي)" : "Pro (test) restored") : (ar ? "لا توجد مشتريات لاستعادتها" : "Nothing to restore")
-                    }.font(GhafTypography.body(17, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText).frame(minHeight: 44)
-                    if let restoreMessage { Text(restoreMessage).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center) }
-                    HStack(spacing: 18) {
-                        NavigationLink { GhafTermsView(settings: settings) } label: { Text(ar ? "الشروط" : "Terms") }
-                        NavigationLink { GhafPrivacyPolicyView(settings: settings) } label: { Text(ar ? "الخصوصية" : "Privacy") }
-                    }.font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                    Text(ar ? "هذه تجربة داخلية فقط؛ لا تتصل بمتجر Apple ولا تنفذ دفعة." : "This is an internal prototype only; it does not connect to Apple or take payment.")
-                        .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
-                }
+                .buttonStyle(.plain)
             }
-            .multilineTextAlignment(.center).frame(maxWidth: 520).frame(maxWidth: .infinity)
-            .ghafScreenPadding().padding(.top, 16).padding(.bottom, 32)
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.background)
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .scrollBounceBehavior(.basedOnSize).ghafBackground(theme: theme)
-        .presentationDetents([.large]).presentationDragIndicator(.visible).presentationCornerRadius(32)
-        .sensoryFeedback(.selection, trigger: plan)
-        .onAppear {
-#if DEBUG
-            guard GhafScreenshotFixture.enabled else { return }
-            if GhafScreenshotFixture.selection == "confirmation" { confirming = true }
-            if GhafScreenshotFixture.selection == "success" { unlocked = true }
-#endif
-        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(32)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
-    private func planRow(_ item: GhafProPlan) -> some View {
-        let selected = plan == item
-        return Button { withAnimation(.snappy) { plan = item } } label: {
-            HStack(spacing: 12) {
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle").foregroundStyle(selected ? theme.accent : theme.secondaryText)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.title(ar)).font(GhafTypography.body(15, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
-                    Text(item.cadence(ar)).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                }
-                Spacer()
-                Text(item.price).font(GhafTypography.number(15, weight: .heavy)).foregroundStyle(theme.primaryText).environment(\.layoutDirection, .leftToRight)
-            }.padding(.horizontal, 16).frame(height: 64).background(selected ? theme.accent.opacity(0.12) : .clear)
-        }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
-    }
 }
