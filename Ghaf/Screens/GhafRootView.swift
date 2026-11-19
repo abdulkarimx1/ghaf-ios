@@ -384,8 +384,7 @@ struct GhafTabView: View {
 private struct GhafTabBarGlass: ViewModifier {
     let enabled: Bool
     @ViewBuilder func body(content: Content) -> some View {
-        if #available(iOS 26, *) { content }
-        else if enabled { content.toolbarBackground(.ultraThinMaterial, for: .tabBar) }
+        if enabled { content.toolbarBackground(.ultraThinMaterial, for: .tabBar) }
         else { content }
     }
 }
@@ -1462,7 +1461,6 @@ enum GhafAITabIcon {
         let mark = GhafAIOrbFace(theme: lit, mood: frame == 0 ? .idle : .thinking, level: 0,
                                  time: 3.1 + t * 3, still: frame == 0, halo: false)
             .frame(width: side, height: side)
-            .shadow(color: lit.accent.opacity(selected ? 0.6 : 0.3), radius: selected ? 5 : 2, y: 1)
             .opacity(selected ? 1 : 0.82)
             .scaleEffect(1 + 0.08 * lift)
             .frame(width: 40, height: 40)

@@ -17,6 +17,8 @@ struct GhafAmountField: View {
     @State private var keyPress = 0
     @State private var replaceOnNextKey = true
     @Environment(\.locale) private var locale
+    @Environment(\.ghafGlass) private var glass
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
     private var separator: String { (languageCode == "ar" ? Locale(identifier: "ar_AE") : locale).decimalSeparator ?? "." }
@@ -106,7 +108,9 @@ struct GhafAmountField: View {
                             .frame(maxWidth: .infinity, minHeight: 64)
                             .background {
                                 let keyShape = RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                if theme.name == "Graphite" { keyShape.fill(theme.surface.opacity(0.72)) }
+                                if glass.enabled && !reduceTransparency && theme.name == "Graphite" {
+                                    keyShape.fill(.ultraThinMaterial).overlay(keyShape.fill(theme.surface.opacity(0.38)))
+                                } else if theme.name == "Graphite" { keyShape.fill(theme.surface.opacity(0.72)) }
                                 else { keyShape.fill(theme.surface).overlay(keyShape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))) }
                             }
                         }

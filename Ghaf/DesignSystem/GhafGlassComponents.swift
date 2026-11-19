@@ -23,7 +23,7 @@ extension View {
     }
 
     func ghafGlassHero(theme: GhafTheme, radius: CGFloat = GhafMetrics.cardRadius, fallback: Color? = nil) -> some View {
-        modifier(GhafGlassSurface(theme: theme, radius: radius, hero: true, fallback: fallback))
+        modifier(GhafGlassSurface(theme: theme, radius: radius, fallback: fallback))
     }
 
     func ghafGlassShape<S: Shape>(theme: GhafTheme, shape: S, fallback: Color) -> some View {
@@ -47,7 +47,6 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
     let fallback: Color
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         content.background {
             if glass.enabled && !reduceTransparency {
@@ -63,10 +62,8 @@ private struct GhafGlassShapeSurface<S: Shape>: ViewModifier {
                         shape.fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))
                     }
                 }
-                .overlay { GhafGlassSheen(theme: theme).clipShape(shape) }
-                .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) } }
-                .overlay { GhafShapeRim(theme: theme, shape: shape, contrast: contrast) }
-                .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 18, x: 0, y: 8)
+                .overlay { GhafShapeRim(theme: theme, shape: shape).blur(radius: 3).opacity(0.6).clipShape(shape) }
+                .overlay { GhafShapeRim(theme: theme, shape: shape) }
             } else { shape.fill(fallback).shadow(color: theme.shadow, radius: 14, x: 0, y: 6) }
         }
     }
@@ -130,22 +127,17 @@ private struct GhafControlGlass: ViewModifier {
     let theme: GhafTheme
     let enabled: Bool
     let prominent: Bool
-    @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
-        if enabled {
+        if enabled && prominent { content }
+        else if enabled {
             if theme.name == "Graphite" {
-                if #available(iOS 26, *), !prominent {
-                    content.glassEffect(.regular.tint(theme.accent.opacity(0.22)), in: Capsule())
-                        .overlay { GhafGlassSheen(theme: theme).clipShape(Capsule()) }
-                        .overlay { if enabled { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Capsule()).allowsHitTesting(false) } }
-                        .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
-                } else { content.overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) } }
+                content.background(Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.38))))
+                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()).blur(radius: 3).opacity(0.6).clipShape(Capsule()) }
+                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()) }
             } else {
                 content.background(Capsule().fill(theme.surface).overlay(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))))
-                    .overlay { GhafGlassSheen(theme: theme).clipShape(Capsule()) }
-                    .overlay { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Capsule()).allowsHitTesting(false) }
-                    .overlay { GhafShapeRim(theme: theme, shape: Capsule(), contrast: contrast) }
-                    .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 18, x: 0, y: 8)
+                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()).blur(radius: 3).opacity(0.6).clipShape(Capsule()) }
+                    .overlay { GhafShapeRim(theme: theme, shape: Capsule()) }
             }
         } else { content }
     }
@@ -193,8 +185,7 @@ struct GhafPillButton: View {
                     Capsule().fill(theme.accent)
                 } else if glass.enabled && !reduceTransparency {
                     if theme.name == "Graphite" {
-                        if #available(iOS 26, *) { Capsule().fill(.clear) }
-                        else { Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.3))) }
+                        Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill(theme.surface.opacity(0.38)))
                     } else { Capsule().fill(theme.surface).overlay(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.07 : 0.04))) }
                 } else {
                     Capsule().fill(theme.surface).shadow(color: theme.shadow, radius: 10, x: 0, y: 4)
@@ -245,8 +236,6 @@ struct GhafIconBadge: View {
     var theme: GhafTheme? = nil
     @Environment(\.ghafGlass) private var glass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         Image(systemName: symbol)
@@ -255,17 +244,13 @@ struct GhafIconBadge: View {
             .frame(width: size, height: size)
             .background {
                 if glass.enabled && !reduceTransparency, let theme, theme.name == "Graphite" {
-                    Circle().fill(.thinMaterial).overlay(Circle().fill(tint.opacity(0.12)))
-                        .overlay { GhafGlassSheen(theme: theme).clipShape(Circle()) }
-                        .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Circle()).allowsHitTesting(false) } }
-                        .overlay { GhafShapeRim(theme: theme, shape: Circle(), contrast: contrast) }
-                        .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 12, x: 0, y: 5)
+                    Circle().fill(.thinMaterial).overlay(Circle().fill(theme.surface.opacity(0.38))).overlay(Circle().fill(tint.opacity(0.12)))
+                        .overlay { GhafShapeRim(theme: theme, shape: Circle()).blur(radius: 3).opacity(0.6).clipShape(Circle()) }
+                        .overlay { GhafShapeRim(theme: theme, shape: Circle()) }
                 } else if glass.enabled && !reduceTransparency, let theme {
                     Circle().fill(theme.surface).overlay(Circle().fill(tint.opacity(0.14)))
-                        .overlay { GhafGlassSheen(theme: theme).clipShape(Circle()) }
-                        .overlay { if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).clipShape(Circle()).allowsHitTesting(false) } }
-                        .overlay { GhafShapeRim(theme: theme, shape: Circle(), contrast: contrast) }
-                        .shadow(color: theme.isDark ? .clear : .black.opacity(0.08), radius: 12, x: 0, y: 5)
+                        .overlay { GhafShapeRim(theme: theme, shape: Circle()).blur(radius: 3).opacity(0.6).clipShape(Circle()) }
+                        .overlay { GhafShapeRim(theme: theme, shape: Circle()) }
                 } else { Circle().fill(tint.opacity(0.14)) }
             }
             .accessibilityHidden(true)
