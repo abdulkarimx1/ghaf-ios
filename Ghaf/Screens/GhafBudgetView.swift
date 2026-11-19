@@ -44,13 +44,14 @@ struct GhafBudgetView: View {
     var body: some View {
         let spending = expenses(in: cycle)
         let needs = spent(.needs, spending), wants = spent(.wants, spending)
+        ScrollViewReader { scrollProxy in
         ScrollView {
             VStack(spacing: 12) {
                 // Erased sections: deep view types overflow the stack on iOS 27.
                 AnyView(header)
                 AnyView(allocationCard(needs: needs, wants: wants))
                 if income > 0 { AnyView(paceRow(needs: needs, wants: wants)) }
-                AnyView(trendCard)
+                AnyView(trendCard).id("month-trend")
             }
             .ghafScreenPadding()
             .padding(.top, 8)
@@ -69,11 +70,17 @@ struct GhafBudgetView: View {
 #if DEBUG
             guard GhafScreenshotFixture.enabled else { return }
             if GhafScreenshotFixture.selection == "wants" { bucket = .wants; bucketSelected = true }
-            if GhafScreenshotFixture.selection == "month" { selectedMonth = calendar.dateInterval(of: .month, for: .now)?.start }
-            if GhafScreenshotFixture.autoSelect { runAutoSelection() }
+            if GhafScreenshotFixture.selection == "month" {
+                selectedMonth = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)
+            }
+            if GhafScreenshotFixture.autoSelect { runAutoSelection(scrollProxy: scrollProxy) }
+            if GhafScreenshotFixture.selection == "month" {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("month-trend", anchor: .center) }
+            }
 
 #endif
 }
+        }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -92,15 +99,18 @@ struct GhafBudgetView: View {
         withAnimation(.snappy) { selectedMonth = selectedMonth == date ? nil : date }
     }
 
-    private func runAutoSelection() {
+#if DEBUG
+    private func runAutoSelection(scrollProxy: ScrollViewProxy) {
         let month = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!
         let actions: [(TimeInterval, () -> Void)] = [
             (1, { toggleBucket(.wants) }), (2, { toggleBucket(.savings) }),
             (3, { toggleBucket(.savings) }),
             (4, { toggleMonth(month) }), (5, { toggleMonth(month) })
         ]
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) { scrollProxy.scrollTo("month-trend", anchor: .center) }
         for (delay, action) in actions { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
     }
+#endif
 
     // MARK: Header
 
@@ -324,6 +334,8 @@ struct GhafBudgetView: View {
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.center)
             let average = months.map(\.total).reduce(0, +) / Double(months.count)
+            Text("\(ar ? "متوسط" : "avg") · \(GhafCompactNumber.string(average, languageCode: lang))")
+                .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
             HStack(alignment: .bottom, spacing: 10) {
                 ForEach(months, id: \.start) { month in
                     let current = month.start == thisMonth.start
@@ -352,7 +364,6 @@ struct GhafBudgetView: View {
                     let y = 70 * average / most
                     Path { path in path.move(to: CGPoint(x: 0, y: 90 - y)); path.addLine(to: CGPoint(x: proxy.size.width, y: 90 - y)) }
                         .stroke(theme.secondaryText.opacity(0.65), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                        .overlay(alignment: .topTrailing) { Text(ar ? "متوسط" : "avg").font(GhafTypography.body(10, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText) }
                 }
                 .allowsHitTesting(false)
             }

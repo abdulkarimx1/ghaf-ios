@@ -104,36 +104,39 @@ struct GhafStatsView: View {
         // With a category picked, the hero compares that category against itself last period.
         let previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
         NavigationStack {
-            ScrollView {
-                if fixtureBudget {
+            ScrollViewReader { scrollProxy in
+                Group {
+                    if fixtureBudget {
                     GhafBudgetView(settings: settings)
-                } else {
-                VStack(spacing: GhafMetrics.sectionSpacing) {
-                    GhafScreenTitle(title: ar ? "الإحصائيات" : "Statistics",
-                                    subtitle: nil,
-                                    languageCode: lang, theme: theme)
-                    // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
-                    AnyView(trendHero(buckets(filtered), current: filtered, previous: previousFiltered).ghafEntrance(0))
-                    AnyView(whereItWent(slices(current)).ghafEntrance(1))
-                    AnyView(tiles(current).ghafEntrance(2))
-                    AnyView(budgetLink.ghafEntrance(3))
-                    AnyView(merchants(current).ghafEntrance(4))
-                    AnyView(proCard.ghafEntrance(5))
+                    } else {
+                        ScrollView {
+                            VStack(spacing: GhafMetrics.sectionSpacing) {
+                                GhafScreenTitle(title: ar ? "الإحصائيات" : "Statistics",
+                                                subtitle: nil,
+                                                languageCode: lang, theme: theme)
+                                // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
+                                AnyView(trendHero(buckets(filtered), current: filtered, previous: previousFiltered).ghafEntrance(0)).id("trend-chart")
+                                AnyView(whereItWent(slices(current)).ghafEntrance(1)).id("category-chart")
+                                AnyView(tiles(current).ghafEntrance(2))
+                                AnyView(budgetLink.ghafEntrance(3))
+                                AnyView(merchants(current).ghafEntrance(4))
+                                AnyView(proCard.ghafEntrance(5))
+                            }
+                            .ghafScreenPadding()
+                            .padding(.top, 12)
+                            .padding(.bottom, 30)
+                            .frame(maxWidth: 620)
+                            .frame(maxWidth: .infinity)
+                        }
+                        .scrollIndicators(.hidden)
+                    }
                 }
-                .ghafScreenPadding()
-                .padding(.top, 12)
-                .padding(.bottom, 30)
-                .frame(maxWidth: 620)
-                .frame(maxWidth: .infinity)
-                }
-            }
-            .scrollIndicators(.hidden)
-            .ghafBackground(theme: theme)
-            .toolbar(.hidden, for: .navigationBar)
-            .sensoryFeedback(.selection, trigger: period)
-            .sensoryFeedback(.selection, trigger: selectedCategory)
-            .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
-            .onAppear {
+                .ghafBackground(theme: theme)
+                .toolbar(.hidden, for: .navigationBar)
+                .sensoryFeedback(.selection, trigger: period)
+                .sensoryFeedback(.selection, trigger: selectedCategory)
+                .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
+                .onAppear {
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
                 switch GhafScreenshotFixture.period {
@@ -149,10 +152,14 @@ struct GhafStatsView: View {
                     selectedLabel = chartKey(date)
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
-                if GhafScreenshotFixture.autoSelect { runAutoSelection() }
+                if GhafScreenshotFixture.autoSelect { runAutoSelection(scrollProxy: scrollProxy) }
+                if GhafScreenshotFixture.selection == "category" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("category-chart", anchor: .center) }
+                }
 
 #endif
-}
+                }
+            }
         }
         .overlay { if showPro { proPopup.zIndex(2) } }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
@@ -336,7 +343,8 @@ struct GhafStatsView: View {
         withAnimation(.snappy) { selectedLabel = selectedLabel == key ? nil : key }
     }
 
-    private func runAutoSelection() {
+#if DEBUG
+    private func runAutoSelection(scrollProxy: ScrollViewProxy) {
         let categories = slices(expenses(in: interval)).map(\.category)
         let point = chartKey(calendar.dateInterval(of: bucketUnit, for: Date.now.addingTimeInterval(-2 * 86_400))?.start ?? .now)
         let actions: [(TimeInterval, () -> Void)] = [
@@ -346,8 +354,11 @@ struct GhafStatsView: View {
             (4, { tapTrendBucket(point) }),
             (5, { tapTrendBucket(point) })
         ]
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("category-chart", anchor: .center) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { scrollProxy.scrollTo("trend-chart", anchor: .top) }
         for (delay, action) in actions { DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
     }
+#endif
 
     private func selectionBubble(amount: Double, date: Date) -> some View {
         Text("\(GhafFormat.shownMoney(Decimal(amount), currency: currency, languageCode: lang)) · \(bucketLabel(date))")
