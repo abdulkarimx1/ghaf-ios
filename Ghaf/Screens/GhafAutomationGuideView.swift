@@ -16,7 +16,7 @@ struct GhafAutomationGuideView: View {
     @State private var refreshTick = false
     @State private var automationPage = 0
 
-    private enum Automation: String { case bank, wallet }
+    private enum Automation: String { case messages, notifications, wallet }
 
     private let defaults = UserDefaults.standard
     private var theme: GhafTheme {
@@ -148,8 +148,8 @@ struct GhafAutomationGuideView: View {
                 .font(GhafTypography.display(28, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.center)
-            Text(text("Ghaf records bank purchases for you. iOS needs two one-time automations.",
-                      "يسجل غاف مشترياتك البنكية. يتطلب iOS إعداد أتمتتين لمرة واحدة."))
+            Text(text("Ghaf records bank purchases for you. Set up two automations in Shortcuts on iOS 26; app notifications are also available on iOS 27.",
+                      "يسجل غاف مشترياتك البنكية. أعدّ أتمتتين في «الاختصارات» على iOS 26، وتتوفر إشعارات التطبيقات أيضاً على iOS 27."))
                 .font(GhafTypography.body(15, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
@@ -176,7 +176,7 @@ struct GhafAutomationGuideView: View {
                 }
             }
             Button {
-                expandedAutomation = .bank
+                expandedAutomation = .messages
                 automationPage = 2
                 onGuideTap()
             } label: {
@@ -288,8 +288,12 @@ struct GhafAutomationGuideView: View {
                     .buttonStyle(.plain)
                 }
                 insetDivider
-                disclosureRow(.bank)
+                disclosureRow(.messages)
                 insetDivider
+                if #available(iOS 27, *) {
+                    disclosureRow(.notifications)
+                    insetDivider
+                }
                 disclosureRow(.wallet)
             }
             .ghafCard(theme: theme)
@@ -326,15 +330,15 @@ struct GhafAutomationGuideView: View {
                 if reduceMotion { update() } else { withAnimation(.spring(response: 0.34, dampingFraction: 0.86), update) }
             } label: {
                 HStack(spacing: 12) {
-                    GhafIconBadge(symbol: automation == .bank ? "bell.badge" : "apple.logo", tint: theme.accent, size: 40, theme: theme)
+                    GhafIconBadge(symbol: automation == .wallet ? "apple.logo" : automation == .messages ? "message" : "bell.badge", tint: theme.accent, size: 40, theme: theme)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(automation == .bank ? text("Bank notifications", "إشعارات البنك") : text("Apple Pay purchases", "مشتريات Apple Pay"))
+                        Text(automation == .wallet ? text("Apple Pay purchases", "مشتريات Apple Pay") : automation == .messages ? text("Bank text messages", "رسائل البنك النصية") : text("Bank notifications (iOS 27+)", "إشعارات البنك (iOS 27+)") )
                             .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
-                        Text(automation == .bank ? text("Pass supported alerts to Ghaf", "مرر التنبيهات المدعومة إلى غاف") : text("Capture Wallet transactions", "سجل معاملات المحفظة"))
+                        Text(automation == .wallet ? text("Capture Wallet transactions", "سجل معاملات المحفظة") : automation == .messages ? text("Catch online card purchases by SMS", "التقط مشتريات البطاقة عبر الرسائل النصية") : text("Pass supported app alerts to Ghaf", "مرر إشعارات التطبيقات المدعومة إلى غاف"))
                             .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).lineLimit(2)
                     }
                     Spacer(minLength: 4)
-                    automationMark(rowStatus(defaults.double(forKey: automation == .bank ? GhafAutomationStatus.messageRunKey : GhafAutomationStatus.walletRunKey)))
+                    automationMark(rowStatus(defaults.double(forKey: automation == .wallet ? GhafAutomationStatus.walletRunKey : GhafAutomationStatus.messageRunKey)))
                 }
                 .padding(.horizontal, 16).padding(.vertical, 16)
                 .frame(minHeight: 72)
@@ -343,7 +347,7 @@ struct GhafAutomationGuideView: View {
             .buttonStyle(.plain)
             if expandedAutomation == automation || isFixtureExpanded(automation) { automationInstructions(automation) }
         }
-        .id(automation == .bank ? "bank-automation" : "wallet-automation")
+        .id(automation == .wallet ? "wallet-automation" : automation == .messages ? "bank-automation" : "notification-automation")
     }
 
     private struct GuideStep: Identifiable {
@@ -370,6 +374,20 @@ struct GhafAutomationGuideView: View {
                 GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
                 GuideStep(screen: "Ghaf", controls: ["Add Apple Pay purchase"], highlight: "Add Apple Pay purchase", caption: text("Choose “Add Apple Pay purchase”.", "اختر “Add Apple Pay purchase”.")),
                 GuideStep(screen: "Add Apple Pay purchase", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Map “Amount”, “Merchant”, and “Card”, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card”، ثم اضغط “Done”.")),
+            ]
+        }
+        if automation == .messages {
+            return [
+                GuideStep(screen: "Shortcuts", controls: ["Library", "Automation", "Gallery"], highlight: "Automation", caption: text("Tap “Automation”.", "اضغط على “Automation”."), imageName: "AutomationTab"),
+                GuideStep(screen: "Automation", controls: ["New Automation"], highlight: "New Automation", caption: text("Tap “New Automation”.", "اضغط على “New Automation”."), imageName: "NewAutomation"),
+                GuideStep(screen: "Personal Automation", controls: ["Message"], highlight: "Message", caption: text("Choose “Message”.", "اختر “Message”.")),
+                GuideStep(screen: "When I Get a Message", controls: ["Sender", "Message Contains"], highlight: "Sender", caption: text("Choose the bank’s sender. Leave “Message Contains” empty unless you want to filter messages.", "اختر مُرسِل البنك. اترك “Message Contains” فارغاً ما لم ترغب في تصفية الرسائل.")),
+                GuideStep(screen: "When I Get a Message", controls: ["Run Immediately", "Run After Confirmation"], highlight: "Run Immediately", caption: text("Choose “Run Immediately”.", "اختر “Run Immediately”.")),
+                GuideStep(screen: "New Automation", controls: ["New Blank Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
+                GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
+                GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”, then choose “Ghaf”.", "اضغط على “Apps”، ثم اختر “Ghaf”.")),
+                GuideStep(screen: "Ghaf", controls: ["Log bank message"], highlight: "Log bank message", caption: text("Choose “Log bank message”.", "اختر “Log bank message”.")),
+                GuideStep(screen: "Log bank message", controls: ["Message text", "Content", "Sender", "Done"], highlight: "Message text", caption: text("Set “Message text” to “Shortcut Input › Content” and “Sender” to “Shortcut Input › Sender”, then tap “Done”.", "اربط “Message text” بـ“Shortcut Input › Content”، و“Sender” بـ“Shortcut Input › Sender”، ثم اضغط “Done”."))
             ]
         }
         return [
@@ -438,7 +456,9 @@ struct GhafAutomationGuideView: View {
             .frame(maxWidth: .infinity)
             Text(automation == .wallet
                  ? text("Test it: Pay for something small with Apple Pay, then check Transactions.", "اختبره: ادفع مبلغاً صغيراً عبر Apple Pay، ثم تحقق من المعاملات.")
-                 : text("Test it: Wait for your next bank alert.", "اختبره: انتظر تنبيه البنك التالي."))
+                 : automation == .messages
+                    ? text("Test it with your next bank text message, then check Transactions.", "اختبره مع رسالة البنك النصية التالية، ثم راجع المعاملات.")
+                    : text("Test it: Wait for a notification from a supported bank app.", "اختبره بانتظار إشعار من تطبيق بنك مدعوم."))
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)

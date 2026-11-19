@@ -9,7 +9,7 @@ struct LogBankMessageIntent: AppIntent, LiveActivityIntent {
     static var title: LocalizedStringResource = "Log bank message"
 
     static var description = IntentDescription(
-        "Add a bank transaction to Ghaf from the incoming notification text."
+        "Add a bank transaction to Ghaf from Shortcut Input Content and Sender in a bank text message automation."
     )
 
     // The action must not open the main application.
