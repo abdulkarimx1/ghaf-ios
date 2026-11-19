@@ -301,12 +301,23 @@ struct GhafAccountEditorView: View {
         .ghafBackground(theme: theme)
         .tint(theme.accent)
         .safeAreaInset(edge: .bottom) {
-            GhafDetailActionBar(theme: theme, languageCode: lang,
-                                secondarySymbol: account == nil ? nil : "archivebox",
-                                secondaryLabel: ar ? "أرشفة الحساب" : "Archive account",
-                                secondaryAction: { showArchiveConfirmation = true },
-                                primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
-                                primaryAction: save)
+            ZStack(alignment: .leading) {
+                GhafDetailActionBar(theme: theme, languageCode: lang,
+                                    secondarySymbol: account == nil ? nil : "archivebox",
+                                    secondaryLabel: ar ? "أرشفة الحساب" : "Archive account",
+                                    secondaryAction: { showArchiveConfirmation = true },
+                                    primaryTitle: account == nil ? (ar ? "إضافة الحساب" : "Add account") : (ar ? "حفظ" : "Save"),
+                                    primaryAction: save)
+                if account != nil {
+                    Color.clear.frame(width: 104, height: 88).allowsHitTesting(false)
+                        .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
+                                            titleVisibility: .visible) {
+                            Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
+                            Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
+                        } message: {
+                            Text(ar ? "يختفي الحساب ويبقى سجل عملياته." : "The account is hidden and its transaction history is kept.")
+                        }
+                }
             }
         }
         .navigationTitle(account == nil ? (ar ? "إضافة حساب" : "Add account") : (ar ? "تعديل الحساب" : "Edit account"))
@@ -343,13 +354,6 @@ struct GhafAccountEditorView: View {
         .sheet(isPresented: $showCardRequest) {
             GhafCardRequestView(settings: settings,
                                 bank: GhafUAEBank.match([institution, name]).map { ar ? $0.ar : $0.en } ?? institution).ghafDirection(settings.languageCode)
-        }
-        .confirmationDialog(ar ? "أرشفة هذا الحساب؟" : "Archive this account?", isPresented: $showArchiveConfirmation,
-                            titleVisibility: .visible) {
-            Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
-            Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
-        } message: {
-            Text(ar ? "يختفي الحساب ويبقى سجل عملياته." : "The account is hidden and its transaction history is kept.")
         }
     }
 
