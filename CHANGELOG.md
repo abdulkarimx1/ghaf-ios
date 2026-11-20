@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.26 (40)
+
+### English
+- Wallet cards are flat and scroll left and right with your finger: drag across as many cards as you like, and the balance and transactions follow the card you stop on.
+- Switching tabs is snappier: no entrance animation, and background animations pause when off screen.
+
+### العربية
+- بطاقات المحفظة مسطحة وتتحرك يميناً ويساراً مع إصبعك: اسحب عبر أي عدد من البطاقات، ويتبع الرصيد والعمليات البطاقة التي تتوقف عندها.
+- التنقل بين التبويبات أسرع: دون حركة دخول، وتتوقف الحركات الخلفية عندما تكون خارج الشاشة.
+
 ## 1.25 (39)
 
 ### English
