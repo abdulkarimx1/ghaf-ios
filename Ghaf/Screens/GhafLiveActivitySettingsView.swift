@@ -46,7 +46,7 @@ struct GhafLiveActivitySettingsView: View {
                         } label: {
                             Text(durationLabel(seconds))
                                 .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
-                                .foregroundStyle(selected ? theme.over : theme.primaryText)
+                                .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(selected ? theme.accent : theme.surface, in: Capsule())
                                 .contentShape(Capsule())

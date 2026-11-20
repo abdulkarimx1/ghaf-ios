@@ -174,6 +174,8 @@ struct GhafAboutView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.ghafPress)
+        .disabled(url.path.count <= 1 || url.host == "example.com")
+        .opacity(url.path.count <= 1 || url.host == "example.com" ? 0.4 : 1)
         .accessibilityLabel(name)
     }
 
