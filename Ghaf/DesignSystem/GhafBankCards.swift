@@ -83,9 +83,11 @@ struct GhafCardFace: View {
     var body: some View {
         Group {
             if let design {
-                design.image.resizable().aspectRatio(1.586, contentMode: .fill)
+                design.image.resizable().scaledToFill()
+                    .frame(width: width, height: width / 1.586)
+                    .clipped()
             } else {
-                drawn
+                drawn.frame(width: width, height: width / 1.586)
             }
         }
         .frame(width: width, height: width / 1.586)
