@@ -4,7 +4,10 @@ import StoreKitTest
 /// Real-data walkthrough: taps, scrolls and swipes key screens, saves screenshots and tap-to-idle timings to GHAF_UI_OUT.
 /// Run: TEST_RUNNER_GHAF_UI_OUT=<dir> TEST_RUNNER_GHAF_BACKUP=<backup.json> xcodebuild test -scheme GhafUITests -destination id=<UDID>
 final class GhafWalkthroughTests: XCTestCase {
-    let out = ProcessInfo.processInfo.environment["GHAF_UI_OUT"] ?? NSTemporaryDirectory()
+    let out = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_UI_OUT"]
+        ?? ProcessInfo.processInfo.environment["GHAF_UI_OUT"]
+        ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("build/onboarding-proof-after").path
     var log = ""
     var app: XCUIApplication!
 
@@ -15,7 +18,9 @@ final class GhafWalkthroughTests: XCTestCase {
 
     func launch(_ extra: [String] = [], appearance: String = "Dark") {
         app = XCUIApplication()
-        let backup = ProcessInfo.processInfo.environment["GHAF_BACKUP"].map { ["-GhafRestoreBackup", $0] } ?? []
+        let backupPath = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+            ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]
+        let backup = backupPath.map { ["-GhafRestoreBackup", $0] } ?? []
         app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite",
                                "-GhafAppearance", appearance, "-GhafLanguage", "en"] + extra
         app.launch()
@@ -23,7 +28,14 @@ final class GhafWalkthroughTests: XCTestCase {
     }
 
     func snap(_ name: String) {
-        try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
+        let screenshot = XCUIScreen.main.screenshot()
+        try? screenshot.pngRepresentation.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
+        XCTContext.runActivity(named: name) { activity in
+            let attachment = XCTAttachment(screenshot: screenshot)
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            activity.add(attachment)
+        }
     }
 
     /// Times a tap including XCTest's wait for the app to go idle (main thread + animations).
@@ -376,12 +388,51 @@ extension GhafWalkthroughTests {
             snap("first-run-\(page)")
             if page == 7 { break }
             button.tap()
+            Thread.sleep(forTimeInterval: 0.45)
             if page == 4 {
                 for _ in 0..<3 {
                     let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
                     if alert.waitForExistence(timeout: 2) { alert.buttons.firstMatch.tap() }
                 }
             }
+        }
+
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1",
+                              "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en",
+                              "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility5"]
+        app.launch()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 25))
+        snap("first-run-1-largest-type")
+
+        let proofBackup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+            ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]
+            ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.27/backup3.json").path
+        if FileManager.default.fileExists(atPath: proofBackup) {
+            app.terminate()
+            app = XCUIApplication()
+            app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", proofBackup, "-GhafTheme", "Graphite",
+                                  "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+            app.launch()
+            XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 20))
+            app.tabBars.buttons["More"].tap()
+            app.buttons["Customization"].tap()
+            let arabicChoice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'العربية'" )).firstMatch
+            XCTAssertTrue(arabicChoice.waitForExistence(timeout: 5))
+            arabicChoice.tap()
+            Thread.sleep(forTimeInterval: 0.25)
+            snap("language-switch-en-ar-overlay-start")
+            Thread.sleep(forTimeInterval: 0.95)
+            snap("language-switch-en-ar-overlay-arabic")
+            XCTAssertTrue(app.tabBars.buttons["الرئيسية"].waitForExistence(timeout: 10))
+            snap("language-switch-ar-home")
+            app.tabBars.buttons["المزيد"].tap()
+            app.buttons["التخصيص"].tap()
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'English'")).firstMatch.tap()
+            XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
         }
     }
 }
