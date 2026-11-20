@@ -36,9 +36,7 @@ public enum AccountMatcher {
         }
         guard let top = ranked.map(\.1).max(), top > 0 else { return nil }
         let tied = ranked.filter { $0.1 == top }.map(\.0)
-        if top == 60 {
-            return ranked.filter { $0.1 > 0 }.count == 1 ? tied[0].id : nil
-        }
+        if top == 60 { return nil }
         if tied.count == 1 { return tied[0].id }
         let primary = tied.filter(\.isPrimary)
         return primary.count == 1 ? primary[0].id : nil
