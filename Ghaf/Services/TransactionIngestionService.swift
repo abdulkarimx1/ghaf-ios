@@ -57,9 +57,11 @@ final class TransactionIngestionService {
             )
         }
 
-        let existing = try context.fetch(FetchDescriptor<GhafTransaction>(sortBy: [SortDescriptor(\.date, order: .reverse)]))
+        var recentTransactions = FetchDescriptor<GhafTransaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+        recentTransactions.fetchLimit = 500
+        let existing = try context.fetch(recentTransactions)
         var knownKeys = Set<String>()
-        let knownMerchants = existing.prefix(500).compactMap(\.merchant).filter { knownKeys.insert(MerchantName.key($0)).inserted }
+        let knownMerchants = existing.compactMap(\.merchant).filter { knownKeys.insert(MerchantName.key($0)).inserted }
         let merchant = rawParsed.merchant.map { MerchantName.expand(MerchantName.clean($0), known: knownMerchants) }
 
         // An authorization hold is not money that has moved; the posted message records it.
