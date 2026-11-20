@@ -181,7 +181,7 @@ struct GhafAutomationGuideView: View {
                 Spacer()
             }
             Text(text("Choose the banks whose messages you want Ghaf to capture.",
-                      "اختر البنوك التي تريد من غاف تسجيل رسائلها."))
+                      "اختر البنوك التي تريد أن يسجّل غاف رسائلها."))
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(ar ? .trailing : .leading)

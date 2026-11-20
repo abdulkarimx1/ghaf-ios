@@ -205,7 +205,7 @@ struct GhafNotificationSettingsView: View {
         func profile(_ value: GhafSigningProfile) -> String {
             "\(ar ? "الاسم" : "name")=\(value.name ?? "none"); \(ar ? "الفريق" : "team")=\(value.teamID ?? "none"); \(ar ? "انتهاء الصلاحية" : "expires")=\(value.expiry?.formatted(dateStyle) ?? "none"); \(ar ? "مجموعات التطبيق" : "app groups")=[\(list(value.appGroups))]; \(ar ? "مجموعات سلسلة المفاتيح" : "keychain groups")=[\(list(value.keychainGroups))]"
         }
-        var lines = ["\(ar ? "الإصدار" : "Version"): \(version) (\(ar ? "البناء" : "Build") \(build))",
+        var lines = ["\(ar ? "الإصدار" : "Version"): \(version) (\(ar ? "البنية" : "Build") \(build))",
                      "\(ar ? "معرّف التطبيق" : "App bundle ID"): \(appID)",
                      "\(ar ? "ملف توقيع التطبيق" : "App signing profile"): \(appProfile.exists ? profile(appProfile) : (ar ? "لا يوجد ملف توقيع مضمن" : "no embedded signing profile"))",
                      "\(ar ? "معرّف الودجت" : "Widget bundle ID"): \(widgetID ?? (ar ? "ملف GhafWidgets.appex مفقود" : "missing GhafWidgets.appex"))",

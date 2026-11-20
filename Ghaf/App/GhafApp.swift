@@ -9,6 +9,9 @@ struct GhafApp: App {
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
 
     init() {
+#if DEBUG
+        GhafLocalization.assertArabicDays()
+#endif
         // Native bounce stays on: it is part of iOS's fluid feel.
         UIScrollView.appearance().showsHorizontalScrollIndicator = false
         UIScrollView.appearance().showsVerticalScrollIndicator = false

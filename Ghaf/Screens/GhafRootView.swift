@@ -829,7 +829,7 @@ struct GhafOnboardingView: View {
             VStack(spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: "bell.badge.fill").foregroundStyle(theme.accent)
-                    Text("Mashreq · " + localized("Purchase of AED 35.00 at Bakery", "شراء بقيمة ٣٥٫٠٠ درهماً في مخبز"))
+                    Text("Mashreq · " + localized("Purchase of AED 35.00 at Bakery", "شراء بقيمة ٣٥٫٠٠ درهم من مخبز"))
                         .font(GhafTypography.body(14, languageCode: "en", weight: .medium)).multilineTextAlignment(.leading)
                 }
                 .padding(14).background(theme.surface, in: RoundedRectangle(cornerRadius: 18))

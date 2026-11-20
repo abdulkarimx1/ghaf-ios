@@ -406,7 +406,7 @@ struct GhafSettingsView: View {
                 .disabled(true).opacity(0.4)
             Text(ar ? "قريباً" : "Coming soon")
                 .font(GhafTypography.body(11, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
-            Text(ar ? "تنتقل النسخة مباشرةً من iPhone إلى Google Drive الخاص بك. لا يطّلع غاف عليها."
+            Text(ar ? "تنتقل النسخة مباشرةً من iPhone إلى حسابك في Google Drive، ولا يطّلع عليها غاف."
                     : "Your backup goes straight from your iPhone to your own Google Drive. Ghaf never sees it.")
                 .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -520,10 +520,10 @@ struct GhafSettingsView: View {
                           }
                           .frame(maxWidth: .infinity)
                         }.buttonStyle(.ghafPress)
-                         .accessibilityLabel(ar ? "إنجاز \(days) يوماً" : "\(days)-day milestone")
+                         .accessibilityLabel(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                     }
                 }
-                Text(ar ? "سجّل عملية لا تنتظر المراجعة كل يوم؛ وإذا فاتك يوم يبدأ تسلسل جديد. للمتعة فقط."
+                Text(ar ? "سجّل كل يوم عملية لا تنتظر المراجعة؛ وإذا فاتك يوم، يبدأ التسلسل من جديد. للمتعة فقط."
                         : "Log a transaction daily; entries awaiting review don’t count. Miss a day and the streak restarts. Just for fun.")
                     .font(GhafTypography.body(12, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
@@ -543,9 +543,9 @@ struct GhafSettingsView: View {
         VStack(spacing: 16) {
             Image(systemName: streak >= days ? "checkmark.seal.fill" : "sparkle")
                 .font(.system(size: 36)).foregroundStyle(theme.accent)
-            Text(ar ? "إنجاز \(days) يوماً" : "\(days)-day milestone")
+            Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            Text(ar ? "هذا إنجاز لبلوغ \(days) يوماً متتالياً. تسلسلك الحالي \(streak) يوماً؛ للمتعة فقط."
+            Text(ar ? "هذا الإنجاز لمن سجّل \(GhafLocalization.arabicDays(days)) متتالية. تسلسلك الحالي \(GhafLocalization.arabicDays(streak))، وهو للمتعة فقط."
                     : "This milestone marks \(days) consecutive days. Your current streak is \(streak) days; just for fun.")
                 .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
