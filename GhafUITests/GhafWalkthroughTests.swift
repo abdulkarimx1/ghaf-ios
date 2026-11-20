@@ -515,3 +515,18 @@ extension GhafWalkthroughTests {
         XCTAssertTrue(app.buttons["15 s"].isSelected, "Duration should persist in the settings store.")
     }
 }
+
+extension GhafWalkthroughTests {
+    /// Onboarding's "Import Ghaf backup" opens the shared import sheet (Ghaf, Expend, CSV).
+    func testImportSheetFromOnboarding() {
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1", "-GhafAppearance", "Dark"]
+        app.launch()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let importButton = app.buttons["Import Ghaf backup"].firstMatch
+        XCTAssertTrue(importButton.waitForExistence(timeout: 15))
+        importButton.tap()
+        XCTAssertTrue(app.staticTexts["Bring your data into Ghaf"].waitForExistence(timeout: 5))
+        snap("import-sheet-onboarding")
+    }
+}

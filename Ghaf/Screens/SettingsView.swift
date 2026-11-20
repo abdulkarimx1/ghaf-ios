@@ -39,6 +39,7 @@ struct GhafSettingsView: View {
     @State private var backupURL: URL?
     @State private var pendingImportURL: URL?
     @State private var showImporter = false
+    @State private var showImportSheet = false
     @State private var pickedImportURL: URL?
     /// Weekly totals everywhere follow this; the region's first weekday until the user picks one.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = Calendar.current.firstWeekday
@@ -213,6 +214,7 @@ struct GhafSettingsView: View {
             // UIKit's picker in copy mode: iOS downloads iCloud files and hands over a local copy, and the
             // confirm alert waits for the sheet to close. Any data file is selectable; contents are validated.
             // iOS may report the pick before or after the sheet finishes closing; ask in whichever comes last.
+            .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
             .sheet(isPresented: $showImporter, onDismiss: askToImportPickedFile) {
                 GhafDocumentPicker { url in
                     pickedImportURL = url
@@ -1048,8 +1050,8 @@ HStack(spacing: 8) {
                 .buttonStyle(.ghafPress)
             }
 
-            Button { showImporter = true } label: {
-                settingsActionRow(languageCode == "ar" ? "استيراد نسخة احتياطية" : "Import JSON backup", detail: languageCode == "ar" ? "استبدال البيانات المحلية بنسخة احتياطية" : "Replace the current local data with a backup", icon: "square.and.arrow.down")
+            Button { showImportSheet = true } label: {
+                settingsActionRow(languageCode == "ar" ? "استيراد بيانات" : "Import data", detail: languageCode == "ar" ? "نسخة غاف أو Expend أو ملف CSV" : "A Ghaf or Expend backup, or a CSV file", icon: "square.and.arrow.down")
             }
             .buttonStyle(.ghafPress)
 

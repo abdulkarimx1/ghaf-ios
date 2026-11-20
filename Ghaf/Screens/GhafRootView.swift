@@ -619,6 +619,7 @@ struct GhafOnboardingView: View {
     @State private var salaryAccountDraftID: UUID?
     @State private var accountSetupError = false
     @State private var showBackupImporter = false
+    @State private var showImportSheet = false
     @State private var backupImportError: String?
 
     private var theme: GhafTheme {
@@ -711,7 +712,7 @@ struct GhafOnboardingView: View {
                         .font(GhafTypography.body(12, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                     primaryAction(localized("Continue", "متابعة")) { advance() }
-                    Button { showBackupImporter = true } label: {
+                    Button { showImportSheet = true } label: {
                         Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
                     }
                     .ghafGlassButton(theme: theme, languageCode: languageCode)
@@ -743,6 +744,7 @@ struct GhafOnboardingView: View {
                     } }
             }.environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         }
+        .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
         .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
             do {
                 let url = try result.get()

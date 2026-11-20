@@ -32,12 +32,12 @@ struct GhafImportSheet: View {
                     Text(ar ? "استيراد بياناتك" : "Bring your data into Ghaf").font(GhafTypography.heading(26, languageCode: settings.languageCode)).foregroundStyle(theme.primaryText).multilineTextAlignment(.center)
                     Text(ar ? "اختر نوع النسخة التي تريد استيرادها." : "Choose the kind of file you want to restore.").font(GhafTypography.body(17, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
                     VStack(spacing: 12) {
-                        choice("Ghaf backup", subtitle: "Restore a Ghaf JSON backup", icon: "externaldrive.fill", kind: .ghaf)
-                        choice("Expend backup", subtitle: "Import an Expend export", icon: "wallet.pass.fill", kind: .expend)
+                        choice(ar ? "نسخة غاف الاحتياطية" : "Ghaf backup", subtitle: ar ? "استعادة نسخة غاف بصيغة JSON" : "Restore a Ghaf JSON backup", icon: "externaldrive.fill", kind: .ghaf)
+                        choice(ar ? "نسخة Expend" : "Expend backup", subtitle: ar ? "استيراد ملف مُصدَّر من Expend" : "Import an Expend export", icon: "wallet.pass.fill", kind: .expend)
                         VStack(alignment: .leading, spacing: 12) {
                             Text(ar ? "قد لا تُستورد ملفات التطبيقات الأخرى بشكل كامل. إذا لم يعمل ملفك، أرسله إلينا لنضيف دعمه في تحديث قادم." : "Other apps' files may not import perfectly. If yours doesn't work, send it to us and we'll add support in an update.")
                                 .font(GhafTypography.body(14, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
-                            choice("Other CSV or JSON", subtitle: "Review the rows before importing", icon: "tablecells", kind: .other)
+                            choice(ar ? "ملف CSV أو JSON آخر" : "Other CSV or JSON", subtitle: ar ? "راجع السجلات قبل الاستيراد" : "Review the rows before importing", icon: "tablecells", kind: .other)
                         }.padding(18).background(theme.surface, in: RoundedRectangle(cornerRadius: 24))
                     }
                     if let message {
@@ -99,6 +99,13 @@ struct GhafImportSheet: View {
             .font(.system(size: 15, weight: .medium)).foregroundStyle(theme.accent).frame(minHeight: 44)
     }
 
+    /// A restored Ghaf backup is a set-up app: never drop the user back into first-run onboarding.
+    private func markSetUp() {
+        guard let restored = try? context.fetch(FetchDescriptor<GhafSettings>()).first else { return }
+        restored.hasCompletedOnboarding = true
+        try? context.save()
+    }
+
     private func handlePick(_ result: Result<[URL], Error>) {
         guard let kind = selectedKind else { return }; selectedKind = nil
         do {
@@ -109,8 +116,8 @@ struct GhafImportSheet: View {
             try Data(contentsOf: url).write(to: localFile, options: .atomic)
             fileURL = localFile; isFailure = false; message = nil
             switch kind {
-            case .ghaf: try GhafBackupService.restore(from: localFile, context: context); message = ar ? "تمت استعادة نسخة غاف." : "Ghaf backup restored successfully."
-            case .expend: let result = try GhafExpendImportService.importFile(from: localFile, context: context); message = "Imported \(result.transactionsImported) transactions from Expend."
+            case .ghaf: try GhafBackupService.restore(from: localFile, context: context); markSetUp(); message = ar ? "تمت استعادة نسخة غاف." : "Ghaf backup restored successfully."
+            case .expend: let result = try GhafExpendImportService.importFile(from: localFile, context: context); message = ar ? "تم استيراد \(result.transactionsImported) عملية من Expend." : "Imported \(result.transactionsImported) transactions from Expend."
             case .other: preview = try GhafFileImport.preview(localFile, context: context)
             }
         } catch { isFailure = true; message = error.localizedDescription }
