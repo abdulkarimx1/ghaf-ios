@@ -39,10 +39,6 @@ struct GhafWalletStack: View {
                 }
                 .padding(.top, 6)
                 .accessibilityElement(children: .combine)
-                .transaction {
-                    $0.animation = nil
-                    $0.disablesAnimations = true
-                }
             }
             deck
             if accounts.count > 1 { pageIndicator }
@@ -147,7 +143,6 @@ private struct GhafWalletCarousel: View {
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
     private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
-    private var step: CGFloat { width * 0.1 }
     private var cardHeight: CGFloat { width / 1.586 }
 
     var body: some View {
@@ -158,12 +153,12 @@ private struct GhafWalletCarousel: View {
                 .blur(radius: 22)
                 .offset(y: cardHeight / 2 + 6)
             GeometryReader { geometry in
-                HStack(spacing: step) {
+                HStack(spacing: -width * 0.4) {
                     ForEach(Array(accounts.enumerated()), id: \.element.id) { itemIndex, account in
                         walletCard(account, at: itemIndex)
                     }
                 }
-                .offset(x: (geometry.size.width - width) / 2 - CGFloat(index) * (width + step) + dragOffset)
+                .offset(x: (geometry.size.width - width) / 2 - CGFloat(index) * width * 0.6 + dragOffset)
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 12)
                     .updating($dragOffset) { value, state, _ in state = value.translation.width }
@@ -189,8 +184,8 @@ private struct GhafWalletCarousel: View {
         let delta = itemIndex - index
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
-            .scaleEffect(1 - 0.06 * CGFloat(min(abs(delta), 3)))
-            .rotationEffect(.degrees(delta < 0 ? 4 : (delta > 0 ? -4 : 0)))
+            .scaleEffect(delta == 0 ? 1 : 0.9)
+            .zIndex(Double(-abs(delta)))
             .frame(width: width, height: cardHeight)
             .frame(width: width, height: cardHeight + 50)
             .id(account.id)
