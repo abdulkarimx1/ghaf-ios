@@ -202,3 +202,35 @@ extension GhafWalkthroughTests {
         snap("bank-picker-light-after")
     }
 }
+
+import StoreKitTest
+
+extension GhafWalkthroughTests {
+    func testProSheetAvailability() {
+        launch(["-GhafScreen", "pro-sheet"])
+        let unavailable = app.buttons["Available when Ghaf launches on the App Store"]
+        XCTAssertTrue(unavailable.waitForExistence(timeout: 10))
+        XCTAssertFalse(unavailable.isEnabled)
+        XCTAssertFalse(app.buttons["Redeem code"].exists)
+        XCTAssertTrue(app.buttons["Privacy"].firstMatch.isHittable)
+        snap("pro-flag-off")
+    }
+
+    func testProStoreKitPurchase() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let path = environment["GHAF_STOREKIT_FILE"] else { throw XCTSkip("Run with the store-enabled simulator build and local StoreKit configuration") }
+        let session = try SKTestSession(contentsOf: URL(fileURLWithPath: path))
+        session.disableDialogs = true
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        launch(["-GhafScreen", "pro-sheet"])
+        let subscribe = app.buttons["Subscribe"]
+        XCTAssertTrue(subscribe.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["Redeem code"].isHittable)
+        snap("pro-products")
+        subscribe.tap()
+        XCTAssertTrue(app.buttons["Pro is active"].waitForExistence(timeout: 15))
+        XCTAssertTrue(session.allTransactions().contains { $0.productIdentifier == "com.ghaf.app.pro.yearly" })
+        snap("pro-purchased")
+    }
+}

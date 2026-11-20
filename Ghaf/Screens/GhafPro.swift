@@ -13,6 +13,7 @@ struct GhafProView: View {
     @State private var products: [Product] = []
     @State private var entitled = false
     @State private var busy = false
+    @State private var redeeming = false
     @State private var notice: String?
     private var testUnlocked: Bool {
         #if DEBUG
@@ -46,6 +47,10 @@ struct GhafProView: View {
                 }
                 purchaseControls
                 HStack {
+                    if GhafFeatureFlags.appStoreAccount {
+                        Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
+                            .offerCodeRedemption(isPresented: $redeeming)
+                    }
                     NavigationLink(ar ? "الشروط" : "Terms") { GhafTermsView(settings: settings) }
                     NavigationLink(ar ? "الخصوصية" : "Privacy") { GhafPrivacyPolicyView(settings: settings) }
                 }.font(.footnote)
@@ -105,7 +110,7 @@ struct GhafProView: View {
                 } catch { notice = error.localizedDescription }
             }
         } label: {
-            Text(!GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+            Text(testUnlocked ? (ar ? "اشتراك تجريبي فعّال" : "Pro is active (debug)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
                 .frame(maxWidth: .infinity, minHeight: 56)
                 .foregroundStyle(theme.accentContrast)
                 .background(theme.accent, in: Capsule())
