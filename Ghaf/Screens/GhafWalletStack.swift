@@ -163,8 +163,13 @@ private struct GhafWalletCarousel: View {
                 .gesture(DragGesture(minimumDistance: 12)
                     .updating($dragOffset) { value, state, _ in state = value.translation.width }
                     .onEnded { value in
-                        guard abs(value.translation.width) > width * 0.18 else { return }
-                        let next = min(max(index + (value.translation.width < 0 ? 1 : -1), 0), accounts.count - 1)
+                        // Follow the finger: a long drag or fast flick moves several cards (owner rule), using the
+                        // predicted end so momentum counts; one card is 0.6 × width of travel.
+                        let step = width * 0.6
+                        let travel = value.predictedEndTranslation.width
+                        guard abs(travel) > width * 0.18 else { return }
+                        let moved = max(1, Int((abs(travel) / step).rounded()))
+                        let next = min(max(index + (travel < 0 ? moved : -moved), 0), accounts.count - 1)
                         withAnimation(deckAnimation) { selectedID = accounts[next].id }
                     })
             }
@@ -184,7 +189,8 @@ private struct GhafWalletCarousel: View {
         let delta = itemIndex - index
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
-            .scaleEffect(delta == 0 ? 1 : 0.9)
+            // Shrink side cards from the top edge so every card's top sits on the same line (owner).
+            .scaleEffect(delta == 0 ? 1 : 0.9, anchor: .top)
             .zIndex(Double(-abs(delta)))
             .frame(width: width, height: cardHeight)
             .frame(width: width, height: cardHeight + 50)
