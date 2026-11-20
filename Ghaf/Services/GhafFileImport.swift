@@ -40,9 +40,7 @@ enum GhafFileImport {
             let raw = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "\u{FEFF}", with: "")
             let matrix = try DelimitedImport.rows(raw)
             let headers = matrix[0]
-            dictionaries = matrix.dropFirst().map { values in
-                Dictionary(uniqueKeysWithValues: headers.enumerated().map { ($0.element, $0.offset < values.count ? values[$0.offset] : "") })
-            }
+            dictionaries = matrix.dropFirst().map { values in DelimitedImport.dictionary(headers: headers, values: values).mapValues { $0 as Any } }
         } else if let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             dictionaries = array
         } else if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let rows = object["transactions"] as? [[String: Any]] {
@@ -52,25 +50,43 @@ enum GhafFileImport {
         let existingAccounts = try context.fetch(FetchDescriptor<GhafAccount>())
         var rows: [GhafFileImportRow] = [], skipped = 0
         for item in dictionaries {
-            let fields = item.reduce(into: [String: Any]()) { $0[normalize($1.key)] = $1.value }
-            let values = fields.sorted { $0.key < $1.key }
-            guard let dateValue = value(fields, names: ["date", "transaction date", "تاريخ", "التاريخ"]) ?? values.compactMap({ parseDate(String(describing: $0.value)) == nil ? nil : String(describing: $0.value) }).first,
+            let fields = item.reduce(into: [String: String]()) { $0[normalize($1.key)] = String(describing: $1.value) }
+            let dateAliases = ["date", "transaction date", "date/time", "booking date", "posted date", "تاريخ", "التاريخ"]
+            let amountAliases = ["amount", "transaction amount", "value", "المبلغ", "القيمة"]
+            let debitAliases = ["debit", "debit amount", "withdrawal", "withdrawals", "money out", "مدين", "السحب"]
+            let creditAliases = ["credit", "credit amount", "deposit", "money in", "دائن", "إيداع", "ايداع"]
+            let debitValue = value(fields, names: debitAliases).flatMap { $0.isEmpty ? nil : $0 }
+            let creditValue = value(fields, names: creditAliases).flatMap { $0.isEmpty ? nil : $0 }
+            let amountValue = value(fields, names: amountAliases)
+            let hasSeparateAmount = debitValue != nil || creditValue != nil
+            let separateDirection = DelimitedImport.direction(debit: debitValue, credit: creditValue)
+            let rawAmount: Decimal?
+            switch separateDirection {
+            case .debit: rawAmount = debitValue.flatMap(decimal).map(abs)
+            case .credit: rawAmount = creditValue.flatMap(decimal).map(abs)
+            case nil: rawAmount = hasSeparateAmount ? nil : amountValue.flatMap(decimal)
+            }
+            let type = value(fields, names: ["type", "direction", "transaction type", "transaction kind", "النوع", "الاتجاه"])?.lowercased() ?? ""
+            let categoryValue = value(fields, names: ["category", "transaction category", "الفئة", "التصنيف"]) ?? "Other"
+            let explicitDirection: TransactionDirection? = {
+                if !type.isEmpty {
+                    if ["income", "credit", "deposit", "salary", "دخل", "إيداع", "ايداع"].contains(where: type.contains) { return .credit }
+                    if ["expense", "debit", "purchase", "withdrawal", "مصروف", "خصم", "سحب"].contains(where: type.contains) { return .debit }
+                }
+                if ["income", "salary", "other income"].contains(where: categoryValue.lowercased().contains) { return .credit }
+                return nil
+            }()
+            guard let dateValue = value(fields, names: dateAliases),
                   let date = parseDate(dateValue),
-                  let amountValue = value(fields, names: ["amount", "value", "المبلغ", "القيمة"]) ?? values.compactMap({ decimal(String(describing: $0.value)) == nil ? nil : String(describing: $0.value) }).first,
-                  let amount = decimal(amountValue), amount != 0,
-                  let merchantValue = value(fields, names: ["merchant", "description", "payee", "name", "الوصف", "التاجر", "المتجر"]) ?? values.compactMap({ pair in
-                      guard !["account", "wallet", "category", "currency", "type", "direction"].contains(where: pair.key.contains) else { return nil }
-                      let text = String(describing: pair.value).trimmingCharacters(in: .whitespacesAndNewlines)
-                      return text.count > 1 && decimal(text) == nil && parseDate(text) == nil ? text : nil
-                  }).first,
+                  let amount = rawAmount, amount != 0,
+                  let direction = separateDirection ?? DelimitedImport.direction(amount: amountValue.flatMap(decimal)),
+                  let merchantValue = value(fields, names: ["merchant", "description", "payee", "name", "details", "narrative", "الوصف", "التاجر", "المتجر"]),
                   !merchantValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { skipped += 1; continue }
             let account = value(fields, names: ["account", "wallet", "account name", "الحساب", "المحفظة"])?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let category = value(fields, names: ["category", "الفئة", "التصنيف"]) ?? "Other"
-            let kind = value(fields, names: ["type", "direction", "transaction type", "النوع", "الاتجاه"])?.lowercased() ?? ""
-            let isIncome = ["income", "credit", "deposit", "salary", "دخل", "إيداع", "ايداع"].contains(where: kind.contains)
-                || ["income", "salary", "other income"].contains(where: category.lowercased().contains)
+            let category = categoryValue
+            let finalDirection = hasSeparateAmount ? direction : explicitDirection ?? direction
             rows.append(.init(date: date, amount: abs(amount), merchant: merchantValue.trimmingCharacters(in: .whitespacesAndNewlines),
-                              category: category, direction: isIncome ? .credit : .debit,
+                              category: category, direction: finalDirection,
                               account: account?.isEmpty == true ? nil : account,
                               currency: value(fields, names: ["currency", "عملة"])?.uppercased() ?? "AED"))
         }
@@ -105,21 +121,10 @@ enum GhafFileImport {
         return (imported, duplicates)
     }
 
-    private static func normalize(_ key: String) -> String { key.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).trimmingCharacters(in: .whitespacesAndNewlines) }
+    private static func normalize(_ key: String) -> String { key.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
     private static func value(_ row: [String: Any], names: [String]) -> String? {
-        guard let pair = row.first(where: { key, _ in names.contains(where: { normalize(key) == normalize($0) || normalize(key).contains(normalize($0)) }) }) else { return nil }
-        return String(describing: pair.value)
+        DelimitedImport.value(row.mapValues(String.init(describing:)), aliases: names)
     }
-    private static func decimal(_ value: String) -> Decimal? {
-        var text = value.replacingOccurrences(of: "٫", with: ".").replacingOccurrences(of: "٬", with: ",")
-        let digits = text.unicodeScalars.map { scalar in
-            if let number = scalar.properties.numericValue, (0...9).contains(number), scalar.properties.generalCategory == .decimalNumber { return String(Int(number)) }
-            return String(scalar)
-        }.joined()
-        text = String(digits.filter { $0.isNumber || $0 == "." || $0 == "," || $0 == "-" })
-        if text.contains(","), text.contains(".") { text = text.replacingOccurrences(of: ",", with: "") }
-        else { text = text.replacingOccurrences(of: ",", with: ".") }
-        return Decimal(string: text)
-    }
+    private static func decimal(_ value: String) -> Decimal? { DelimitedImport.decimal(value) }
     private static func parseDate(_ value: String) -> Date? { DelimitedImport.date(value) }
 }
