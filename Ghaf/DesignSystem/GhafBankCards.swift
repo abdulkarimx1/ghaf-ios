@@ -46,7 +46,7 @@ struct GhafUAEBank: Identifiable {
         .init(id: "ivestor", en: "iVESTOR", ar: "آيفستر", aliases: ["ivestor", "آيفستر", "dfm ivestor"], colors: (0x5A3A9A, 0x6AA8B8)),
         // Investment and savings apps with no card: faces drawn in each brand's colours.
         .init(id: "thndr", en: "Thndr", ar: "ثندر", aliases: ["thndr", "ثندر"], colors: (0x0A0A0A, 0xFFE500)),
-        .init(id: "nbonds", en: "National Bonds", ar: "الصكوك الوطنية", aliases: ["national bonds", "الصكوك الوطنية"], colors: (0x8A6A1E, 0xC9A24A)),
+        .init(id: "nbonds", en: "National Bonds", ar: "الصكوك الوطنية", aliases: ["national bonds", "natbonds", "nbonds", "الصكوك الوطنية"], colors: (0x8A6A1E, 0xC9A24A)),
         .init(id: "sarwa", en: "Sarwa", ar: "ثروة", aliases: ["sarwa", "ثروة"], colors: (0x07351A, 0x106E37)),
         .init(id: "baraka", en: "Baraka", ar: "بركة", aliases: ["baraka", "بركة"], colors: (0x000000, 0x3A3A3C))
     ]
