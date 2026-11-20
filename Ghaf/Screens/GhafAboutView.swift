@@ -46,8 +46,9 @@ struct GhafAboutView: View {
             VStack(spacing: 14) {
                 hero
                 featureList.ghafEntrance(1)
-                actions.ghafEntrance(2).id("about-actions")
-                socials.ghafEntrance(3)
+                story.ghafEntrance(2)
+                actions.ghafEntrance(3).id("about-actions")
+                socials.ghafEntrance(4)
                 footer
             }
             .ghafScreenPadding()
@@ -114,6 +115,18 @@ struct GhafAboutView: View {
         }
     }
 
+    private var story: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(ar ? "لماذا غاف؟" : "Why Ghaf?", systemImage: "leaf.fill")
+                .font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accent)
+            Text(ar ? "سمّينا غاف تيمّناً بشجرة الغاف التي تمنح الظل لمن حولها. ونشكر دولة الإمارات على دعمها لكل من يعيش على أرضها."
+                    : "Ghaf is named for the ghaf tree, which offers shade to everyone around it. We’re grateful to the UAE for supporting everyone who lives here.")
+                .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme)
+    }
+
     private var actions: some View {
         VStack(spacing: 0) {
             ShareLink(item: GhafLinks.appStore, message: Text(ar ? "جرّب غاف لمتابعة أموالك" : "Try Ghaf to keep track of your money")) {
@@ -166,7 +179,7 @@ struct GhafAboutView: View {
 
     private var footer: some View {
         VStack(spacing: 4) {
-            Text(ar ? "صُنع بحب في الإمارات" : "Made with love in the UAE")
+            Text(ar ? "بامتنان لدولة الإمارات" : "With gratitude to the UAE")
                 .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
             Text("© 2026 Abdulkarim Bayassi")
