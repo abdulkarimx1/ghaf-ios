@@ -13,7 +13,20 @@ struct GhafStatsView: View {
 
     enum Period: Int, CaseIterable { case week, month, quarter, year }
 
-    @State private var period: Period = .month
+    @State private var period: Period = {
+#if DEBUG
+        switch GhafScreenshotFixture.period {
+        case "W": .week
+        case "3M": .quarter
+        case "Y": .year
+        default: .month
+        }
+#else
+        .month
+#endif
+    }()
+    @State private var chartDrawProgress = 1.0
+    @State private var chartReady = false
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
     @State private var selectedBreakdownDay: Date?
@@ -183,14 +196,9 @@ struct GhafStatsView: View {
                 .sensoryFeedback(.selection, trigger: selectedCategory)
                 .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
                 .onAppear {
+                chartReady = true
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
-                switch GhafScreenshotFixture.period {
-                case "W": period = .week
-                case "3M": period = .quarter
-                case "Y": period = .year
-                default: break
-                }
                 if GhafScreenshotFixture.destination == "pro-popup" { showPro = true }
                 if GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
                 if GhafScreenshotFixture.selection == "point" {
@@ -316,6 +324,12 @@ struct GhafStatsView: View {
                     }
                     .opacity(isSelected ? 1 : 0)
             }
+            .environment(\.layoutDirection, .leftToRight)
+            .mask(alignment: .leading) {
+                GeometryReader { geometry in
+                    Rectangle().frame(width: geometry.size.width * chartDrawProgress)
+                }
+            }
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -342,7 +356,6 @@ struct GhafStatsView: View {
             }
             // A new chart per period avoids invalid geometry when the label set changes.
             .id(period)
-            .transaction { $0.animation = nil }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
@@ -375,11 +388,10 @@ struct GhafStatsView: View {
             .onChange(of: period) { _, _ in
                 selectedLabel = nil
                 selectedCategory = nil
+                guard chartReady else { return }
+                chartDrawProgress = 0
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.6)) { chartDrawProgress = 1 }
             }
-        }
-        .transaction {
-            $0.animation = nil
-            $0.disablesAnimations = true
         }
         .frame(maxWidth: .infinity)
         .padding(GhafMetrics.heroPadding)
@@ -533,8 +545,8 @@ struct GhafStatsView: View {
                                     .foregroundStyle(on ? theme.primaryText : theme.secondaryText)
                                     .lineLimit(1).minimumScaleFactor(0.7)
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(GhafCategoryIcon.chartColor(slice.category, dark: theme.isDark).opacity(on ? 1 : selectedCategory == nil ? 0.85 : 0.3))
-                                    .frame(height: max(10, 92 * slice.total / most))
+                                    .fill(theme.accent.opacity(on ? 1 : selectedCategory == nil ? 0.85 : 0.3))
+                                    .frame(height: max(10, 92 * slice.total / most) * chartDrawProgress)
                                 Text(GhafLocalization.category(slice.category, languageCode: lang))
                                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                                     .foregroundStyle(theme.primaryText)
@@ -634,13 +646,7 @@ struct GhafStatsView: View {
                     }
                 }
             }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafStatsCard(theme: theme)
-    }
-
-    private var proCard: some View {
+       private var proCard: some View {
         Button { showPro = true } label: {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles").foregroundStyle(theme.accent)
