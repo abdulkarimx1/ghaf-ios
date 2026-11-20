@@ -230,7 +230,7 @@ struct GhafTransactionsView: View {
             Rectangle().fill(theme.outline).frame(width: 1, height: 40)
             summaryCell(ar ? "الدخل هذا الشهر" : "Income this month", totals.income, theme.credit, icon: "arrow.up.right")
         }
-        .padding(.vertical, 16)
+        .frame(minHeight: 132)
         .ghafCard(theme: theme)
     }
 
@@ -240,7 +240,7 @@ struct GhafTransactionsView: View {
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 24)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 32)
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
@@ -307,8 +307,7 @@ struct GhafTransactionsView: View {
             Text(label)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
                 .lineLimit(1)
-                .padding(.horizontal, 9)
-                .frame(minHeight: GhafMetrics.compactButtonHeight)
+                .frame(maxWidth: .infinity, minHeight: 52)
                 .foregroundStyle(isSelected ? theme.accentContrast : theme.primaryText)
                 .background(isSelected ? theme.accent : theme.surface, in: Capsule())
         }
