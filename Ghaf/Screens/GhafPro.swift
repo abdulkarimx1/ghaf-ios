@@ -112,10 +112,8 @@ struct GhafProView: View {
             }
         } label: {
             Text(testUnlocked ? (ar ? "اشتراك تجريبي فعّال" : "Pro is active (debug)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(theme.accentContrast)
-                .background(theme.accent, in: Capsule())
-        }.disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
+        }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
+            .disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
         do {
             Button(ar ? "استعادة المشتريات" : "Restore purchases") {
                 busy = true

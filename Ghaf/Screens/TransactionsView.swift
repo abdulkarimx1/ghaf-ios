@@ -441,20 +441,16 @@ struct GhafTransactionEditor: View {
                                         languageCode == "ar" ? "محلي · \(contact.localPhone)" : "Local · \(contact.localPhone)",
                                         systemImage: "phone.fill"
                                     )
-                                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                                 }
                                 .ghafGlassButton(theme: theme, languageCode: languageCode)
-                                .frame(maxWidth: .infinity, minHeight: 56)
 
                                 Link(destination: URL(string: "tel:\(contact.internationalDialString)")!) {
                                     Label(
                                         languageCode == "ar" ? "دولي" : "International",
                                         systemImage: "globe"
                                     )
-                                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold))
                                 }
                                 .ghafGlassButton(theme: theme, languageCode: languageCode)
-                                .frame(maxWidth: .infinity, minHeight: 56)
                             }
 
                             Link(

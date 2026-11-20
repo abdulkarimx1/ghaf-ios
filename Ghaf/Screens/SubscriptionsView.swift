@@ -526,8 +526,8 @@ private struct GhafSubscriptionEditor: View {
                             do { try context.save(); GhafSubscriptionReminderService.cancel(subscription); dismiss() }
                             catch { context.rollback(); saveFailed = true }
                         }
-                        .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
-                        .foregroundStyle(theme.over).frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight).padding(.top, 20)
+                        .ghafDestructiveButton(theme: theme, languageCode: settings.languageCode)
+                        .padding(.top, 20)
                     }
                 }
                 .ghafScreenPadding().padding(.bottom, 24).frame(maxWidth: 620).frame(maxWidth: .infinity)

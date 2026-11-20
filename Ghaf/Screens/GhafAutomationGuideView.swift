@@ -287,11 +287,9 @@ struct GhafAutomationGuideView: View {
             if let link = URL(string: url), !url.isEmpty {
                 // The card title names the template, so the button stays short and on one line.
                 Link(destination: link) {
-                    Text(text("Add shortcut", "إضافة الاختصار")).font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                    Text(text("Add shortcut", "إضافة الاختصار"))
                         .lineLimit(1).minimumScaleFactor(0.85)
-                        .foregroundStyle(theme.surface).frame(maxWidth: .infinity, minHeight: 56)
-                        .background(theme.primaryText, in: Capsule())
-                }.buttonStyle(.plain).accessibilityLabel(button)
+                }.ghafProminentButton(theme: theme, languageCode: settings.languageCode).accessibilityLabel(button)
             }
             NavigationLink { manualSetupPage(automation) } label: {
                 Text(text("Set it up manually", "الإعداد يدوياً"))
@@ -414,12 +412,8 @@ struct GhafAutomationGuideView: View {
                 .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
             Button(action: openShortcuts) {
                 Text(text("Open Shortcuts", "فتح الاختصارات"))
-                    .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .semibold))
-                    .foregroundStyle(theme.surface)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(theme.primaryText, in: Capsule())
             }
-            .buttonStyle(.plain)
+            .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)

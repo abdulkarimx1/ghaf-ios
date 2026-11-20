@@ -248,11 +248,8 @@ struct GhafReviewInboxView: View {
             HStack(spacing: 12) {
                 Button { selectedTransaction = transaction } label: {
                     Text(ar ? "تعديل" : "Edit")
-                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.primaryText)
-                        .padding(.horizontal, 24).frame(minHeight: 48)
                 }
-                .buttonStyle(.ghafPress)
+                .ghafGlassButton(theme: theme, languageCode: lang)
                 Button {
                     withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
                         transaction.needsReview = false
@@ -261,12 +258,8 @@ struct GhafReviewInboxView: View {
                     confirmed += 1
                 } label: {
                     Label(ar ? "تأكيد" : "Confirm", systemImage: "checkmark")
-                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.accentContrast)
-                        .padding(.horizontal, 24).frame(minHeight: 48)
-                        .background(theme.accent, in: Capsule())
                 }
-                .buttonStyle(.ghafPress)
+                .ghafProminentButton(theme: theme, languageCode: lang)
                 .disabled(account == nil)
             }
             .frame(maxWidth: .infinity)

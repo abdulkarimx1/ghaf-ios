@@ -155,7 +155,10 @@ struct GhafRootView: View {
     }
 
     private var authenticationLockScreen: some View {
-        ZStack {
+        let theme = GhafTheme.resolve(name: settings.first?.themeName ?? "Graphite",
+                                      appearanceMode: settings.first?.appearanceMode ?? "System",
+                                      systemIsDark: systemColorScheme == .dark)
+        return ZStack {
             Color(uiColor: .systemBackground).ignoresSafeArea()
             VStack(spacing: 18) {
                 Image(systemName: "faceid")
@@ -178,12 +181,8 @@ struct GhafRootView: View {
                 }
                 Button(action: authenticateUser) {
                     Text(languageCode == "ar" ? "فتح غاف" : "Unlock Ghaf")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 30)
-                        .frame(height: GhafMetrics.buttonHeight)
-                        .background(Color.accentColor, in: Capsule())
                 }
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
                 .padding(.top, 4)
             }
             .padding(32)
@@ -714,18 +713,14 @@ struct GhafOnboardingView: View {
                     primaryAction(localized("Continue", "متابعة")) { advance() }
                     Button { showBackupImporter = true } label: {
                         Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
-                            .frame(maxWidth: .infinity, minHeight: 56)
                     }
-                    .foregroundStyle(theme.primaryText)
-                    .background(theme.surface, in: Capsule())
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                 } else if step == 7 {
                     primaryAction(localized("Start using Ghaf", "ابدأ استخدام غاف")) { advance() }
                     Button { showAutomationGuide = true } label: {
                         Text(localized("Set up automatic tracking", "إعداد التتبع التلقائي"))
-                            .font(GhafTypography.body(16, languageCode: languageCode, weight: .medium))
-                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .foregroundStyle(theme.primaryText)
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                 } else {
                     primaryAction(localized("Continue", "متابعة")) { advance() }
                 }
@@ -780,7 +775,7 @@ struct GhafOnboardingView: View {
             }
         }
         .signInWithAppleButtonStyle(theme.isDark ? .white : .black)
-        .frame(height: 56).clipShape(Capsule())
+        .frame(height: 60).clipShape(Capsule())
             .accessibilityHint(GhafFeatureFlags.appStoreAccount ? "" : localized("Coming soon", "قريباً"))
     }
 
@@ -891,10 +886,9 @@ struct GhafOnboardingView: View {
 
     private func primaryAction(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(theme.background).background(theme.primaryText, in: Capsule())
+            Text(title)
         }
+        .ghafProminentButton(theme: theme, languageCode: languageCode)
     }
 
     private func move(to page: Int) {
@@ -1085,12 +1079,8 @@ struct GhafOnboardingView: View {
                             : (languageCode == "ar" ? "إضافة بطاقة أو حساب" : "Add another account"),
                         systemImage: "plus"
                     )
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
                 }
-                .buttonStyle(.bordered)
-                .tint(theme.accent)
+                .ghafGlassButton(theme: theme, languageCode: languageCode)
             }
 
             VStack(alignment: .leading, spacing: 11) {
