@@ -202,3 +202,18 @@ extension GhafWalkthroughTests {
         snap("bank-picker-light-after")
     }
 }
+
+extension GhafWalkthroughTests {
+    func testHomeTransactionsLayout() {
+        launch()
+        XCTAssertTrue(app.buttons["Accounts"].firstMatch.exists)
+        snap("home")
+        swipeUp()
+        snap("home-scrolled")
+        timedTap(app.tabBars.buttons["Transactions"], "open Transactions")
+        XCTAssertTrue(app.buttons["Expenses"].firstMatch.exists)
+        snap("transactions")
+        swipeUp()
+        snap("transactions-scrolled")
+    }
+}

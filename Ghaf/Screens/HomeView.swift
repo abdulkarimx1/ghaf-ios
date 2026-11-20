@@ -154,7 +154,7 @@ struct GhafHomeView: View {
                     }
                 }
                 .ghafScreenPadding()
-                .padding(.top, 8)
+                .padding(.top, 32)
                 .padding(.bottom, 28)
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
@@ -165,18 +165,8 @@ struct GhafHomeView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 header
                     .ghafScreenPadding()
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
-                    .background(alignment: .bottom) {
-                        LinearGradient(stops: [
-                            .init(color: theme.background, location: 0),
-                            .init(color: theme.background.opacity(0), location: 1)
-                        ], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 32)
-                        .offset(y: 32)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                    }
+                    .padding(.top, 16)
+                    .background(theme.background)
             }
 #if DEBUG
             .onAppear {
@@ -344,32 +334,29 @@ struct GhafHomeView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
+            if accounts.contains(where: { !$0.isArchived }) {
+                Button { showAccounts = true } label: {
+                    Image(systemName: "wallet.bifold.fill")
+                        .foregroundStyle(theme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(theme.surface, in: Circle())
+                }
+                .accessibilityLabel(ar ? "الحسابات" : "Accounts")
+                .buttonStyle(.ghafPress)
+                .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
+            } else {
+                Color.clear.frame(width: 44, height: 44)
+            }
+            VStack(spacing: 2) {
                 Text(greeting)
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                 Text(settings.userName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.userName)
-                    .font(GhafTypography.heading(24, languageCode: lang))
+                    .font(GhafTypography.display(32, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
-            Spacer(minLength: 8)
-            if accounts.contains(where: { !$0.isArchived }) {
-                Button { showAccounts = true } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wallet.bifold.fill").font(.system(size: 13, weight: .bold))
-                        Text(ar ? "الحسابات" : "Accounts")
-                            .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                        Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
-                    }
-                    .foregroundStyle(theme.primaryText)
-                    .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
-                    .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
-                    .shadow(color: theme.shadow, radius: 8, y: 3)
-                }
-                .buttonStyle(.ghafPress)
-                .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
-            }
+            .frame(maxWidth: .infinity)
             Button {
                 withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
             } label: {
@@ -378,8 +365,7 @@ struct GhafHomeView: View {
                     .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
-                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
-                    .shadow(color: theme.shadow, radius: 8, y: 3)
+                    .background(theme.surface, in: Circle())
             }
             .buttonStyle(.ghafPress)
             .sensoryFeedback(.impact(weight: .medium), trigger: hideBalances)
