@@ -683,12 +683,11 @@ HStack(spacing: 8) {
                 Toggle(ar ? "تأثير الزجاج" : "Glass effect", isOn: $glassEnabled)
                     .frame(minHeight: 56)
                 glassDivider
-                HStack {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(ar ? "الشدة" : "Intensity").foregroundStyle(theme.primaryText)
-                    Spacer(minLength: 12)
                     GhafSegmented(options: [("subtle", ar ? "خفيف" : "Subtle"), ("balanced", ar ? "متوازن" : "Balanced"), ("bold", ar ? "قوي" : "Bold")], selection: $glassIntensity, theme: theme, languageCode: languageCode)
-                }
-                .frame(minHeight: 64)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.frame(maxWidth: .infinity).padding(.vertical, 10)
                 .disabled(!glassEnabled)
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
