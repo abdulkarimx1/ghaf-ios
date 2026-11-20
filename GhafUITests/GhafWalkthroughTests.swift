@@ -130,10 +130,11 @@ extension GhafWalkthroughTests {
         launch()
         timedTap(app.buttons["Accounts"].firstMatch, "open wallet for editor capture")
         let tabbyBalance = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "Tabby balance")).firstMatch
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.3))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.3))
+        // A fast flick now moves several cards (owner rule), so step one card at a time with a short, slow drag.
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.3))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.32, dy: 0.3))
         for _ in 0..<11 where !tabbyBalance.exists {
-            start.press(forDuration: 0.01, thenDragTo: end, withVelocity: .fast, thenHoldForDuration: 0)
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
         }
         XCTAssertTrue(tabbyBalance.waitForExistence(timeout: 2))
         timedTap(app.buttons["Edit"].firstMatch, "open account editor for capture")
