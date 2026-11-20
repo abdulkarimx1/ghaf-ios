@@ -13,11 +13,23 @@ struct GhafStatsView: View {
 
     enum Period: Int, CaseIterable { case week, month, quarter, year }
 
-    @State private var period: Period = .month
+    @State private var period: Period = {
+#if DEBUG
+        switch GhafScreenshotFixture.period {
+        case "W": .week
+        case "3M": .quarter
+        case "Y": .year
+        default: .month
+        }
+#else
+        .month
+#endif
+    }()
+    @State private var chartDrawProgress = 1.0
+    @State private var chartReady = false
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
     @State private var selectedBreakdownDay: Date?
-    @State private var showPro = false
     @State private var showProSheet = false
     @State private var preparedStats: PreparedStats?
 
@@ -183,16 +195,10 @@ struct GhafStatsView: View {
                 .sensoryFeedback(.selection, trigger: selectedCategory)
                 .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
                 .onAppear {
+                chartReady = true
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
-                switch GhafScreenshotFixture.period {
-                case "W": period = .week
-                case "3M": period = .quarter
-                case "Y": period = .year
-                default: break
-                }
-                if GhafScreenshotFixture.destination == "pro-popup" { showPro = true }
-                if GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
+                if GhafScreenshotFixture.destination == "pro-popup" || GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
                 if GhafScreenshotFixture.selection == "point" {
                     let date = calendar.dateInterval(of: .day, for: Date.now.addingTimeInterval(-9 * 86_400))?.start ?? .now
                     selectedLabel = chartKey(period == .month ? calendar.date(byAdding: .day, value: (((calendar.component(.day, from: date) - 1) / 7) * 7) + 1 - calendar.component(.day, from: date), to: date)! : date)
@@ -207,7 +213,6 @@ struct GhafStatsView: View {
                 }
             }
         }
-        .overlay { if showPro { proPopup.zIndex(2) } }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -316,6 +321,12 @@ struct GhafStatsView: View {
                     }
                     .opacity(isSelected ? 1 : 0)
             }
+            .environment(\.layoutDirection, .leftToRight)
+            .mask(alignment: .leading) {
+                GeometryReader { geometry in
+                    Rectangle().frame(width: geometry.size.width * chartDrawProgress)
+                }
+            }
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -342,7 +353,6 @@ struct GhafStatsView: View {
             }
             // A new chart per period avoids invalid geometry when the label set changes.
             .id(period)
-            .transaction { $0.animation = nil }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
@@ -375,11 +385,10 @@ struct GhafStatsView: View {
             .onChange(of: period) { _, _ in
                 selectedLabel = nil
                 selectedCategory = nil
+                guard chartReady else { return }
+                chartDrawProgress = 0
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.6)) { chartDrawProgress = 1 }
             }
-        }
-        .transaction {
-            $0.animation = nil
-            $0.disablesAnimations = true
         }
         .frame(maxWidth: .infinity)
         .padding(GhafMetrics.heroPadding)
@@ -389,14 +398,10 @@ struct GhafStatsView: View {
     private func selectBucket(at location: CGPoint, plotFrame: CGRect, proxy: ChartProxy, data: [Bucket]) {
         let relativeX = location.x - plotFrame.minX
         let key: String? = proxy.value(atX: relativeX, as: String.self)
-        guard let key, let bucket = data.first(where: { chartKey($0.start) == key }),
-              let pointX = proxy.position(forX: key), let pointY = proxy.position(forY: bucket.total) else {
+        guard let key, data.contains(where: { chartKey($0.start) == key }) else {
             withAnimation(.snappy) { selectedLabel = nil }
             return
         }
-        let dx = location.x - plotFrame.minX - pointX
-        let dy = location.y - plotFrame.minY - pointY
-        guard dx * dx + dy * dy < 784 else { withAnimation(.snappy) { selectedLabel = nil }; return }
         tapTrendBucket(key)
     }
 
@@ -537,8 +542,8 @@ struct GhafStatsView: View {
                                     .foregroundStyle(on ? theme.primaryText : theme.secondaryText)
                                     .lineLimit(1).minimumScaleFactor(0.7)
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(GhafCategoryIcon.chartColor(slice.category, dark: theme.isDark).opacity(on ? 1 : selectedCategory == nil ? 0.85 : 0.3))
-                                    .frame(height: max(10, 92 * slice.total / most))
+                                    .fill(theme.accent.opacity(on ? 1 : selectedCategory == nil ? 0.85 : 0.3))
+                                    .frame(height: max(10, 92 * slice.total / most) * chartDrawProgress)
                                 Text(GhafLocalization.category(slice.category, languageCode: lang))
                                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                                     .foregroundStyle(theme.primaryText)
@@ -645,45 +650,18 @@ struct GhafStatsView: View {
     }
 
     private var proCard: some View {
-        Button { showPro = true } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles").foregroundStyle(theme.accent)
-                Text("Ghaf Pro").font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
-                Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.secondaryText)
+        Button { showProSheet = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles").foregroundStyle(theme.accent).font(.system(size: 17, weight: .semibold))
+                Text("Ghaf Pro").font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Spacer()
+                Image(systemName: ar ? "chevron.left" : "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.secondaryText)
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .padding(.horizontal, 18)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    private var proPopup: some View {
-        ZStack {
-            theme.background.opacity(0.55).ignoresSafeArea().onTapGesture { closePro() }
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Pro").font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accentContrast).padding(.horizontal, 12).padding(.vertical, 7).background(theme.accent, in: Capsule())
-                    Spacer()
-                    Button { closePro() } label: { Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(theme.primaryText).frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityLabel(ar ? "إغلاق" : "Close")
-                }
-                Image(systemName: "sparkles").font(.system(size: 28, weight: .bold)).foregroundStyle(theme.accentContrast)
-                    .frame(width: 64, height: 64).background(theme.accent, in: RoundedRectangle(cornerRadius: 20, style: .continuous)).padding(.top, 24)
-                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro").font(GhafTypography.display(26, languageCode: lang)).foregroundStyle(theme.primaryText).multilineTextAlignment(.center).padding(.top, 24)
-                Text(ar ? "تقارير أعمق، ودجت، ونشاط مباشر" : "Deeper reports, widgets and Live Activities").font(GhafTypography.body(17, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center).padding(.top, 8)
-                Button { showPro = false; showProSheet = true } label: {
-                    Text(ar ? "عرض الخطط ←" : "See plans →").font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.surface).frame(maxWidth: .infinity, minHeight: 56)
-                        .background(theme.primaryText, in: Capsule())
-                }.buttonStyle(.plain).padding(.top, 24)
-                Text(ar ? "لا توجد دفعة حقيقية في هذا الإصدار." : "This build does not take a real payment.")
-                    .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center).padding(.top, 16)
-            }
-            .padding(24).frame(maxWidth: 360).background(theme.surface, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
-        }
-        .transition(.scale(scale: 0.92).combined(with: .opacity))
-        .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.82), value: showPro)
-    }
-
-    private func closePro() {
-        if reduceMotion { showPro = false } else { withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) { showPro = false } }
+        .ghafStatsCard(theme: theme, radius: 22)
     }
 }
