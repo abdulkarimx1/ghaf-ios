@@ -165,7 +165,7 @@ extension GhafWalkthroughTests {
 }
 
 extension GhafWalkthroughTests {
-    func testRestoreCleansMerchantsWithoutChangingBalances() throws {
+    func testRestoreBackupOpensTransactionsWithRealData() throws {
         guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
                 ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"] else {
             throw XCTSkip("TEST_RUNNER_GHAF_BACKUP not set")
@@ -175,8 +175,10 @@ extension GhafWalkthroughTests {
                                "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
-        timedTap(app.tabBars.buttons["Transactions"], "tab Transactions for restore cleanup")
-        snap("restore-cleanup-transactions")
+        timedTap(app.tabBars.buttons["Transactions"], "tab Transactions after backup restore")
+        XCTAssertTrue(app.tabBars.buttons["Transactions"].isSelected)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Digital Dubai'")).firstMatch.waitForExistence(timeout: 10), "Expected a transaction from the real backup")
+        snap("restore-real-data-transactions")
     }
 
     func testBankLogoProof() {
@@ -210,6 +212,19 @@ extension GhafWalkthroughTests {
         timedTap(app.buttons["Add a bank"].firstMatch, "open light bank picker")
         XCTAssertTrue(app.navigationBars["Choose banks"].waitForExistence(timeout: 5))
         snap("bank-picker-light-after")
+    }
+
+    func testImportSheetWithRealBackupData() {
+        launch()
+        timedTap(app.tabBars.buttons["More"], "tab More for import proof")
+        let backup = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Google Drive' AND label CONTAINS[c] 'backup'")).firstMatch
+        for _ in 0..<5 where !backup.exists { swipeUp() }
+        timedTap(backup, "open data and backup")
+        let importData = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Import data'")).firstMatch
+        for _ in 0..<5 where !importData.exists { swipeUp() }
+        timedTap(importData, "open import sheet")
+        XCTAssertTrue(app.staticTexts["Bring your data into Ghaf"].waitForExistence(timeout: 5))
+        snap("import-sheet-real-data")
     }
 }
 

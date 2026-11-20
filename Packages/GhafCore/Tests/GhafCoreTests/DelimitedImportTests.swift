@@ -20,4 +20,35 @@ final class DelimitedImportTests: XCTestCase {
         XCTAssertEqual(array.count, 1)
         XCTAssertEqual(array[0]["description"] as? String, "Cafe")
     }
+
+    func testSlashISODate() {
+        XCTAssertNotNil(DelimitedImport.date("2026/02/13"))
+    }
+
+    func testAmountSeparatorsAndSignedDirection() {
+        XCTAssertEqual(DelimitedImport.decimal("1,234"), 1234)
+        XCTAssertEqual(DelimitedImport.decimal("12,500"), 12500)
+        XCTAssertEqual(DelimitedImport.decimal("12,5"), Decimal(string: "12.5"))
+        XCTAssertEqual(DelimitedImport.decimal("1.234,56"), Decimal(string: "1234.56"))
+        XCTAssertNil(DelimitedImport.decimal("1,23,4"))
+        XCTAssertNil(DelimitedImport.decimal("1.23,45"))
+        XCTAssertEqual(DelimitedImport.decimal("1,234,567"), 1_234_567)
+        XCTAssertEqual(DelimitedImport.direction(amount: 15_000), .credit)
+        XCTAssertEqual(DelimitedImport.direction(amount: -45), .debit)
+        XCTAssertNil(DelimitedImport.direction(debit: "10", credit: "20"))
+    }
+
+    func testFirstNonblankDuplicateHeaderWinsAndHeaderAliasesAreExact() {
+        let row = DelimitedImport.dictionary(headers: ["", "Amount", "Amount", "Value Date", "Account Name"], values: ["bad", "15", "99", "2026-01-01", "Mashreq"])
+        XCTAssertEqual(row["amount"], "15")
+        XCTAssertNil(row[""])
+        XCTAssertNil(DelimitedImport.value(row, aliases: ["value"]))
+        XCTAssertEqual(DelimitedImport.value(row, aliases: ["value date"]), "2026-01-01")
+        XCTAssertNil(DelimitedImport.value(row, aliases: ["name"]))
+    }
+
+    func testDebitCreditColumns() {
+        XCTAssertEqual(DelimitedImport.direction(amount: nil, debit: "45", credit: nil), .debit)
+        XCTAssertEqual(DelimitedImport.direction(amount: nil, debit: nil, credit: "15000"), .credit)
+    }
 }

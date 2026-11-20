@@ -7,11 +7,18 @@ final class SubscriptionDetectorTests: XCTestCase {
 
     func testKnownServiceDetectedOnFirstCharge() {
         XCTAssertEqual(SubscriptionDetector.detect(merchant: "NETFLIX.COM 8829", amount: 39, date: now, history: []), .monthly)
+        XCTAssertEqual(SubscriptionDetector.detect(merchant: "apple.com/bill", amount: 5, date: now, history: []), .monthly)
+        XCTAssertEqual(SubscriptionDetector.detect(merchant: "claude.ai", amount: 20, date: now, history: []), .monthly)
     }
 
     func testRepeatMonthlyChargeDetected() {
         let history = [SubscriptionDetector.PastCharge(merchant: "Local Gym LLC", amount: 250, date: daysAgo(30))]
         XCTAssertEqual(SubscriptionDetector.detect(merchant: "LOCAL GYM LLC", amount: 255, date: now, history: history), .monthly)
+    }
+
+    func testReferenceDigitsDoNotBreakRecurringMatch() {
+        let history = [SubscriptionDetector.PastCharge(merchant: "NETFLIX.COM 8829", amount: 39, date: daysAgo(30))]
+        XCTAssertEqual(SubscriptionDetector.detect(merchant: "NETFLIX.COM 1123", amount: 39, date: now, history: history), .monthly)
     }
 
     func testOneOffPurchaseNotDetected() {
