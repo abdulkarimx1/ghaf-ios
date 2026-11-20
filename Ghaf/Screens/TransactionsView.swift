@@ -17,7 +17,6 @@ struct GhafTransactionsView: View {
     @State private var selectedTransaction: GhafTransaction?
     @State private var transactionDetailHeight: CGFloat = 0
     @State private var transactionDetailDetent: PresentationDetent = .large
-    @State private var sortOrder = "Newest"
     @State private var transactionToDelete: GhafTransaction?
     @State private var showDeleteConfirmation = false
 #if DEBUG
@@ -36,15 +35,6 @@ struct GhafTransactionsView: View {
 
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
-    private var sortOrderTitle: String {
-        switch sortOrder {
-        case "Oldest": ar ? "الأقدم" : "Oldest"
-        case "Highest": ar ? "الأعلى" : "Highest"
-        case "Lowest": ar ? "الأقل" : "Lowest"
-        default: ar ? "الأحدث" : "Newest"
-        }
-    }
-
     /// Filtered once per render; search reads account names from a dictionary, not a scan per row.
     private func filtered() -> [GhafTransaction] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -69,20 +59,7 @@ struct GhafTransactionsView: View {
         }
     }
 
-    private func ordered(_ list: [GhafTransaction]) -> [GhafTransaction] {
-        switch sortOrder {
-        case "Oldest": list.reversed()
-        case "Highest": list.sorted { $0.currency == $1.currency ? $0.amount > $1.amount : $0.currency < $1.currency }
-        case "Lowest": list.sorted { $0.currency == $1.currency ? $0.amount < $1.amount : $0.currency < $1.currency }
-        default: list
-        }
-    }
-
-    /// Day sections for date sorting; one section for amount sorting.
     private func sections(_ list: [GhafTransaction]) -> [(title: String, items: [GhafTransaction])] {
-        guard sortOrder == "Newest" || sortOrder == "Oldest" else {
-            return [(ar ? "حسب المبلغ" : "By amount", list)]
-        }
         let calendar = Calendar.current
         var result: [(title: String, items: [GhafTransaction])] = []
         var currentDay: Date?
@@ -132,7 +109,7 @@ struct GhafTransactionsView: View {
                                         languageCode: lang, theme: theme)
                         monthSummary(totals)
                         searchField
-                        filterBar(count: list.count)
+                        filterBar
                     }
                     .listRowInsets(EdgeInsets(top: 32, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
                     .listRowBackground(Color.clear)
@@ -144,7 +121,7 @@ struct GhafTransactionsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 } else {
-                    ForEach(sections(ordered(list)), id: \.title) { section in
+                    ForEach(sections(list), id: \.title) { section in
                         Section {
                             Text(section.title)
                                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
@@ -273,29 +250,13 @@ struct GhafTransactionsView: View {
         .accessibilityLabel(ar ? "بحث" : "Search")
     }
 
-    private func filterBar(count: Int) -> some View {
+    private var filterBar: some View {
         HStack(spacing: 6) {
             filterButton("All", label: ar ? "الكل" : "All")
             filterButton("Expenses", label: ar ? "مصروفات" : "Expenses")
             filterButton("Income", label: ar ? "دخل" : "Income")
             filterButton("Review", label: ar ? "مراجعة" : "Review")
-            Menu {
-                Picker(ar ? "ترتيب" : "Sort", selection: $sortOrder) {
-                    Text(ar ? "الأحدث" : "Newest").tag("Newest")
-                    Text(ar ? "الأقدم" : "Oldest").tag("Oldest")
-                    Text(ar ? "الأعلى" : "Highest").tag("Highest")
-                    Text(ar ? "الأقل" : "Lowest").tag("Lowest")
-                }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(theme.primaryText)
-                    .frame(width: 44, height: 44)
-                    .background(theme.surface, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(ar ? "ترتيب، \(count) عملية" : "Sort, \(count) transactions")
-            .accessibilityValue(sortOrderTitle)
+
         }
     }
 
