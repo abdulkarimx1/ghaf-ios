@@ -106,6 +106,7 @@ final class GhafWalkthroughTests: XCTestCase {
     }
 }
 
+
 extension GhafWalkthroughTests {
     func test5ProfileBeforeAfterCapture() {
         launch()
@@ -382,6 +383,50 @@ extension GhafWalkthroughTests {
                     if alert.waitForExistence(timeout: 2) { alert.buttons.firstMatch.tap() }
                 }
             }
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testSessionGAutomationWalkthrough() {
+        launch(["-GhafScreen", "automation", "-GhafAutomationState", "working"])
+        snap("g-after-your-banks")
+
+        let addBank = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add a bank")).firstMatch
+        if addBank.waitForExistence(timeout: 5) {
+            addBank.tap()
+            _ = app.navigationBars["Choose banks"].waitForExistence(timeout: 5)
+            snap("g-after-bank-picker")
+            app.buttons["Done"].tap()
+        }
+
+        app.swipeUp(velocity: .fast)
+        app.swipeUp(velocity: .fast)
+        let bankGuide = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Bank text messages")).firstMatch
+        if bankGuide.waitForExistence(timeout: 5) {
+            bankGuide.tap()
+            Thread.sleep(forTimeInterval: 1)
+            snap("g-after-bank-alert-guide")
+            let manual = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Set it up manually instead")).firstMatch
+            if manual.waitForExistence(timeout: 5) { manual.tap(); Thread.sleep(forTimeInterval: 1); snap("g-after-bank-manual-guide") }
+        }
+
+        let walletGuide = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Apple Pay purchases")).firstMatch
+        if walletGuide.waitForExistence(timeout: 5) {
+            walletGuide.tap()
+            Thread.sleep(forTimeInterval: 1)
+            snap("g-after-wallet-guide")
+            let manual = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Set it up manually instead")).firstMatch
+            if manual.waitForExistence(timeout: 5) { manual.tap(); Thread.sleep(forTimeInterval: 1); snap("g-after-wallet-manual-guide") }
+        }
+
+        app.terminate()
+        launch(["-GhafScreen", "automation", "-GhafAutomationState", "working",
+                "-GhafAutomationExpanded", "wallet", "-GhafAutomationPage", "12"])
+        let manualWallet = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Set it up manually instead")).firstMatch
+        if manualWallet.waitForExistence(timeout: 5) {
+            manualWallet.tap()
+            Thread.sleep(forTimeInterval: 1)
+            snap("g-after-wallet-last-step")
         }
     }
 }

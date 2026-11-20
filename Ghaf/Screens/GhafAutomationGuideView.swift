@@ -15,6 +15,7 @@ struct GhafAutomationGuideView: View {
     @State private var expandedAutomation: Automation?
     @State private var refreshTick = false
     @State private var automationPage = 0
+    @State private var manualSetupExpanded = false
 
     private enum Automation: String { case messages, notifications, wallet }
 
@@ -147,8 +148,8 @@ struct GhafAutomationGuideView: View {
                 .font(GhafTypography.display(28, languageCode: settings.languageCode))
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.center)
-            Text(text("Ghaf records bank purchases for you. Set up two automations in Shortcuts on iOS 26; app notifications are also available on iOS 27.",
-                      "يسجل غاف مشترياتك البنكية. أعدّ أتمتتين في «الاختصارات» على iOS 26، وتتوفر إشعارات التطبيقات أيضاً على iOS 27."))
+            Text(text("You only do this once. After that, Ghaf records your purchases automatically.",
+                      "تحتاج إلى إعدادها مرة واحدة فقط. بعدها، يسجّل غاف مشترياتك تلقائياً."))
                 .font(GhafTypography.body(15, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
@@ -174,23 +175,28 @@ struct GhafAutomationGuideView: View {
                         .multilineTextAlignment(.trailing)
                 }
             }
+            Text(text("You only do this once. After that, Ghaf records your purchases automatically.",
+                      "تحتاج إلى إعدادها مرة واحدة فقط. بعدها، يسجّل غاف مشترياتك تلقائياً."))
+            .font(GhafTypography.body(13, languageCode: settings.languageCode))
+            .foregroundStyle(theme.secondaryText)
+            .multilineTextAlignment(ar ? .trailing : .leading)
+            Text(text("Turning a bank on here doesn’t connect it. Choose the bank as a sender in the automation.",
+                      "تفعيل البنك هنا لا يربطه. اختر البنك مُرسِلاً في الأتمتة."))
+                .font(GhafTypography.body(13, languageCode: settings.languageCode))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(ar ? .trailing : .leading)
             Button {
                 expandedAutomation = .messages
                 automationPage = 2
                 onGuideTap()
             } label: {
-                Text(text(
-                    "Turning a bank on here doesn’t connect it. In Shortcuts, choose this bank as the sender for text messages or choose its app for notifications.",
-                    "تفعيل البنك هنا لا يربطه بغاف. في «الاختصارات»، اختر مُرسِل البنك للرسائل النصية أو تطبيقه للإشعارات."
-                ))
-                .font(GhafTypography.body(13, languageCode: settings.languageCode))
-                .foregroundStyle(theme.secondaryText)
-                .multilineTextAlignment(ar ? .trailing : .leading)
-                .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
-                .contentShape(Rectangle())
+                Text(text("How to connect a bank", "طريقة ربط البنك"))
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint(text("Opens step 3 of the bank automation guide", "يفتح الخطوة 3 من دليل أتمتة البنك"))
             if chosenBanks.isEmpty {
                 VStack(spacing: 16) {
                     Text(text("Choose the banks you get messages from", "اختر البنوك التي تصلك رسائل منها"))
@@ -210,7 +216,6 @@ struct GhafAutomationGuideView: View {
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity)
-                .ghafCard(theme: theme)
             } else {
             VStack(spacing: 0) {
                 ForEach(Array(chosenBanks.enumerated()), id: \.element) { index, name in
@@ -237,7 +242,6 @@ struct GhafAutomationGuideView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .ghafCard(theme: theme)
             }
         }
     }
@@ -323,6 +327,7 @@ struct GhafAutomationGuideView: View {
                         expandedAutomation = nil
                     } else {
                         automationPage = 0
+                        manualSetupExpanded = false
                         expandedAutomation = automation
                     }
                 }
@@ -372,7 +377,7 @@ struct GhafAutomationGuideView: View {
                 GuideStep(screen: "Add Action", controls: ["Apps"], highlight: "Apps", caption: text("Tap “Apps”.", "اضغط على “Apps”.")),
                 GuideStep(screen: "Apps", controls: ["Ghaf"], highlight: "Ghaf", caption: text("Choose “Ghaf”.", "اختر “Ghaf”.")),
                 GuideStep(screen: "Ghaf", controls: ["Capture Apple Pay"], highlight: "Capture Apple Pay", caption: text("Choose “Capture Apple Pay”.", "اختر “Capture Apple Pay”.")),
-                GuideStep(screen: "Capture Apple Pay", controls: ["Amount", "Merchant", "Card", "Location", "Done"], highlight: "Amount", caption: text("Map “Amount”, “Merchant”, and “Card”, then tap “Done”.", "اربط “Amount” و“Merchant” و“Card”، ثم اضغط “Done”.")),
+                GuideStep(screen: "Capture Apple Pay", controls: ["Wallet transaction", "Location", "Done"], highlight: "Wallet transaction", caption: text("Leave “Wallet transaction” connected automatically, then tap “Done”. Do not fill Amount, Merchant, or Card.", "اترك “Wallet transaction” متصلاً تلقائياً، ثم اضغط “Done”. لا تُدخل Amount أو Merchant أو Card.")),
             ]
         }
         if automation == .messages {
@@ -394,7 +399,7 @@ struct GhafAutomationGuideView: View {
             GuideStep(screen: "Automation", controls: ["New Automation"], highlight: "New Automation", caption: text("Tap “New Automation”.", "اضغط على “New Automation”."), imageName: "NewAutomation"),
             GuideStep(screen: "Personal Automation", controls: ["Notification"], highlight: "Notification", caption: text("Choose “Notification”.", "اختر “Notification”.")),
             GuideStep(screen: "Notification", controls: ["App"], highlight: "App", caption: text("Tap “App”.", "اضغط على “App”.")),
-            GuideStep(screen: "App", controls: ["Choose Apps", "Done"], highlight: "Choose Apps", caption: text("Choose your bank apps, then tap “Done”.", "اختر تطبيقات البنوك، ثم اضغط على “Done”.")),
+                GuideStep(screen: "App", controls: ["Wallet", "Choose Apps", "Done"], highlight: "Wallet", caption: text("The template selects Wallet. Keep it selected to start; add your bank apps to this same trigger later.", "يحدد القالب Wallet. اتركه محدداً في البداية، ثم أضف تطبيقات البنوك إلى الأتمتة نفسها لاحقاً.")),
             GuideStep(screen: "Notification", controls: ["Next"], highlight: "Next", caption: text("Tap “Next”.", "اضغط على “Next”.")),
             GuideStep(screen: "New Automation", controls: ["New Blank Automation"], highlight: "New Blank Automation", caption: text("Choose “New Blank Automation”.", "اختر “New Blank Automation”.")),
             GuideStep(screen: "Automation", controls: ["Add Action"], highlight: "Add Action", caption: text("Tap “Add Action”.", "اضغط على “Add Action”.")),
@@ -407,7 +412,38 @@ struct GhafAutomationGuideView: View {
 
     private func automationInstructions(_ automation: Automation) -> some View {
         let steps = guideSteps(automation)
+        let shortcutURLText = automation == .wallet ? GhafLinks.applePayShortcutURL : GhafLinks.bankAlertShortcutURL
+        let shortcutURL = URL(string: shortcutURLText)
         return VStack(spacing: 14) {
+            Text(text("You only do this once. After that, Ghaf records your purchases automatically.",
+                      "تحتاج إلى إعدادها مرة واحدة فقط. بعدها، يسجّل غاف مشترياتك تلقائياً."))
+                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
+            if let shortcutURL, !shortcutURLText.isEmpty {
+                Link(destination: shortcutURL) {
+                    Text(text("Add the Ghaf shortcut", "أضف اختصار غاف"))
+                        .font(GhafTypography.body(18, languageCode: settings.languageCode, weight: .semibold))
+                        .foregroundStyle(theme.surface)
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .background(theme.primaryText, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                Text(text("You still create the automation once in Shortcuts.", "مع ذلك، عليك إنشاء الأتمتة مرة واحدة في «الاختصارات»."))
+                    .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { manualSetupExpanded.toggle() }
+                } label: {
+                    Text(text("Set it up manually instead", "أعدّ الإعداد يدوياً بدلاً من ذلك"))
+                        .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))
+                        .foregroundStyle(theme.accent)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+            }
+            if shortcutURL == nil || shortcutURLText.isEmpty || manualSetupExpanded {
             HStack {
                 Text(text("Step \(automationPage + 1) of \(steps.count)", "الخطوة \(automationPage + 1) من \(steps.count)"))
                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
@@ -469,6 +505,7 @@ struct GhafAutomationGuideView: View {
                     .background(theme.primaryText, in: Capsule())
             }
             .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
@@ -532,7 +569,7 @@ struct GhafAutomationGuideView: View {
             }
             .buttonStyle(.plain)
             .ghafCard(theme: theme)
-            Text(text("“Missing amount or merchant. Nothing saved.” means you skipped “Map the fields”.", "تعني رسالة “المبلغ أو التاجر مفقود. لم يتم الحفظ.” أنك تخطيت خطوة “Map the fields”."))
+            Text(text("“Ghaf got no transaction details” means nothing was saved. Make a real Wallet payment to test it.", "تعني رسالة “لم يتلقَّ غاف تفاصيل المعاملة” أنه لم يُحفظ شيء. اختبره بعملية دفع حقيقية عبر Wallet."))
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .padding(.horizontal, 4)
@@ -551,7 +588,7 @@ struct GhafAutomationGuideView: View {
                         .font(GhafTypography.body(17, languageCode: settings.languageCode))
                         .padding(.horizontal, 16)
                         .frame(height: 56)
-                        .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18))
+                        .background(theme.surface, in: Capsule())
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(banks) { bank in
                             let isChosen = chosenBanks.contains(bank.name)
@@ -562,17 +599,23 @@ struct GhafAutomationGuideView: View {
                             } label: {
                                 VStack(spacing: 8) {
                                     ZStack(alignment: .topTrailing) {
-                                        bankBadge(bank, size: 44)
-                                        if isChosen { Image(systemName: "checkmark.circle.fill").font(.system(size: 17)).foregroundStyle(theme.comfortable) }
+                                        bankBadge(bank, size: 54)
+                                        if isChosen {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 18, weight: .semibold))
+                                                .foregroundStyle(theme.accent)
+                                                .background(theme.background, in: Circle())
+                                        }
                                     }
                                     Text(ar ? bank.nameArabic : bank.name)
-                                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .medium))
+                                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
                                         .foregroundStyle(theme.primaryText)
                                         .lineLimit(2)
                                         .multilineTextAlignment(.center)
                                 }
-                                .frame(width: 88, height: 88)
-                                .ghafCard(theme: theme, radius: 18)
+                                .frame(maxWidth: .infinity, minHeight: 94)
+                                .padding(4)
+                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(isChosen ? theme.accent : .clear, lineWidth: 1.5))
                                 .contentShape(RoundedRectangle(cornerRadius: 18))
                             }
                             .buttonStyle(.plain)
@@ -602,15 +645,22 @@ struct GhafAutomationGuideView: View {
 
     @ViewBuilder
     private func bankBadge(_ bank: GhafBankSupportContact, size: CGFloat) -> some View {
-        if let logo = UIImage(named: "Bank-\(bank.id)") {
-            Image(uiImage: logo)
-                .resizable()
-                .scaledToFit()
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-                    .stroke(theme.outline, lineWidth: 0.5))
-                .accessibilityHidden(true)
+        if let source = UIImage(named: "Bank-\(bank.id)"), let logo = Self.logoCache.object(forKey: bank.id as NSString) ?? removeWhiteBackdrop(source).map({ image in
+            Self.logoCache.setObject(image, forKey: bank.id as NSString)
+            return image
+        }) {
+            Group {
+                if logoIsMostlyWhite(logo) {
+                    ZStack {
+                        Image(uiImage: logo).renderingMode(.template).resizable().foregroundStyle(theme.outline).scaledToFit()
+                        Image(uiImage: logo).resizable().scaledToFit().padding(1)
+                    }
+                } else {
+                    Image(uiImage: logo).resizable().scaledToFit()
+                }
+            }
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
         } else if GhafBrand.match(bank.name) != nil {
             GhafBrandBadge(name: bank.name, fallbackTint: theme.accent, size: size)
         } else {
@@ -625,6 +675,69 @@ struct GhafAutomationGuideView: View {
                 .background(color, in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
                 .accessibilityHidden(true)
         }
+    }
+
+    private static let logoCache = NSCache<NSString, UIImage>()
+
+    private func removeWhiteBackdrop(_ image: UIImage) -> UIImage? {
+        guard let source = image.cgImage else { return nil }
+        let scale = min(160 / CGFloat(max(source.width, source.height)), 1)
+        let width = max(1, Int(CGFloat(source.width) * scale))
+        let height = max(1, Int(CGFloat(source.height) * scale))
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(source, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        var queue: [Int] = []
+        func eraseWhite(at index: Int) {
+            let offset = index * 4
+            guard pixels[offset + 3] > 220, pixels[offset] > 220, pixels[offset + 1] > 220, pixels[offset + 2] > 220 else { return }
+            pixels[offset] = 0; pixels[offset + 1] = 0; pixels[offset + 2] = 0; pixels[offset + 3] = 0
+            queue.append(index)
+        }
+        for x in 0..<width { eraseWhite(at: x); eraseWhite(at: (height - 1) * width + x) }
+        for y in 0..<height { eraseWhite(at: y * width); eraseWhite(at: y * width + width - 1) }
+        var cursor = 0
+        while cursor < queue.count {
+            let i = queue[cursor], x = i % width, y = i / width
+            cursor += 1
+            if x > 0 { eraseWhite(at: i - 1) }
+            if x + 1 < width { eraseWhite(at: i + 1) }
+            if y > 0 { eraseWhite(at: i - width) }
+            if y + 1 < height { eraseWhite(at: i + width) }
+        }
+        return pixels.withUnsafeMutableBytes { bytes -> UIImage? in
+            guard let context = CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue),
+                  let cgImage = context.makeImage() else { return nil }
+            return UIImage(cgImage: cgImage)
+        }
+    }
+
+    private func logoIsMostlyWhite(_ image: UIImage) -> Bool {
+        guard let cgImage = image.cgImage else { return false }
+        let width = 24, height = 24
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return false }
+        let visible = stride(from: 3, to: pixels.count, by: 4).filter { pixels[$0] > 180 }
+        let white = visible.filter { alphaIndex in
+            let i = alphaIndex - 3
+            return pixels[i] > 225 && pixels[i + 1] > 225 && pixels[i + 2] > 225
+        }
+        return !visible.isEmpty && Double(white.count) / Double(visible.count) > 0.65
     }
 
     private func bankMonogramColor(for id: String) -> UInt32 {
@@ -680,10 +793,10 @@ struct GhafAutomationGuideView: View {
 
     private func bankStatus(enabled: Bool, lastSeen: Double, skipped: Int) -> String {
         if !enabled { return text("Off: Ghaf ignores this bank’s alerts · \(skipped) skipped", "متوقف: يتجاهل غاف تنبيهات هذا البنك · تم تجاهل \(skipped)") }
-        guard lastSeen > 0 else { return text("No messages yet", "لا توجد رسائل بعد") }
+        guard lastSeen > 0 else { return text("Waiting for first alert", "بانتظار أول تنبيه") }
         let date = Date(timeIntervalSince1970: lastSeen)
-        return text("Last message \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))",
-                    "آخر عملية \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))")
+        return text("Working · last alert \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))",
+                    "يعمل · آخر تنبيه \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))")
     }
 
     private func refreshBanks() {
