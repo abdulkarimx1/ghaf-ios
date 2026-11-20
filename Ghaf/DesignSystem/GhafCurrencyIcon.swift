@@ -93,6 +93,7 @@ struct GhafCurrencyPicker: View {
 
 /// An amount with its real currency sign (AED, SAR, OMR) or ISO code, masked with sparkles when hidden.
 struct GhafMoneyLabel: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let amount: Decimal
     let currency: String
     let languageCode: String
@@ -103,6 +104,20 @@ struct GhafMoneyLabel: View {
     @AppStorage(GhafFormat.hideBalancesKey) private var hiddenEverywhere = false
 
     static let mask = "✦✦✦✦"
+
+    private var isHidden: Bool { hidden || hiddenEverywhere }
+    private var concealmentDelay: Double {
+        // shortcut: equal currency/amount labels share a slot; pass row order if strict sequencing is required.
+        Double(abs("\(currency):\(amount)".hashValue % 10)) * 0.04
+    }
+
+    @ViewBuilder private func amountTransition<Content: View>(_ content: Content, scale: CGFloat) -> some View {
+        if reduceMotion {
+            content.transition(.opacity)
+        } else {
+            content.transition(.blurReplace.combined(with: .scale(scale)))
+        }
+    }
 
     // Formatters are costly to build; reuse per language and currency precision (main thread only).
     private static let formatters: [String: [Int: NumberFormatter]] = ["ar": "ar_AE", "en": "en_AE"].mapValues { id in
@@ -143,24 +158,27 @@ struct GhafMoneyLabel: View {
                     .font(GhafTypography.number(size * 0.55, weight: weight))
             }
             // Hiding blurs the digits into stars (and back); a value change still rolls its digits.
-            if hidden || hiddenEverywhere {
-                Text(Self.mask)
+            if isHidden {
+                amountTransition(Text(Self.mask)
                     .font(GhafTypography.number(size * 0.7, weight: weight))
-                    .tracking(size * 0.08)
-                    .transition(.blurReplace.combined(with: .scale(0.6)))
+                    .tracking(size * 0.08), scale: 0.6)
             } else {
-                numberText
-                    .font(GhafTypography.number(size, weight: weight))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .transition(.blurReplace.combined(with: .scale(1.15)))
+                amountTransition(
+                    numberText
+                        .font(GhafTypography.number(size, weight: weight))
+                        .monospacedDigit()
+                        .contentTransition(.numericText()),
+                    scale: 1.15
+                )
             }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)
+        .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.14)
+            .delay(reduceMotion ? 0 : concealmentDelay), value: isHidden)
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(hidden ? (languageCode == "ar" ? "المبلغ مخفي" : "Amount hidden")
+        .accessibilityLabel(isHidden ? (languageCode == "ar" ? "المبلغ مخفي" : "Amount hidden")
                                    : "\(number) \(GhafCurrencyIcon.name(currency, languageCode: languageCode))")
     }
 }
