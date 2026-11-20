@@ -389,14 +389,10 @@ struct GhafStatsView: View {
     private func selectBucket(at location: CGPoint, plotFrame: CGRect, proxy: ChartProxy, data: [Bucket]) {
         let relativeX = location.x - plotFrame.minX
         let key: String? = proxy.value(atX: relativeX, as: String.self)
-        guard let key, let bucket = data.first(where: { chartKey($0.start) == key }),
-              let pointX = proxy.position(forX: key), let pointY = proxy.position(forY: bucket.total) else {
+        guard let key, data.contains(where: { chartKey($0.start) == key }) else {
             withAnimation(.snappy) { selectedLabel = nil }
             return
         }
-        let dx = location.x - plotFrame.minX - pointX
-        let dy = location.y - plotFrame.minY - pointY
-        guard dx * dx + dy * dy < 784 else { withAnimation(.snappy) { selectedLabel = nil }; return }
         tapTrendBucket(key)
     }
 
