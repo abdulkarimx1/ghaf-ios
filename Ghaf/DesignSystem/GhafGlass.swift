@@ -1,8 +1,11 @@
 import SwiftUI
 import UIKit
 import CoreMotion
+import simd
 import Observation
 import os
+
+private let ghafGlassLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Ghaf", category: "glass")
 
 struct GhafGlassStyle: Equatable {
     enum Intensity: String, CaseIterable, Identifiable { case subtle, balanced, bold; var id: String { rawValue } }
@@ -17,78 +20,113 @@ struct GhafGlassStyle: Equatable {
 private struct GhafGlassEnvironmentKey: EnvironmentKey { static let defaultValue = GhafGlassStyle.off }
 extension EnvironmentValues { var ghafGlass: GhafGlassStyle { get { self[GhafGlassEnvironmentKey.self] } set { self[GhafGlassEnvironmentKey.self] = newValue } } }
 
+struct GhafTiltFilter {
+    private(set) var reference: simd_quatd?
+    private var timestamp = 0.0
+    private var position = SIMD2<Double>.zero
+    private var velocity = SIMD2<Double>.zero
+
+    mutating func sample(_ attitude: simd_quatd, at time: TimeInterval) -> CGPoint {
+        if let reference {
+            let dt = time - timestamp
+            guard dt > 0 else { return CGPoint(x: position.x, y: position.y) }
+            let normal = (reference.inverse * attitude).act(SIMD3(0, 0, 1))
+            var target = SIMD2(Self.normalized(atan2(normal.x, normal.z)),
+                               Self.normalized(asin(max(-1, min(1, -normal.y)))))
+            target /= max(1, simd_length(target))
+            // Exact critically damped step at 20 rad/s, independent of delivery jitter.
+            let error = position - target
+            let slope = velocity + 20 * error
+            let decay = exp(-20 * dt)
+            position = target + (error + slope * dt) * decay
+            velocity = (velocity - 20 * slope * dt) * decay
+            self.reference = simd_slerp(reference, attitude, 1 - exp(-dt / 2.5))
+        } else {
+            reference = attitude
+            ghafGlassLogger.info("Tilt neutral attitude captured; reference recenter time constant 2.5 s")
+        }
+        timestamp = time
+        return CGPoint(x: position.x, y: position.y)
+    }
+
+    static func normalized(_ angle: Double) -> Double {
+        let degrees = abs(angle) * 180 / .pi
+        return copysign(min(1, max(0, (degrees - 1.5) / (20 - 1.5))), angle)
+    }
+
+#if DEBUG
+    static func selfCheck() {
+        var filter = GhafTiltFilter()
+        let neutral = simd_quatd(angle: 35 * .pi / 180, axis: SIMD3(1, 0, 0))
+        assert(filter.sample(neutral, at: 0) == .zero, "Captured hand-held attitude must be neutral")
+        let moved = neutral * simd_quatd(angle: 10 * .pi / 180, axis: SIMD3(1, 0, 0))
+        let response = filter.sample(moved, at: 1.0 / 30)
+        assert(hypot(response.x, response.y) > 0 && hypot(response.x, response.y) <= 1, "Tilt response must stay normalized")
+        var settled = response
+        for step in 2...180 { settled = filter.sample(moved, at: Double(step) / 30) }
+        assert(hypot(settled.x, settled.y) < hypot(response.x, response.y), "Reference must slowly recenter")
+        ghafGlassLogger.info("Tilt self-check passed: hand-held neutral captured and reference recentered")
+    }
+#endif
+}
+
 @Observable @MainActor
 final class GhafTiltMotion {
     static let shared = GhafTiltMotion()
     private(set) var tilt = CGPoint.zero
     private let manager = CMMotionManager()
-    private let queue: OperationQueue = { let q = OperationQueue(); q.name = "GhafTiltMotion"; q.maxConcurrentOperationCount = 1; q.qualityOfService = .utility; return q }()
-    private var reference: CMAttitude?
-    private var filtered = CGPoint.zero
-    private var running = false
+    private var timer: Timer?
+    private var filter = GhafTiltFilter()
     private var requested = false
-    private var lastTiltPublish: TimeInterval = 0
-    private let deadZone = 0.0262 // 1.5 degrees
     private var powerObserver: NSObjectProtocol?
     private init() {
+#if DEBUG
+        GhafTiltFilter.selfCheck()
+#endif
         powerObserver = NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.reevaluate() } }
         NotificationCenter.default.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.reevaluate() } }
     }
     func update(enabled: Bool) {
         requested = enabled
-#if DEBUG
-        if enabled, let fixture = Self.debugAttitude {
-            manager.stopDeviceMotionUpdates()
-            running = false
-            reference = nil
-            filtered = fixture
-            tilt = fixture
-            return
-        }
-#endif
         reevaluate()
     }
     private func reevaluate() {
         let thermalAllowsMotion: Bool
         switch ProcessInfo.processInfo.thermalState { case .nominal, .fair: thermalAllowsMotion = true; case .serious, .critical: thermalAllowsMotion = false; @unknown default: thermalAllowsMotion = false }
-        let shouldRun = requested && manager.isDeviceMotionAvailable && !ProcessInfo.processInfo.isLowPowerModeEnabled && thermalAllowsMotion
-        guard shouldRun != running else { return }
-        running = shouldRun
-        if shouldRun {
-            manager.deviceMotionUpdateInterval = 1.0 / 60.0
-            manager.startDeviceMotionUpdates(to: queue) { [weak self] motion, _ in
-                guard let motion else { return }
-                Task { @MainActor [weak self] in
-                    guard let self, self.running else { return }
-                    let now = ProcessInfo.processInfo.systemUptime
-                    guard now - self.lastTiltPublish >= 1.0 / 30.0 else { return }
-                    self.lastTiltPublish = now
-                    guard let attitude = motion.attitude.copy() as? CMAttitude else { return }
-                    if self.reference == nil { self.reference = attitude.copy() as? CMAttitude }
-                    if let reference = self.reference { attitude.multiply(byInverseOf: reference) }
-                    let target = CGPoint(x: Self.normalized(attitude.roll, deadZone: self.deadZone),
-                                         y: Self.normalized(attitude.pitch, deadZone: self.deadZone))
-                    let next = CGPoint(x: self.filtered.x + (target.x - self.filtered.x) * 0.12,
-                                       y: self.filtered.y + (target.y - self.filtered.y) * 0.12)
-                    if abs(next.x - self.filtered.x) > 0.003 || abs(next.y - self.filtered.y) > 0.003 {
-                        self.filtered = next
-                        let magnitude = hypot(next.x, next.y)
-                        let scale = magnitude > 1 ? 1 / magnitude : 1
-                        self.tilt = CGPoint(x: next.x * scale, y: next.y * scale)
-                    }
-                }
-            }
-            Logger.ghafGlass.debug("Tilt motion started")
-        } else {
-            manager.stopDeviceMotionUpdates(); reference = nil; filtered = .zero; tilt = .zero
-            Logger.ghafGlass.debug("Tilt motion stopped")
+        let enabled = requested && !ProcessInfo.processInfo.isLowPowerModeEnabled && thermalAllowsMotion
+#if DEBUG
+        if enabled, let fixture = Self.debugAttitude {
+            tilt = fixture
+            ghafGlassLogger.info("Tilt fixture applied; Core Motion bypassed")
+            return
         }
+#endif
+        guard enabled && manager.isDeviceMotionAvailable else {
+            timer?.invalidate()
+            timer = nil
+            if manager.isDeviceMotionActive { manager.stopDeviceMotionUpdates() }
+            filter = GhafTiltFilter()
+            if tilt != .zero { tilt = .zero }
+            return
+        }
+        guard timer == nil else { return }
+        let interval = 1.0 / 30
+        manager.deviceMotionUpdateInterval = interval
+        manager.startDeviceMotionUpdates()
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sample() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
-    private static func normalized(_ angle: Double, deadZone: Double) -> Double {
-        let magnitude = abs(angle)
-        guard magnitude > deadZone else { return 0 }
-        return copysign(min((magnitude - deadZone) / (Double.pi / 6 - deadZone), 1), angle)
+    private func sample() {
+        guard let motion = manager.deviceMotion else { return }
+        let q = motion.attitude.quaternion
+        let next = filter.sample(simd_quatd(ix: q.x, iy: q.y, iz: q.z, r: q.w), at: motion.timestamp)
+        if hypot(next.x - tilt.x, next.y - tilt.y) > 0.003 {
+            tilt = next
+        }
     }
 
 #if DEBUG
@@ -98,17 +136,13 @@ final class GhafTiltMotion {
               let rollIndex = args.firstIndex(of: "-GhafTiltRoll"), args.indices.contains(rollIndex + 1),
               let pitchIndex = args.firstIndex(of: "-GhafTiltPitch"), args.indices.contains(pitchIndex + 1),
               let roll = Double(args[rollIndex + 1]), let pitch = Double(args[pitchIndex + 1]) else { return nil }
-        let vector = CGPoint(x: normalized(roll * .pi / 180, deadZone: 0.0262),
-                             y: normalized(pitch * .pi / 180, deadZone: 0.0262))
+        let vector = CGPoint(x: GhafTiltFilter.normalized(roll * .pi / 180),
+                             y: GhafTiltFilter.normalized(pitch * .pi / 180))
         let magnitude = hypot(vector.x, vector.y)
         let scale = magnitude > 1 ? 1 / magnitude : 1
         return CGPoint(x: vector.x * scale, y: vector.y * scale)
     }
 #endif
-}
-
-private extension Logger {
-    static let ghafGlass = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Ghaf", category: "glass")
 }
 
 enum GhafGlassGrain {
@@ -146,7 +180,6 @@ struct GhafGlassSurface: ViewModifier {
                     }
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
-                .overlay { shape.strokeBorder(theme.glow.opacity(theme.isDark ? 0.12 : 0.08), lineWidth: 4) }
                 .overlay { GhafGlassRim(theme: theme, shape: shape) }
             } else {
                 shape.fill(fallback ?? theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6)
@@ -167,28 +200,15 @@ private struct GhafGlassRim: View {
         let shiftY = CGFloat(tilt.y) * 0.3
         let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shiftX, y: 0.5 - sin(angle) * 0.5 + shiftY)
         let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shiftX, y: 0.5 + sin(angle) * 0.5 + shiftY)
-        shape.strokeBorder(LinearGradient(colors: theme.isDark ? [.white, .white.opacity(0.12), .white.opacity(0.03), .white.opacity(0.25)] : [theme.glow, theme.glow.opacity(0.18), theme.outline], startPoint: start, endPoint: end), lineWidth: 1.2)
-    }
-}
-
-struct GhafShapeRim<S: Shape>: View {
-    let theme: GhafTheme
-    let shape: S
-
-    init(theme: GhafTheme, shape: S) {
-        self.theme = theme
-        self.shape = shape
-    }
-
-    private var motion: GhafTiltMotion { .shared }
-    var body: some View {
-        let tilt = motion.tilt
-        let angle = Double.pi / 2 + Double(tilt.x) * 30 * .pi / 180
-        let shiftX = CGFloat(tilt.x) * 0.3
-        let shiftY = CGFloat(tilt.y) * 0.3
-        let start = UnitPoint(x: 0.5 - cos(angle) * 0.5 + shiftX, y: 0.5 - sin(angle) * 0.5 + shiftY)
-        let end = UnitPoint(x: 0.5 + cos(angle) * 0.5 + shiftX, y: 0.5 + sin(angle) * 0.5 + shiftY)
-        shape.stroke(LinearGradient(colors: theme.isDark ? [.white, .white.opacity(0.12), .white.opacity(0.03), .white.opacity(0.25)] : [theme.glow, theme.glow.opacity(0.18), theme.outline], startPoint: start, endPoint: end), lineWidth: 1.2)
+        let light = theme.isDark ? theme.primaryText : theme.glow
+        let gradient = LinearGradient(colors: [light.opacity(0.22), light.opacity(0.10),
+                                               light.opacity(0.025), light.opacity(0.07)],
+                                      startPoint: start, endPoint: end)
+        shape.strokeBorder(gradient, lineWidth: 2.5)
+            .blur(radius: 1.2)
+            .clipShape(shape)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
