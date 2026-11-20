@@ -360,3 +360,25 @@ extension GhafWalkthroughTests {
         snap("budget-allocation-scrolled")
     }
 }
+
+extension GhafWalkthroughTests {
+    func testE1SettingsScreenshots() {
+        launch(["-GhafScreen", "profile-proof", "-GhafTab", "more"])
+        snap("e1-profile-after")
+        swipeUp(); snap("e1-profile-scrolled-after")
+
+        launch(["-GhafScreen", "milestone-proof", "-GhafTab", "more"])
+        snap("e1-milestone-after")
+
+        launch(["-GhafScreen", "drive-proof", "-GhafTab", "more"])
+        snap("e1-drive-after")
+        swipeUp(); snap("e1-drive-scrolled-after")
+
+        launch(["-GhafScreen", "settings-glass"])
+        snap("e1-intensity-after")
+
+        launch(["-GhafScreen", "about-proof", "-GhafTab", "more"])
+        snap("e1-about-after")
+        swipeUp(); snap("e1-about-scrolled-after")
+    }
+}
