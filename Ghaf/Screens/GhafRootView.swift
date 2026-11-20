@@ -610,8 +610,6 @@ struct GhafOnboardingView: View {
     @State private var viewedGuide = false
     @State private var preset = BudgetAllocation.Preset.balanced
     @GestureState private var drag: CGFloat = 0
-    // Replace with GhafFeatureFlags.appStoreAccount when Session D lands.
-    private let appStoreAccount = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -668,7 +666,11 @@ struct GhafOnboardingView: View {
                         Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
                             .frame(minHeight: 44).foregroundStyle(theme.primaryText)
                     }
-                    if appStoreAccount { appleButton }
+                    // Always shown; inactive until the App Store account exists (owner rule: designed, never hidden).
+                    appleButton
+                        .disabled(!GhafFeatureFlags.appStoreAccount)
+                        .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
+                        .accessibilityHint(GhafFeatureFlags.appStoreAccount ? "" : localized("Coming soon", "قريباً"))
                 }
             }.buttonStyle(.plain).padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 16)
         }
@@ -718,7 +720,9 @@ struct GhafOnboardingView: View {
             } else if case let .failure(error) = result, (error as? ASAuthorizationError)?.code != .canceled {
                 backupImportError = error.localizedDescription
             }
-        }.frame(height: 56)
+        }
+        .signInWithAppleButtonStyle(theme.isDark ? .white : .black)
+        .frame(height: 56).clipShape(Capsule())
     }
 
     private var intro: some View {

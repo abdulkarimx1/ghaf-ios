@@ -360,7 +360,6 @@ extension GhafWalkthroughTests {
         app.swipeUp(velocity: .fast)
         snap("budget-allocation-scrolled")
     }
-}
 
     func testFirstRunPages() throws {
         app = XCUIApplication()
@@ -383,6 +382,7 @@ extension GhafWalkthroughTests {
                     if alert.waitForExistence(timeout: 2) { alert.buttons.firstMatch.tap() }
                 }
             }
+        }
     }
 }
 
