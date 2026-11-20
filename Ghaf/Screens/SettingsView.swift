@@ -59,6 +59,7 @@ struct GhafSettingsView: View {
     @State private var categoryDraftName = ""
     @State private var showCategories = false
     @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+    @State private var selectedMilestone: Int?
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
@@ -477,7 +478,8 @@ struct GhafSettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 HStack(spacing: 8) {
                     ForEach([7, 30, 100, 365], id: \.self) { days in
-                        VStack(spacing: 6) {
+                        Button { selectedMilestone = days } label: {
+                          VStack(spacing: 6) {
                             Text("\(days)")
                                 .font(GhafTypography.number(16, weight: .bold))
                                 .foregroundStyle(streak >= days ? theme.accentContrast : theme.secondaryText)
@@ -486,15 +488,46 @@ struct GhafSettingsView: View {
                             Text(ar ? "يوم" : "days")
                                 .font(GhafTypography.body(12, languageCode: languageCode))
                                 .foregroundStyle(theme.secondaryText)
-                        }
-                        .frame(maxWidth: .infinity)
+                          }
+                          .frame(maxWidth: .infinity)
+                        }.buttonStyle(.ghafPress)
+                         .accessibilityLabel(ar ? "إنجاز \(days) يوماً" : "\(days)-day milestone")
                     }
                 }
+                Text(ar ? "سجّل عملية لا تنتظر المراجعة كل يوم؛ وإذا فاتك يوم يبدأ تسلسل جديد. للمتعة فقط."
+                        : "Log a transaction not awaiting review each day; miss a day and a new streak starts. Just for fun.")
+                    .font(GhafTypography.body(12, languageCode: languageCode))
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 12)
             .ghafCard(theme: theme)
+            .sheet(isPresented: Binding(get: { selectedMilestone != nil }, set: { if !$0 { selectedMilestone = nil } })) {
+                if let days = selectedMilestone { milestoneSheet(days: days, streak: streak) }
+            }
         }
+    }
+
+    private func milestoneSheet(days: Int, streak: Int) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: streak >= days ? "checkmark.seal.fill" : "sparkle")
+                .font(.system(size: 36)).foregroundStyle(theme.accent)
+            Text(ar ? "إنجاز \(days) يوماً" : "\(days)-day milestone")
+                .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+            Text(ar ? "سجّلت \(streak) يوماً متتالياً من أصل \(days). هذا إنجاز شخصي للمتعة فقط."
+                    : "You’re at \(streak) consecutive days out of \(days). This is a personal milestone, just for fun.")
+                .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
+            Button(ar ? "تم" : "Done") { selectedMilestone = nil }
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
+        }
+        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background.ignoresSafeArea())
+        .presentationDetents([.height(270)])
+        .presentationCornerRadius(32)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
     private func profileMetric(value: String, title: String) -> some View {
