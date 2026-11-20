@@ -386,7 +386,7 @@ struct GhafBudgetView: View {
             GhafPrimaryButton(title: ar ? "حفظ الميزانية" : "Save budget", theme: theme, languageCode: lang) {
                 if let amount = Decimal(string: budgetEntry), amount >= 0 { var budgets = settings.categoryBudgets; budgets[name] = roundedBudget(amount); settings.categoryBudgets = budgets }
                 editingCategory = nil
-            }.frame(height: 56)
+            }
         }.padding(24).ghafBackground(theme: theme)
     }
 

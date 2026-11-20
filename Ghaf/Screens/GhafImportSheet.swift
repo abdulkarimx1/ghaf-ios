@@ -90,7 +90,7 @@ struct GhafImportSheet: View {
             }
             sendButton
             Button(ar ? "تأكيد الاستيراد" : "Confirm import") { commit(preview) }
-                .font(.system(size: 17, weight: .semibold)).foregroundStyle(theme.surface).frame(maxWidth: .infinity).frame(height: 56).background(theme.primaryText, in: Capsule())
+                .ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
         }.padding(20).background(theme.surface, in: RoundedRectangle(cornerRadius: 24))
     }
 

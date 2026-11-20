@@ -104,9 +104,7 @@ struct GhafSettingsView: View {
                                     .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                                 Text(ar ? "عرض الخطط" : "See plans")
                                     .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
-                                    .foregroundStyle(theme.accentContrast)
-                                    .frame(maxWidth: .infinity, minHeight: 56)
-                                    .background(theme.accent, in: Capsule())
+                                    .foregroundStyle(theme.accent)
                             }
                             .padding(GhafMetrics.cardPadding)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -144,12 +142,8 @@ struct GhafSettingsView: View {
 
                     Button(role: .destructive) { showDeleteConfirmation = true } label: {
                         Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
-                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                            .foregroundStyle(theme.over)
-                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
-                            .background(theme.over.opacity(0.1), in: Capsule())
                     }
-                    .buttonStyle(.ghafPress)
+                    .ghafDestructiveButton(theme: theme, languageCode: languageCode)
 
                     Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
                         .font(GhafTypography.body(12, languageCode: languageCode))
@@ -379,9 +373,7 @@ struct GhafSettingsView: View {
                 }
                 .buttonStyle(.ghafPress).disabled(drive.isBusy)
                 Button(ar ? "قطع الاتصال" : "Disconnect", role: .destructive) { drive.signOut() }
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .buttonStyle(.bordered)
+                    .ghafDestructiveButton(theme: theme, languageCode: languageCode)
             } else {
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
@@ -402,15 +394,10 @@ struct GhafSettingsView: View {
                         HStack(spacing: 12) {
                             Image("Brand-google").renderingMode(.template).resizable().scaledToFit().frame(width: 20, height: 20)
                             Text(ar ? "تسجيل الدخول عبر Google" : "Sign in with Google")
-                                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         }
-                        .foregroundStyle(theme.primaryText)
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(theme.surface, in: Capsule())
                     }
-                    .buttonStyle(.ghafPress)
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                     .disabled(!drive.isConfigured || drive.isBusy)
-                    .opacity(drive.isConfigured && !drive.isBusy ? 1 : 0.4)
                 }
             }
             Toggle(ar ? "النسخ التلقائي" : "Automatic backup", isOn: .constant(false))
@@ -479,12 +466,8 @@ struct GhafSettingsView: View {
                 HStack(spacing: 10) {
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         Label(ar ? "تغيير الصورة" : "Change photo", systemImage: "camera.fill")
-                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
-                            .foregroundStyle(theme.primaryText)
-                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
-                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                     }
-                    .buttonStyle(.ghafPress)
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                     .accessibilityLabel(ar ? "تغيير صورة الملف الشخصي" : "Change profile photo")
                     .onChange(of: photoItem) { _, item in
                         Task {
@@ -497,19 +480,14 @@ struct GhafSettingsView: View {
                         profileNameFocused = true
                     } label: {
                         Label(ar ? "تعديل الاسم" : "Edit name", systemImage: "pencil")
-                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
-                            .foregroundStyle(theme.primaryText)
-                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
-                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                     }
-                    .buttonStyle(.ghafPress)
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                 }
                 if hasPhoto {
                     Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
                         GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
                     }
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                    .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
+                    .ghafDestructiveButton(theme: theme, languageCode: languageCode)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -965,7 +943,7 @@ HStack(spacing: 8) {
             HStack(spacing: 10) {
                 if settings.categories.count > 1 {
                     Button(ar ? "حذف" : "Remove", role: .destructive) { categoryToRemove = category; editingCategory = nil }
-                        .ghafGlassButton(theme: theme, languageCode: languageCode)
+                        .ghafDestructiveButton(theme: theme, languageCode: languageCode)
                 }
                 Button(ar ? "حفظ" : "Save") {
                     renameCategory(category, to: categoryDraftName)

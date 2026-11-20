@@ -291,12 +291,10 @@ struct GhafHomeView: View {
                 .multilineTextAlignment(.center)
             Button { showAccounts = true } label: {
                 Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
-                    .frame(maxWidth: .infinity).frame(height: 56)
             }
             .ghafProminentButton(theme: theme, languageCode: lang)
             Button { showBackupImporter = true } label: {
                 Label(ar ? "استيراد نسخة غاف الاحتياطية" : "Import Ghaf backup", systemImage: "arrow.down.doc")
-                    .frame(maxWidth: .infinity).frame(height: 56)
             }
             .ghafGlassButton(theme: theme, languageCode: lang)
         }
@@ -875,11 +873,8 @@ struct GhafQuickAddView: View {
 
                     NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
                         Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
-                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.accent)
-                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                     }
-                    .buttonStyle(.ghafPress)
+                    .ghafGlassButton(theme: theme, languageCode: lang)
 
                     if !errorMessage.isEmpty {
                         Text(errorMessage)

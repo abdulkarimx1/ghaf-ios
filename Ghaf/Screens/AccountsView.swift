@@ -325,13 +325,9 @@ struct GhafAccountEditorView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 10) {
                         Button(ar ? "إلغاء" : "Cancel") { showArchiveConfirmation = false }
-                            .foregroundStyle(theme.primaryText)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(theme.elevatedSurface, in: Capsule())
+                            .ghafGlassButton(theme: theme, languageCode: lang)
                         Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
-                            .foregroundStyle(theme.over)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(theme.over.opacity(0.12), in: Capsule())
+                            .ghafDestructiveButton(theme: theme, languageCode: lang)
                     }
                 }
                 .padding(18)
