@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 struct GhafProView: View {
     @Environment(\.dismiss) private var dismiss
@@ -7,6 +8,20 @@ struct GhafProView: View {
     var showsClose = true
 
     @State private var yearly = true
+    private let monthlyID = "com.ghaf.app.pro.monthly"
+    private let yearlyID = "com.ghaf.app.pro.yearly"
+    @State private var products: [Product] = []
+    @State private var entitled = false
+    @State private var busy = false
+    @State private var notice: String?
+    private var testUnlocked: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+        #else
+        false
+        #endif
+    }
+
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var theme: GhafTheme {
@@ -48,6 +63,20 @@ struct GhafProView: View {
                 }
             }
         }
+        .task {
+            guard GhafFeatureFlags.appStoreAccount else { return }
+            await refreshEntitlements()
+            await loadProducts()
+        }
+        .task {
+            guard GhafFeatureFlags.appStoreAccount else { return }
+            for await update in Transaction.updates {
+                guard case .verified(let transaction) = update,
+                      [monthlyID, yearlyID].contains(transaction.productID) else { continue }
+                await refreshEntitlements()
+                await transaction.finish()
+            }
+        }
         .sensoryFeedback(.selection, trigger: yearly)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
@@ -56,10 +85,64 @@ struct GhafProView: View {
         ar ? "يتوفر عند إطلاق غاف على App Store" : "Available when Ghaf launches on the App Store"
     }
 
-    private var purchaseControls: some View {
-        Text(availability).multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .background(theme.elevatedSurface, in: Capsule())
+    @ViewBuilder private var purchaseControls: some View {
+        let selected = products.first { $0.id == (yearly ? yearlyID : monthlyID) }
+        let active = entitled || testUnlocked
+        Button {
+            busy = true
+            Task {
+                defer { busy = false }
+                guard let selected else { await loadProducts(); return }
+                do {
+                    switch try await selected.purchase() {
+                    case .success(.verified(let transaction)):
+                        await refreshEntitlements()
+                        await transaction.finish()
+                    case .pending: notice = ar ? "بانتظار الموافقة" : "Awaiting approval"
+                    case .userCancelled: break
+                    default: notice = ar ? "تعذّر التحقق من الشراء" : "Could not verify the purchase"
+                    }
+                } catch { notice = error.localizedDescription }
+            }
+        } label: {
+            Text(!GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .foregroundStyle(theme.accentContrast)
+                .background(theme.accent, in: Capsule())
+        }.disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
+        if GhafFeatureFlags.appStoreAccount {
+            Button(ar ? "استعادة المشتريات" : "Restore purchases") {
+                busy = true
+                Task {
+                    defer { busy = false }
+                    do {
+                        try await AppStore.sync()
+                        await refreshEntitlements()
+                        notice = entitled ? nil : (ar ? "لا يوجد اشتراك فعّال" : "No active subscription found")
+                    } catch { notice = error.localizedDescription }
+                }
+            }.disabled(busy)
+        }
+        if let notice { Text(notice).font(.footnote) }
+    }
+
+    private func loadProducts() async {
+        do {
+            products = try await Product.products(for: [monthlyID, yearlyID])
+            notice = products.isEmpty ? (ar ? "الأسعار غير متاحة" : "Prices are unavailable") : nil
+        } catch { notice = error.localizedDescription }
+    }
+
+    private func refreshEntitlements() async {
+        var active = false
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result,
+               [monthlyID, yearlyID].contains(transaction.productID),
+               transaction.revocationDate == nil, !transaction.isUpgraded {
+                active = true
+            }
+        }
+        entitled = active
     }
 
     private func planRow(annual: Bool) -> some View {
@@ -69,6 +152,7 @@ struct GhafProView: View {
                 Text(annual ? (ar ? "سنوي" : "Yearly") : (ar ? "شهري" : "Monthly"))
                 if annual { Text(ar ? "أفضل قيمة" : "Best value").font(.caption) }
                 Spacer()
+                if let product = products.first(where: { $0.id == (annual ? yearlyID : monthlyID) }) { Text(product.displayPrice) }
             }.padding(.horizontal).frame(minHeight: 64)
                 .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
         }.buttonStyle(.plain).accessibilityAddTraits(yearly == annual ? .isSelected : [])
