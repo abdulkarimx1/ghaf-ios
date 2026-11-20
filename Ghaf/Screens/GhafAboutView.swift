@@ -132,8 +132,11 @@ struct GhafAboutView: View {
             ShareLink(item: GhafLinks.appStore, message: Text(ar ? "جرّب غاف لمتابعة أموالك" : "Try Ghaf to keep track of your money")) {
                 row(ar ? "شارك غاف" : "Share Ghaf", "square.and.arrow.up")
             }
+            // Until Ghaf has an App Store listing the link is a bare placeholder: shown, but inactive (owner rule).
+            .disabled(GhafLinks.appStore.path.count <= 1).opacity(GhafLinks.appStore.path.count <= 1 ? 0.4 : 1)
             Divider().overlay(theme.outline).padding(.leading, 58)
             Link(destination: GhafLinks.appStore) { row(ar ? "قيّم غاف" : "Rate Ghaf", "star.fill") }
+                .disabled(GhafLinks.appStore.path.count <= 1).opacity(GhafLinks.appStore.path.count <= 1 ? 0.4 : 1)
             Divider().overlay(theme.outline).padding(.leading, 58)
             Link(destination: GhafLinks.feedback) { row(ar ? "أرسل ملاحظاتك" : "Send feedback", "bubble.left.and.text.bubble.right.fill") }
             Divider().overlay(theme.outline).padding(.leading, 58)

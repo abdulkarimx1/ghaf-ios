@@ -46,6 +46,10 @@ struct GhafProView: View {
                     planRow(annual: true)
                 }
                 purchaseControls
+                // Apple 3.1.2: renewal terms on the paywall itself, next to the price.
+                Text(ar ? "يتجدد الاشتراك تلقائياً بالسعر نفسه ما لم يُلغَ قبل 24 ساعة على الأقل من نهاية الفترة. يمكنك الإلغاء من إعدادات حساب Apple."
+                        : "Renews automatically at the same price unless cancelled at least 24 hours before the period ends. Cancel anytime in your Apple Account settings.")
+                    .font(.caption).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
                 HStack {
                     // Shown in every build; inactive until the App Store account exists.
                     Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
