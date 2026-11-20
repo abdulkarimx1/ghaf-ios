@@ -217,11 +217,12 @@ struct GhafTransactionsView: View {
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 32)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 26)
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
         }
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
     }
 

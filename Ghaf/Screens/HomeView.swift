@@ -167,6 +167,15 @@ struct GhafHomeView: View {
                     .ghafScreenPadding()
                     .padding(.top, 16)
                     .background(theme.background)
+                    // Content scrolling under the pinned header fades out instead of showing a hard cut.
+                    .overlay(alignment: .bottom) {
+                        LinearGradient(stops: [.init(color: theme.background, location: 0), .init(color: theme.background, location: 0.45),
+                                               .init(color: theme.background.opacity(0), location: 1)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 40)
+                            .offset(y: 40)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
             }
 #if DEBUG
             .onAppear {

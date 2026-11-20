@@ -1,0 +1,59 @@
+{
+  "identifier": "07e52e63-8fc5-4065-8823-47231d7a71a8",
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {},
+  "subscriptionGroups": [
+    {
+      "id": "456aec76-cf5e-4db5-a2e1-b5996e16266f",
+      "localizations": [],
+      "name": "Ghaf Pro",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "9.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "d7130060-913d-4b18-a962-e16eda5d9633",
+          "localizations": [
+            {
+              "description": "Ghaf Pro subscription",
+              "displayName": "Ghaf Pro monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.ghaf.app.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Pro monthly",
+          "subscriptionGroupID": "456aec76-cf5e-4db5-a2e1-b5996e16266f",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "79.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "dd0cf1a4-b678-49ed-8c7a-4cf2a1b6aa54",
+          "localizations": [
+            {
+              "description": "Ghaf Pro subscription",
+              "displayName": "Ghaf Pro yearly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.ghaf.app.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Pro yearly",
+          "subscriptionGroupID": "456aec76-cf5e-4db5-a2e1-b5996e16266f",
+          "type": "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

@@ -1,31 +1,5 @@
 import SwiftUI
-
-/// Ghaf Pro: three plans, a 3-day trial on the renewing ones, and the terms. Purchases are not
-/// connected yet, so the buy button is shown but disabled; nothing in Ghaf is locked today.
-/// shortcut: prices are placeholders; replace with StoreKit `Product.displayPrice` when the products exist.
-enum GhafProPlan: String, CaseIterable, Identifiable {
-    case monthly, yearly, lifetime
-    var id: String { rawValue }
-
-    func title(_ ar: Bool) -> String {
-        switch self {
-        case .monthly: ar ? "شهري" : "Monthly"
-        case .yearly: ar ? "سنوي" : "Yearly"
-        case .lifetime: ar ? "مدى الحياة" : "Lifetime"
-        }
-    }
-    var price: String {
-        switch self { case .monthly: "AED 9.99"; case .yearly: "AED 79.99"; case .lifetime: "AED 199.99" }
-    }
-    func cadence(_ ar: Bool) -> String {
-        switch self {
-        case .monthly: ar ? "شهرياً" : "per month"
-        case .yearly: ar ? "سنوياً" : "per year"
-        case .lifetime: ar ? "دفعة واحدة · لا تجديد" : "one payment · never renews"
-        }
-    }
-    var renews: Bool { self != .lifetime }
-}
+import StoreKit
 
 struct GhafProView: View {
     @Environment(\.dismiss) private var dismiss
@@ -33,9 +7,21 @@ struct GhafProView: View {
     let settings: GhafSettings
     var showsClose = true
 
-    @State private var plan: GhafProPlan = .yearly
-    @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
-    @State private var restoreMessage: String?
+    @State private var yearly = true
+    private let monthlyID = "com.ghaf.app.pro.monthly"
+    private let yearlyID = "com.ghaf.app.pro.yearly"
+    @State private var products: [Product] = []
+    @State private var entitled = false
+    @State private var busy = false
+    @State private var redeeming = false
+    @State private var notice: String?
+    private var testUnlocked: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+        #else
+        false
+        #endif
+    }
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -43,132 +29,138 @@ struct GhafProView: View {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
 
-    var features: [(String, String, String)] {
-        [("chart.xyaxis.line", ar ? "إحصائيات متقدمة" : "Advanced statistics",
-          ar ? "مقارنات أطول، وتقارير لكل متجر وحساب." : "Longer comparisons, reports per merchant and account."),
-         ("rectangle.3.group.fill", ar ? "ودجت للشاشة الرئيسية والقفل" : "Home and Lock Screen widgets",
-          ar ? "رصيدك وصرف اليوم بنظرة." : "Your balance and today's spending at a glance."),
-         ("bolt.badge.clock.fill", ar ? "النشاط المباشر" : "Live Activities",
-          ar ? "كل عملية جديدة تظهر على شاشة القفل وفي Dynamic Island." : "Each new purchase on the Lock Screen and in the Dynamic Island."),
-         ("waveform", ar ? "صوت غاف AI المتقدم" : "Ghaf AI advanced voice",
-          ar ? "محادثة صوتية طبيعية بالعربي والإنجليزي." : "Natural voice conversation in Arabic and English."),
-         ("heart.fill", ar ? "ادعم تطبيقاً من الإمارات" : "Support an app built in the UAE",
-          ar ? "كل اشتراك يبني غاف وتطبيقات أفضل." : "Every plan builds Ghaf and better apps.")]
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                VStack(spacing: 6) {
-                    Text("Ghaf Pro")
-                        .font(GhafTypography.display(30, languageCode: lang))
-                        .foregroundStyle(theme.primaryText)
-                    Text(ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.")
-                        .font(GhafTypography.body(14, languageCode: lang))
-                        .foregroundStyle(theme.secondaryText)
-                        .multilineTextAlignment(.center)
-                    Text(ar ? "إحصائيات متقدمة · ودجات · أنشطة مباشرة · صوت غاف AI" : "Advanced stats · widgets · Live Activities · Ghaf AI voice")
-                        .font(GhafTypography.body(13, languageCode: lang, weight: .medium))
-                        .foregroundStyle(theme.primaryText)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 2)
-                }
-                .frame(maxWidth: .infinity)
-
-                VStack(spacing: 6) {
-                    ForEach(GhafProPlan.allCases) { item in planRow(item) }
-                }
-                .padding(8)
-                .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-
-                Text(ar ? "تجربة مجانية ٣ أيام للخطتين المتجدّدتين" : "3-day free trial on renewing plans")
-                    .font(GhafTypography.body(13, languageCode: lang, weight: .medium))
+                Image(systemName: "leaf.fill").font(.largeTitle).foregroundStyle(theme.accent)
+                Text("Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
+                Text(ar ? "تابع إنفاقك بتفاصيل أكثر" : "See where your money goes.")
                     .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-
-                if proUnlocked {
-                    Label(ar ? "أنت على Pro (تجريبي)" : "You're on Pro (test)", systemImage: "checkmark.circle.fill")
-                        .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.credit)
-                        .frame(minHeight: 44)
-                    Button(ar ? "إنهاء الاختبار" : "End test") {
-                        UserDefaults.standard.set(false, forKey: "ghaf.pro.testUnlocked")
-                        proUnlocked = false
-                    }
-                    .font(GhafTypography.body(15, languageCode: lang, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
-                    .frame(minHeight: 44)
-                } else {
-                    Button {
-                        UserDefaults.standard.set(true, forKey: "ghaf.pro.testUnlocked")
-                        proUnlocked = true
-                        restoreMessage = nil
-                    } label: {
-                        Text(ar ? "متابعة شراء تجريبي" : "Continue with test purchase")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .ghafProminentButton(theme: theme, languageCode: lang)
-
-                    Button {
-                        proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
-                        restoreMessage = proUnlocked ? (ar ? "تمت استعادة Pro (تجريبي)" : "Pro (test) restored") : (ar ? "لا توجد مشتريات لاستعادتها" : "Nothing to restore")
-                    } label: { Text(ar ? "استعادة المشتريات" : "Restore purchases") }
-                        .font(GhafTypography.body(15, languageCode: lang, weight: .medium))
-                        .foregroundStyle(theme.secondaryText)
-                        .frame(minHeight: 44)
-                    if let restoreMessage {
-                        Text(restoreMessage).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                    }
+                VStack(alignment: .leading, spacing: 16) {
+                    Label(ar ? "تقارير الإنفاق حسب المتجر والحساب" : "Spending reports by merchant and account", systemImage: "chart.bar")
+                    Label(ar ? "ودجات للشاشة الرئيسية وشاشة القفل" : "Home and Lock Screen widgets", systemImage: "square.grid.2x2")
+                    Label(ar ? "متابعة العمليات بالأنشطة المباشرة" : "Transaction updates with Live Activities", systemImage: "bolt")
+                }.frame(maxWidth: .infinity, alignment: .leading).padding()
+                VStack(spacing: 8) {
+                    planRow(annual: false)
+                    planRow(annual: true)
                 }
-
-                Text(ar ? "الأسعار أمثلة فقط. هذا الإصدار لا يتصل بمتجر Apple ولا يأخذ أي دفعة." : "Example prices only. This build does not connect to the App Store or take payment.")
-                    .font(GhafTypography.body(12, languageCode: lang))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
+                purchaseControls
+                HStack {
+                    if GhafFeatureFlags.appStoreAccount {
+                        Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
+                            .offerCodeRedemption(isPresented: $redeeming)
+                    }
+                    NavigationLink(ar ? "الشروط" : "Terms") { GhafTermsView(settings: settings) }
+                    NavigationLink(ar ? "الخصوصية" : "Privacy") { GhafPrivacyPolicyView(settings: settings) }
+                }.font(.footnote)
             }
-            .ghafScreenPadding()
-            .padding(.top, 16)
-            .padding(.bottom, 20)
-            .frame(maxWidth: 560)
-            .frame(maxWidth: .infinity)
+            .foregroundStyle(theme.primaryText)
+            .padding(20).frame(maxWidth: 560).frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
         .ghafBackground(theme: theme)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if showsClose {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 14, weight: .bold)) }
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
                         .accessibilityLabel(ar ? "إغلاق" : "Close")
                 }
             }
         }
-        .sensoryFeedback(.selection, trigger: plan)
+        .task {
+            guard GhafFeatureFlags.appStoreAccount else { return }
+            await refreshEntitlements()
+            await loadProducts()
+        }
+        .task {
+            guard GhafFeatureFlags.appStoreAccount else { return }
+            for await update in Transaction.updates {
+                guard case .verified(let transaction) = update,
+                      [monthlyID, yearlyID].contains(transaction.productID) else { continue }
+                await refreshEntitlements()
+                await transaction.finish()
+            }
+        }
+        .sensoryFeedback(.selection, trigger: yearly)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
-    private func planRow(_ item: GhafProPlan) -> some View {
-        let selected = plan == item
-        return Button { withAnimation(.snappy) { plan = item } } label: {
-            HStack(spacing: 10) {
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(selected ? theme.accent : theme.secondaryText)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title(ar)).font(GhafTypography.body(15, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
-                    Text(item.cadence(ar)).font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                }
-                Spacer(minLength: 4)
-                Text(item.price).font(GhafTypography.number(14, weight: .heavy)).foregroundStyle(theme.primaryText)
-                    .environment(\.layoutDirection, .leftToRight)
+    private var availability: String {
+        ar ? "قريباً على App Store" : "Coming soon to the App Store"
+    }
+
+    @ViewBuilder private var purchaseControls: some View {
+        let selected = products.first { $0.id == (yearly ? yearlyID : monthlyID) }
+        let active = entitled || testUnlocked
+        Button {
+            busy = true
+            Task {
+                defer { busy = false }
+                guard let selected else { await loadProducts(); return }
+                do {
+                    switch try await selected.purchase() {
+                    case .success(.verified(let transaction)):
+                        await refreshEntitlements()
+                        await transaction.finish()
+                    case .pending: notice = ar ? "بانتظار الموافقة" : "Awaiting approval"
+                    case .userCancelled: break
+                    default: notice = ar ? "تعذّر التحقق من الشراء" : "Could not verify the purchase"
+                    }
+                } catch { notice = error.localizedDescription }
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .background(selected ? theme.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        } label: {
+            Text(testUnlocked ? (ar ? "اشتراك تجريبي فعّال" : "Pro is active (debug)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .foregroundStyle(theme.accentContrast)
+                .background(theme.accent, in: Capsule())
+        }.disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
+        if GhafFeatureFlags.appStoreAccount {
+            Button(ar ? "استعادة المشتريات" : "Restore purchases") {
+                busy = true
+                Task {
+                    defer { busy = false }
+                    do {
+                        try await AppStore.sync()
+                        await refreshEntitlements()
+                        notice = entitled ? nil : (ar ? "لا يوجد اشتراك فعّال" : "No active subscription found")
+                    } catch { notice = error.localizedDescription }
+                }
+            }.disabled(busy)
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        if let notice { Text(notice).font(.footnote) }
+    }
+
+    private func loadProducts() async {
+        do {
+            products = try await Product.products(for: [monthlyID, yearlyID])
+            notice = products.isEmpty ? (ar ? "الأسعار غير متاحة" : "Prices are unavailable") : nil
+        } catch { notice = error.localizedDescription }
+    }
+
+    private func refreshEntitlements() async {
+        var active = false
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result,
+               [monthlyID, yearlyID].contains(transaction.productID),
+               transaction.revocationDate == nil, !transaction.isUpgraded {
+                active = true
+            }
+        }
+        entitled = active
+    }
+
+    private func planRow(annual: Bool) -> some View {
+        Button { yearly = annual } label: {
+            HStack {
+                Image(systemName: yearly == annual ? "checkmark.circle.fill" : "circle")
+                Text(annual ? (ar ? "سنوي" : "Yearly") : (ar ? "شهري" : "Monthly"))
+                if annual { Text(ar ? "أفضل قيمة" : "Best value").font(.caption) }
+                Spacer()
+                if let product = products.first(where: { $0.id == (annual ? yearlyID : monthlyID) }) { Text(product.displayPrice) }
+            }.padding(.horizontal).frame(minHeight: 64)
+                .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
+        }.buttonStyle(.plain).accessibilityAddTraits(yearly == annual ? .isSelected : [])
     }
 }
 
@@ -226,8 +218,7 @@ struct GhafTermsView: View {
 
     private var sections: [(String, String)] {
         ar ? [
-            ("الخطط", "يتوفر غاف Pro بثلاث خطط: شهرية وسنوية تتجددان تلقائياً، ومدى الحياة بدفعة واحدة لا تتجدد."),
-            ("التجربة المجانية", "الخطتان الشهرية والسنوية تبدآن بتجربة مجانية مدتها ٣ أيام، مرة واحدة لكل حساب Apple. إن لم تُلغِ قبل نهاية التجربة بـ ٢٤ ساعة على الأقل، يبدأ الاشتراك المدفوع تلقائياً. لا توجد تجربة مجانية لخطة مدى الحياة."),
+            ("الخطط", "يتوفر غاف Pro باشتراك شهري أو سنوي يتجدد تلقائياً."),
             ("الدفع والتجديد", "يتم الدفع عبر حساب Apple الخاص بك عند تأكيد الشراء. يتجدد الاشتراك تلقائياً بنفس السعر ما لم يُوقف التجديد قبل نهاية الفترة الحالية بـ ٢٤ ساعة على الأقل. يمكنك إدارة الاشتراك وإلغاؤه من الإعدادات › حساب Apple › الاشتراكات. الإلغاء يوقف التجديد القادم فقط، ويبقى Pro فعّالاً حتى نهاية الفترة المدفوعة."),
             ("لا استرداد ولا إرجاع", "كل المبيعات نهائية. لا يقدّم غاف أي استرداد أو إرجاع أو تعويض بعد الشراء، بما في ذلك الفترات الجزئية أو الوقت غير المستخدم أو المزايا التي لم تُستخدم. المدفوعات تتم عبر Apple، وأي طلب استرداد يُقدّم إلى Apple وحدها وتقرّر فيه وفق سياساتها، وغاف لا يستطيع إصدار استرداد بنفسه."),
             ("المزايا", "قد تُضاف مزايا Pro أو تُعدّل أو تُحسّن مع الوقت. لا يضمن الاشتراك توفر ميزة بعينها في كل جهاز أو إصدار من iOS."),
@@ -235,8 +226,7 @@ struct GhafTermsView: View {
             ("حدود المسؤولية", "يُقدَّم غاف كما هو. إلى أقصى حد يسمح به القانون، لا يتحمل المطوّر أي مسؤولية عن خسائر أو أضرار مباشرة أو غير مباشرة ناتجة عن استخدام التطبيق أو تعذّر استخدامه، ولا تتجاوز مسؤوليته في كل الأحوال المبلغ الذي دفعته خلال الأشهر الاثني عشر السابقة."),
             ("التعديل والقانون", "قد تُحدَّث هذه الشروط، ويعني استمرار الاستخدام قبولها. تخضع هذه الشروط لقوانين دولة الإمارات العربية المتحدة، مع شروط Apple القياسية لاستخدام التطبيقات (EULA).")
         ] : [
-            ("Plans", "Ghaf Pro comes in three plans: Monthly and Yearly, which renew automatically, and Lifetime, a single payment that never renews."),
-            ("Free trial", "Monthly and Yearly start with a 3-day free trial, once per Apple Account. Unless you cancel at least 24 hours before the trial ends, the paid subscription starts automatically. Lifetime has no free trial."),
+            ("Plans", "Monthly and yearly subscriptions renew automatically."),
             ("Payment and renewal", "Payment is charged to your Apple Account when you confirm the purchase. Subscriptions renew automatically at the same price unless auto-renew is turned off at least 24 hours before the current period ends. Manage or cancel in Settings › Apple Account › Subscriptions. Cancelling stops the next renewal only; Pro stays active until the end of the paid period."),
             ("No refunds or returns", "All sales are final. Ghaf provides no refunds, returns or credits after purchase, including for partial periods, unused time or unused features. Payments are processed by Apple; any refund request can only be made to Apple, which decides it under its own policies. Ghaf cannot issue refunds itself."),
             ("Features", "Pro features may be added, changed or improved over time. A subscription does not guarantee that a specific feature is available on every device or iOS version."),
@@ -247,64 +237,23 @@ struct GhafTermsView: View {
     }
 }
 
-/// The bottom sheet shown when a Pro feature is tapped. Purchases are not open yet, so the buy button is
-/// disabled and "Skip for now" carries on to the feature, which stays free until then.
+extension View {
+    func ghafProSheet(isPresented: Binding<Bool>, settings: GhafSettings) -> some View {
+        sheet(isPresented: isPresented) { GhafProSheet(settings: settings) }
+    }
+}
+
 struct GhafProSheet: View {
-    @State private var contentHeight: CGFloat = 0
-    @Environment(\.colorScheme) private var colorScheme
     let settings: GhafSettings
-    let feature: (en: String, ar: String)
-    private var lang: String { settings.languageCode }
-    private var ar: Bool { lang == "ar" }
-    private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    init(settings: GhafSettings, feature: (en: String, ar: String)? = nil) {
+        self.settings = settings
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 18) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro")
-                    .font(GhafTypography.heading(24, languageCode: lang))
-                    .foregroundStyle(theme.primaryText)
-                Text(ar ? "تقارير أعمق وودجات وأنشطة مباشرة." : "Deeper reports, widgets, and Live Activities.")
-                    .font(GhafTypography.body(15, languageCode: lang))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-                NavigationLink {
-                    GhafProView(settings: settings, showsClose: false)
-                } label: {
-                    Text(ar ? "عرض الخطط" : "See plans")
-                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.accentContrast)
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(theme.accent, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint(ar ? "عرض خطط غاف Pro." : "Opens Ghaf Pro plans for \(feature.en).")
-            }
-            .padding(24)
-            .frame(maxWidth: .infinity)
-            .background {
-                GeometryReader { proxy in
-                    Color.clear.preference(key: GhafProSheetHeightKey.self, value: proxy.size.height)
-                }
-            }
-            .background(theme.background)
-            .toolbar(.hidden, for: .navigationBar)
-        }
-        .onPreferenceChange(GhafProSheetHeightKey.self) { contentHeight = $0 }
-        .presentationDetents([.height(max(contentHeight, 240))])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(32)
-        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        NavigationStack { GhafProView(settings: settings) }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(32)
+            .ghafDirection(settings.languageCode)
     }
-
-}
-
-private struct GhafProSheetHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
