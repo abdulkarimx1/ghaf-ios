@@ -4,7 +4,10 @@ import StoreKitTest
 /// Real-data walkthrough: taps, scrolls and swipes key screens, saves screenshots and tap-to-idle timings to GHAF_UI_OUT.
 /// Run: TEST_RUNNER_GHAF_UI_OUT=<dir> TEST_RUNNER_GHAF_BACKUP=<backup.json> xcodebuild test -scheme GhafUITests -destination id=<UDID>
 final class GhafWalkthroughTests: XCTestCase {
-    let out = ProcessInfo.processInfo.environment["GHAF_UI_OUT"] ?? NSTemporaryDirectory()
+    let out = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_UI_OUT"]
+        ?? ProcessInfo.processInfo.environment["GHAF_UI_OUT"]
+        ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("build/onboarding-proof-after").path
     var log = ""
     var app: XCUIApplication!
 
@@ -15,7 +18,9 @@ final class GhafWalkthroughTests: XCTestCase {
 
     func launch(_ extra: [String] = [], appearance: String = "Dark") {
         app = XCUIApplication()
-        let backup = ProcessInfo.processInfo.environment["GHAF_BACKUP"].map { ["-GhafRestoreBackup", $0] } ?? []
+        let backupPath = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+            ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]
+        let backup = backupPath.map { ["-GhafRestoreBackup", $0] } ?? []
         app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite",
                                "-GhafAppearance", appearance, "-GhafLanguage", "en"] + extra
         app.launch()
@@ -23,7 +28,14 @@ final class GhafWalkthroughTests: XCTestCase {
     }
 
     func snap(_ name: String) {
-        try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
+        let screenshot = XCUIScreen.main.screenshot()
+        try? screenshot.pngRepresentation.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
+        XCTContext.runActivity(named: name) { activity in
+            let attachment = XCTAttachment(screenshot: screenshot)
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            activity.add(attachment)
+        }
     }
 
     /// Times a tap including XCTest's wait for the app to go idle (main thread + animations).
@@ -376,6 +388,7 @@ extension GhafWalkthroughTests {
             snap("first-run-\(page)")
             if page == 7 { break }
             button.tap()
+            Thread.sleep(forTimeInterval: 0.45)
             if page == 4 {
                 for _ in 0..<3 {
                     let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
