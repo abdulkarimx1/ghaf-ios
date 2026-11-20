@@ -160,7 +160,7 @@ struct GhafHomeView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
-            .ghafBackground(theme: theme)
+            .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
             .safeAreaInset(edge: .top, spacing: 0) {
                 header

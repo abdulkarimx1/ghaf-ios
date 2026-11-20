@@ -134,7 +134,7 @@ struct GhafTransactionsView: View {
                         searchField
                         filterBar(count: list.count)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
+                    .listRowInsets(EdgeInsets(top: 32, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
@@ -180,7 +180,7 @@ struct GhafTransactionsView: View {
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
-            .ghafBackground(theme: theme)
+            .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
