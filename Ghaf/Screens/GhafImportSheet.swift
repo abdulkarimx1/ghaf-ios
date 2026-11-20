@@ -79,7 +79,7 @@ struct GhafImportSheet: View {
     private func previewCard(_ preview: GhafFileImportPreview) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(ar ? "مراجعة الاستيراد" : "Review before importing").font(.system(size: 20, weight: .semibold)).foregroundStyle(theme.primaryText)
-            Text("\(preview.rows.count) rows · \(preview.skipped) skipped · \(preview.accountsToCreate.count) accounts to create")
+            Text(ar ? "جاهز للاستيراد: \(preview.rows.count) · صفوف متخطاة: \(preview.skipped) · حسابات جديدة: \(preview.accountsToCreate.count)" : "\(preview.rows.count) rows · \(preview.skipped) skipped · \(preview.accountsToCreate.count) accounts to create")
                 .font(.system(size: 14, weight: .medium)).foregroundStyle(theme.secondaryText)
             ForEach(Array(preview.rows.prefix(5))) { row in
                 HStack { VStack(alignment: .leading, spacing: 3) { Text(row.merchant).font(.system(size: 15, weight: .semibold)); Text(row.date.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 13)).foregroundStyle(theme.secondaryText) }; Spacer(); Text("\(row.amount.formatted()) \(row.currency)").font(.system(size: 15, weight: .semibold)) }.foregroundStyle(theme.primaryText)
@@ -116,16 +116,22 @@ struct GhafImportSheet: View {
             try Data(contentsOf: url).write(to: localFile, options: .atomic)
             fileURL = localFile; isFailure = false; message = nil
             switch kind {
-            case .ghaf: try GhafBackupService.restore(from: localFile, context: context); markSetUp(); message = ar ? "تمت استعادة نسخة غاف." : "Ghaf backup restored successfully."
+            case .ghaf:
+                let unassigned = try GhafBackupService.restore(from: localFile, context: context)
+                markSetUp()
+                message = ar ? "تمت استعادة نسخة غاف. سجلات بلا حساب: \(unassigned)." : "Ghaf backup restored. Records left without an account: \(unassigned)."
             case .expend: let result = try GhafExpendImportService.importFile(from: localFile, context: context); message = ar ? "تم استيراد \(result.transactionsImported) عملية من Expend." : "Imported \(result.transactionsImported) transactions from Expend."
             case .other: preview = try GhafFileImport.preview(localFile, context: context)
             }
-        } catch { isFailure = true; message = error.localizedDescription }
+        } catch { isFailure = true; message = ar ? "تعذّر استيراد الملف. تحقّق من نوعه ومحتواه، ثم حاول مجددًا." : error.localizedDescription }
     }
 
     private func commit(_ preview: GhafFileImportPreview) {
-        do { let result = try GhafFileImport.commit(preview, createAccounts: true, context: context); self.preview = nil; isFailure = false; message = "Imported \(result.imported) transactions. \(result.duplicates) duplicates skipped." }
-        catch { isFailure = true; message = error.localizedDescription }
+        do {
+            let result = try GhafFileImport.commit(preview, createAccounts: true, context: context)
+            self.preview = nil; isFailure = false
+            message = ar ? "تم استيراد \(result.imported) معاملة، وتخطي \(result.duplicates) مكررة." : "Imported \(result.imported) transactions. \(result.duplicates) duplicates skipped."
+        } catch { isFailure = true; message = ar ? "تعذّر حفظ الاستيراد. لم تُحفظ التغييرات." : error.localizedDescription }
     }
     private func compose(_ url: URL) { if MFMailComposeViewController.canSendMail() { showMail = true } else { prepareShare(url) } }
     private func prepareShare(_ url: URL) { shareItems = [url]; showShare = true }
