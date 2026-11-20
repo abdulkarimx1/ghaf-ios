@@ -37,6 +37,11 @@ enum GhafPersistence {
     @discardableResult
     static func cleanMerchantData(in context: ModelContext, save: Bool = true) throws -> Int {
         let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+#if DEBUG
+        let manualMerchants = Dictionary(uniqueKeysWithValues: transactions.filter {
+            ["manual-", "manual-adjust-", "salary-", "transfer-", "voice-"].contains(where: $0.fingerprint.hasPrefix)
+        }.map { ($0.id, $0.merchant) })
+#endif
         var cleaned = 0
         for transaction in transactions {
             let fingerprint = transaction.fingerprint
@@ -49,6 +54,10 @@ enum GhafPersistence {
                 .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
             if value != baseline { transaction.merchant = value; cleaned += 1 }
         }
+#if DEBUG
+        assert(transactions.filter { manualMerchants[$0.id] != nil }.allSatisfy { manualMerchants[$0.id] == $0.merchant },
+               "Merchant migration changed a manual transaction")
+#endif
         try MerchantCategorizer.rekeyRules(context: context, save: false)
         if save { try context.save() }
         return cleaned
