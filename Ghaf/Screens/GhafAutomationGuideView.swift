@@ -323,6 +323,7 @@ struct GhafAutomationGuideView: View {
                         expandedAutomation = nil
                     } else {
                         automationPage = 0
+                        manualSetupExpanded = false
                         expandedAutomation = automation
                     }
                 }
@@ -469,6 +470,7 @@ struct GhafAutomationGuideView: View {
                     .background(theme.primaryText, in: Capsule())
             }
             .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
