@@ -27,7 +27,7 @@ public enum MemoryIntent: Equatable {
             (#"^اسمي\s+(.+?)\s*[.!؟?]*$"#, MemoryIntent.name)
         ]
         for (pattern, make) in arabic {
-            if let value = capture(pattern, normalized), valid(value), !startsWithQuestionWord(value, arabic: true) { return make(value) }
+            if let value = capture(pattern, normalized, source: clean), valid(value), !startsWithQuestionWord(value, arabic: true) { return make(value) }
         }
         return nil
     }
@@ -49,11 +49,11 @@ public enum MemoryIntent: Equatable {
         return words.contains(first)
     }
 
-    private static func capture(_ pattern: String, _ input: String) -> String? {
+    private static func capture(_ pattern: String, _ input: String, source: String? = nil) -> String? {
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: input, range: NSRange(input.startIndex..., in: input)),
-              let range = Range(match.range(at: 1), in: input) else { return nil }
-        return String(input[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+              let range = Range(match.range(at: 1), in: source ?? input) else { return nil }
+        return String((source ?? input)[range]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func valid(_ text: String) -> Bool {
