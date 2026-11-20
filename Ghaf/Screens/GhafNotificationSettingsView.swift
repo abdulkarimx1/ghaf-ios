@@ -190,6 +190,8 @@ struct GhafNotificationSettingsView: View {
 
     private var diagnosticReport: String {
         let app = Bundle.main
+        let version = app.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let build = app.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
         let appID = app.bundleIdentifier ?? "unknown"
         let appProfile = GhafSigningProfile.current
         let extensionURL = app.builtInPlugInsURL?.appendingPathComponent("GhafWidgets.appex")
@@ -203,7 +205,8 @@ struct GhafNotificationSettingsView: View {
         func profile(_ value: GhafSigningProfile) -> String {
             "\(ar ? "الاسم" : "name")=\(value.name ?? "none"); \(ar ? "الفريق" : "team")=\(value.teamID ?? "none"); \(ar ? "انتهاء الصلاحية" : "expires")=\(value.expiry?.formatted(dateStyle) ?? "none"); \(ar ? "مجموعات التطبيق" : "app groups")=[\(list(value.appGroups))]; \(ar ? "مجموعات سلسلة المفاتيح" : "keychain groups")=[\(list(value.keychainGroups))]"
         }
-        var lines = ["\(ar ? "معرّف التطبيق" : "App bundle ID"): \(appID)",
+        var lines = ["\(ar ? "الإصدار" : "Version"): \(version) (\(ar ? "البناء" : "Build") \(build))",
+                     "\(ar ? "معرّف التطبيق" : "App bundle ID"): \(appID)",
                      "\(ar ? "ملف توقيع التطبيق" : "App signing profile"): \(appProfile.exists ? profile(appProfile) : (ar ? "لا يوجد ملف توقيع مضمن" : "no embedded signing profile"))",
                      "\(ar ? "معرّف الودجت" : "Widget bundle ID"): \(widgetID ?? (ar ? "ملف GhafWidgets.appex مفقود" : "missing GhafWidgets.appex"))",
                      "\(ar ? "ملف توقيع الودجت" : "Widget signing profile"): \(widgetProfile.exists ? profile(widgetProfile) : (ar ? "لا يوجد ملف توقيع مضمن" : "no embedded signing profile"))",
@@ -263,14 +266,14 @@ struct GhafNotificationSettingsView: View {
                     .foregroundStyle(theme.accent)
                     .frame(width: 34, height: 34)
                     .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
-                    Text(detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
         .tint(theme.accent)
-        .frame(minHeight: 64)
+        .padding(.vertical, 16)
         .sensoryFeedback(.selection, trigger: isOn.wrappedValue)
     }
 }

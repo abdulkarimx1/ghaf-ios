@@ -360,3 +360,31 @@ extension GhafWalkthroughTests {
         snap("budget-allocation-scrolled")
     }
 }
+
+extension GhafWalkthroughTests {
+    func testSessionE2SettingsProof() throws {
+        launch()
+        app.tabBars.buttons["More"].tap()
+        let activity = app.buttons["Live Activity"].firstMatch
+        for _ in 0..<6 where !activity.isHittable { app.swipeUp() }
+        XCTAssertTrue(activity.isHittable)
+        activity.tap()
+        XCTAssertTrue(app.staticTexts["Purchase Live Activity"].waitForExistence(timeout: 4))
+        snap("e2-live-activity")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["Notifications"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Event alerts"].waitForExistence(timeout: 4))
+        snap("e2-notifications")
+        app.swipeUp()
+        snap("e2-notifications-scrolled")
+        app.navigationBars.buttons.firstMatch.tap()
+        let fifteenSeconds = app.buttons["Live Activity"].firstMatch
+        for _ in 0..<6 where !fifteenSeconds.isHittable { app.swipeDown() }
+        fifteenSeconds.tap()
+        app.buttons["15 s"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        for _ in 0..<6 where !fifteenSeconds.isHittable { app.swipeUp() }
+        fifteenSeconds.tap()
+        XCTAssertTrue(app.buttons["15 s"].isSelected, "Duration should persist in the settings store.")
+    }
+}

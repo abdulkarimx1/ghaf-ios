@@ -18,6 +18,7 @@ enum GhafWidgetSync {
     static let liveActivityKey = "ghaf.liveActivity"
     static let liveActivityBalanceKey = "ghaf.liveActivity.balance"
     static let liveActivityEnabledKey = "ghaf.liveActivity.enabled"
+    static let liveActivityDurationKey = "ghaf.liveActivity.duration"
 
     private static var liveActivityDefaults: UserDefaults? {
         GhafWidgetSnapshot.groupIDs.first.flatMap(UserDefaults.init(suiteName:))
@@ -32,9 +33,14 @@ enum GhafWidgetSync {
         liveActivityDefaults?.string(forKey: liveActivityBalanceKey).flatMap(GhafLiveActivityBalance.init(rawValue:)) ?? .card
     }
 
-    static func setLiveActivityPreferences(enabled: Bool, balance: GhafLiveActivityBalance) {
+    static var liveActivityDuration: Int {
+        liveActivityDefaults?.object(forKey: liveActivityDurationKey) as? Int ?? 300
+    }
+
+    static func setLiveActivityPreferences(enabled: Bool, balance: GhafLiveActivityBalance, duration: Int) {
         liveActivityDefaults?.set(enabled, forKey: liveActivityEnabledKey)
         liveActivityDefaults?.set(balance.rawValue, forKey: liveActivityBalanceKey)
+        liveActivityDefaults?.set(duration, forKey: liveActivityDurationKey)
         UserDefaults.standard.set(enabled, forKey: liveActivityKey)
     }
     /// Which channels the last refresh could write, shown in Notifications & widgets so a broken install is visible.
@@ -182,17 +188,12 @@ enum GhafWidgetSync {
         // The Dynamic Island is always dark, so it takes the theme's dark-mode colours.
         let settings = try? GhafPersistence.settings(in: GhafPersistence.shared().mainContext)
         let theme = GhafTheme.resolve(name: settings?.themeName ?? "Abu Dhabi", appearanceMode: "Dark", systemIsDark: true)
-        let expires = Date.now.addingTimeInterval(5 * 60)
+        let expires = Date.now.addingTimeInterval(TimeInterval(liveActivityDuration))
         guard let activity = try? Activity.request(
             attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
             content: .init(state: state, staleDate: expires)
         ) else { return }
-        // shortcut: iOS may suspend the process after the intent returns; next-launch cleanup handles missed timers.
-        Task {
-            try? await Task.sleep(for: .seconds(5 * 60))
-            let final = ActivityContent(state: state, staleDate: nil)
-            await activity.end(final, dismissalPolicy: .after(expires))
-        }
+        await activity.end(.init(state: state, staleDate: expires), dismissalPolicy: .after(expires))
     }
 
     /// Spending in the current day/week/month (main currency, transfers excluded by `isExpense`), cut into
