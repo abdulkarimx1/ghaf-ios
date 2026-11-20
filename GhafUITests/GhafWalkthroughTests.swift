@@ -202,3 +202,54 @@ extension GhafWalkthroughTests {
         snap("bank-picker-light-after")
     }
 }
+
+extension GhafWalkthroughTests {
+    func testStatsPeriodAndBudgetChartProof() {
+        launch()
+        timedTap(app.tabBars.buttons["Stats"], "open stats for chart proof")
+        for period in ["W", "M", "3M", "Y"] {
+            let selector = app.buttons[period].firstMatch
+            guard selector.waitForExistence(timeout: 5) else { log += "MISSING period \(period)\n"; continue }
+            selector.tap()
+            Thread.sleep(forTimeInterval: 0.15)
+            snap("stats-\(period)-draw")
+            Thread.sleep(forTimeInterval: 0.65)
+            snap("stats-\(period)-settled")
+        }
+        let trend = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Spending trend; drag to read each point"))
+            .firstMatch
+        if trend.waitForExistence(timeout: 3) {
+            trend.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88)).tap()
+            snap("stats-empty-plot-selection")
+        } else { log += "MISSING spending trend chart\n" }
+        for _ in 0..<7 { app.swipeUp(velocity: .fast) }
+        let pro = app.buttons["Ghaf Pro"].firstMatch
+        if pro.waitForExistence(timeout: 3) {
+            pro.tap()
+            snap("stats-pro-direct-sheet")
+        } else { log += "MISSING Ghaf Pro card\n" }
+
+        app.terminate()
+        launch(["-GhafScreen", "budget"])
+        Thread.sleep(forTimeInterval: 1)
+        snap("budget-petals-real-data")
+        for category in ["Transfer Fee", "Subscriptions"] {
+            let row = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", category)).firstMatch
+            for _ in 0..<7 where !row.exists { app.swipeUp(velocity: .fast) }
+            if row.exists {
+                row.tap()
+                for _ in 0..<7 { app.swipeDown(velocity: .fast) }
+                snap("budget-petal-\(category == "Transfer Fee" ? "transfer-fee" : "subscriptions")")
+            } else { log += "MISSING budget category \(category)\n" }
+        }
+        app.terminate()
+        launch(["-GhafScreen", "budget", "-GhafSelection", "month"])
+        Thread.sleep(forTimeInterval: 1)
+        app.swipeUp(velocity: .fast)
+        app.swipeUp(velocity: .fast)
+        snap("budget-past-month-selection")
+        app.swipeUp(velocity: .fast)
+        snap("budget-allocation-scrolled")
+    }
+}
