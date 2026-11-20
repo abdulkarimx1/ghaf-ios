@@ -206,6 +206,7 @@ struct GhafBudgetView: View {
         let shown = Array(all.prefix(grouped ? 6 : 7)) + (grouped ? [(name: ar ? "أخرى" : "Other", spent: all.dropFirst(6).reduce(Decimal.zero) { $0 + $1.spent }, budget: all.dropFirst(6).reduce(Decimal.zero) { $0 + $1.budget })] : [])
         let totalSpent = shown.reduce(Decimal.zero) { $0 + $1.spent }
         let totalBudget = shown.reduce(Decimal.zero) { $0 + $1.budget }
+        let largestBudget = shown.map(\.budget).max() ?? .zero
         let active = shown.first { $0.name == selectedCategory }
         return GeometryReader { geometry in
         let diameter = min(geometry.size.width - 32, 300)
@@ -221,9 +222,11 @@ struct GhafBudgetView: View {
                     let gap = 6 / outerRadius * 180 / .pi
                     let start = -90 + Double(index) * step + gap / 2
                     let end = -90 + Double(index + 1) * step - gap / 2
+                    let budgetShare = largestBudget > 0 ? NSDecimalNumber(decimal: item.budget / largestBudget).doubleValue : 0
+                    let petalOuter = innerRatio + (1 - innerRatio) * max(0.18, budgetShare)
                     let fraction = item.budget > 0 ? min(1, NSDecimalNumber(decimal: item.spent / item.budget).doubleValue) : 0
-                    let fillRadius = item.spent > item.budget ? 1 : sqrt(innerRatio * innerRatio + fraction * (1 - innerRatio * innerRatio))
-                    BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1)
+                    let fillRadius = innerRatio + (petalOuter - innerRatio) * fraction
+                    BudgetPetal(start: start, end: end, inner: innerRatio, outer: petalOuter)
                         .fill(theme.primaryText.opacity(theme.isDark ? 0.07 : 0.05))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
@@ -233,10 +236,10 @@ struct GhafBudgetView: View {
                             }
                         }
                         .overlay {
-                            BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1).stroke(item.spent > item.budget ? theme.over : .clear, lineWidth: 2)
+                            BudgetPetal(start: start, end: end, inner: innerRatio, outer: petalOuter).stroke(item.spent > item.budget ? theme.over : .clear, lineWidth: 2)
                         }
                         .opacity(selectedCategory == nil || selectedCategory == item.name ? 1 : 0.45)
-                        .contentShape(BudgetPetal(start: start, end: end, inner: innerRatio, outer: 1))
+                        .contentShape(BudgetPetal(start: start, end: end, inner: innerRatio, outer: petalOuter))
                 }
                 VStack(spacing: 3) {
                     if let active {
