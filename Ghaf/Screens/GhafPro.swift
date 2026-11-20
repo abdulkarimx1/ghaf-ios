@@ -47,10 +47,11 @@ struct GhafProView: View {
                 }
                 purchaseControls
                 HStack {
-                    if GhafFeatureFlags.appStoreAccount {
-                        Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
-                            .offerCodeRedemption(isPresented: $redeeming)
-                    }
+                    // Shown in every build; inactive until the App Store account exists.
+                    Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
+                        .offerCodeRedemption(isPresented: $redeeming)
+                        .disabled(!GhafFeatureFlags.appStoreAccount)
+                        .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
                     NavigationLink(ar ? "الشروط" : "Terms") { GhafTermsView(settings: settings) }
                     NavigationLink(ar ? "الخصوصية" : "Privacy") { GhafPrivacyPolicyView(settings: settings) }
                 }.font(.footnote)
@@ -115,7 +116,7 @@ struct GhafProView: View {
                 .foregroundStyle(theme.accentContrast)
                 .background(theme.accent, in: Capsule())
         }.disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
-        if GhafFeatureFlags.appStoreAccount {
+        do {
             Button(ar ? "استعادة المشتريات" : "Restore purchases") {
                 busy = true
                 Task {
@@ -126,7 +127,9 @@ struct GhafProView: View {
                         notice = entitled ? nil : (ar ? "لا يوجد اشتراك فعّال" : "No active subscription found")
                     } catch { notice = error.localizedDescription }
                 }
-            }.disabled(busy)
+            }
+            .disabled(busy || !GhafFeatureFlags.appStoreAccount)
+            .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
         }
         if let notice { Text(notice).font(.footnote) }
     }
@@ -158,6 +161,7 @@ struct GhafProView: View {
                 if annual { Text(ar ? "أفضل قيمة" : "Best value").font(.caption) }
                 Spacer()
                 if let product = products.first(where: { $0.id == (annual ? yearlyID : monthlyID) }) { Text(product.displayPrice) }
+                else { Text(annual ? (ar ? "‏79.99 د.إ / سنة" : "AED 79.99 / year") : (ar ? "‏9.99 د.إ / شهر" : "AED 9.99 / month")).foregroundStyle(theme.secondaryText) }
             }.padding(.horizontal).frame(minHeight: 64)
                 .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
         }.buttonStyle(.plain).accessibilityAddTraits(yearly == annual ? .isSelected : [])
