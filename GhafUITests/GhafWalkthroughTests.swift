@@ -256,7 +256,9 @@ extension GhafWalkthroughTests {
         let unavailable = app.buttons["Coming soon to the App Store"]
         XCTAssertTrue(unavailable.waitForExistence(timeout: 10))
         XCTAssertFalse(unavailable.isEnabled)
-        XCTAssertFalse(app.buttons["Redeem code"].exists)
+        XCTAssertTrue(app.buttons["Redeem code"].exists)
+        XCTAssertFalse(app.buttons["Redeem code"].isEnabled)
+        XCTAssertFalse(app.buttons["Restore purchases"].isEnabled)
         XCTAssertTrue(app.buttons["Privacy"].firstMatch.isHittable)
         snap("pro-flag-off")
     }
