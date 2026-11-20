@@ -523,45 +523,35 @@ struct GhafHomeView: View {
     // MARK: Big pill actions
 
     private func actionRow() -> some View {
-        ViewThatFits(in: .horizontal) {
-            actionPills(compactNotifications: false)
-            actionPills(compactNotifications: true)
+        HStack(spacing: 8) {
+            actionButton(ar ? "إضافة" : "Add", icon: "plus") { showQuickAdd = true }
+            actionButton(ar ? "اشتراكات" : "Subs", icon: "repeat") { showSubscriptions = true }
+            actionButton(ar ? "الإشعارات" : "Notifications", icon: "tray.full.fill", count: inboxCount) {
+                showInbox = true
+            }
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func actionPills(compactNotifications: Bool) -> some View {
-        HStack(spacing: 10) {
-            GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
-                           prominent: true) { showQuickAdd = true }
-            GhafPillButton(title: ar ? "اشتراكات" : "Subs", icon: "repeat", theme: theme,
-                           languageCode: lang) { showSubscriptions = true }
-            Button { showInbox = true } label: {
+    private func actionButton(_ title: String, icon: String, count: Int = 0, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: "tray.full.fill").font(.system(size: 14, weight: .bold))
-                    if !compactNotifications {
-                        Text(ar ? "الإشعارات" : "Notifications")
-                            .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
-                            .lineLimit(1)
-                    }
-                    if inboxCount > 0 {
-                        Text("\(inboxCount)")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(theme.accent)
-                            .padding(.horizontal, 5).frame(minHeight: 20)
-                            .background(theme.accent.opacity(0.14), in: Capsule())
-                    }
+                    Image(systemName: icon)
+                    if count > 0 { Text(count, format: .number) }
                 }
-                .foregroundStyle(theme.primaryText)
-                .frame(minHeight: 48)
-                .padding(.horizontal, 16)
-                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
-                .contentShape(Capsule())
+                .font(.system(size: 14, weight: .semibold))
+                Text(title)
+                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .buttonStyle(.ghafPress)
-            .accessibilityLabel(ar ? "الإشعارات، \(inboxCount)" : "Notifications, \(inboxCount)")
+            .foregroundStyle(theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(theme.surface, in: Capsule())
         }
-        .fixedSize(horizontal: true, vertical: false)
+        .buttonStyle(.ghafPress)
+        .accessibilityLabel(title)
+        .accessibilityValue(count > 0 ? count.formatted() : "")
     }
 
     // MARK: Dark insight card
