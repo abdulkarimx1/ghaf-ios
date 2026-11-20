@@ -17,6 +17,8 @@ struct GhafRootView: View {
 
     @State private var showAutomationIntro = false
     @State private var appliedLanguage = ""
+    @State private var languageTransitionText = ""
+    @State private var showLanguageTransition = false
     @State private var showLaunch = true
     @State private var launchHasStarted = false
     @State private var launchSkipRequested = false
@@ -31,6 +33,10 @@ struct GhafRootView: View {
 
     private var languageCode: String {
         settings.first?.languageCode ?? "en"
+    }
+
+    private func localized(_ english: String, _ arabic: String, languageCode: String) -> String {
+        languageCode == "ar" ? arabic : english
     }
 
     var body: some View {
@@ -51,6 +57,22 @@ struct GhafRootView: View {
                     .transition(.opacity)
                     .zIndex(20)
             }
+
+            if showLanguageTransition, let currentSettings = settings.first {
+                let transitionTheme = GhafTheme.resolve(name: currentSettings.themeName,
+                                                        appearanceMode: currentSettings.appearanceMode,
+                                                        systemIsDark: systemColorScheme == .dark)
+                VStack(spacing: 18) {
+                    Text("Ghaf").font(GhafTypography.display(34, languageCode: appliedLanguage.isEmpty ? languageCode : appliedLanguage))
+                    Text(languageTransitionText).font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
+                        .contentTransition(.opacity)
+                }
+                .multilineTextAlignment(.center)
+                .foregroundStyle(transitionTheme.primaryText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(transitionTheme.background.ignoresSafeArea())
+                .zIndex(30)
+            }
         }
         .toggleStyle(GhafToggleStyle(theme: GhafTheme.resolve(name: settings.first?.themeName ?? "Abu Dhabi", appearanceMode: settings.first?.appearanceMode ?? "System", systemIsDark: systemColorScheme == .dark), languageCode: languageCode))
         .environment(\.locale, Locale(identifier: languageCode))
@@ -60,9 +82,27 @@ struct GhafRootView: View {
         .scrollBounceBehavior(.basedOnSize)
         // UIKit parts (navigation bars, back arrows, swipe-back, menus, pickers) ignore SwiftUI's
         // direction; set theirs first, then rebuild the screens so they pick it up.
-        .onChange(of: languageCode, initial: true) { _, code in
-            UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
-            appliedLanguage = code
+        .onChange(of: languageCode, initial: true) { oldCode, code in
+            guard !appliedLanguage.isEmpty, oldCode != code else {
+                UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
+                appliedLanguage = code
+                return
+            }
+            let oldText = localized("Preparing your experience", "نجهّز تجربتك", languageCode: oldCode)
+            let newText = localized("Preparing your experience", "نجهّز تجربتك", languageCode: code)
+            languageTransitionText = oldText
+            showLanguageTransition = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(550))
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .easeInOut(duration: 0.45)) {
+                    languageTransitionText = newText
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+                UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
+                appliedLanguage = code
+                try? await Task.sleep(for: .milliseconds(800))
+                withAnimation(.easeOut(duration: 0.2)) { showLanguageTransition = false }
+            }
         }
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
