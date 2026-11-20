@@ -202,3 +202,68 @@ extension GhafWalkthroughTests {
         snap("bank-picker-light-after")
     }
 }
+
+extension GhafWalkthroughTests {
+    func testSessionFWalletAndEyeProof() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for Session F")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'balance'")).firstMatch.waitForExistence(timeout: 5))
+        usleep(500_000)
+        snap("f-wallet-at-rest")
+
+        let eye = app.buttons["Hide balances"].exists ? app.buttons["Hide balances"] : app.buttons["Show balances"]
+        if eye.waitForExistence(timeout: 5) {
+            timedTap(eye, "toggle wallet balances")
+            snap("f-eye-hidden")
+        } else {
+            log += "MISSING wallet eye control\n"
+        }
+
+        let card = app.otherElements.matching(NSPredicate(format: "value CONTAINS[c] 'Card '")).firstMatch
+        if card.waitForExistence(timeout: 5), let value = card.value as? String,
+           let count = Int(value.components(separatedBy: " of ").last ?? "") {
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.83, dy: 0.3))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.3))
+            for index in 0..<min(count, 20) {
+                snap(String(format: "f-card-%02d", index + 1))
+                if index + 1 < count {
+                    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
+                }
+            }
+        } else {
+            log += "MISSING wallet card position value\n"
+        }
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testSessionFRequestCardFormProof() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for request form proof")
+        let newCard = app.buttons["New card"].firstMatch
+        timedTap(newCard, "open account editor")
+        XCTAssertTrue(app.navigationBars["Add account"].waitForExistence(timeout: 5))
+        usleep(500_000)
+        snap("f-request-editor-before")
+
+        let type = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Cash wallet'")).firstMatch
+        if type.waitForExistence(timeout: 5) {
+            type.tap()
+            let debit = app.buttons["Debit card"]
+            if debit.waitForExistence(timeout: 3) { debit.tap() }
+        }
+        let bank = app.textFields["Bank or institution"]
+        if bank.waitForExistence(timeout: 3) {
+            bank.tap()
+            bank.typeText("Ruya\n")
+        }
+        let request = app.buttons["Card not found?"]
+        if request.waitForExistence(timeout: 5) {
+            request.tap()
+            XCTAssertTrue(app.navigationBars["Request a card"].waitForExistence(timeout: 5))
+            snap("f-request-card-after")
+        } else {
+            log += "MISSING Card not found?\n"
+        }
+    }
+}
