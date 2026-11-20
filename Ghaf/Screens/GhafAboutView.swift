@@ -14,7 +14,6 @@ struct GhafAboutView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let settings: GhafSettings
-    @State private var page = 0
     @State private var appeared = false
 
     private var ar: Bool { settings.languageCode == "ar" }
@@ -46,7 +45,7 @@ struct GhafAboutView: View {
             ScrollView {
             VStack(spacing: 14) {
                 hero
-                featureCarousel.ghafEntrance(1)
+                featureList.ghafEntrance(1)
                 actions.ghafEntrance(2).id("about-actions")
                 socials.ghafEntrance(3)
                 footer
@@ -97,43 +96,21 @@ struct GhafAboutView: View {
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
-    private var featureCarousel: some View {
-        VStack(spacing: 10) {
-            TabView(selection: $page) {
-                ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                    VStack(alignment: .leading, spacing: 10) {
-                        Image(systemName: feature.symbol)
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(theme.accent)
-                            .frame(width: 48, height: 48)
-                            .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .symbolEffect(.bounce, value: page == index)
-                        Text(feature.title)
-                            .font(GhafTypography.heading(19, languageCode: lang))
-                            .foregroundStyle(theme.primaryText)
-                        Text(feature.body)
-                            .font(GhafTypography.body(14, languageCode: lang))
-                            .foregroundStyle(theme.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ghafCard(theme: theme)
-                    .padding(.horizontal, 2)
-                    .tag(index)
+    private var featureList: some View {
+        VStack(spacing: 12) {
+            ForEach(Array(features.enumerated()), id: \.offset) { _, feature in
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: feature.symbol)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                        .frame(width: 48, height: 48)
+                        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    Text(feature.title).font(GhafTypography.heading(19, languageCode: lang)).foregroundStyle(theme.primaryText)
+                    Text(feature.body).font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(18).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 160)
-            HStack(spacing: 6) {
-                ForEach(features.indices, id: \.self) { index in
-                    Capsule().fill(index == page ? theme.accent : theme.secondaryText.opacity(0.3))
-                        .frame(width: index == page ? 20 : 7, height: 7)
-                }
-            }
-            .animation(.snappy, value: page)
-            .accessibilityHidden(true)
         }
     }
 
