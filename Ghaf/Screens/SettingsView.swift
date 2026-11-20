@@ -59,12 +59,14 @@ struct GhafSettingsView: View {
     @State private var categoryDraftName = ""
     @State private var showCategories = false
     @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+    @State private var selectedMilestone: Int?
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
     @State private var fixtureProPresented = false
     @State private var showProSheet = false
     @State private var fixtureAboutPresented = false
+    @State private var fixtureDrivePresented = false
 #endif
 
     private let currencies = ["AED", "SAR", "KWD", "BHD", "OMR", "QAR"]
@@ -181,6 +183,9 @@ struct GhafSettingsView: View {
             .navigationDestination(isPresented: $fixtureAboutPresented) {
                 GhafAboutView(settings: settings)
             }
+            .navigationDestination(isPresented: $fixtureDrivePresented) {
+                subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard }
+            }
 #endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .onAppear {
@@ -193,6 +198,8 @@ struct GhafSettingsView: View {
                     case "profile-proof": fixtureProfilePresented = true
                     case "pro-page-proof": fixtureProPresented = true
                     case "about-proof": fixtureAboutPresented = true
+                    case "drive-proof": fixtureDrivePresented = true
+                    case "milestone-proof": fixtureProfilePresented = true; selectedMilestone = 7
                     default: break
                     }
                 }
@@ -340,15 +347,29 @@ struct GhafSettingsView: View {
 
     private var driveCard: some View {
         settingsCard("Google Drive", subtitle: ar ? "نسخ احتياطي إلى حسابك في Google Drive" : "Back up to your own Google Drive") {
-            if !drive.isConfigured {
-                Text(ar ? "ربط Google غير مفعّل في هذه النسخة بعد. يحتاج المطوّر إلى إضافة معرّف Google OAuth."
-                        : "Google sign-in isn't switched on in this build yet. The developer needs to add a Google OAuth client ID.")
-                    .font(GhafTypography.body(13, languageCode: languageCode))
-                    .foregroundStyle(theme.secondaryText)
-            } else if let email = drive.email {
-                Label(email, systemImage: "checkmark.seal.fill")
-                    .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
-                    .foregroundStyle(theme.credit)
+            if drive.isConnected, let email = drive.email {
+                HStack(spacing: 12) {
+                    if let avatar = drive.avatarURL, let url = URL(string: avatar) {
+                        AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: {
+                            Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(theme.secondaryText)
+                        }
+                        .frame(width: 48, height: 48).clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.crop.circle.fill").font(.system(size: 44)).foregroundStyle(theme.secondaryText)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(email).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                        Text(ar ? "متصل بحساب Google" : "Connected to Google")
+                            .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.credit)
+                    }
+                    Spacer()
+                    Image("Brand-google").resizable().renderingMode(.template).foregroundStyle(theme.primaryText).scaledToFit().frame(width: 24, height: 24)
+                }.padding(.vertical, 6)
+                HStack {
+                    Text(ar ? "آخر نسخة احتياطية" : "Last backup")
+                    Spacer()
+                    Text(drive.lastBackupDate?.formatted(date: .abbreviated, time: .shortened) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
+                }.font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 Button { driveBackup() } label: {
                     settingsActionRow(ar ? "نسخ احتياطي الآن" : "Back up now", detail: ar ? "رفع نسخة جديدة إلى Drive" : "Upload a fresh copy to Drive", icon: "icloud.and.arrow.up")
                 }
@@ -362,15 +383,44 @@ struct GhafSettingsView: View {
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .buttonStyle(.bordered)
             } else {
-                Button { Task { await driveRun { try await drive.signIn() } } } label: {
-                    Label(ar ? "تسجيل الدخول عبر Google" : "Sign in with Google", systemImage: "person.crop.circle.badge.plus")
-                        .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.crop.circle.fill").font(.system(size: 44)).foregroundStyle(theme.secondaryText)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(ar ? "حساب Google" : "Google account").font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                            Text(ar ? "ستظهر تفاصيل الاتصال هنا" : "Your connection details will appear here")
+                                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                        }
+                        Spacer()
+                        Image("Brand-google").resizable().renderingMode(.template).foregroundStyle(theme.primaryText).scaledToFit().frame(width: 24, height: 24)
+                    }
+                    HStack {
+                        Text(ar ? "آخر نسخة احتياطية" : "Last backup"); Spacer()
+                        Text(ar ? "لا توجد نسخة بعد" : "No backup yet")
+                    }.font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                    Button { Task { await driveRun { try await drive.signIn() } } } label: {
+                        HStack(spacing: 12) {
+                            Image("Brand-google").renderingMode(.template).resizable().scaledToFit().frame(width: 20, height: 20)
+                            Text(ar ? "تسجيل الدخول عبر Google" : "Sign in with Google")
+                                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                        }
+                        .foregroundStyle(theme.primaryText)
                         .frame(maxWidth: .infinity, minHeight: 56)
-                        .padding(.vertical, 12)
+                        .background(theme.surface, in: Capsule())
+                    }
+                    .buttonStyle(.ghafPress)
+                    .disabled(!drive.isConfigured || drive.isBusy)
+                    .opacity(drive.isConfigured && !drive.isBusy ? 1 : 0.4)
                 }
-                .ghafProminentButton(theme: theme, languageCode: languageCode)
-                .disabled(drive.isBusy)
             }
+            Toggle(ar ? "النسخ التلقائي" : "Automatic backup", isOn: .constant(false))
+                .disabled(true).opacity(0.4)
+            Text(ar ? "قريباً" : "Coming soon")
+                .font(GhafTypography.body(11, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+            Text(ar ? "تنتقل النسخة مباشرةً من iPhone إلى Google Drive الخاص بك. لا يطّلع غاف عليها."
+                    : "Your backup goes straight from your iPhone to your own Google Drive. Ghaf never sees it.")
+                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
             if drive.isBusy { ProgressView().frame(maxWidth: .infinity) }
         }
     }
@@ -477,7 +527,8 @@ struct GhafSettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 HStack(spacing: 8) {
                     ForEach([7, 30, 100, 365], id: \.self) { days in
-                        VStack(spacing: 6) {
+                        Button { selectedMilestone = days } label: {
+                          VStack(spacing: 6) {
                             Text("\(days)")
                                 .font(GhafTypography.number(16, weight: .bold))
                                 .foregroundStyle(streak >= days ? theme.accentContrast : theme.secondaryText)
@@ -486,15 +537,46 @@ struct GhafSettingsView: View {
                             Text(ar ? "يوم" : "days")
                                 .font(GhafTypography.body(12, languageCode: languageCode))
                                 .foregroundStyle(theme.secondaryText)
-                        }
-                        .frame(maxWidth: .infinity)
+                          }
+                          .frame(maxWidth: .infinity)
+                        }.buttonStyle(.ghafPress)
+                         .accessibilityLabel(ar ? "إنجاز \(days) يوماً" : "\(days)-day milestone")
                     }
                 }
+                Text(ar ? "سجّل عملية لا تنتظر المراجعة كل يوم؛ وإذا فاتك يوم يبدأ تسلسل جديد. للمتعة فقط."
+                        : "Log a transaction daily; entries awaiting review don’t count. Miss a day and the streak restarts. Just for fun.")
+                    .font(GhafTypography.body(12, languageCode: languageCode))
+                    .foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 12)
             .ghafCard(theme: theme)
+            .sheet(isPresented: Binding(get: { selectedMilestone != nil }, set: { if !$0 { selectedMilestone = nil } })) {
+                if let days = selectedMilestone { milestoneSheet(days: days, streak: streak) }
+            }
         }
+    }
+
+    private func milestoneSheet(days: Int, streak: Int) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: streak >= days ? "checkmark.seal.fill" : "sparkle")
+                .font(.system(size: 36)).foregroundStyle(theme.accent)
+            Text(ar ? "إنجاز \(days) يوماً" : "\(days)-day milestone")
+                .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+            Text(ar ? "هذا إنجاز لبلوغ \(days) يوماً متتالياً. تسلسلك الحالي \(streak) يوماً؛ للمتعة فقط."
+                    : "This milestone marks \(days) consecutive days. Your current streak is \(streak) days; just for fun.")
+                .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
+            Button(ar ? "تم" : "Done") { selectedMilestone = nil }
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
+        }
+        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background.ignoresSafeArea())
+        .presentationDetents([.height(270)])
+        .presentationCornerRadius(32)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
     private func profileMetric(value: String, title: String) -> some View {
@@ -650,12 +732,11 @@ HStack(spacing: 8) {
                 Toggle(ar ? "تأثير الزجاج" : "Glass effect", isOn: $glassEnabled)
                     .frame(minHeight: 56)
                 glassDivider
-                HStack {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(ar ? "الشدة" : "Intensity").foregroundStyle(theme.primaryText)
-                    Spacer(minLength: 12)
                     GhafSegmented(options: [("subtle", ar ? "خفيف" : "Subtle"), ("balanced", ar ? "متوازن" : "Balanced"), ("bold", ar ? "قوي" : "Bold")], selection: $glassIntensity, theme: theme, languageCode: languageCode)
-                }
-                .frame(minHeight: 64)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.frame(maxWidth: .infinity).padding(.vertical, 10)
                 .disabled(!glassEnabled)
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
