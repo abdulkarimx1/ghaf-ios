@@ -9,12 +9,12 @@ enum GhafPersistence {
 
     static func shared() throws -> ModelContainer {
         if let sharedContainer {
-            cleanMerchantDataIfNeeded(in: ModelContext(sharedContainer))
+            cleanMerchantDataIfNeeded(in: sharedContainer.mainContext)
             return sharedContainer
         }
         let container = try makeContainer()
         sharedContainer = container
-        cleanMerchantDataIfNeeded(in: ModelContext(container))
+        cleanMerchantDataIfNeeded(in: container.mainContext)
         return container
     }
 
@@ -29,6 +29,8 @@ enum GhafPersistence {
             Logger(subsystem: "Ghaf", category: "Persistence").info("\(cleaned, privacy: .public)")
         } catch {
             context.rollback()
+            UserDefaults.standard.set(true, forKey: flag)
+            Logger(subsystem: "Ghaf", category: "Persistence").error("Merchant cleanup migration failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 
@@ -37,6 +39,10 @@ enum GhafPersistence {
         let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
         var cleaned = 0
         for transaction in transactions {
+            let fingerprint = transaction.fingerprint
+            guard !["manual-", "manual-adjust-", "salary-", "transfer-", "voice-"].contains(where: fingerprint.hasPrefix),
+                  transaction.bank != nil || ["wallet-", "file-", "expend-"].contains(where: fingerprint.hasPrefix) else { continue }
+            // shortcut: older rows lack a merchant-edit marker; add one before cleaning edited automated entries.
             guard let merchant = transaction.merchant else { continue }
             let value = MerchantName.clean(merchant)
             let baseline = merchant.split(whereSeparator: \.isWhitespace).joined(separator: " ")
