@@ -247,64 +247,23 @@ struct GhafTermsView: View {
     }
 }
 
-/// The bottom sheet shown when a Pro feature is tapped. Purchases are not open yet, so the buy button is
-/// disabled and "Skip for now" carries on to the feature, which stays free until then.
+extension View {
+    func ghafProSheet(isPresented: Binding<Bool>, settings: GhafSettings) -> some View {
+        sheet(isPresented: isPresented) { GhafProSheet(settings: settings) }
+    }
+}
+
 struct GhafProSheet: View {
-    @State private var contentHeight: CGFloat = 0
-    @Environment(\.colorScheme) private var colorScheme
     let settings: GhafSettings
-    let feature: (en: String, ar: String)
-    private var lang: String { settings.languageCode }
-    private var ar: Bool { lang == "ar" }
-    private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    init(settings: GhafSettings, feature: (en: String, ar: String)? = nil) {
+        self.settings = settings
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 18) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-                Text(ar ? "الترقية إلى Pro" : "Upgrade to Pro")
-                    .font(GhafTypography.heading(24, languageCode: lang))
-                    .foregroundStyle(theme.primaryText)
-                Text(ar ? "تقارير أعمق وودجات وأنشطة مباشرة." : "Deeper reports, widgets, and Live Activities.")
-                    .font(GhafTypography.body(15, languageCode: lang))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-                NavigationLink {
-                    GhafProView(settings: settings, showsClose: false)
-                } label: {
-                    Text(ar ? "عرض الخطط" : "See plans")
-                        .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.accentContrast)
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(theme.accent, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint(ar ? "عرض خطط غاف Pro." : "Opens Ghaf Pro plans for \(feature.en).")
-            }
-            .padding(24)
-            .frame(maxWidth: .infinity)
-            .background {
-                GeometryReader { proxy in
-                    Color.clear.preference(key: GhafProSheetHeightKey.self, value: proxy.size.height)
-                }
-            }
-            .background(theme.background)
-            .toolbar(.hidden, for: .navigationBar)
-        }
-        .onPreferenceChange(GhafProSheetHeightKey.self) { contentHeight = $0 }
-        .presentationDetents([.height(max(contentHeight, 240))])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(32)
-        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        NavigationStack { GhafProView(settings: settings) }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(32)
+            .ghafDirection(settings.languageCode)
     }
-
-}
-
-private struct GhafProSheetHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
