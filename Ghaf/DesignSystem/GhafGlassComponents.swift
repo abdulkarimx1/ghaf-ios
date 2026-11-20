@@ -1,4 +1,5 @@
 import SwiftUI
+import GhafCore
 
 extension View {
     func ghafScreenPadding() -> some View {
@@ -373,8 +374,13 @@ struct GhafCategoryIcon: View {
     }
 
     private var style: (symbol: String, color: Color) {
-        guard let builtIn = Self.builtIn(category) else { return ("creditcard.fill", tint) }
-        return (builtIn.symbol, color(builtIn.palette))
+        if let builtIn = Self.builtIn(category) { return (builtIn.symbol, color(builtIn.palette)) }
+        // Imported categories ("Food", "Car", "Utilities"…) match the taxonomy by name or alias.
+        let key = category.lowercased()
+        if let match = CategoryTaxonomy.all.first(where: { $0.name.lowercased() == key || $0.aliases.contains { $0.lowercased() == key } }) {
+            return (match.icon, color(named: match.color) ?? tint)
+        }
+        return ("creditcard.fill", tint)
     }
 
     var body: some View {

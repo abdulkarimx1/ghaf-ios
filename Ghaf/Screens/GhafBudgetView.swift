@@ -227,7 +227,7 @@ struct GhafBudgetView: View {
                     let fraction = item.budget > 0 ? min(1, NSDecimalNumber(decimal: item.spent / item.budget).doubleValue) : 0
                     let fillRadius = innerRatio + (petalOuter - innerRatio) * fraction
                     BudgetPetal(start: start, end: end, inner: innerRatio, outer: petalOuter)
-                        .fill(theme.primaryText.opacity(theme.isDark ? 0.07 : 0.05))
+                        .fill(theme.primaryText.opacity(theme.isDark ? 0.16 : 0.10))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
                             // A fill thinner than 6pt draws as a spike once corners are rounded; show none instead.
