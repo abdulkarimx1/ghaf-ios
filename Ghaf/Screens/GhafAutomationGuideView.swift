@@ -7,7 +7,6 @@ struct GhafAutomationGuideView: View {
     @Environment(\.scenePhase) private var scenePhase
     let settings: GhafSettings
 
-    @State private var detectedBanks: [GhafBankSupportContact] = []
     @State private var chosenBanks: [String] = []
     @State private var showingBankPicker = false
     @State private var bankSearch = ""
@@ -180,12 +179,6 @@ struct GhafAutomationGuideView: View {
                     .font(GhafTypography.heading(20, languageCode: settings.languageCode))
                     .foregroundStyle(theme.primaryText)
                 Spacer()
-                if !detectedBanks.isEmpty {
-                    Text(text("Detected on this iPhone", "تم اكتشافها على هذا iPhone"))
-                        .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .medium))
-                        .foregroundStyle(theme.secondaryText)
-                        .multilineTextAlignment(.trailing)
-                }
             }
             Text(text("Choose the banks whose messages you want Ghaf to capture.",
                       "اختر البنوك التي تريد من غاف تسجيل رسائلها."))
@@ -292,11 +285,13 @@ struct GhafAutomationGuideView: View {
                 automationMark(rowStatus(stamp))
             }
             if let link = URL(string: url), !url.isEmpty {
+                // The card title names the template, so the button stays short and on one line.
                 Link(destination: link) {
-                    Text(button).font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                    Text(text("Add shortcut", "إضافة الاختصار")).font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.85)
                         .foregroundStyle(theme.surface).frame(maxWidth: .infinity, minHeight: 56)
                         .background(theme.primaryText, in: Capsule())
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).accessibilityLabel(button)
             }
             NavigationLink { manualSetupPage(automation) } label: {
                 Text(text("Set it up manually", "الإعداد يدوياً"))
@@ -719,9 +714,7 @@ struct GhafAutomationGuideView: View {
     }
 
     private func refreshBanks() {
-        let detected = GhafBankAppDetector.installedBanks()
-        detectedBanks = detected
-        chosenBanks = GhafAutomationBanks.selected(using: detected)
+        chosenBanks = GhafAutomationBanks.selected()
     }
 
     private func openShortcuts() {
