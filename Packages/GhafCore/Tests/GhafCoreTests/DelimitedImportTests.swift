@@ -43,6 +43,7 @@ final class DelimitedImportTests: XCTestCase {
         XCTAssertEqual(row["amount"], "15")
         XCTAssertNil(row[""])
         XCTAssertNil(DelimitedImport.value(row, aliases: ["value"]))
+        XCTAssertEqual(DelimitedImport.value(row, aliases: ["value date"]), "2026-01-01")
         XCTAssertNil(DelimitedImport.value(row, aliases: ["name"]))
     }
 

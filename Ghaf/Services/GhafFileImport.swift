@@ -51,7 +51,7 @@ enum GhafFileImport {
         var rows: [GhafFileImportRow] = [], skipped = 0
         for item in dictionaries {
             let fields = item.reduce(into: [String: String]()) { $0[normalize($1.key)] = String(describing: $1.value) }
-            let dateAliases = ["date", "transaction date", "date/time", "booking date", "posted date", "تاريخ", "التاريخ"]
+            let dateAliases = ["date", "transaction date", "date/time", "booking date", "posted date", "value date", "تاريخ", "التاريخ"]
             let amountAliases = ["amount", "transaction amount", "value", "المبلغ", "القيمة"]
             let debitAliases = ["debit", "debit amount", "withdrawal", "withdrawals", "money out", "مدين", "السحب"]
             let creditAliases = ["credit", "credit amount", "deposit", "money in", "دائن", "إيداع", "ايداع"]
