@@ -650,12 +650,13 @@ struct GhafBudgetView: View {
                                     .font(GhafTypography.number(11, weight: .bold)).foregroundStyle(theme.surface).padding(.horizontal, 6).padding(.vertical, 3).background(theme.primaryText, in: Capsule()).lineLimit(1).minimumScaleFactor(0.65)
                             }
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(current ? theme.accent : theme.primaryText.opacity(selectedMonth == nil ? 0.22 : selectedMonth == month.start ? 1 : 0.3))
+                                .fill(selectedMonth == nil ? (current ? theme.accent : theme.primaryText.opacity(0.22)) : theme.primaryText)
                                 .frame(height: max(6, 70 * month.total / most))
                             Text(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))
                                 .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(current ? theme.primaryText : theme.secondaryText)
                         }
                         .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottom).contentShape(Rectangle())
+                        .opacity(selectedMonth == nil || selectedMonth == month.start ? 1 : 0.3)
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
