@@ -63,6 +63,7 @@ struct GhafSettingsView: View {
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
     @State private var fixtureProPresented = false
+    @State private var showProSheet = false
     @State private var fixtureAboutPresented = false
 #endif
 
@@ -92,7 +93,7 @@ struct GhafSettingsView: View {
                         .padding(GhafMetrics.cardPadding)
                         .ghafCard(theme: theme)
                     } else {
-                        NavigationLink { AnyView(GhafProView(settings: settings, showsClose: false)) } label: {
+                        Button { showProSheet = true } label: {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Ghaf Pro")
                                     .font(GhafTypography.heading(22, languageCode: languageCode).weight(.bold))
@@ -111,6 +112,7 @@ struct GhafSettingsView: View {
                             .ghafCard(theme: theme)
                         }
                         .buttonStyle(.ghafPress)
+                        .ghafProSheet(isPresented: $showProSheet, settings: settings)
                     }
 
                     menuGroup(ar ? "المال" : "Money") {
