@@ -22,7 +22,7 @@ final class GhafSweepTests: XCTestCase {
     func launchToTab() {
         app = XCUIApplication()
         let backup = ProcessInfo.processInfo.environment["GHAF_BACKUP"].map { ["-GhafRestoreBackup", $0] } ?? []
-        app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+        app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", ProcessInfo.processInfo.environment["GHAF_SWEEP_LANG"] ?? "en"]
         app.launch()
         _ = app.tabBars.firstMatch.waitForExistence(timeout: 25)
         let b = app.tabBars.buttons.element(boundBy: tab)
