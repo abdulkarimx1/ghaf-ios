@@ -61,11 +61,11 @@ struct GhafSettingsView: View {
     @State private var showCategories = false
     @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
     @State private var selectedMilestone: Int?
+    @State private var showProSheet = false
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
     @State private var fixtureProPresented = false
-    @State private var showProSheet = false
     @State private var fixtureAboutPresented = false
     @State private var fixtureDrivePresented = false
 #endif
