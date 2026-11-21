@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.27 (41)
+
+### English
+- New onboarding: centred pages with visuals, language switch at the start, and import of a Ghaf or Expend backup or a CSV file (also in Settings › Data).
+- Bank automation redesigned: one-time Shortcuts setup with ready-made templates, modern bank list, clearer steps.
+- Wallet cards stack behind the selected card, all on one line; a fast swipe moves several cards. Bank card images cropped to one consistent shape.
+- Taller 60pt buttons in one style across the app. Features that are not ready yet are shown dimmed instead of hidden.
+- Budget petals and category icons are clearer; charts and Settings pages polished.
+- Safer data: CSV amounts like "1,234" and signed amounts import correctly, backups with a missing account restore instead of failing, your own merchant names are kept, and partial name matches go to review instead of an account.
+- Arabic wording reviewed across the app.
+
+### العربية
+- إعداد جديد: صفحات متمركزة مع رسوم، واختيار اللغة من البداية، واستيراد نسخة غاف أو Expend الاحتياطية أو ملف CSV (ومتاح أيضاً في الإعدادات › البيانات).
+- تصميم جديد لأتمتة البنوك: إعداد الاختصارات مرة واحدة بقوالب جاهزة، وقائمة بنوك حديثة، وخطوات أوضح.
+- تصطف بطاقات المحفظة خلف البطاقة المختارة على خط واحد، والسحب السريع ينقل عدة بطاقات. صور البطاقات البنكية بقصّ موحّد.
+- أزرار أطول (٦٠ نقطة) بنمط واحد في التطبيق كله. الميزات غير الجاهزة تظهر باهتة بدل إخفائها.
+- بتلات الميزانية وأيقونات الفئات أوضح، وتحسينات على المخططات وصفحات الإعدادات.
+- بيانات أكثر أماناً: تُستورد مبالغ CSV مثل "1,234" والمبالغ الموجبة والسالبة بشكل صحيح، وتُستعاد النسخ التي تشير إلى حساب مفقود بدل رفضها، وتبقى أسماء التجار التي كتبتها كما هي، وتذهب المطابقات الجزئية إلى المراجعة بدل إسنادها إلى حساب.
+- مراجعة الصياغة العربية في التطبيق كله.
+
+## 1.26 (40)
+
+### English
+- Wallet cards are flat and scroll left and right with your finger: drag across as many cards as you like, and the balance and transactions follow the card you stop on.
+- Switching tabs is snappier: no entrance animation, and background animations pause when off screen.
+
+### العربية
+- بطاقات المحفظة مسطحة وتتحرك يميناً ويساراً مع إصبعك: اسحب عبر أي عدد من البطاقات، ويتبع الرصيد والعمليات البطاقة التي تتوقف عندها.
+- التنقل بين التبويبات أسرع: دون حركة دخول، وتتوقف الحركات الخلفية عندما تكون خارج الشاشة.
+
 ## 1.25 (39)
 
 ### English

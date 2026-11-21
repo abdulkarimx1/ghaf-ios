@@ -545,3 +545,13 @@ extension GhafWalkthroughTests {
         snap("import-sheet-onboarding")
     }
 }
+
+extension GhafWalkthroughTests {
+    func test11WalletActionsRemainAvailable() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for action check")
+        for action in ["Spend", "Transfer", "Edit", "New card"] {
+            XCTAssertTrue(app.buttons[action].exists, "Missing wallet action: \(action)")
+        }
+    }
+}
