@@ -1,4 +1,6 @@
 import SwiftUI
+import GhafCore
+import AuthenticationServices
 import SwiftData
 import LocalAuthentication
 import UserNotifications
@@ -15,6 +17,8 @@ struct GhafRootView: View {
 
     @State private var showAutomationIntro = false
     @State private var appliedLanguage = ""
+    @State private var languageTransitionText = ""
+    @State private var showLanguageTransition = false
     @State private var showLaunch = true
     @State private var launchHasStarted = false
     @State private var launchSkipRequested = false
@@ -29,6 +33,10 @@ struct GhafRootView: View {
 
     private var languageCode: String {
         settings.first?.languageCode ?? "en"
+    }
+
+    private func localized(_ english: String, _ arabic: String, languageCode: String) -> String {
+        languageCode == "ar" ? arabic : english
     }
 
     var body: some View {
@@ -49,6 +57,22 @@ struct GhafRootView: View {
                     .transition(.opacity)
                     .zIndex(20)
             }
+
+            if showLanguageTransition, let currentSettings = settings.first {
+                let transitionTheme = GhafTheme.resolve(name: currentSettings.themeName,
+                                                        appearanceMode: currentSettings.appearanceMode,
+                                                        systemIsDark: systemColorScheme == .dark)
+                VStack(spacing: 18) {
+                    Text("Ghaf").font(GhafTypography.display(34, languageCode: appliedLanguage.isEmpty ? languageCode : appliedLanguage))
+                    Text(languageTransitionText).font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
+                        .contentTransition(.opacity)
+                }
+                .multilineTextAlignment(.center)
+                .foregroundStyle(transitionTheme.primaryText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(transitionTheme.background.ignoresSafeArea())
+                .zIndex(30)
+            }
         }
         .toggleStyle(GhafToggleStyle(theme: GhafTheme.resolve(name: settings.first?.themeName ?? "Abu Dhabi", appearanceMode: settings.first?.appearanceMode ?? "System", systemIsDark: systemColorScheme == .dark), languageCode: languageCode))
         .environment(\.locale, Locale(identifier: languageCode))
@@ -58,9 +82,27 @@ struct GhafRootView: View {
         .scrollBounceBehavior(.basedOnSize)
         // UIKit parts (navigation bars, back arrows, swipe-back, menus, pickers) ignore SwiftUI's
         // direction; set theirs first, then rebuild the screens so they pick it up.
-        .onChange(of: languageCode, initial: true) { _, code in
-            UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
-            appliedLanguage = code
+        .onChange(of: languageCode, initial: true) { oldCode, code in
+            guard !appliedLanguage.isEmpty, oldCode != code else {
+                UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
+                appliedLanguage = code
+                return
+            }
+            let oldText = localized("Preparing your experience", "نجهّز تجربتك", languageCode: oldCode)
+            let newText = localized("Preparing your experience", "نجهّز تجربتك", languageCode: code)
+            languageTransitionText = oldText
+            showLanguageTransition = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(550))
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .easeInOut(duration: 0.45)) {
+                    languageTransitionText = newText
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+                UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
+                appliedLanguage = code
+                try? await Task.sleep(for: .milliseconds(800))
+                withAnimation(.easeOut(duration: 0.2)) { showLanguageTransition = false }
+            }
         }
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
@@ -113,7 +155,10 @@ struct GhafRootView: View {
     }
 
     private var authenticationLockScreen: some View {
-        ZStack {
+        let theme = GhafTheme.resolve(name: settings.first?.themeName ?? "Graphite",
+                                      appearanceMode: settings.first?.appearanceMode ?? "System",
+                                      systemIsDark: systemColorScheme == .dark)
+        return ZStack {
             Color(uiColor: .systemBackground).ignoresSafeArea()
             VStack(spacing: 18) {
                 Image(systemName: "faceid")
@@ -136,12 +181,8 @@ struct GhafRootView: View {
                 }
                 Button(action: authenticateUser) {
                     Text(languageCode == "ar" ? "فتح غاف" : "Unlock Ghaf")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 30)
-                        .frame(height: GhafMetrics.buttonHeight)
-                        .background(Color.accentColor, in: Capsule())
                 }
+                .ghafProminentButton(theme: theme, languageCode: languageCode)
                 .padding(.top, 4)
             }
             .padding(32)
@@ -184,7 +225,7 @@ struct GhafRootView: View {
     @ViewBuilder
     private var rootContent: some View {
 #if DEBUG
-        if GhafScreenshotFixture.enabled, let currentSettings = settings.first {
+        if GhafScreenshotFixture.enabled, !GhafScreenshotFixture.launchNewUser, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
             case "automation": GhafAutomationGuideView(settings: currentSettings)
             case "insights": GhafStatsView(settings: currentSettings)
@@ -533,6 +574,7 @@ struct GhafOnboardingView: View {
     @State private var salaryAccountDraftID: UUID?
     @State private var accountSetupError = false
     @State private var showBackupImporter = false
+    @State private var showImportSheet = false
     @State private var backupImportError: String?
 
     private var theme: GhafTheme {
@@ -552,39 +594,112 @@ struct GhafOnboardingView: View {
         _languageCode = State(initialValue: settings.languageCode)
         _name = State(initialValue: settings.userName)
         _currency = State(initialValue: settings.currency)
-        _income = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
-        _commitments = State(initialValue: GhafFormat.decimal(settings.fixedCommitments))
-        _salaryAmountText = State(initialValue: GhafFormat.decimal(settings.monthlyIncome))
+        _income = State(initialValue: "")
+        _commitments = State(initialValue: "")
+        _salaryAmountText = State(initialValue: "")
     }
 
     private let stepCount = 8
-    /// Steps 1-4 are full-bleed story cards; the rest are forms.
-    private var isStory: Bool { (1...4).contains(step) }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var confirmRestart = false
+    @State private var viewedGuide = false
+    @State private var preset = BudgetAllocation.Preset.balanced
+    @GestureState private var drag: CGFloat = 0
+
+    private var introCards: [GhafCardDesign] {
+        let preferred = ["mashreq", "adcb", "enbd"].compactMap { bankID in
+            GhafCardDesign.all.first { $0.bank == bankID }
+        }
+        return Array((preferred.count == 3 ? preferred : Array(GhafCardDesign.all.prefix(3))).prefix(3))
+    }
 
     var body: some View {
-        Group {
-            if isStory { storyBody } else { formBody }
-        }
-        .onChange(of: languageCode) { _, newValue in
-            settings.languageCode = newValue
-            try? modelContext.save()
-        }
-        .sheet(isPresented: $showAutomationGuide, onDismiss: {
-            settings.hasSeenAutomationIntro = true
-            if UserDefaults.standard.double(forKey: GhafAutomationStatus.setupCompletedKey) == 0 {
-                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: GhafAutomationStatus.setupCompletedKey)
+        VStack(spacing: 0) {
+            HStack {
+                if step > 0 {
+                    Button { move(to: step - 1) } label: {
+                        Image(systemName: "chevron.backward").frame(width: 44, height: 44)
+                    }.accessibilityLabel(localized("Back", "رجوع"))
+                }
+                Spacer()
+                Menu {
+                    Button(localized("Start over", "البدء من جديد"), role: .destructive) { confirmRestart = true }
+                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                .accessibilityLabel(localized("More options", "خيارات إضافية"))
+                Button { languageCode = languageCode == "ar" ? "en" : "ar" } label: {
+                    Text(languageCode == "ar" ? "EN" : "ع").padding(.horizontal, 18).frame(minHeight: 44)
+                        .background(theme.surface, in: Capsule())
+                }.accessibilityLabel(localized("العربية", "English"))
             }
-            try? modelContext.save()
-        }) {
-            NavigationStack {
-                GhafAutomationGuideView(settings: settings)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(localized("Done", "تم")) { showAutomationGuide = false }
-                        }
+            .buttonStyle(.plain).foregroundStyle(theme.primaryText)
+            .padding(.horizontal, GhafMetrics.gutter)
+            HStack(spacing: 6) {
+                ForEach(0..<stepCount, id: \.self) { index in
+                    Capsule().fill(index == step ? theme.primaryText : theme.secondaryText.opacity(0.35))
+                        .frame(width: index == step ? 24 : 7, height: 7)
+                }
+            }.padding(.vertical, 8)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(localized("Step \(step + 1) of \(stepCount)", "الخطوة \(step + 1) من \(stepCount)"))
+            ScrollView {
+                VStack(spacing: 24) {
+                    if step < 5 { intro }
+                    else if step == 5 { setupPage }
+                    else if step == 6 { accountsAndSalaryPage }
+                    else { connectionPage }
+                }
+                .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 28)
+                .frame(maxWidth: .infinity)
+                .id(step).transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 12)))
+            }
+            .overlay(alignment: .top) {
+                LinearGradient(stops: [.init(color: theme.background, location: 0), .init(color: theme.background, location: 0.45),
+                                       .init(color: theme.background.opacity(0), location: 1)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 32).allowsHitTesting(false)
+            }
+            .frame(maxHeight: .infinity)
+            VStack(spacing: 8) {
+                if step == 0 {
+                    appleButton
+                        .disabled(!GhafFeatureFlags.appStoreAccount)
+                        .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
+                    Text(localized("Coming soon", "قريباً"))
+                        .font(GhafTypography.body(12, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                    primaryAction(localized("Continue", "متابعة")) { advance() }
+                    Button { showImportSheet = true } label: {
+                        Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
                     }
-            }
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
+                } else if step == 7 {
+                    primaryAction(localized("Start using Ghaf", "ابدأ استخدام غاف")) { advance() }
+                    Button { showAutomationGuide = true } label: {
+                        Text(localized("Set up automatic tracking", "إعداد التتبع التلقائي"))
+                    }
+                    .ghafGlassButton(theme: theme, languageCode: languageCode)
+                } else {
+                    primaryAction(localized("Continue", "متابعة")) { advance() }
+                }
+            }.buttonStyle(.plain).padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 16)
+                .background(theme.background.ignoresSafeArea(edges: .bottom))
         }
+        .foregroundStyle(theme.primaryText)
+        .background(theme.background.ignoresSafeArea())
+        .environment(\.locale, Locale(identifier: languageCode))
+        .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
+        .confirmationDialog(localized("Start over?", "هل تريد البدء من جديد؟"), isPresented: $confirmRestart, titleVisibility: .visible) {
+            Button(localized("Start over", "البدء من جديد"), role: .destructive) { restart() }
+            Button(localized("Cancel", "إلغاء"), role: .cancel) {}
+        } message: { Text(localized("This clears the details you entered during setup.", "ستُحذف البيانات التي أدخلتها أثناء الإعداد.")) }
+        .sheet(isPresented: $showAutomationGuide, onDismiss: { viewedGuide = true }) {
+            NavigationStack {
+                GhafAutomationGuideView(settings: GhafSettings(languageCode: languageCode, themeName: settings.themeName))
+                    .toolbar { ToolbarItem(placement: .confirmationAction) {
+                        Button(localized("Done", "تم")) { showAutomationGuide = false }
+                    } }
+            }.environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
+        }
+        .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
         .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
             do {
                 let url = try result.get()
@@ -597,457 +712,168 @@ struct GhafOnboardingView: View {
                 backupImportError = error.localizedDescription
             }
         }
-        .alert(localized("Could not import backup", "تعذر استيراد النسخة"), isPresented: Binding(
+        .alert(localized("Could not finish", "تعذر إكمال العملية"), isPresented: Binding(
             get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
         )) {
             Button(localized("OK", "حسناً"), role: .cancel) { backupImportError = nil }
         } message: { Text(backupImportError ?? "") }
     }
 
-    private var formBody: some View {
-        VStack(spacing: 0) {
-            // Progress: one capsule per step, the current one stretched.
-            HStack(spacing: 6) {
-                ForEach(0..<stepCount, id: \.self) { index in
-                    Capsule()
-                        .fill(index <= step ? theme.accent : theme.secondaryText.opacity(0.2))
-                        .frame(width: index == step ? 26 : 8, height: 8)
-                }
+    private var appleButton: some View {
+        SignInWithAppleButton(.continue) { request in
+            request.requestedScopes = [.fullName, .email]
+        } onCompletion: { result in
+            if case let .success(authorization) = result,
+               let credential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                if let components = credential.fullName { name = PersonNameComponentsFormatter().string(from: components) }
+                move(to: 1)
+            } else if case let .failure(error) = result, (error as? ASAuthorizationError)?.code != .canceled {
+                backupImportError = error.localizedDescription
             }
-            .animation(.snappy(duration: 0.3), value: step)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 18)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(localized("Step \(step + 1) of \(stepCount)", "الخطوة \(step + 1) من \(stepCount)"))
+        }
+        .signInWithAppleButtonStyle(theme.isDark ? .white : .black)
+        .frame(height: 60).clipShape(Capsule())
+            .accessibilityHint(GhafFeatureFlags.appStoreAccount ? "" : localized("Coming soon", "قريباً"))
+    }
 
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 25) {
-                        if step == 0 {
-                            languageSelectionPage
-                        } else if step == 5 {
-                            setupPage
-                        } else if step == 6 {
-                            accountsAndSalaryPage
-                        } else {
-                            connectionPage
-                        }
+    private var intro: some View {
+        let pages = [
+            ("leaf", localized("Welcome to Ghaf", "أهلاً بك في غاف"), localized("Set up a new budget or bring yours back from a Ghaf backup.", "ابدأ ميزانية جديدة أو استعد ميزانيتك من نسخة غاف الاحتياطية.")),
+            ("wallet.bifold", localized("Your accounts in one place", "حساباتك في مكان واحد"), localized("Add a bank account or cash wallet. Each keeps its own balance and currency.", "أضف حساباً بنكياً أو محفظة نقدية. لكل حساب رصيده وعملته.")),
+            ("bolt", localized("Capture bank alerts", "سجّل عملياتك من رسائل البنك"), localized("Connect a bank message to Ghaf in Shortcuts. You can set this up later.", "اربط رسائل البنك بغاف في تطبيق الاختصارات. يمكنك إعداد ذلك لاحقاً.")),
+            ("bubble.left.and.bubble.right", localized("Ask Ghaf", "اسأل غاف"), localized("Ask how much you spent this week, in Arabic or English.", "اسأل بالعربية أو الإنجليزية عن إنفاقك هذا الأسبوع.")),
+            ("hand.raised", localized("Choose what to share", "اختر ما تشاركه"), localized("Voice entry uses your microphone. Payment reminders use notifications. You can choose these features later.", "يستخدم الإدخال الصوتي الميكروفون، وتستخدم تذكيرات الدفع الإشعارات. يمكنك تفعيل هذه الميزات لاحقاً."))
+        ]
+        let page = pages[step]
+        return VStack(spacing: 20) {
+            introHero
+                .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 260)
+                .offset(x: reduceMotion ? 0 : drag * 0.08)
+                .simultaneousGesture(DragGesture().updating($drag) { value, state, _ in state = value.translation.width })
+                .accessibilityHidden(true)
+            Text(page.1).font(GhafTypography.display(34, languageCode: languageCode))
+            Text(page.2).font(GhafTypography.body(16, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+        }.multilineTextAlignment(.center)
+    }
+
+    @ViewBuilder private var introHero: some View {
+        switch step {
+        case 0:
+            GeometryReader { proxy in
+                let width = min(proxy.size.width * 0.68, 250)
+                ZStack {
+                    ForEach(introCards.indices, id: \.self) { index in
+                        let card = introCards[index]
+                        card.image.resizable().scaledToFill()
+                            .frame(width: width, height: width / 1.586).clipShape(RoundedRectangle(cornerRadius: 16))
+                            .scaleEffect(index == 1 ? 1 : 0.9)
+                            .offset(x: CGFloat(index - 1) * width * 0.48, y: index == 1 ? 0 : 13)
+                            .zIndex(Double(3 - abs(index - 1)))
                     }
-                    .id(step)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                            removal: .opacity))
-                    .padding(.horizontal, GhafMetrics.gutter)
-                    .padding(.vertical, 24)
-                    .frame(minHeight: geometry.size.height, alignment: .topLeading)
-                }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            VStack(spacing: 10) {
-                Button(step == 7 ? localized("Start using Ghaf", "ابدأ استخدام غاف") : localized("Continue", "متابعة")) {
-                    withAnimation(.snappy) { advance() }
-                }
-                .ghafProminentButton(theme: theme, languageCode: languageCode)
-
-                if step > 0 {
-                    Button(localized("Back", "رجوع")) { withAnimation(.snappy) { step -= 1 } }
-                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium))
-                        .foregroundStyle(theme.secondaryText)
-                }
-            }
-            .ghafScreenPadding()
-            .padding(.top, 12)
-            .padding(.bottom, 18)
-            .background(theme.background)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.background.ignoresSafeArea())
-    }
-
-    // MARK: Story cards
-
-    private struct StoryCard {
-        let eyebrow: String
-        let title: String
-        let body: String
-        let colors: [Color]
-        var symbol: String? = nil
-    }
-
-    private var storyCard: StoryCard {
-        switch step {
-        case 1: StoryCard(eyebrow: localized("Welcome to Ghaf · Made in the UAE", "أهلاً بك في غاف · صُنع في الإمارات"),
-                          title: localized("Your money,\nclearly.", "فلوسك،\nبكل وضوح."),
-                          body: localized("Every account, card and dirham of cash in one calm place, in your language and currency.",
-                                          "كل حساباتك وبطاقاتك وكاشك في مكان واحد، بلغتك وعملتك."),
-                          colors: brandNight)
-        case 2: StoryCard(eyebrow: localized("Automatic", "تلقائي"),
-                          title: localized("Bank alerts\nlog themselves.", "رسايل البنك\nتسجّل نفسها."),
-                          body: localized("Install Ghaf's shortcut once: purchases are recorded, ads and OTPs are ignored. Cash stays a quick entry.",
-                                          "ثبّت اختصار غاف مرة وحدة: تنسجّل المشتريات، وتنتجاهل الإعلانات ورموز التحقق. الكاش يبقى إدخال سريع."),
-                          colors: brandNight)
-        case 3: StoryCard(eyebrow: "Ghaf AI",
-                          title: localized("Ask in Arabic\nor English.", "اسأله بالعربي\nأو بالإنجليزي."),
-                          body: localized("\"How much did I spend this week?\" Ghaf answers from your own records, never a guess.",
-                                          "«كم صرفت هالأسبوع؟» غاف يجاوبك من سجلك أنت، مب من تخمين."),
-                          colors: brandNight)
-        default: StoryCard(eyebrow: localized("Private by design", "الخصوصية أولاً"),
-                           title: localized("A few permissions.", "بعض الأذونات."),
-                           body: localized("Your records stay on this iPhone. iOS asks for each permission next; change them anytime in Settings.",
-                                           "سجلاتك تبقى على جهازك. iOS بيطلب كل إذن الحين، وتقدر تغيّرها متى ما تبي من الإعدادات."),
-                           colors: brandNight,
-                           symbol: "lock.shield")
-        }
-    }
-
-    /// The feature each card talks about, drawn with Ghaf's own pieces above the text.
-    @ViewBuilder
-    private var storyVisual: some View {
-        switch step {
         case 1:
-            ZStack {
-                ForEach(Array(["mashreq-neo-cashback-card-product-card-360x220", "mbank-jaywan-debit", "cash-aed-100"].enumerated()), id: \.offset) { index, id in
-                    GhafCardFace(account: nil, design: GhafCardDesign(rawValue: id), width: 250)
-                        .rotationEffect(.degrees(Double(index - 1) * 9))
-                        .offset(x: CGFloat(index - 1) * 34, y: CGFloat(index) * 26)
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "eye.fill").font(.system(size: 13, weight: .bold))
-                    GhafMoneyLabel(amount: 12_450, currency: "AED", languageCode: languageCode, size: 18, hidden: false)
-                }
-                .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
-                .padding(.horizontal, 16).padding(.vertical, 10)
-                .background(storyInk, in: Capsule())
-                .shadow(color: .black.opacity(0.3), radius: 12, y: 6)
-                .offset(x: languageCode == "ar" ? -60 : 60, y: 150)
+            VStack(spacing: 8) {
+                illustrativeAccountRow("Mashreq", card: introCards.first, amount: 8_540)
+                illustrativeAccountRow("ADCB", card: introCards.dropFirst().first, amount: 3_280)
+                illustrativeAccountRow("Emirates NBD", card: introCards.dropFirst(2).first, amount: 12_600)
+                Text(localized("Illustrative balances", "أرصدة توضيحية"))
+                    .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
             }
         case 2:
-            VStack(spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(red: 0.95, green: 0.52, blue: 0.18))
-                        .frame(width: 38, height: 38)
-                        .overlay(Text("M").font(.system(size: 18, weight: .black)).foregroundStyle(.white))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Mashreq").font(.system(size: 14, weight: .bold))
-                        Text(localized("Purchase of AED 45.00 at Carrefour was made with card ending 1234.",
-                                       "تم شراء بمبلغ 45.00 درهم لدى كارفور ببطاقتك المنتهية بـ 1234."))
-                            .font(.system(size: 13)).lineLimit(2)
-                    }
-                    .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
-                }
-                .padding(GhafMetrics.cardPadding)
-                .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                Image(systemName: "arrow.down").font(.system(size: 20, weight: .bold)).foregroundStyle(storyInk.opacity(0.7))
-                HStack(spacing: 12) {
-                    GhafCategoryIcon(category: "Groceries", tint: storyInk, theme: theme)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(localized("Carrefour", "كارفور")).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                        Text(localized("Groceries · Mashreq", "بقالة · المشرق")).font(GhafTypography.body(12, languageCode: languageCode)).opacity(0.7)
-                    }
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill").font(.system(size: 22)).foregroundStyle(Color(red: 0.45, green: 0.85, blue: 0.55))
-                }
-                .foregroundStyle(storyInk)
-                .padding(GhafMetrics.cardPadding)
-                .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            }
-            .ghafScreenPadding()
-        case 3:
             VStack(spacing: 12) {
-                Text(localized("How much did I spend this week?", "كم صرفت هالأسبوع؟"))
-                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
-                    .padding(.horizontal, 16).padding(.vertical, 11)
-                    .background(storyInk, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(localized("You spent AED 482 this week, mostly on your car.", "صرفت ٤٨٢ درهم هالأسبوع، أكثرها على السيارة."))
-                        .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                    HStack(alignment: .bottom, spacing: 7) {
-                        ForEach(Array([0.35, 0.6, 0.25, 0.9, 0.5, 0.3, 0.7].enumerated()), id: \.offset) { index, value in
-                            Capsule().fill(storyInk.opacity(index == 3 ? 1 : 0.4)).frame(width: 16, height: 70 * value)
-                        }
-                    }
-                    .frame(height: 70, alignment: .bottom)
+                HStack(spacing: 10) {
+                    Image(systemName: "bell.badge.fill").foregroundStyle(theme.accent)
+                    Text("Mashreq · " + localized("Purchase of AED 35.00 at Bakery", "شراء بقيمة ٣٥٫٠٠ درهم من مخبز"))
+                        .font(GhafTypography.body(14, languageCode: "en", weight: .medium)).multilineTextAlignment(.leading)
                 }
-                .foregroundStyle(storyInk)
-                .padding(16)
-                .background(storyInk.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14).background(theme.surface, in: RoundedRectangle(cornerRadius: 18))
+                Image(systemName: "arrow.down").font(.system(size: 20, weight: .medium)).foregroundStyle(theme.secondaryText)
+                HStack(spacing: 12) {
+                    GhafCategoryIcon(category: "Dining", tint: theme.accent, theme: theme)
+                    Text(localized("Bakery", "مخبز")).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                    Spacer()
+                    GhafMoneyLabel(amount: 35, currency: "AED", languageCode: languageCode, size: 16)
+                }
+                .padding(14).background(theme.surface, in: RoundedRectangle(cornerRadius: 18))
             }
-            .ghafScreenPadding()
+        case 3:
+            VStack(spacing: 14) {
+                GhafAIOrb(theme: theme, mood: .idle, level: 0).frame(width: 96, height: 96)
+                HStack { Spacer(minLength: 30); Text(localized("How much did I spend this week?", "كم أنفقت هذا الأسبوع؟"))
+                    .font(GhafTypography.body(14, languageCode: "en", weight: .medium))
+                    .padding(12).background(theme.surface, in: RoundedRectangle(cornerRadius: 16)) }
+                HStack { Text(localized("Example · You spent AED 842 this week.", "مثال · أنفقت ٨٤٢ درهماً هذا الأسبوع."))
+                    .font(GhafTypography.body(14, languageCode: languageCode))
+                    .padding(12).background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 16)); Spacer(minLength: 30) }
+            }
+        case 4:
+            HStack(spacing: 16) {
+                permissionTile(icon: "mic.fill", caption: localized("Voice entry", "الإدخال الصوتي"))
+                permissionTile(icon: "bell.fill", caption: localized("Payment reminders", "تذكيرات الدفع"))
+            }
         default:
-            EmptyView()
+            Image(systemName: "sparkles").font(.system(size: 54, weight: .light)).foregroundStyle(theme.accent)
         }
     }
 
-    /// The first card asks to sign in; accounts are not available yet, so "Skip for now" continues.
-    private var signInPanel: some View {
-        VStack(spacing: 12) {
-            Text(localized("Ready to start?", "جاهز تبدأ؟"))
-                .font(GhafTypography.heading(18, languageCode: languageCode))
-            Button {} label: {
-                Label(localized("Continue with Apple", "المتابعة باستخدام Apple"), systemImage: "apple.logo")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity).frame(height: 56)
-            }
-            .ghafProminentButton(theme: theme, languageCode: languageCode)
-            .disabled(true)
-            Button { showBackupImporter = true } label: {
-                Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
-                    .frame(maxWidth: .infinity).frame(height: 56)
-            }
-            .ghafGlassButton(theme: theme, languageCode: languageCode)
-            if let backupImportError {
-                Text(backupImportError).font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(.red)
-            }
-            Text(localized("Ghaf accounts arrive soon. Until then everything stays on this iPhone.",
-                           "حسابات غاف قريباً. لين ذاك الوقت كل شي يبقى على جهازك."))
-                .font(GhafTypography.body(12, languageCode: languageCode))
-                .multilineTextAlignment(.center)
-                .opacity(0.7)
-            Button(localized("Skip for now", "تخطَّ الآن")) { withAnimation(.snappy) { advance() } }
-                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                .frame(minHeight: 44)
-        }
-        .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
-        .padding(18)
-        .background(storyInk, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-    }
-
-    private let storyInk = Color(red: 0.97, green: 0.94, blue: 0.89)
-
-    /// Every welcome card uses the theme's own night palette, the same colours as the app in dark mode,
-    /// so Ghaf looks like one brand from the first screen on. The light shifts across cards; the colours don't.
-    private var brandNight: [Color] {
-        let night = GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
-        return [night.background, night.accent.opacity(0.85)]
-    }
-
-    private var storyBody: some View {
-        let card = storyCard
-        // The artwork is a background so a fill-cropped image can never widen the layout and push text off-screen;
-        // the text scrolls on small screens or large text sizes instead of being cut off.
-        return GeometryReader { geometry in
-            ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Spacer(minLength: 0)
-                if step == 4 { permissionList }
-                if true {
-                Text(card.eyebrow)
-                    .font(GhafTypography.body(15, languageCode: languageCode))
-                    .foregroundStyle(storyInk.opacity(0.75))
-                Text(card.title)
-                    .font(GhafTypography.display(36, languageCode: languageCode))
-                    .minimumScaleFactor(0.8)
-                    .foregroundStyle(storyInk)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(card.body)
-                    .font(GhafTypography.body(16, languageCode: languageCode))
-                    .foregroundStyle(storyInk.opacity(0.8))
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-                HStack(spacing: 5) {
-                    ForEach(1...4, id: \.self) { index in
-                        Capsule().fill(storyInk.opacity(index == step ? 1 : 0.35))
-                            .frame(width: index == step ? 24 : 10, height: 3)
-                    }
-                }
-                .padding(.top, 6)
-                .accessibilityHidden(true)
-                Group {
-                    if step == 1 { signInPanel } else { storyControls }
-                }
-                .padding(.top, 18)
-            }
-            .ghafScreenPadding()
-            .padding(.bottom, 12)
-            .frame(width: geometry.size.width, alignment: .leading)
-            .frame(minHeight: geometry.size.height, alignment: .bottom)
-            .id(step)
-            .transition(.opacity.combined(with: .offset(y: 16)))
-            }
-            .scrollBounceBehavior(.basedOnSize)
-        }
-        .background { storyBackground(card) }
-        .animation(.snappy(duration: 0.4), value: step)
-    }
-
-    @ViewBuilder
-    private func storyBackground(_ card: StoryCard) -> some View {
-        ZStack {
-            LinearGradient(colors: card.colors, startPoint: .top, endPoint: .bottom)
-            // A soft light source, then a scrim so the text always reads.
-            RadialGradient(colors: [card.colors[1].opacity(0.55), .clear],
-                           center: .init(x: [0.3, 0.7, 0.3, 0.7][max(0, min(3, step - 1))], y: 0.32),
-                           startRadius: 0, endRadius: 360)
-                .allowsHitTesting(false)
-            AnyView(storyVisual)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.top, 90)
-                .accessibilityHidden(true)
-            if let symbol = card.symbol {
-                Image(systemName: symbol)
-                    .font(.system(size: 190, weight: .ultraLight))
-                    .foregroundStyle(storyInk.opacity(0.1))
-                    .offset(x: 70, y: -170)
-                    .accessibilityHidden(true)
-            }
-            LinearGradient(colors: [.clear, .black.opacity(0.35)], startPoint: .center, endPoint: .bottom)
-        }
-        .ignoresSafeArea()
-    }
-
-    private var storyControls: some View {
+    private func illustrativeAccountRow(_ title: String, card: GhafCardDesign?, amount: Decimal) -> some View {
         HStack(spacing: 12) {
-            // The permission card offers only the button that opens the system alerts (HIG privacy, pre-alert screens).
-            if step != 4 {
-                Button { withAnimation(.snappy) { step -= 1 } } label: {
-                    Image(systemName: languageCode == "ar" ? "arrow.right" : "arrow.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 56, height: 56)
-                        .overlay(Circle().stroke(storyInk.opacity(0.45), lineWidth: 1))
-                }
-                .foregroundStyle(storyInk)
-                .accessibilityLabel(localized("Back", "رجوع"))
+            if let card {
+                card.image.resizable().scaledToFill().frame(width: 66, height: 42).clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            Button {
-                if step == 4 {
-                    Task {
-                        await requestPermissions()
-                        withAnimation(.snappy) { step = 5 }
-                    }
-                } else {
-                    withAnimation(.snappy) { advance() }
-                }
-            } label: {
-                HStack {
-                    Text(step == 1 ? localized("Start", "ابدأ") : localized("Continue", "متابعة"))
-                        .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
-                    Spacer()
-                    Image(systemName: languageCode == "ar" ? "arrow.left" : "arrow.right")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .padding(.horizontal, 24)
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .background(storyInk, in: Capsule())
-                .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(GhafTypography.body(13, languageCode: "en", weight: .semibold)).lineLimit(1)
+                GhafMoneyLabel(amount: amount, currency: "AED", languageCode: languageCode, size: 13, weight: .semibold)
             }
-            .buttonStyle(.ghafPress)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .padding(.horizontal, 12).background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var permissionList: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            permissionRow("bell.badge.fill", localized("Notifications", "الإشعارات"),
-                          localized("Subscription reminders and transactions to review.", "تذكير الاشتراكات والعمليات التي تحتاج مراجعة."))
-            permissionRow("mic.fill", localized("Microphone", "الميكروفون"),
-                          localized("Say a purchase instead of typing it.", "قل عمليتك بدلاً من كتابتها."))
-            permissionRow("waveform", localized("Speech recognition", "التعرّف على الكلام"),
-                          localized("Turns your voice into text for Ghaf.", "يحوّل صوتك إلى نص لغاف."))
+    private func permissionTile(icon: String, caption: String) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: icon).font(.system(size: 28, weight: .medium)).foregroundStyle(theme.accent)
+            Text(caption).font(GhafTypography.body(13, languageCode: languageCode, weight: .medium)).lineLimit(1)
         }
-        .padding(18)
-        .background(storyInk.opacity(0.1), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, minHeight: 112).background(theme.surface, in: RoundedRectangle(cornerRadius: 20))
     }
 
-    private func permissionRow(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: symbol)
-                .font(.system(size: 18, weight: .semibold))
-                .frame(width: 40, height: 40)
-                .background(storyInk.opacity(0.14), in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                Text(detail).font(GhafTypography.body(13, languageCode: languageCode)).opacity(0.75)
-            }
+    private func primaryAction(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
         }
-        .foregroundStyle(storyInk)
-        .accessibilityElement(children: .combine)
+        .ghafProminentButton(theme: theme, languageCode: languageCode)
     }
 
-    /// Asked once, in order, after the explanation card. Each call shows the system alert only the first time.
-    private func requestPermissions() async {
-        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-        _ = await AVAudioApplication.requestRecordPermission()
-        _ = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
+    private func move(to page: Int) {
+        withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.35)) { step = page }
     }
 
-    private var languageSelectionPage: some View {
-        VStack(spacing: 22) {
-            Image(systemName: "globe").font(.system(size: 44, weight: .semibold)).foregroundStyle(theme.accent)
-                .frame(width: 64, height: 64)
-                .padding(18)
-                .background(theme.accent.opacity(0.1), in: Circle())
-                .padding(.top, 20)
-            Text("Choose your language.")
-                .multilineTextAlignment(.center)
-                .font(GhafTypography.display(34, languageCode: "en"))
-                .foregroundStyle(theme.primaryText)
-            Text("اختر لغة التطبيق.")
-                .font(GhafTypography.display(31, languageCode: "ar"))
-                .foregroundStyle(theme.primaryText)
-            Text(localized(
-                "Your choice will refresh the entire app, including typography, alignment and content.",
-                "سيتم تحديث التطبيق بالكامل وفقاً لاختيارك، بما في ذلك الخطوط والمحاذاة وجميع النصوص."
-            ))
-            .font(GhafTypography.body(14, languageCode: languageCode))
-            .foregroundStyle(theme.secondaryText)
-            .multilineTextAlignment(.center)
-            .padding(.bottom, 8)
-
-            Button {
-                languageCode = "en"
-            } label: {
-                HStack(spacing: 14) {
-                    Text("EN")
-                        .font(GhafTypography.number(19, weight: .bold))
-                        .frame(width: 46, height: 46)
-                        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("English")
-                            .font(GhafTypography.heading(18, languageCode: "en"))
-                        Text("Continue in English")
-                            .font(GhafTypography.body(12, languageCode: "en"))
-                            .foregroundStyle(theme.secondaryText)
-                    }
-                    Spacer()
-                    Image(systemName: languageCode == "en" ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(theme.accent)
-                }
-                .foregroundStyle(theme.primaryText)
-                .padding(16)
-                .ghafLiquidGlass(theme: theme, radius: 20)
-            }
-            .buttonStyle(.ghafPress)
-
-            Button {
-                languageCode = "ar"
-            } label: {
-                HStack(spacing: 14) {
-                    Text("ع")
-                        .font(GhafTypography.display(24, languageCode: "ar"))
-                        .frame(width: 46, height: 46)
-                        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("العربية")
-                            .font(GhafTypography.heading(19, languageCode: "ar"))
-                        Text("متابعة باللغة العربية")
-                            .font(GhafTypography.body(12, languageCode: "ar"))
-                            .foregroundStyle(theme.secondaryText)
-                    }
-                    Spacer()
-                    Image(systemName: languageCode == "ar" ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(theme.accent)
-                }
-                .foregroundStyle(theme.primaryText)
-                .padding(16)
-                .ghafLiquidGlass(theme: theme, radius: 20)
-            }
-            .buttonStyle(.ghafPress)
-            Spacer(minLength: 10)
-        }
+    private func restart() {
+        name = ""; income = ""; commitments = ""; salaryAmountText = ""; currency = "AED"
+        languageCode = "en"; accountDrafts = []; balanceSetupMode = "zero"; salaryEnabled = false
+        salaryDay = 28; salaryReminderEnabled = true; salaryAccountDraftID = nil
+        preset = .balanced; accountSetupError = false; backupImportError = nil; viewedGuide = false
+        settings.userName = ""
+        settings.languageCode = "en"
+        settings.currency = "AED"
+        settings.monthlyIncome = 0
+        settings.fixedCommitments = 0
+        settings.allocationPresetRaw = BudgetAllocation.Preset.balanced.rawValue
+        settings.hasSeenAutomationIntro = false
+        settings.balanceSetupMode = "zero"
+        settings.salaryEnabled = false
+        settings.salaryDay = nil
+        settings.salaryAmount = nil
+        settings.salaryCurrency = "AED"
+        settings.salaryAccountID = nil
+        settings.salaryReminderEnabled = false
+        do { try modelContext.save() }
+        catch { backupImportError = error.localizedDescription }
+        move(to: 0)
     }
 
     private var setupPage: some View {
@@ -1055,10 +881,14 @@ struct GhafOnboardingView: View {
             Text(localized("Let's set up your budget.", "لنُعدّ ميزانيتك."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
 
             Text(localized("These numbers help calculate a realistic daily spending limit.", "تساعد هذه البيانات على حساب حد إنفاق يومي واقعي."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
 
             formLabel(localized("Your name", "اسمك"))
             onboardingField(localized("Name", "الاسم"), text: $name)
@@ -1066,8 +896,8 @@ struct GhafOnboardingView: View {
             formLabel(localized("Main currency", "العملة الرئيسية"))
             GhafCurrencyPicker(selection: $currency, currencies: currencies, languageCode: languageCode, tint: theme.accent)
 
-            formLabel(localized("Monthly income", "الدخل الشهري"))
-            onboardingField(localized("e.g. 5000", "مثال: ٥٠٠٠"), text: $income, numeric: true)
+            GhafAmountField(value: $income, currency: currency, label: localized("Monthly income", "الدخل الشهري"), theme: theme, languageCode: languageCode, fontSize: 44, chromeless: true)
+            budgetPreview
 
             formLabel(localized("Fixed monthly commitments", "الالتزامات الشهرية الثابتة"))
             onboardingField(localized("e.g. 1500", "مثال: ١٥٠٠"), text: $commitments, numeric: true)
@@ -1078,17 +908,41 @@ struct GhafOnboardingView: View {
         }
     }
 
+    private var budgetPreview: some View {
+        VStack(spacing: 8) {
+            Text(localized("Needs / Wants / Savings", "الاحتياجات / الرغبات / الادخار"))
+            ViewThatFits {
+                HStack { presetButtons }
+                VStack { presetButtons }
+            }
+        }.frame(maxWidth: .infinity).padding(10).ghafCard(theme: theme, radius: 24)
+    }
+
+    private var presetButtons: some View {
+        ForEach(BudgetAllocation.Preset.allCases, id: \.self) { option in
+            Button { withAnimation(reduceMotion ? nil : .snappy) { preset = option } } label: {
+                Text(option.title).padding(.horizontal, 10).frame(minHeight: 44)
+                    .foregroundStyle(option == preset ? theme.background : theme.primaryText)
+                    .background(option == preset ? theme.primaryText : theme.surface, in: Capsule())
+            }.buttonStyle(.plain).accessibilityAddTraits(option == preset ? .isSelected : [])
+        }
+    }
+
     private var accountsAndSalaryPage: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(languageCode == "ar" ? "أين تحتفظ بأموالك؟" : "Where do you keep your money?")
                 .font(GhafTypography.display(31, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
 
             Text(languageCode == "ar"
                  ? "أضف محفظتك النقدية وبطاقاتك وحساباتك. كل رصيد سيبقى منفصلاً بعملته."
                  : "Add your cash wallet, cards and bank accounts. Each balance stays separate in its own currency.")
                 .font(GhafTypography.body(14, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
 
             VStack(alignment: .leading, spacing: 8) {
                 onboardingLabel(languageCode == "ar" ? "كيف تريد بدء الأرصدة؟" : "HOW SHOULD BALANCES START?")
@@ -1182,12 +1036,8 @@ struct GhafOnboardingView: View {
                             : (languageCode == "ar" ? "إضافة بطاقة أو حساب" : "Add another account"),
                         systemImage: "plus"
                     )
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
                 }
-                .buttonStyle(.bordered)
-                .tint(theme.accent)
+                .ghafGlassButton(theme: theme, languageCode: languageCode)
             }
 
             VStack(alignment: .leading, spacing: 11) {
@@ -1286,34 +1136,29 @@ struct GhafOnboardingView: View {
     }
 
     private var connectionPage: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            Image(systemName: "bolt.horizontal.circle")
-                .font(.system(size: 48, weight: .medium))
+        VStack(spacing: 18) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 44, weight: .medium))
                 .foregroundStyle(theme.accent)
 
             Text(localized("Your bank action is already in Ghaf.", "إجراء البنك جاهز داخل غاف."))
                 .font(GhafTypography.display(32, languageCode: languageCode))
                 .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.center)
 
             Text(localized("The Ghaf action appears automatically in Shortcuts after installing the app. You only need to choose which bank message should trigger it.", "يظهر إجراء غاف تلقائياً في تطبيق الاختصارات بعد تثبيت التطبيق. ما عليك سوى اختيار رسالة البنك التي ستشغّله."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center)
 
-            onboardingPoint(icon: "checkmark.circle", title: localized("No shortcut to build", "لا حاجة لإنشاء اختصار"), description: localized("Ghaf provides the Capture Bank Alert action for you.", "يوفر غاف إجراء Capture Bank Alert جاهزاً."))
-            onboardingPoint(icon: "person.crop.circle", title: localized("One iOS confirmation step", "خطوة تأكيد واحدة في iOS"), description: localized("You create the personal automation trigger because iOS keeps those under your control.", "تنشئ محفّز الأتمتة الشخصية بنفسك لأن iOS يضع هذه الخطوة تحت تحكمك."))
-
-            Button {
-                showAutomationGuide = true
-            } label: {
-                Label(localized("Set up automatic tracking", "إعداد التتبع التلقائي"), systemImage: "arrow.up.right")
-                    .frame(maxWidth: .infinity)
-            }
-            .ghafProminentButton(theme: theme, languageCode: languageCode)
-
-            Text(localized("iOS controls whether some automations can run without confirmation. Some banking apps also hide transaction details in notification previews.", "يحدد iOS ما إذا كان يمكن تشغيل بعض الأتمتة دون تأكيد. كما تخفي بعض التطبيقات البنكية تفاصيل العمليات في معاينة الإشعارات."))
-                .font(GhafTypography.body(13, languageCode: languageCode))
+            Text(localized("iOS may require confirmation, and some banks hide notification details.", "قد يتطلب iOS تأكيداً، وقد تخفي بعض البنوك تفاصيل الإشعارات."))
+                .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func onboardingPoint(icon: String, title: String, description: String) -> some View {
@@ -1332,7 +1177,9 @@ struct GhafOnboardingView: View {
     }
 
     private func onboardingField(_ placeholder: String, text: Binding<String>, numeric: Bool = false) -> some View {
-        TextField(placeholder, text: text)
+        TextField(text: text) {
+            Text(placeholder).foregroundStyle(theme.primaryText.opacity(0.78))
+        }
             .font(GhafTypography.body(16, languageCode: languageCode))
             .keyboardType(numeric ? .decimalPad : .default)
             .padding(.horizontal, 14)
@@ -1342,90 +1189,87 @@ struct GhafOnboardingView: View {
     }
 
     private func advance() {
-        if step < 5 {
-            step += 1
-            return
-        }
-
-        if step == 5 {
-            settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-            settings.currency = currency
-            settings.monthlyIncome = Decimal(string: income) ?? 0
-            settings.fixedCommitments = Decimal(string: commitments) ?? 0
-            step = 6
-            return
-        }
-
+        if step < 6 { move(to: step + 1); return }
         if step == 6 {
-            var createdIDs: [UUID] = []
-            for (index, draft) in accountDrafts.enumerated() {
-                let cleanName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !cleanName.isEmpty else {
+            guard accountDrafts.allSatisfy({ draft in
+                !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                (balanceSetupMode != "manual" || (Decimal(string: draft.startingBalance) ?? -1) >= 0)
+            }) else { accountSetupError = true; return }
+            accountSetupError = false
+            move(to: 7)
+            return
+        }
+        settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.currency = currency
+        settings.languageCode = languageCode
+        settings.monthlyIncome = Decimal(string: income) ?? 0
+        settings.fixedCommitments = Decimal(string: commitments) ?? 0
+        settings.allocationPresetRaw = preset.rawValue
+        settings.hasSeenAutomationIntro = viewedGuide
+        settings.hasCompletedOnboarding = true
+        var createdIDs: [UUID] = []
+        for (index, draft) in accountDrafts.enumerated() {
+            let cleanName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleanName.isEmpty else {
+                accountSetupError = true
+                return
+            }
+
+            let balance: Decimal
+            if balanceSetupMode == "manual" {
+                guard let entered = Decimal(string: draft.startingBalance), entered >= 0 else {
                     accountSetupError = true
                     return
                 }
-
-                let balance: Decimal
-                if balanceSetupMode == "manual" {
-                    guard let entered = Decimal(string: draft.startingBalance), entered >= 0 else {
-                        accountSetupError = true
-                        return
-                    }
-                    balance = entered
-                } else {
-                    balance = 0
-                }
-
-                let account = GhafAccount(
-                    id: draft.id,
-                    name: cleanName,
-                    institution: draft.institution.isEmpty ? nil : draft.institution,
-                    accountType: draft.type,
-                    currency: draft.currency,
-                    openingBalance: balance,
-                    openingDate: .now,
-                    isPrimary: index == 0,
-                    sortOrder: index
-                )
-                modelContext.insert(account)
-                createdIDs.append(account.id)
+                balance = entered
+            } else {
+                balance = 0
             }
 
-            settings.balanceSetupMode = balanceSetupMode
-            settings.salaryEnabled = salaryEnabled
-            settings.salaryDay = salaryEnabled ? salaryDay : nil
-            settings.salaryAmount = salaryEnabled
-                ? (Decimal(string: salaryAmountText) ?? settings.monthlyIncome)
-                : nil
-            settings.salaryCurrency = currency
-            settings.salaryAccountID = salaryEnabled
-                ? (salaryAccountDraftID ?? createdIDs.first)
-                : nil
-            settings.salaryReminderEnabled = salaryEnabled && salaryReminderEnabled
-            do {
-                try modelContext.save()
-                step = 7
-                accountSetupError = false
-                if salaryEnabled && salaryReminderEnabled {
-                    Task {
-                        _ = await GhafSalaryReminderService.requestPermission()
-                        try? await GhafSalaryReminderService.scheduleNext(
-                            salaryDay: salaryDay,
-                            languageCode: languageCode
-                        )
-                    }
-                }
-            } catch {
-                accountSetupError = true
-            }
-            return
+            let account = GhafAccount(
+                id: draft.id,
+                name: cleanName,
+                institution: draft.institution.isEmpty ? nil : draft.institution,
+                accountType: draft.type,
+                currency: draft.currency,
+                openingBalance: balance,
+                openingDate: .now,
+                isPrimary: index == 0,
+                sortOrder: index
+            )
+            modelContext.insert(account)
+            createdIDs.append(account.id)
         }
 
-        settings.hasCompletedOnboarding = true
-        try? modelContext.save()
+        settings.balanceSetupMode = balanceSetupMode
+        settings.salaryEnabled = salaryEnabled
+        settings.salaryDay = salaryEnabled ? salaryDay : nil
+        settings.salaryAmount = salaryEnabled
+            ? (Decimal(string: salaryAmountText) ?? settings.monthlyIncome)
+            : nil
+        settings.salaryCurrency = currency
+        settings.salaryAccountID = salaryEnabled
+            ? (salaryAccountDraftID ?? createdIDs.first)
+            : nil
+        settings.salaryReminderEnabled = salaryEnabled && salaryReminderEnabled
+        do {
+            try modelContext.save()
+            accountSetupError = false
+            if salaryEnabled && salaryReminderEnabled {
+                Task {
+                    _ = await GhafSalaryReminderService.requestPermission()
+                    try? await GhafSalaryReminderService.scheduleNext(
+                        salaryDay: salaryDay,
+                        languageCode: languageCode
+                    )
+                }
+            }
+        } catch {
+            modelContext.rollback()
+            backupImportError = error.localizedDescription
+        }
     }
 }
-
 
 // MARK: - Branded cold-launch welcome
 

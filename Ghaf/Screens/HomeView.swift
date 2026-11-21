@@ -154,28 +154,27 @@ struct GhafHomeView: View {
                     }
                 }
                 .ghafScreenPadding()
-                .padding(.top, 8)
+                .padding(.top, 32)
                 .padding(.bottom, 28)
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
-            .ghafBackground(theme: theme)
+            .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
             .safeAreaInset(edge: .top, spacing: 0) {
                 header
                     .ghafScreenPadding()
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
-                    .background(alignment: .bottom) {
-                        LinearGradient(stops: [
-                            .init(color: theme.background, location: 0),
-                            .init(color: theme.background.opacity(0), location: 1)
-                        ], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 32)
-                        .offset(y: 32)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+                    .padding(.top, 16)
+                    .background(theme.background)
+                    // Content scrolling under the pinned header fades out instead of showing a hard cut.
+                    .overlay(alignment: .bottom) {
+                        LinearGradient(stops: [.init(color: theme.background, location: 0), .init(color: theme.background, location: 0.45),
+                                               .init(color: theme.background.opacity(0), location: 1)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 40)
+                            .offset(y: 40)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                     }
             }
 #if DEBUG
@@ -292,12 +291,10 @@ struct GhafHomeView: View {
                 .multilineTextAlignment(.center)
             Button { showAccounts = true } label: {
                 Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
-                    .frame(maxWidth: .infinity).frame(height: 56)
             }
             .ghafProminentButton(theme: theme, languageCode: lang)
             Button { showBackupImporter = true } label: {
                 Label(ar ? "استيراد نسخة غاف الاحتياطية" : "Import Ghaf backup", systemImage: "arrow.down.doc")
-                    .frame(maxWidth: .infinity).frame(height: 56)
             }
             .ghafGlassButton(theme: theme, languageCode: lang)
         }
@@ -344,32 +341,29 @@ struct GhafHomeView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
+            if accounts.contains(where: { !$0.isArchived }) {
+                Button { showAccounts = true } label: {
+                    Image(systemName: "wallet.bifold.fill")
+                        .foregroundStyle(theme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(theme.surface, in: Circle())
+                }
+                .accessibilityLabel(ar ? "الحسابات" : "Accounts")
+                .buttonStyle(.ghafPress)
+                .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
+            } else {
+                Color.clear.frame(width: 44, height: 44)
+            }
+            VStack(spacing: 2) {
                 Text(greeting)
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                 Text(settings.userName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.userName)
-                    .font(GhafTypography.heading(24, languageCode: lang))
+                    .font(GhafTypography.display(32, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
-            Spacer(minLength: 8)
-            if accounts.contains(where: { !$0.isArchived }) {
-                Button { showAccounts = true } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wallet.bifold.fill").font(.system(size: 13, weight: .bold))
-                        Text(ar ? "الحسابات" : "Accounts")
-                            .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                        Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
-                    }
-                    .foregroundStyle(theme.primaryText)
-                    .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
-                    .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.surface)
-                    .shadow(color: theme.shadow, radius: 8, y: 3)
-                }
-                .buttonStyle(.ghafPress)
-                .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
-            }
+            .frame(maxWidth: .infinity)
             Button {
                 withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
             } label: {
@@ -378,8 +372,7 @@ struct GhafHomeView: View {
                     .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
-                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
-                    .shadow(color: theme.shadow, radius: 8, y: 3)
+                    .background(theme.surface, in: Circle())
             }
             .buttonStyle(.ghafPress)
             .sensoryFeedback(.impact(weight: .medium), trigger: hideBalances)
@@ -537,45 +530,35 @@ struct GhafHomeView: View {
     // MARK: Big pill actions
 
     private func actionRow() -> some View {
-        ViewThatFits(in: .horizontal) {
-            actionPills(compactNotifications: false)
-            actionPills(compactNotifications: true)
+        HStack(spacing: 8) {
+            actionButton(ar ? "إضافة" : "Add", icon: "plus") { showQuickAdd = true }
+            actionButton(ar ? "اشتراكات" : "Subs", icon: "repeat") { showSubscriptions = true }
+            actionButton(ar ? "الإشعارات" : "Notifications", icon: "tray.full.fill", count: inboxCount) {
+                showInbox = true
+            }
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func actionPills(compactNotifications: Bool) -> some View {
-        HStack(spacing: 10) {
-            GhafPillButton(title: ar ? "إضافة" : "Add", icon: "plus", theme: theme, languageCode: lang,
-                           prominent: true) { showQuickAdd = true }
-            GhafPillButton(title: ar ? "اشتراكات" : "Subs", icon: "repeat", theme: theme,
-                           languageCode: lang) { showSubscriptions = true }
-            Button { showInbox = true } label: {
+    private func actionButton(_ title: String, icon: String, count: Int = 0, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: "tray.full.fill").font(.system(size: 14, weight: .bold))
-                    if !compactNotifications {
-                        Text(ar ? "الإشعارات" : "Notifications")
-                            .font(GhafTypography.body(13, languageCode: lang, weight: .bold))
-                            .lineLimit(1)
-                    }
-                    if inboxCount > 0 {
-                        Text("\(inboxCount)")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(theme.accent)
-                            .padding(.horizontal, 5).frame(minHeight: 20)
-                            .background(theme.accent.opacity(0.14), in: Capsule())
-                    }
+                    Image(systemName: icon)
+                    if count > 0 { Text(count, format: .number) }
                 }
-                .foregroundStyle(theme.primaryText)
-                .frame(minHeight: 48)
-                .padding(.horizontal, 16)
-                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
-                .contentShape(Capsule())
+                .font(.system(size: 14, weight: .semibold))
+                Text(title)
+                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .buttonStyle(.ghafPress)
-            .accessibilityLabel(ar ? "الإشعارات، \(inboxCount)" : "Notifications, \(inboxCount)")
+            .foregroundStyle(theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(theme.surface, in: Capsule())
         }
-        .fixedSize(horizontal: true, vertical: false)
+        .buttonStyle(.ghafPress)
+        .accessibilityLabel(title)
+        .accessibilityValue(count > 0 ? count.formatted() : "")
     }
 
     // MARK: Dark insight card
@@ -890,11 +873,8 @@ struct GhafQuickAddView: View {
 
                     NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
                         Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
-                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.accent)
-                            .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
                     }
-                    .buttonStyle(.ghafPress)
+                    .ghafGlassButton(theme: theme, languageCode: lang)
 
                     if !errorMessage.isEmpty {
                         Text(errorMessage)

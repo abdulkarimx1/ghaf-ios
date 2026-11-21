@@ -9,13 +9,8 @@ struct GhafPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
-                .foregroundStyle(theme.accentContrast)
-                .frame(maxWidth: .infinity, minHeight: GhafMetrics.buttonHeight)
-                .background(theme.accent, in: Capsule())
-                .contentShape(Capsule())
         }
-        .buttonStyle(.ghafPress)
+        .ghafProminentButton(theme: theme, languageCode: languageCode)
     }
 }
 

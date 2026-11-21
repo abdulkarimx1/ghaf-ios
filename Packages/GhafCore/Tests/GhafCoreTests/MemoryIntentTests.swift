@@ -13,11 +13,12 @@ final class MemoryIntentTests: XCTestCase {
     }
 
     func testArabicCommands() {
-        XCTAssertEqual(MemoryIntent.parse("تذكر إن أحب القهوة"), .remember("احب القهوة"))
-        XCTAssertEqual(MemoryIntent.parse("تذكّر أفضّل الشاي"), .remember("افضّل الشاي"))
+        XCTAssertEqual(MemoryIntent.parse("تذكر إن أحب القهوة"), .remember("أحب القهوة"))
+        XCTAssertEqual(MemoryIntent.parse("تذكّر أفضّل الشاي"), .remember("أفضّل الشاي"))
         XCTAssertEqual(MemoryIntent.parse("انسَ ميزانيتي القديمة"), .forget("ميزانيتي القديمة"))
         XCTAssertEqual(MemoryIntent.parse("ناديني خالد"), .name("خالد"))
         XCTAssertEqual(MemoryIntent.parse("اسمي سارة"), .name("سارة"))
+        XCTAssertEqual(MemoryIntent.parse("اسمي أحمد"), .name("أحمد"))
         XCTAssertNil(MemoryIntent.parse("هل تتذكر راتبي؟"))
         XCTAssertNil(MemoryIntent.parse("تذكر كم صرفت؟"))
         XCTAssertNil(MemoryIntent.parse("تذكر كم صرفت"))

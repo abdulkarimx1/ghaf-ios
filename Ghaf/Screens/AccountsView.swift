@@ -325,13 +325,9 @@ struct GhafAccountEditorView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 10) {
                         Button(ar ? "إلغاء" : "Cancel") { showArchiveConfirmation = false }
-                            .foregroundStyle(theme.primaryText)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(theme.elevatedSurface, in: Capsule())
+                            .ghafGlassButton(theme: theme, languageCode: lang)
                         Button(ar ? "أرشفة" : "Archive", role: .destructive) { archive() }
-                            .foregroundStyle(theme.over)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(theme.over.opacity(0.12), in: Capsule())
+                            .ghafDestructiveButton(theme: theme, languageCode: lang)
                     }
                 }
                 .padding(18)
@@ -640,15 +636,15 @@ struct GhafCardRequestView: View {
                         .foregroundStyle(theme.secondaryText)
                         .multilineTextAlignment(.center)
                         .padding(.top, 6)
-                    VStack(spacing: 0) {
+                    GhafFormCard(theme: theme) {
                         field(ar ? "البنك" : "Bank", text: $bank, prompt: ar ? "مثال: مصرف عجمان" : "e.g. Ajman Bank")
+                        GhafFormDivider(theme: theme)
                         field(ar ? "اسم البطاقة" : "Card name", text: $cardName, prompt: ar ? "مثال: بلاتينيوم" : "e.g. Platinum")
+                        GhafFormDivider(theme: theme)
                         field(ar ? "رابط (اختياري)" : "Link (optional)", text: $link,
                               prompt: ar ? "صفحة البطاقة على موقع البنك" : "Card page on the bank's site",
                               divider: false, keyboard: .URL, autocorrection: false, capitalization: .never)
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 4)
-                    .ghafCard(theme: theme)
                     VStack(alignment: .leading, spacing: 8) {
                         Text(ar ? "كيف تبدو" : "How it looks")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
@@ -691,15 +687,10 @@ struct GhafCardRequestView: View {
     private func field(_ label: String, text: Binding<String>, prompt: String, divider: Bool = true,
                        keyboard: UIKeyboardType = .default, autocorrection: Bool = true,
                        capitalization: TextInputAutocapitalization = .sentences) -> some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(GhafTypography.body(15, languageCode: lang))
-                .foregroundStyle(theme.secondaryText)
-                .frame(minWidth: 96, alignment: .leading)
-            GhafTextField(text: text, placeholder: prompt, theme: theme, languageCode: lang,
-                          keyboard: keyboard, autocorrection: autocorrection, capitalization: capitalization)
-        }
-        .frame(minHeight: 56)
+        GhafTextField(text: text, placeholder: prompt, theme: theme, languageCode: lang,
+                      label: label, chromeless: true, clearable: false, keyboard: keyboard,
+                      autocorrection: autocorrection, capitalization: capitalization)
+        .frame(minHeight: 72)
         .overlay(alignment: .bottom) { if divider { Divider().overlay(theme.outline) } }
     }
 

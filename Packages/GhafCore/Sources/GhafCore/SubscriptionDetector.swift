@@ -53,9 +53,13 @@ public enum SubscriptionDetector {
         return nil
     }
 
-    /// Merchant name without digits, punctuation or extra spaces, so "NETFLIX.COM 8829" == "Netflix.com".
+    /// Keeps service punctuation and removes trailing reference digits.
     public static func normalize(_ merchant: String) -> String {
-        MerchantName.key(merchant)
+        let withoutReference = merchant.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"\s+\d+$"#, with: "", options: .regularExpression)
+        return String(withoutReference.unicodeScalars.map { scalar in
+            CharacterSet.alphanumerics.contains(scalar) || scalar == "." || scalar == "/" || CharacterSet.whitespacesAndNewlines.contains(scalar) ? Character(scalar) : " "
+        }).split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
     /// Same service when the names match after `normalize`, or the charge's merchant starts with the

@@ -409,8 +409,8 @@ struct GhafAIView: View {
             if microphoneOff {
                 microphonePermissionHint.padding(.top, 14)
             } else {
-                Text("Tap Ghaf AI in the tab bar to talk · hold to type")
-                    .font(GhafTypography.body(13, languageCode: "en"))
+                Text(ar ? "اضغط على غاف AI في الشريط السفلي للتحدث، واضغط مطولاً للكتابة" : "Tap Ghaf AI in the tab bar to talk · hold to type")
+                    .font(GhafTypography.body(13, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.top, 18)

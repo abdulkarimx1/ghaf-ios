@@ -282,7 +282,8 @@ enum GhafBackupService {
     }
 
     /// Replaces current Ghaf data with a supported v1–v4 backup. Chats remain local and are not in the backup format.
-    static func restore(from url: URL, context: ModelContext) throws {
+    @discardableResult
+    static func restore(from url: URL, context: ModelContext) throws -> Int {
         let accessGranted = url.startAccessingSecurityScopedResource()
         defer {
             if accessGranted { url.stopAccessingSecurityScopedResource() }
@@ -308,9 +309,18 @@ enum GhafBackupService {
             merchantRuleKeys: payload.merchantRules.map(\.normalizedMerchant),
             accountReferences: payload.transactions.map(\.accountID) + (payload.subscriptions ?? []).map(\.accountID) + [payload.settings.salaryAccountID]
         )
-        if !problems.isEmpty {
-            throw GhafBackupError.invalidBackup("\(problems.count) integrity issue(s) found")
+        let blockingProblems = problems.filter {
+            if case .unknownAccountReference = $0 { return false }
+            return true
         }
+        if !blockingProblems.isEmpty {
+            throw GhafBackupError.invalidBackup("\(blockingProblems.count) integrity issue(s) found")
+        }
+        let availableAccountIDs = payload.accounts.map { Set($0.map(\.id)) }
+        let unassignedCount = BackupIntegrity.missingAccountReferences(
+            accountIDs: payload.accounts?.map(\.id),
+            references: payload.transactions.map(\.accountID) + (payload.subscriptions ?? []).map(\.accountID) + [payload.settings.salaryAccountID]
+        ).count
 
         try context.fetch(FetchDescriptor<GhafTransaction>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafAccount>()).forEach { context.delete($0) }
@@ -339,7 +349,10 @@ enum GhafBackupService {
             salaryDay: source.salaryDay,
             salaryAmount: source.salaryAmount,
             salaryCurrency: source.salaryCurrency,
-            salaryAccountID: source.salaryAccountID,
+            salaryAccountID: availableAccountIDs.map { ids in
+                guard let id = source.salaryAccountID, !ids.contains(id) else { return source.salaryAccountID }
+                return nil
+            } ?? source.salaryAccountID,
             lastSalaryDecisionKey: source.lastSalaryDecisionKey,
             salaryReminderEnabled: source.salaryReminderEnabled ?? false,
             biometricLockEnabled: source.biometricLockEnabled ?? false
@@ -390,7 +403,10 @@ enum GhafBackupService {
                 category: item.category,
                 needsReview: item.needsReview,
                 isReversal: item.isReversal,
-                accountID: item.accountID
+                accountID: {
+                    guard let ids = availableAccountIDs, let id = item.accountID, !ids.contains(id) else { return item.accountID }
+                    return nil
+                }()
             )
             transaction.id = item.id
             transaction.note = item.note
@@ -418,7 +434,10 @@ enum GhafBackupService {
             let subscription = GhafSubscription(
                 id: item.id, name: item.name, amount: item.amount, currency: item.currency,
                 billingCycle: GhafBillingCycle(rawValue: item.billingCycle) ?? .monthly,
-                nextPaymentDate: item.nextPaymentDate, category: item.category, accountID: item.accountID,
+                nextPaymentDate: item.nextPaymentDate, category: item.category, accountID: {
+                    guard let ids = availableAccountIDs, let id = item.accountID, !ids.contains(id) else { return item.accountID }
+                    return nil
+                }(),
                 reminderDays: item.reminderDays, isActive: item.isActive, notes: item.notes
             )
             subscription.needsConfirmation = item.needsConfirmation
@@ -434,17 +453,10 @@ enum GhafBackupService {
         }
 
         #if DEBUG
-        let financialDataBeforeCleanup = try financialSnapshot(in: context)
-        #endif
-        _ = try GhafPersistence.cleanMerchantData(in: context, save: false)
-        #if DEBUG
-        let financialDataAfterCleanup = try financialSnapshot(in: context)
-        assert(financialDataAfterCleanup == financialDataBeforeCleanup,
-               "Merchant cleanup changed restored financial data")
         let restoredTransactions = try context.fetch(FetchDescriptor<GhafTransaction>())
-        assert(restoredTransactions.compactMap(\.merchant).allSatisfy {
-            $0.range(of: #"(?i)\busing\b.*\bcard\b"#, options: .regularExpression) == nil
-        }, "Restored merchants still contain a card clause")
+        assert(restoredTransactions.allSatisfy { transaction in
+            transaction.accountID.map { availableAccountIDs?.contains($0) ?? true } ?? true
+        }, "Restored records still contain a dangling account reference")
         #endif
 
         do {
@@ -465,39 +477,8 @@ enum GhafBackupService {
         for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }
+        return unassignedCount
     }
-
-    #if DEBUG
-    private struct FinancialSnapshot: Equatable {
-        struct Transaction: Equatable {
-            var amount: Decimal
-            var currency: String
-            var date: Date
-            var accountID: UUID?
-            var direction: String
-            var isReversal: Bool
-        }
-
-        var accountBalances: [UUID: Decimal]
-        var totalsByCurrency: [String: Decimal]
-        var transactions: [UUID: Transaction]
-    }
-
-    private static func financialSnapshot(in context: ModelContext) throws -> FinancialSnapshot {
-        let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
-        let transactions = try context.fetch(FetchDescriptor<GhafTransaction>())
-        let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
-        let totals = GhafAccountBalanceCalculator.balancesByCurrency(accounts: accounts, balances: balances)
-        return FinancialSnapshot(
-            accountBalances: balances,
-            totalsByCurrency: Dictionary(uniqueKeysWithValues: totals.map { ($0.currency, $0.amount) }),
-            transactions: Dictionary(uniqueKeysWithValues: transactions.map { item in
-                (item.id, .init(amount: item.amount, currency: item.currency, date: item.date,
-                                 accountID: item.accountID, direction: item.direction, isReversal: item.isReversal))
-            })
-        )
-    }
-    #endif
 
     #if DEBUG
     static func debugRoundTripCheck(context: ModelContext) async throws -> String {

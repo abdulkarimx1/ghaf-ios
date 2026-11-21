@@ -24,6 +24,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app.uitests
   Ghaf:
+    scheme:
+      storeKitConfiguration: Ghaf/Resources/Ghaf.storekit
     type: application
     platform: iOS
     sources:
@@ -38,8 +40,8 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.26"
-        CFBundleVersion: "40"
+        CFBundleShortVersionString: "1.27"
+        CFBundleVersion: "41"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
@@ -94,8 +96,8 @@ targets:
       path: BuildConfig/GhafWidgets-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.26"
-        CFBundleVersion: "40"
+        CFBundleShortVersionString: "1.27"
+        CFBundleVersion: "41"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

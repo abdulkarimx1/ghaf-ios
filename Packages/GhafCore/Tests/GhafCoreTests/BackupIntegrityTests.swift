@@ -20,7 +20,13 @@ final class BackupIntegrityTests: XCTestCase {
 
     func testDanglingAndMissingAccountListReferences() {
         XCTAssertTrue(validate(transactionIDs: [], fingerprints: [], accountIDs: [a], subscriptionIDs: [], merchantRuleKeys: [], accountReferences: [b]).contains(.unknownAccountReference(b)))
-        XCTAssertTrue(validate(transactionIDs: [], fingerprints: [], accountIDs: nil, subscriptionIDs: [], merchantRuleKeys: [], accountReferences: [a]).contains(.unknownAccountReference(a)))
+        XCTAssertFalse(validate(transactionIDs: [], fingerprints: [], accountIDs: nil, subscriptionIDs: [], merchantRuleKeys: [], accountReferences: [a]).contains(.unknownAccountReference(a)))
+    }
+
+    func testLegacyBackupSkipsUnknownReferencesAndPresentAccountListCountsOrphan() {
+        let references: [UUID?] = [b, nil]
+        XCTAssertTrue(BackupIntegrity.missingAccountReferences(accountIDs: nil, references: references).isEmpty)
+        XCTAssertEqual(BackupIntegrity.missingAccountReferences(accountIDs: [a], references: references), [b])
     }
 
     private func validate(transactionIDs: [UUID], fingerprints: [String], accountIDs: [UUID]?, subscriptionIDs: [UUID], merchantRuleKeys: [String], accountReferences: [UUID?]) -> [BackupIntegrityProblem] {

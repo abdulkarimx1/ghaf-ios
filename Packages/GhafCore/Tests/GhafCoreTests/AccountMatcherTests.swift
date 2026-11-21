@@ -9,11 +9,16 @@ final class AccountMatcherTests: XCTestCase {
         XCTAssertEqual(AccountMatcher.match(bank: nil, sender: "iVESTOR", candidates: [wallet]), wallet.id)
     }
 
-    func testUniquePartialAndShortPartial() {
+    func testPartialMatchesRequireReview() {
         let account = AccountCandidate(id: UUID(), name: "Main", institution: "Mashreq Bank", isBankAccount: true, isPrimary: false)
-        XCTAssertEqual(AccountMatcher.match(bank: "mashreq", sender: nil, candidates: [account]), account.id)
+        XCTAssertNil(AccountMatcher.match(bank: "mashreq", sender: nil, candidates: [account]))
         let short = AccountCandidate(id: UUID(), name: "AD Cash", institution: "ADCB", isBankAccount: false, isPrimary: false)
         XCTAssertNil(AccountMatcher.match(bank: nil, sender: "AD", candidates: [short]))
+    }
+
+    func testPartialSubstringCannotAutoAssign() {
+        let account = AccountCandidate(id: UUID(), name: "Main", institution: "Mashreq", isBankAccount: true, isPrimary: false)
+        XCTAssertNil(AccountMatcher.match(bank: "Mashreq Bank", sender: nil, candidates: [account]))
     }
 
     func testAmbiguousPartialReturnsNil() {

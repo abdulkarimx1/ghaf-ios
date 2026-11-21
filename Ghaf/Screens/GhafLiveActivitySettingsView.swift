@@ -6,11 +6,13 @@ struct GhafLiveActivitySettingsView: View {
     let settings: GhafSettings
     @State private var isEnabled: Bool
     @State private var balance: GhafLiveActivityBalance
+    @State private var duration: Int
 
     init(settings: GhafSettings) {
         self.settings = settings
         _isEnabled = State(initialValue: GhafWidgetSync.liveActivityEnabled)
         _balance = State(initialValue: GhafWidgetSync.liveActivityBalance)
+        _duration = State(initialValue: GhafWidgetSync.liveActivityDuration)
     }
 
     private var arabic: Bool { settings.languageCode == "ar" }
@@ -26,11 +28,34 @@ struct GhafLiveActivitySettingsView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
 
-            Text(arabic ? "يعرض أحدث عملية تسجّلها لمدة خمس دقائق." : "Shows your latest logged transaction for five minutes.")
+            Text(arabic ? "يعرض أحدث عملية تسجّلها للمدة التي تختارها." : "Shows your latest logged transaction for \(durationLabel(duration)).")
                 .font(GhafTypography.body(14, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
+
+            VStack(spacing: 12) {
+                Text(arabic ? "مدة الظهور" : "Show for")
+                    .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
+                HStack(spacing: 8) {
+                    ForEach([15, 30, 60, 120, 300], id: \.self) { seconds in
+                        let selected = duration == seconds
+                        Button {
+                            duration = seconds
+                        } label: {
+                            Text(durationLabel(seconds))
+                                .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                                .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(selected ? theme.accent : theme.surface, in: Capsule())
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                    }
+                }
+            }
 
             VStack(spacing: 0) {
                 selectionRow(arabic ? (isEnabled ? "النشاط المباشر · مفعّل" : "النشاط المباشر · متوقف")
@@ -68,6 +93,7 @@ struct GhafLiveActivitySettingsView: View {
         .environment(\.layoutDirection, arabic ? .rightToLeft : .leftToRight)
         .onChange(of: isEnabled) { _, _ in savePreferences() }
         .onChange(of: balance) { _, _ in savePreferences() }
+        .onChange(of: duration) { _, _ in savePreferences() }
     }
 
     private func selectionRow(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -91,6 +117,16 @@ struct GhafLiveActivitySettingsView: View {
     }
 
     private func savePreferences() {
-        GhafWidgetSync.setLiveActivityPreferences(enabled: isEnabled, balance: balance)
+        GhafWidgetSync.setLiveActivityPreferences(enabled: isEnabled, balance: balance, duration: duration)
+    }
+
+    private func durationLabel(_ seconds: Int) -> String {
+        switch seconds {
+        case 15: "15 s"
+        case 30: "30 s"
+        case 60: "1 min"
+        case 120: "2 min"
+        default: "5 min"
+        }
     }
 }

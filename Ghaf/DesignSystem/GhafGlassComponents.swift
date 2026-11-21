@@ -1,4 +1,5 @@
 import SwiftUI
+import GhafCore
 
 extension View {
     func ghafScreenPadding() -> some View {
@@ -30,14 +31,18 @@ extension View {
         modifier(GhafGlassShapeSurface(shape: shape, fallback: fallback))
     }
 
-    /// Full-width primary action: a bold accent capsule.
+    /// Full-width primary action.
     func ghafProminentButton(theme: GhafTheme, languageCode: String = "en") -> some View {
-        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, prominent: true))
+        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .primary))
     }
 
     /// Full-width secondary action: a tonal capsule.
     func ghafGlassButton(theme: GhafTheme, languageCode: String = "en") -> some View {
-        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, prominent: false))
+        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .secondary))
+    }
+
+    func ghafDestructiveButton(theme: GhafTheme, languageCode: String = "en") -> some View {
+        buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .destructive))
     }
 }
 
@@ -80,21 +85,30 @@ private struct GhafGlassGlowBlobs: View {
 }
 
 struct GhafCapsuleButtonStyle: ButtonStyle {
+    enum Role: Equatable { case primary, secondary, destructive }
     let theme: GhafTheme
     let languageCode: String
-    let prominent: Bool
+    let role: Role
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
+        let graphite = theme.name == "Graphite"
+        let colors: (foreground: Color, fill: Color) = {
+            switch role {
+            case .primary: return (graphite ? theme.background : theme.accentContrast, graphite ? theme.primaryText : theme.accent)
+            case .secondary: return (theme.primaryText, theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
+            case .destructive: return (theme.over, theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
+            }
+        }()
         configuration.label
-            .font(GhafTypography.body(17, languageCode: languageCode, weight: prominent ? .semibold : .bold))
-            .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
-            .frame(maxWidth: .infinity, minHeight: 56)
+            .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
+            .foregroundStyle(colors.foreground)
             .padding(.horizontal, 18)
-            .background(prominent ? theme.accent : theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
-            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
-            .sensoryFeedback(.impact(weight: prominent ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .background(colors.fill, in: Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
+            .sensoryFeedback(.impact(weight: role == .primary ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
@@ -133,7 +147,7 @@ struct GhafPillButton: View {
                 }
             }
             .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
-            .frame(minHeight: 48)
+            .frame(minHeight: 60)
             .padding(.horizontal, 16)
             .background {
                 if prominent {
@@ -373,8 +387,13 @@ struct GhafCategoryIcon: View {
     }
 
     private var style: (symbol: String, color: Color) {
-        guard let builtIn = Self.builtIn(category) else { return ("creditcard.fill", tint) }
-        return (builtIn.symbol, color(builtIn.palette))
+        if let builtIn = Self.builtIn(category) { return (builtIn.symbol, color(builtIn.palette)) }
+        // Imported categories ("Food", "Car", "Utilities"…) match the taxonomy by name or alias.
+        let key = category.lowercased()
+        if let match = CategoryTaxonomy.all.first(where: { $0.name.lowercased() == key || $0.aliases.contains { $0.lowercased() == key } }) {
+            return (match.icon, color(named: match.color) ?? tint)
+        }
+        return ("creditcard.fill", tint)
     }
 
     var body: some View {

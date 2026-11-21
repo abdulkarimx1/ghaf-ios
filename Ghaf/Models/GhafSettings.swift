@@ -12,7 +12,7 @@ enum GhafDefaults {
             ($0.name, GhafCategoryMeta(subcategories: $0.subcategories.map(\.name), icon: $0.icon, color: $0.color))
         })
     }
-    static let defaultTheme = "Abu Dhabi"
+    static let defaultTheme = "Graphite"
 }
 
 struct GhafCategoryMeta: Codable, Equatable {
@@ -59,7 +59,7 @@ final class GhafSettings {
         currency: String = "AED",
         monthlyIncome: Decimal = 0,
         fixedCommitments: Decimal = 0,
-        themeName: String = "Abu Dhabi",
+        themeName: String = GhafDefaults.defaultTheme,
         appearanceMode: String = "System",
         budgetMode: String = "Daily",
         hasCompletedOnboarding: Bool = false,

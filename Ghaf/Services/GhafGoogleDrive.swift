@@ -4,8 +4,7 @@ import CryptoKit
 import Security
 import UIKit
 
-/// Google sign-in (OAuth 2 + PKCE) and Drive backups. Uses the `drive.file` scope, so Ghaf
-/// only ever sees the backup files it created itself. Needs `GHAF_GOOGLE_CLIENT_ID` (an iOS
+/// Google sign-in (OAuth 2 + PKCE) and Drive backups. Uses Drive's private appDataFolder. Needs `GHAF_GOOGLE_CLIENT_ID` (an iOS
 /// OAuth client ID from Google Cloud Console) in Info.plist.
 @MainActor
 final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
@@ -24,12 +23,14 @@ final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPres
     }
 
     @Published private(set) var email: String? = UserDefaults.standard.string(forKey: "ghaf.drive.email")
+    @Published private(set) var avatarURL: String? = UserDefaults.standard.string(forKey: "ghaf.drive.avatar")
+    @Published private(set) var lastBackupDate: Date? = UserDefaults.standard.object(forKey: "ghaf.drive.lastBackup") as? Date
     @Published private(set) var isBusy = false
 
     private var accessToken: String?
     private var accessTokenExpiry = Date.distantPast
     private let refreshKey = "ghaf.drive.refresh"
-    private let scope = "openid email https://www.googleapis.com/auth/drive.file"
+    private let scope = "openid email https://www.googleapis.com/auth/drive.appdata"
 
     var clientID: String? {
         let value = (Bundle.main.object(forInfoDictionaryKey: "GHAF_GOOGLE_CLIENT_ID") as? String)?
@@ -88,16 +89,23 @@ final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPres
         ])
         if let refresh = tokens["refresh_token"] as? String { Keychain.save(refresh, for: refreshKey) }
         store(tokens)
-        if let idToken = tokens["id_token"] as? String, let mail = Self.email(fromIDToken: idToken) {
-            email = mail
-            UserDefaults.standard.set(mail, forKey: "ghaf.drive.email")
+        if let idToken = tokens["id_token"] as? String {
+            let claims = Self.claims(fromIDToken: idToken)
+            if let mail = claims["email"] as? String {
+                email = mail
+                UserDefaults.standard.set(mail, forKey: "ghaf.drive.email")
+            }
+            avatarURL = claims["picture"] as? String
+            UserDefaults.standard.set(avatarURL, forKey: "ghaf.drive.avatar")
         }
     }
 
     func signOut() {
         Keychain.delete(refreshKey)
         UserDefaults.standard.removeObject(forKey: "ghaf.drive.email")
+        UserDefaults.standard.removeObject(forKey: "ghaf.drive.avatar")
         email = nil
+        avatarURL = nil
         accessToken = nil
     }
 
@@ -111,17 +119,19 @@ final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPres
         let name = "Ghaf-backup-\(Date.now.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false))).json"
         var body = Data()
         body.append("--\(boundary)\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n")
-        body.append(#"{"name":"\#(name)","mimeType":"application/json"}"#)
+        body.append(#"{"name":"\#(name)","mimeType":"application/json","parents":["appDataFolder"]}"#)
         body.append("\r\n--\(boundary)\r\nContent-Type: application/json\r\n\r\n")
         body.append(try Data(contentsOf: url))
         body.append("\r\n--\(boundary)--\r\n")
 
-        var request = URLRequest(url: URL(string: "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")!)
+        var request = URLRequest(url: URL(string: "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&spaces=appDataFolder")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("multipart/related; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
         _ = try await send(request)
+        lastBackupDate = .now
+        UserDefaults.standard.set(lastBackupDate, forKey: "ghaf.drive.lastBackup")
     }
 
     /// Downloads the newest Ghaf backup to a temporary file.
@@ -134,13 +144,18 @@ final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPres
             .init(name: "q", value: "name contains 'Ghaf-backup' and trashed = false"),
             .init(name: "orderBy", value: "createdTime desc"),
             .init(name: "pageSize", value: "1"),
-            .init(name: "fields", value: "files(id,name)")
+            .init(name: "spaces", value: "appDataFolder"),
+            .init(name: "fields", value: "files(id,name,createdTime)")
         ]
         var request = URLRequest(url: list.url!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let json = try JSONSerialization.jsonObject(with: try await send(request)) as? [String: Any]
         guard let file = (json?["files"] as? [[String: Any]])?.first, let id = file["id"] as? String else {
             throw DriveError.noBackup
+        }
+        if let created = file["createdTime"] as? String, let date = ISO8601DateFormatter().date(from: created) {
+            lastBackupDate = date
+            UserDefaults.standard.set(date, forKey: "ghaf.drive.lastBackup")
         }
 
         var download = URLRequest(url: URL(string: "https://www.googleapis.com/drive/v3/files/\(id)?alt=media")!)
@@ -200,14 +215,14 @@ final class GhafGoogleDrive: NSObject, ObservableObject, ASWebAuthenticationPres
         return Data(bytes).base64URL
     }
 
-    static func email(fromIDToken token: String) -> String? {
+    private static func claims(fromIDToken token: String) -> [String: Any] {
         let parts = token.split(separator: ".")
-        guard parts.count > 1 else { return nil }
+        guard parts.count > 1 else { return [:] }
         var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
         payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
         guard let data = Data(base64Encoded: payload),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return json["email"] as? String
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+        return json
     }
 }
 
