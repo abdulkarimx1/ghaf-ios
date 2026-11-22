@@ -21,8 +21,7 @@ struct GhafImportSheet: View {
     private var ar: Bool { settings.languageCode == "ar" }
     private var theme: GhafTheme { GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: scheme == .dark) }
     private var mailIsConfigured: Bool { MFMailComposeViewController.canSendMail() }
-    private var supportAddressIsConfigured: Bool { GhafLinks.hasConfiguredSupportEmail }
-    private var canEmailDeveloper: Bool { mailIsConfigured && supportAddressIsConfigured }
+    private var canEmailDeveloper: Bool { mailIsConfigured }
 
     var body: some View {
         NavigationStack {
@@ -109,10 +108,6 @@ struct GhafImportSheet: View {
                 Text(ar ? "لإرسال الملف، أضف حساباً إلى تطبيق Mail." : "To send the file, set up an account in the Mail app.")
                     .font(GhafTypography.body(10, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
-            } else if !supportAddressIsConfigured {
-                Text(ar ? "لم يُعدّ عنوان دعم المطوّر بعد." : "The developer support address has not been configured yet.")
-                    .font(GhafTypography.body(10, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
             }
         }
     }
@@ -161,7 +156,7 @@ private struct GhafMailComposer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
         let composer = MFMailComposeViewController(); composer.setToRecipients([GhafLinks.supportEmail])
         composer.setSubject(arabic ? "مساعدة في استيراد غاف" : "Ghaf import support")
-        composer.setMessageBody(arabic ? "أرفقت الملف لمساعدتكم في إصلاح الاستيراد. نستخدمه لهذا الغرض فقط ولا نشاركه مع جهات أخرى." : "I attached this file to help fix Ghaf's import support. We use it only for this purpose and do not share it further.", isHTML: false)
+        composer.setMessageBody(arabic ? "أرفقت الملف الذي لم يُستورد كما يجب، لمساعدتكم في إصلاح المشكلة." : "I've attached the file that didn't import correctly, to help you fix it.", isHTML: false)
         if let data = try? Data(contentsOf: file) { composer.addAttachmentData(data, mimeType: file.pathExtension.lowercased() == "csv" ? "text/csv" : "application/json", fileName: file.lastPathComponent) }
         composer.mailComposeDelegate = context.coordinator; return composer
     }
