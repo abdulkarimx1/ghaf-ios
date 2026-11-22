@@ -21,6 +21,7 @@ struct GhafHomeView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(GhafTabRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
@@ -48,6 +49,7 @@ struct GhafHomeView: View {
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
+    @State private var eyeLidClosed = false
     @State private var showSubscriptions = false
     /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
     @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
@@ -355,17 +357,28 @@ struct GhafHomeView: View {
             }
             .frame(maxWidth: .infinity)
             Button {
-                withAnimation(.easeOut(duration: 0.35)) { hideBalances.toggle() }
+                GhafSounds.shared.play(.tick)
+                if reduceMotion {
+                    withAnimation(.easeInOut(duration: 0.15)) { hideBalances.toggle() }
+                } else {
+                    withAnimation(.easeInOut(duration: 0.11)) { eyeLidClosed = true }
+                    withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.26)) { hideBalances.toggle() }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(110))
+                        withAnimation(.easeOut(duration: 0.11)) { eyeLidClosed = false }
+                    }
+                }
             } label: {
                 Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 15, weight: .bold))
-                    .contentTransition(.symbolEffect(.replace))
+                    .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace.downUp))
+                    .scaleEffect(y: eyeLidClosed ? 0.15 : 1)
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
                     .background(theme.surface, in: Circle())
             }
             .buttonStyle(.ghafPress)
-            .sensoryFeedback(.impact(weight: .medium), trigger: hideBalances)
+            .sensoryFeedback(.selection, trigger: hideBalances)
             .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
                                    : (hideBalances ? "Show balances" : "Hide balances"))
         }
@@ -443,9 +456,9 @@ struct GhafHomeView: View {
 
             HStack(spacing: 14) {
                 changeLine(icon: "arrow.down.right", value: summary.spent, color: theme.debit,
-                           label: ar ? "صرفت" : "spent", currency: summary.mainCurrency)
+                           label: ar ? "المصروف" : "spent", currency: summary.mainCurrency)
                 changeLine(icon: "arrow.up.right", value: summary.income, color: theme.credit,
-                           label: ar ? "دخل" : "in", currency: summary.mainCurrency)
+                           label: ar ? "الدخل" : "in", currency: summary.mainCurrency)
             }
 
             HStack(spacing: 6) {
@@ -470,6 +483,7 @@ struct GhafHomeView: View {
         .ghafGlassHero(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
+            GhafSounds.shared.play(.tick)
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
         }
         .accessibilityElement(children: .contain)
@@ -481,7 +495,7 @@ struct GhafHomeView: View {
     private func changeLine(icon: String, value: Decimal, color: Color, label: String, currency: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon).font(.system(size: 11, weight: .heavy))
-            GhafMoneyLabel(amount: value, currency: currency, languageCode: lang, size: 14, hidden: hideBalances)
+            GhafRollingNumber(amount: value, currency: currency, languageCode: lang, size: 14, hidden: hideBalances)
             Text(label).font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
         }
         .foregroundStyle(color)
@@ -632,17 +646,17 @@ struct GhafHomeView: View {
 
     /// Nothing spent yet: say what the period before cost.
     private func emptyInsight(_ summary: Summary) -> String {
-        let text = activityPeriodIndex == 1
-            ? (ar ? "ما صرفت شيئاً في آخر ٧ أيام." : "Nothing spent in the last 7 days.")
-            : (ar ? "ما صرفت شيئاً \(periodName) بعد." : "Nothing spent \(periodPhrase) yet.")
+        let text = ar
+            ? ["لا مصروفات اليوم حتى الآن.", "لا مصروفات في آخر ٧ أيام.", "لا مصروفات هذا الشهر حتى الآن."][activityPeriodIndex]
+            : activityPeriodIndex == 1 ? "Nothing spent in the last 7 days." : "Nothing spent \(periodPhrase) yet."
         guard summary.previousSpent > 0 else {
-            return text + (ar ? " يوم جميل لمحفظتك." : " A good day for your wallet.")
+            return text + (ar ? " يوم بلا مصروفات." : " A good day for your wallet.")
         }
-        let previousName = ar ? ["أمس", "في الأيام السبعة التي قبلها", "الشهر الماضي"][activityPeriodIndex]
+        let previousName = ar ? ["مصروف أمس", "مصروف الأيام السبعة السابقة", "مصروف الشهر الماضي"][activityPeriodIndex]
                               : ["Yesterday", "In the 7 days before", "Last month"][activityPeriodIndex]
         guard !hideBalances else { return text }
         let amount = GhafFormat.money(summary.previousSpent, currency: summary.mainCurrency, languageCode: lang)
-        return text + (ar ? " \(previousName) صرفت \(amount)." : " \(previousName) you spent \(amount).")
+        return text + (ar ? " \(previousName): \(GhafMoneyText.isolate(amount))" : " \(previousName), you spent \(amount).")
     }
 
     // MARK: Recent activity (a short shortcut; the full list lives in Transactions)
@@ -924,10 +938,10 @@ struct GhafQuickAddView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .interactiveDismissDisabled(isDirty)
-        .blur(radius: showingSuccess ? 10 : 0)
+        .blur(radius: showingSuccess ? 18 : 0)
         .animation(.easeOut(duration: 0.3), value: showingSuccess)
         .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
-        .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تم تسجيل العملية" : "Transaction logged", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { dismiss() } } }
+        .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تمت إضافة العملية" : "Transaction added", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { dismiss() } } }
         .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .onAppear {
@@ -1152,9 +1166,24 @@ struct GhafQuickAddView: View {
             try modelContext.save()
             Task { await GhafPlaces.rememberCurrentLocation(transactionID: transaction.id) }
             showingSuccess = true
+            playMilestoneSoundIfReached(on: date)
         } catch {
             errorMessage = settings.languageCode == "ar" ? "تعذر حفظ العملية." : "Could not save transaction."
         }
+    }
+
+    private func playMilestoneSoundIfReached(on loggedDate: Date) {
+        guard Calendar.current.isDateInToday(loggedDate),
+              let all = try? modelContext.fetch(FetchDescriptor<GhafTransaction>()) else { return }
+        let dates = all.filter { !$0.needsReview }.map(\.date)
+        let todayKey = Calendar.current.startOfDay(for: loggedDate)
+        guard dates.filter({ Calendar.current.isDate($0, inSameDayAs: todayKey) }).count == 1 else { return }
+        let current = GhafLoggingStreak.count(dates, through: loggedDate, calendar: .current)
+        let calendar = Calendar.current
+        let previousDate = calendar.date(byAdding: .day, value: -1, to: loggedDate) ?? loggedDate
+        let prior = GhafLoggingStreak.count(dates.filter { !Calendar.current.isDate($0, inSameDayAs: todayKey) },
+                                           through: previousDate, calendar: calendar)
+        if [7, 30, 90].contains(where: { current >= $0 && prior < $0 }) { GhafSounds.shared.play(.streak) }
     }
 }
 

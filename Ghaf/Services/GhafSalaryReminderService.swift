@@ -310,7 +310,7 @@ struct GhafSalarySettingsView: View {
                             GhafAmountField(value: $amountText,
                                             currency: salaryCurrency,
                                             label: "", theme: theme, languageCode: settings.languageCode, fontSize: 15,
-                                            chromeless: true, trailingAligned: true)
+                                            chromeless: true, trailingAligned: true, groupsDigits: true)
                                 .frame(width: 132)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                         }

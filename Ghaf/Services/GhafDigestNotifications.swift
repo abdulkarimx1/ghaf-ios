@@ -97,7 +97,9 @@ enum GhafDigestNotifications {
     static func transactionAdded(_ transaction: GhafTransaction, needsReview: Bool, languageCode: String) {
         guard needsReview else { return }
         let ar = languageCode == "ar"
-        let amount = GhafFormat.balancesHidden ? GhafMoneyLabel.mask : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
+        let amount = GhafFormat.balancesHidden
+            ? GhafFormat.hiddenMoney(transaction.amount, currency: transaction.currency, languageCode: languageCode)
+            : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
         let merchant = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
             ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
         GhafEventNotifications.record(

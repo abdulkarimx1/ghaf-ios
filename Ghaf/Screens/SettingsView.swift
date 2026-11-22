@@ -51,6 +51,7 @@ struct GhafSettingsView: View {
     @AppStorage("ghaf.glass.grain") private var glassGrain = true
     @AppStorage("ghaf.glass.glow") private var glassGlow = true
     @AppStorage("ghaf.glass.tilt") private var glassTilt = true
+    @AppStorage("ghaf.inAppSounds") private var inAppSounds = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
@@ -153,7 +154,7 @@ struct GhafSettingsView: View {
                     menuGroup(ar ? "التطبيق" : "App") {
                         menuRow(ar ? "الأدوات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -716,8 +717,8 @@ struct GhafSettingsView: View {
                 .font(.system(size: 36)).foregroundStyle(theme.accent)
             Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            Text(ar ? "هذا الإنجاز لمن سجّل \(GhafLocalization.arabicDays(days)) متتالية. تسلسلك الحالي \(GhafLocalization.arabicDays(streak))، وهو للمتعة فقط."
-                    : "This milestone marks \(days) consecutive days. Your current streak is \(streak) days; just for fun.")
+            Text(ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)) أيام. أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak)) يوماً."
+                    : "You tracked your money for \(days) days in a row. Your streak is now \(streak) days.")
                 .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -817,6 +818,19 @@ struct GhafSettingsView: View {
             })) {
                 Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+            .frame(minHeight: 56)
+        }
+    }
+
+    private var soundCard: some View {
+        settingsCard(ar ? "الأصوات" : "Sounds",
+                     subtitle: ar ? "أصوات هادئة لتأكيد بعض الإجراءات داخل التطبيق." : "Quiet cues for a few in-app actions.") {
+            Toggle(isOn: $inAppSounds) {
+                Text(ar ? "أصوات التطبيق" : "In-app sounds")
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
             }
             .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
             .frame(minHeight: 56)

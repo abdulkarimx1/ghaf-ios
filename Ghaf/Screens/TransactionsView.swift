@@ -331,6 +331,7 @@ struct GhafTransactionsView: View {
         modelContext.delete(transaction)
         do {
             try modelContext.save()
+            GhafSounds.shared.play(.deleted)
         } catch {
             modelContext.rollback()
         }

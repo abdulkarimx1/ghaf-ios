@@ -12,6 +12,7 @@ struct GhafAmountField: View {
     var fontSize: CGFloat = 24
     var chromeless = false
     var trailingAligned = false
+    var groupsDigits = false
     /// Opens the pad as soon as the field appears (quick add).
     var presentOnAppear = false
 
@@ -190,7 +191,18 @@ struct GhafAmountField: View {
     }
 
     private func amountDisplay(_ text: String) -> String {
-        let display = localized(text)
+        let display: String
+        if groupsDigits, let amount = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) {
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.locale = Locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE")
+            formatter.usesGroupingSeparator = true
+            formatter.minimumFractionDigits = digits
+            formatter.maximumFractionDigits = digits
+            display = formatter.string(from: amount as NSDecimalNumber) ?? localized(text)
+        } else {
+            display = localized(text)
+        }
         return languageCode == "ar" ? "\u{2066}\(display)\u{2069}" : display
     }
 }
