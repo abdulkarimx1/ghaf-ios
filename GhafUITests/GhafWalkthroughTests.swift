@@ -231,6 +231,56 @@ extension GhafWalkthroughTests {
 }
 
 extension GhafWalkthroughTests {
+    func testSessionFUnreadTransactionsTabIndicatorPersistsUntilOpened() {
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafUITestInjectUnread"]
+        app.launch()
+        let transactionsTab = app.tabBars.buttons["Transactions"]
+        XCTAssertTrue(transactionsTab.waitForExistence(timeout: 20))
+        XCTAssertEqual(transactionsTab.value as? String, "New transaction")
+        XCTAssertTrue(app.otherElements["transactions-unread-dot"].exists)
+
+        app.terminate()
+        app = XCUIApplication()
+        app.launch()
+        let reopenedTab = app.tabBars.buttons["Transactions"]
+        XCTAssertTrue(reopenedTab.waitForExistence(timeout: 20))
+        XCTAssertEqual(reopenedTab.value as? String, "New transaction", "Unread state must persist while Transactions stays unopened")
+
+        reopenedTab.tap()
+        let predicate = NSPredicate(format: "value == %@", "")
+        expectation(for: predicate, evaluatedWith: reopenedTab)
+        waitForExpectations(timeout: 8)
+        XCTAssertFalse(app.otherElements["transactions-unread-dot"].exists)
+
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafUITestCleanupUnread"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+    }
+
+    func testSessionFSettingsPersistenceAuditAcrossRelaunch() {
+        func launchAudit(_ phase: String) -> XCUIApplication {
+            let application = XCUIApplication()
+            application.launchArguments = ["-GhafSettingsPersistenceAudit", "-GhafSettingsPersistenceAuditPhase", phase]
+            application.launch()
+            return application
+        }
+
+        app = launchAudit("write")
+        let writeStatus = app.staticTexts["ghaf.settings-audit.status"]
+        XCTAssertTrue(writeStatus.waitForExistence(timeout: 20))
+        XCTAssertTrue(writeStatus.label.contains("values written"), writeStatus.label)
+        app.terminate()
+
+        app = launchAudit("assert")
+        let assertion = app.staticTexts["ghaf.settings-audit.status"]
+        XCTAssertTrue(assertion.waitForExistence(timeout: 20))
+        XCTAssertEqual(assertion.label, "Settings persistence audit passed: 26 values survived relaunch.")
+        app.terminate()
+    }
+
     func testRestoreBackupOpensTransactionsWithRealData() throws {
         guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
                 ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"] else {

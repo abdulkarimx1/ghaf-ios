@@ -1,6 +1,43 @@
 import SwiftUI
 import StoreKit
 
+struct GhafProFeatureMask<Content: View>: View {
+    let isUnlocked: Bool
+    let theme: GhafTheme
+    let languageCode: String
+    let action: () -> Void
+    let content: Content
+
+    init(isUnlocked: Bool, theme: GhafTheme, languageCode: String, action: @escaping () -> Void,
+         @ViewBuilder content: () -> Content) {
+        self.isUnlocked = isUnlocked
+        self.theme = theme
+        self.languageCode = languageCode
+        self.action = action
+        self.content = content()
+    }
+
+    private var ar: Bool { languageCode == "ar" }
+
+    var body: some View {
+        content
+            .overlay {
+                if !isUnlocked {
+                    Rectangle().fill(theme.background.opacity(0.35)).overlay {
+                        Button(action: action) {
+                            Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
+                                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                                .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
+                                .background(theme.surface, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+    }
+}
+
 struct GhafProView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme

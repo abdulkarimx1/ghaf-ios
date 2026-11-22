@@ -454,6 +454,13 @@ private struct GhafActivityStatus: View {
                 Link(ar ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(context.attributes.glowColor)
             }
         }
+        if let recordedAt = s.recordedAt, let expiresAt = s.expiresAt, expiresAt > recordedAt {
+            ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
+                .progressViewStyle(.linear)
+                .tint(context.attributes.glowColor)
+                .scaleEffect(x: 1, y: 0.55, anchor: .center)
+                .accessibilityLabel(ar ? "ينتهي النشاط قريبًا" : "Activity time remaining")
+        }
     }
 }
 
@@ -559,6 +566,13 @@ struct GhafPurchaseLockView: View {
                         .font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
                 }
                 if let url = s.transactionURL { Link(a.arabic ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(a.glowColor) }
+            }
+            if let recordedAt = s.recordedAt, let expiresAt = s.expiresAt, expiresAt > recordedAt {
+                ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
+                    .progressViewStyle(.linear)
+                    .tint(a.glowColor)
+                    .scaleEffect(x: 1, y: 0.55, anchor: .center)
+                    .accessibilityLabel(a.arabic ? "ينتهي النشاط قريبًا" : "Activity time remaining")
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)

@@ -209,6 +209,11 @@ struct GhafSettingsView: View {
             }
 #endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
+            .overlay {
+                if selectedMilestone != nil {
+                    theme.background.ignoresSafeArea().allowsHitTesting(false)
+                }
+            }
             .onAppear {
                 loadSettings()
                 proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
@@ -634,7 +639,8 @@ struct GhafSettingsView: View {
 
     private var placesCard: some View {
         let summaries = placeSummaries
-        return VStack(alignment: .leading, spacing: 12) {
+        return GhafProFeatureMask(isUnlocked: proUnlocked, theme: theme, languageCode: languageCode, action: { showProSheet = true }) {
+          VStack(alignment: .leading, spacing: 12) {
             Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
                 .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
             if summaries.isEmpty {
@@ -658,19 +664,8 @@ struct GhafSettingsView: View {
                 }
             }
         }
-        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme)
-        .overlay {
-            if !proUnlocked {
-                Rectangle().fill(theme.background.opacity(0.35)).overlay {
-                    Button { showProSheet = true } label: {
-                        Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
-                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                            .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
-                            .background(theme.surface, in: Capsule())
-                    }.buttonStyle(.plain)
-                }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
-            }
+            .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .ghafCard(theme: theme)
         }
         .accessibilityHint(ar ? "تُحفظ بيانات الأماكن على هذا الجهاز فقط." : "Place data stays on this iPhone.")
     }
@@ -732,6 +727,8 @@ struct GhafSettingsView: View {
           .padding(24).frame(maxWidth: .infinity)
         }
         .background(theme.background.ignoresSafeArea())
+        .safeAreaPadding(.bottom, 12)
+        .presentationBackground { theme.background.ignoresSafeArea() }
         .presentationDetents([.medium, .large])
         .presentationCornerRadius(32)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
@@ -1108,6 +1105,7 @@ HStack(spacing: 8) {
         .sheet(item: Binding(get: { editingCategory.map(GhafEditingCategory.init) }, set: { editingCategory = $0?.name })) { item in
             categoryEditor(item.name)
                 .presentationDetents([.medium])
+                .ghafSheetFrame(theme: theme)
                 .presentationDragIndicator(.visible)
         }
         .confirmationDialog(ar ? "حذف هذه الفئة؟" : "Remove this category?",

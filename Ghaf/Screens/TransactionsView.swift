@@ -210,11 +210,11 @@ struct GhafTransactionsView: View {
                                             ? [.height(transactionDetailHeight), .large] : [.height(transactionDetailHeight)],
                                          selection: $transactionDetailDetent)
                     .presentationCornerRadius(32)
-                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+                    .presentationDragIndicator(.visible).ghafSheetFrame(theme: theme).ghafDirection(settings.languageCode)
             }
             .sheet(item: $categoryTransaction) { transaction in
                 GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
-                    .presentationDetents([.height(360)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+                    .presentationDetents([.height(360)]).presentationDragIndicator(.visible).ghafSheetFrame(theme: theme)
             }
             .confirmationDialog(
                 ar ? "حذف هذه العملية؟" : "Delete this transaction?",
@@ -611,13 +611,13 @@ struct GhafTransactionEditor: View {
                         editQuickDate(languageCode == "ar" ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
                     }
                     DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
-                }.padding(20).background(theme.background).presentationDetents([.height(430)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+                }.padding(20).presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingTimePicker) {
                 VStack(spacing: 8) {
                     DatePicker(languageCode == "ar" ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().tint(theme.accent)
                     Button(languageCode == "ar" ? "تم" : "Done") { showingTimePicker = false }.buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .primary))
-                }.padding(20).background(theme.background).presentationDetents([.height(300)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+                }.padding(20).presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)
             }
             .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
             .navigationBarTitleDisplayMode(.inline)

@@ -246,6 +246,7 @@ struct GhafRootView: View {
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
+            case "milestone-proof": GhafSettingsView(settings: currentSettings)
             case "salary-settings": GhafSalarySettingsView(settings: currentSettings)
             case "budget-salary-currency": GhafBudgetView(settings: currentSettings)
             case "account-editor": NavigationStack { GhafAccountEditorView(account: nil, settings: currentSettings) }
@@ -392,6 +393,7 @@ struct GhafTabView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glass
     @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }) private var reviewItems: [GhafTransaction]
+    @Query(filter: #Predicate<GhafTransaction> { $0.isUnread }) private var unreadTransactions: [GhafTransaction]
     @Query(filter: #Predicate<GhafSubscription> { $0.needsConfirmation }) private var subscriptionReviewItems: [GhafSubscription]
     @State private var expandedOrb = false
     @State private var showOrbOverlay = false
@@ -415,6 +417,7 @@ struct GhafTabView: View {
             systemIsDark: systemColorScheme == .dark
         )
         let reviewCount = reviewItems.count
+        let hasUnreadTransactions = !unreadTransactions.isEmpty
         let subscriptionReviewCount = subscriptionReviewItems.count
 
         // Tapping Home again while it's open switches its period instead of doing nothing.
@@ -441,7 +444,7 @@ struct GhafTabView: View {
                 .tag(0)
 
             GhafTransactionsView(settings: settings)
-                .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
+                .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, hasUnread: hasUnreadTransactions, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
                 .tag(3)
 
             GhafAIView(settings: settings)
@@ -496,11 +499,13 @@ struct GhafTabView: View {
             GeometryReader { geometry in
                 if subscriptionReviewCount > 0 {
                     GhafTabAttentionMark(accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
-                        .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 * 2 + 12, y: geometry.size.height - 62)
+                        .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 * 2 + 12, y: geometry.size.height - 36)
                 }
-                if reviewCount > 0 {
+                if hasUnreadTransactions {
                     GhafTabAttentionMark(accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
-                        .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 + 12, y: geometry.size.height - 62)
+                        .accessibilityIdentifier("transactions-unread-dot")
+                        .accessibilityLabel(settings.languageCode == "ar" ? "عملية جديدة" : "New transaction")
+                        .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 + 12, y: geometry.size.height - 36)
                 }
                 if showOrbOverlay {
                     GhafAIOrb(theme: theme, mood: router.isListening ? .listening : .idle, level: 0)
@@ -569,10 +574,11 @@ private struct GhafTabBarGlass: ViewModifier {
 
 extension GhafTabView {
     /// Tabs show icons only; the title is still what VoiceOver reads.
-    fileprivate func tabIcon(_ image: Image, _ title: String, attentionCount: Int = 0,
+    fileprivate func tabIcon(_ image: Image, _ title: String, attentionCount: Int = 0, hasUnread: Bool = false,
                              accent: Color = .accentColor, background: Color = .black,
                              reduceMotion: Bool = false) -> some View {
         image.accessibilityLabel(attentionCount > 0 ? "\(title), \(attentionCount) to review" : title)
+            .accessibilityValue(hasUnread ? (title == "Transactions" ? "New transaction" : "عملية جديدة") : "")
     }
 }
 
@@ -594,7 +600,7 @@ private struct GhafTabAttentionMark: View {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.58)) { appeared = true }
             }
             .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            .accessibilityElement(children: .ignore)
     }
 }
 

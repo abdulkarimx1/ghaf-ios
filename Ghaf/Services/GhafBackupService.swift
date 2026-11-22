@@ -55,6 +55,8 @@ private struct GhafSubscriptionBackup: Codable {
 private struct GhafSettingsBackup: Codable {
     var id: UUID?
     var userName: String
+    /// Optional so v1–v4 backups without an Arabic name remain importable.
+    var arabicName: String?
     var languageCode: String?
     var hasSeenAutomationIntro: Bool?
     var currency: String
@@ -168,6 +170,7 @@ enum GhafBackupService {
         let settingsBackup = GhafSettingsBackup(
             id: settings.id,
             userName: settings.userName,
+            arabicName: settings.arabicName,
             languageCode: settings.languageCode,
             hasSeenAutomationIntro: settings.hasSeenAutomationIntro,
             currency: settings.currency,
@@ -250,7 +253,7 @@ enum GhafBackupService {
         }
 
         let payload = GhafBackupPayload(
-            version: 4,
+            version: 5,
             exportedAt: .now,
             settings: settingsBackup,
             transactions: transactionBackups,
@@ -285,7 +288,7 @@ enum GhafBackupService {
         return url
     }
 
-    /// Replaces current Ghaf data with a supported v1–v4 backup. Chats remain local and are not in the backup format.
+    /// Replaces current Ghaf data with a supported v1–v5 backup. Chats remain local and are not in the backup format.
     @discardableResult
     static func restore(from url: URL, context: ModelContext) throws -> Int {
         let accessGranted = url.startAccessingSecurityScopedResource()
@@ -298,7 +301,7 @@ enum GhafBackupService {
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(GhafBackupPayload.self, from: data)
 
-        guard (1...4).contains(payload.version) else {
+        guard (1...5).contains(payload.version) else {
             throw GhafBackupError.unsupportedVersion
         }
         if let preferences = payload.preferences, preferences.version != 1 {
@@ -344,6 +347,7 @@ enum GhafBackupService {
         let source = payload.settings
         let settings = GhafSettings(
             userName: source.userName,
+            arabicName: source.arabicName ?? "",
             languageCode: source.languageCode ?? "en",
             hasSeenAutomationIntro: source.hasSeenAutomationIntro ?? false,
             currency: source.currency,
@@ -516,7 +520,7 @@ enum GhafBackupService {
             let preferenceEncoder = JSONEncoder(); preferenceEncoder.outputFormatting = [.sortedKeys]
             return Snapshot(
                 counts: [settings.count, accounts.count, transactions.count, subscriptions.count, rules.count, memories.count],
-                settings: try settings.map { "\($0.id)|\($0.themeName)|\($0.appearanceMode)|\($0.currency)|\($0.languageCode)|\($0.categories)|\(try json($0.categoryBudgets))|\(try json($0.categoryMeta))" }.sorted(),
+                settings: try settings.map { "\($0.id)|\($0.userName)|\($0.arabicName)|\($0.themeName)|\($0.appearanceMode)|\($0.currency)|\($0.languageCode)|\($0.categories)|\(try json($0.categoryBudgets))|\(try json($0.categoryMeta))" }.sorted(),
                 accounts: accounts.map { "\($0.id)|\($0.name)|\($0.institution ?? "")|\($0.cardDesign ?? "")|\($0.isArchived)|\($0.sortOrder)|\($0.openingBalance)|\($0.openingDate)|\($0.lastFourDigits ?? "")|\($0.creditLimit ?? 0)" }.sorted(),
                 transactions: transactions.map { "\($0.id)|\($0.fingerprint)|\($0.amount)|\($0.originalAmount ?? 0)|\($0.originalCurrency ?? "")|\($0.exchangeRate ?? 0)|\($0.exchangeRateDate?.timeIntervalSince1970 ?? 0)" }.sorted(),
                 subscriptions: subscriptions.map { "\($0.id)|\($0.name)|\($0.amount)|\($0.billingCycle)|\($0.nextPaymentDate.timeIntervalSince1970)|\($0.createdAt.timeIntervalSince1970)" }.sorted(),
@@ -547,6 +551,46 @@ enum GhafBackupService {
         } catch {
             throw GhafBackupError.invalidBackup("round-trip failed; recovery file: \(recoveryURL.path); \(error.localizedDescription)")
         }
+    }
+
+    static func debugArabicNameRoundTripProof() throws -> String {
+        let schema = Schema([GhafTransaction.self, GhafSettings.self, GhafAccount.self,
+                             MerchantCategoryRule.self, GhafSubscription.self, GhafChat.self, GhafMemory.self])
+        func makeContext(_ name: String) throws -> (ModelContainer, ModelContext) {
+            let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(name, schema: schema,
+                isStoredInMemoryOnly: true, cloudKitDatabase: .none)])
+            return (container, container.mainContext)
+        }
+        let (sourceContainer, sourceContext) = try makeContext("ArabicNameSource-\(UUID().uuidString)")
+        defer { _ = sourceContainer }
+        let settings = GhafSettings(userName: "Amina", arabicName: "أمينة")
+        sourceContext.insert(settings)
+        try sourceContext.save()
+        let currentBackup = try export(context: sourceContext)
+        defer { try? FileManager.default.removeItem(at: currentBackup) }
+
+        let (restoredContainer, restoredContext) = try makeContext("ArabicNameRestored-\(UUID().uuidString)")
+        defer { _ = restoredContainer }
+        try restore(from: currentBackup, context: restoredContext)
+        let restoredName = try GhafPersistence.settings(in: restoredContext).arabicName
+        guard restoredName == "أمينة" else { throw GhafBackupError.invalidBackup("Arabic name round-trip") }
+
+        var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: currentBackup)) as! [String: Any]
+        legacy["version"] = 4
+        if var legacySettings = legacy["settings"] as? [String: Any] {
+            legacySettings.removeValue(forKey: "arabicName")
+            legacy["settings"] = legacySettings
+        }
+        let legacyURL = FileManager.default.temporaryDirectory.appendingPathComponent("Ghaf-Legacy-Arabic-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: legacyURL) }
+        try JSONSerialization.data(withJSONObject: legacy).write(to: legacyURL, options: .atomic)
+        let (legacyContainer, legacyContext) = try makeContext("ArabicNameLegacy-\(UUID().uuidString)")
+        defer { _ = legacyContainer }
+        try restore(from: legacyURL, context: legacyContext)
+        guard try GhafPersistence.settings(in: legacyContext).arabicName.isEmpty else {
+            throw GhafBackupError.invalidBackup("legacy Arabic name default")
+        }
+        return "Arabic name round-trip passed; v4 backup without arabicName restored as empty."
     }
     #endif
 

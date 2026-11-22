@@ -11,6 +11,7 @@ struct GhafAmountField: View {
     var maxDigits = 12
     var fontSize: CGFloat = 24
     var chromeless = false
+    var trailingAligned = false
     /// Opens the pad as soon as the field appears (quick add).
     var presentOnAppear = false
 
@@ -75,8 +76,8 @@ struct GhafAmountField: View {
                     .lineLimit(1).minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
                 }
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: trailingAligned ? .trailing : .center)
+                .multilineTextAlignment(trailingAligned ? .trailing : .center)
                 .environment(\.layoutDirection, .leftToRight)
             }
             .padding(.horizontal, chromeless ? 0 : 16)
