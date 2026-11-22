@@ -62,6 +62,7 @@ struct GhafWalletStack: View {
     private var deck: some View {
         GhafWalletCarousel(accounts: accounts, selectedID: $selectedID, languageCode: languageCode,
                           reduceMotion: reduceMotion, theme: theme, onEdit: onEdit, onMove: onMove)
+            .padding(.horizontal, -GhafMetrics.gutter)
     }
 
     private var pageIndicator: some View {
@@ -150,11 +151,13 @@ private struct GhafWalletCarousel: View {
     let theme: GhafTheme
     let onEdit: (GhafAccount) -> Void
     let onMove: (GhafAccount, Int) -> Void
-    @GestureState private var dragOffset: CGFloat = 0
+    @State private var dragOffset: CGFloat = 0
     @State private var dragOriginIndex: Int?
+    @State private var dragStartX: CGFloat?
+    @State private var positionRecorder = GhafWalletOffsetRecorder()
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
-    private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
+    private var width: CGFloat { max(240, UIScreen.main.bounds.width) }
     private var cardHeight: CGFloat { width / 1.586 }
     private var step: CGFloat { width * 0.6 }
 
@@ -166,31 +169,41 @@ private struct GhafWalletCarousel: View {
                 .blur(radius: 22)
                 .offset(y: cardHeight / 2 + 6)
             GeometryReader { geometry in
+                let restingOffset = (geometry.size.width - width) / 2 - CGFloat(index) * step
+                let baseIndex = dragOriginIndex ?? index
+                let baseOffset = (geometry.size.width - width) / 2 - CGFloat(baseIndex) * step
                 HStack(spacing: -width * 0.4) {
                     ForEach(Array(accounts.enumerated()), id: \.element.id) { itemIndex, account in
                         walletCard(account, at: itemIndex)
                     }
                 }
-                .offset(x: (geometry.size.width - width) / 2 - CGFloat(dragOriginIndex ?? index) * step + dragOffset)
+                .modifier(GhafWalletTrackedOffset(value: baseOffset + dragOffset, recorder: positionRecorder))
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 12)
-                    .updating($dragOffset) { value, state, _ in state = value.translation.width }
                     .onChanged { value in
-                        if dragOriginIndex == nil { dragOriginIndex = index }
-                        guard let origin = dragOriginIndex else { return }
-                        let preview = min(max(origin + Int((-value.translation.width / step).rounded()), 0), accounts.count - 1)
-                        if accounts.indices.contains(preview), selectedID != accounts[preview].id {
-                            withTransaction(Transaction(animation: nil)) { selectedID = accounts[preview].id }
+                        if dragOriginIndex == nil {
+                            dragOriginIndex = index
+                            dragStartX = positionRecorder.value
                         }
+                        dragOffset = (dragStartX ?? restingOffset) - baseOffset + value.translation.width
                     }
                     .onEnded { value in
-                        // Follow the finger: a long drag or fast flick moves several cards (owner rule), using the
-                        // predicted end so momentum counts; one card is 0.6 × width of travel.
                         let origin = dragOriginIndex ?? index
                         let travel = value.predictedEndTranslation.width
                         let moved = Int((-travel / step).rounded())
                         let next = min(max(origin + moved, 0), accounts.count - 1)
-                        withAnimation(deckAnimation) { selectedID = accounts[next].id; dragOriginIndex = nil }
+                        let startX = dragStartX ?? ((geometry.size.width - width) / 2 - CGFloat(origin) * step)
+                        let predictedX = startX + travel
+                        let targetOffset = (geometry.size.width - width) / 2 - CGFloat(next) * step
+                        withTransaction(Transaction(animation: nil)) {
+                            selectedID = accounts[next].id
+                            dragOriginIndex = nil
+                            dragStartX = nil
+                            dragOffset = predictedX - targetOffset
+                        }
+                        DispatchQueue.main.async {
+                            withAnimation(deckAnimation) { dragOffset = 0 }
+                        }
                     })
             }
             .frame(height: cardHeight + 50)
@@ -227,5 +240,27 @@ private struct GhafWalletCarousel: View {
 
     private var deckAnimation: Animation {
         .easeOut(duration: reduceMotion ? 0 : 0.18)
+    }
+}
+
+/// Reads SwiftUI's presentation value during settling without invalidating the carousel every frame.
+private final class GhafWalletOffsetRecorder {
+    var value: CGFloat = 0
+}
+
+private struct GhafWalletTrackedOffset: AnimatableModifier {
+    var value: CGFloat
+    let recorder: GhafWalletOffsetRecorder
+
+    var animatableData: CGFloat {
+        get { value }
+        set {
+            value = newValue
+            recorder.value = newValue
+        }
+    }
+
+    func body(content: Content) -> some View {
+        content.offset(x: value)
     }
 }

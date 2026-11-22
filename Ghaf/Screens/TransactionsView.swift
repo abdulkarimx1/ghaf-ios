@@ -141,6 +141,12 @@ struct GhafTransactionsView: View {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
+                                        .overlay(alignment: ar ? .topLeading : .topTrailing) {
+                                            if transaction.isUnread {
+                                                Circle().fill(theme.accent).frame(width: 7, height: 7)
+                                                    .accessibilityHidden(true)
+                                            }
+                                        }
                                 }
                                 .buttonStyle(.ghafPress)
                                 .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
@@ -177,6 +183,12 @@ struct GhafTransactionsView: View {
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                let unread = transactions.filter(\.isUnread)
+                guard !unread.isEmpty else { return }
+                for transaction in unread { transaction.isUnread = false }
+                try? modelContext.save()
+            }
 #if DEBUG
             .onAppear {
                 if GhafScreenshotFixture.enabled, GhafScreenshotFixture.tab == "transactions",

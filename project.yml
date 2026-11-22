@@ -73,6 +73,9 @@ targets:
         GHAF_GOOGLE_CLIENT_ID: ""
         LSRequiresIPhoneOS: true
         NSSupportsLiveActivities: true
+        LSApplicationQueriesSchemes:
+          - comgooglemaps
+          - waze
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
 

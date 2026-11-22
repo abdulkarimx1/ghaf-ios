@@ -117,6 +117,9 @@ struct GhafRootView: View {
         }
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
+        .task {
+            await GhafWidgetSync.endStale()
+        }
         .onChange(of: scenePhase) { _, phase in
             // Leaving Ghaf: refresh the morning/evening/weekly notes with today's numbers.
             if phase == .background {

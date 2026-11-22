@@ -12,6 +12,7 @@ struct GhafMerchantDetailView: View {
     let transaction: GhafTransaction
     let theme: GhafTheme
     let languageCode: String
+    let mapsAppPreference: String
 
     @State private var place: MKMapItem?
     @State private var lookupDone = false
@@ -31,7 +32,7 @@ struct GhafMerchantDetailView: View {
                 ProgressView().frame(maxWidth: .infinity).padding(8)
             } else if canHavePlace {
                 Button { choosingPlace = true } label: {
-                    Label(ar ? "حدّد المكان" : "Choose place", systemImage: "mappin.and.ellipse")
+                    Label(ar ? "تغيير المكان" : "Change place", systemImage: "mappin.and.ellipse")
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                         .frame(maxWidth: .infinity)
                         .padding(GhafMetrics.cardPadding)
@@ -49,15 +50,21 @@ struct GhafMerchantDetailView: View {
         .sheet(isPresented: $choosingPlace) {
             GhafPlacePicker(initialQuery: GhafPlaces.isGeneric(merchant ?? "") ? "" : (merchant ?? ""),
                             theme: theme, languageCode: languageCode) { item in
-                GhafPlaces.remember(item, merchant: merchant ?? "", transactionID: transaction.id)
-                place = item
+                if let item {
+                    GhafPlaces.remember(item, merchant: merchant ?? "", transactionID: transaction.id)
+                    place = item
+                } else {
+                    GhafPlaces.clearPlace(merchant: merchant ?? "", transactionID: transaction.id)
+                    place = nil
+                }
+                lookupDone = true
             }
         }
     }
 
     private func placeCard(_ item: MKMapItem) -> some View {
         let coordinate = item.placemark.coordinate
-        let displayName = merchant ?? item.name ?? ""
+        let displayName = item.name ?? merchant ?? ""
         return VStack(alignment: .leading, spacing: 0) {
             // A fixed preview: Directions and the other buttons below handle navigation.
             Map(initialPosition: .camera(MapCamera(centerCoordinate: coordinate, distance: 900)), interactionModes: []) {
@@ -77,20 +84,16 @@ struct GhafMerchantDetailView: View {
                 }
                 HStack(spacing: 8) {
                     placeAction(ar ? "الاتجاهات" : "Directions", "arrow.triangle.turn.up.right.diamond.fill") {
-                        item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDefault])
-                    }
-                    // A universal link: opens the Google Maps app when installed, else the web. No SDK or key needed.
-                    if let url = URL(string: "https://www.google.com/maps/dir/?api=1&destination=\(coordinate.latitude),\(coordinate.longitude)") {
-                        placeAction("Google Maps", "map.fill") { openURL(url) }
+                        GhafMapsAppPicker.openDirections(to: item, preference: mapsAppPreference)
                     }
                     if let phone = item.phoneNumber,
                        let url = URL(string: "tel:" + phone.filter { $0.isNumber || $0 == "+" }) {
                         placeAction(ar ? "اتصال" : "Call", "phone.fill") { openURL(url) }
                     }
-                    placeAction(ar ? "تغيير" : "Change", "mappin.and.ellipse") { choosingPlace = true }
+                    placeAction(ar ? "تغيير المكان" : "Change place", "mappin.and.ellipse") { choosingPlace = true }
                 }
-                Text(ar ? "رسائل البنك لا تتضمن الموقع. هذا اختيارك أو أقرب تطابق، ويُحفظ لكل عمليات هذا المتجر."
-                        : "Bank messages don't include a location. This is your pick or the closest match, saved for every purchase here.")
+                Text(ar ? "قد لا يظهر موقع دقيق. يمكنك تغييره أو إزالته."
+                        : "The exact place may be unavailable. You can change or remove it.")
                     .font(GhafTypography.body(11, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             }
@@ -161,7 +164,8 @@ struct GhafMerchantDetailView: View {
         history = ((try? context.fetch(FetchDescriptor<GhafTransaction>(sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? [])
             .filter { GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) == name }
         guard canHavePlace else { lookupDone = true; return }
-        place = await GhafPlaces.place(for: merchant, transactionID: transaction.id)
+        place = await GhafPlaces.place(for: merchant, transactionID: transaction.id,
+                                       isManual: transaction.fingerprint.hasPrefix("manual-"))
         lookupDone = true
     }
 }
@@ -172,7 +176,7 @@ struct GhafPlacePicker: View {
     let initialQuery: String
     let theme: GhafTheme
     let languageCode: String
-    let onPick: (MKMapItem) -> Void
+    let onPick: (MKMapItem?) -> Void
 
     @State private var query = ""
     @State private var results: [MKMapItem] = []
@@ -191,6 +195,14 @@ struct GhafPlacePicker: View {
                     }
                 }
                 .frame(height: 220)
+                Button(ar ? "بلا مكان" : "No place") {
+                    onPick(nil)
+                    dismiss()
+                }
+                .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+                .padding(.horizontal, 16)
                 ScrollView {
                     LazyVStack(spacing: 8) {
                     if results.isEmpty && !searching {
