@@ -237,7 +237,7 @@ async function liveToken(body, env, developer, device, usage) {
     headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify({
       uses: 1, expireTime: expires, newSessionExpireTime: new Date(Date.now() + 60_000).toISOString(),
-      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["AUDIO"] }, sessionResumption: {} }
+      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["AUDIO"] }, sessionResumption: {}, lockAdditionalFields: [] }
     })
   }); } catch { return json({ error: "upstream" }, 502); }
   if (!response.ok) {

@@ -61,8 +61,9 @@ test('limited request logs once and missing analytics binding does not change re
 test('live-token and speak write their own endpoint and actual model', async t => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
-  globalThis.fetch = async url => String(url).includes('auth_tokens')
-    ? Response.json({ name: 'authTokens/test' })
+  let tokenRequest;
+  globalThis.fetch = async (url, options) => String(url).includes('auth_tokens')
+    ? (tokenRequest = JSON.parse(options.body), Response.json({ name: 'authTokens/test' }))
     : Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }], usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 4 } });
   const state = setup();
   const live = await invoke('/live-token', { language: 'ar', tier: 'free' }, state);
@@ -72,6 +73,7 @@ test('live-token and speak write their own endpoint and actual model', async t =
   assert.equal(state.points[0].blobs[1], 'models/gemini-3.8-live');
   assert.equal(state.points[0].blobs[2], 'ok');
   assert.equal(state.points[0].blobs[3], 'ar');
+  assert.deepEqual(tokenRequest.bidiGenerateContentSetup.lockAdditionalFields, []);
 
   const speak = await invoke('/speak', { text: 'hello voice', language: 'en', tier: 'free' }, state);
   assert.equal(speak.status, 200);
