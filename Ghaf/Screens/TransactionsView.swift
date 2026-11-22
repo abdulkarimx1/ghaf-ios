@@ -1,9 +1,11 @@
 import SwiftUI
+import MapKit
 import SwiftData
 
 struct GhafTransactionsView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
@@ -15,6 +17,7 @@ struct GhafTransactionsView: View {
     @FocusState private var searchFocused: Bool
     @State private var filter = "All"
     @State private var selectedTransaction: GhafTransaction?
+    @State private var categoryTransaction: GhafTransaction?
     @State private var transactionDetailHeight: CGFloat = 0
     @State private var transactionDetailDetent: PresentationDetent = .large
     @State private var transactionToDelete: GhafTransaction?
@@ -49,6 +52,7 @@ struct GhafTransactionsView: View {
             guard !query.isEmpty else { return true }
             let searchValues = [
                 transaction.merchant ?? "",
+                GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? "",
                 transaction.category,
                 GhafLocalization.category(transaction.category, languageCode: lang),
                 transaction.bank ?? "",
@@ -145,8 +149,17 @@ struct GhafTransactionsView: View {
                                         transactionToDelete = transaction
                                         showDeleteConfirmation = true
                                     } label: {
-                                        Label(ar ? "حذف" : "Delete", systemImage: "trash")
+                                        Label(ar ? "حذف" : "Delete", systemImage: "trash.fill").labelStyle(.iconOnly)
                                     }
+                                    .tint(theme.over)
+                                }
+                                .contextMenu {
+                                    Button { selectedTransaction = transaction } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
+                                    Button { categoryTransaction = transaction } label: { Label(ar ? "تغيير الفئة" : "Change category", systemImage: "square.grid.2x2") }
+                                    Button(role: .destructive) { transactionToDelete = transaction; showDeleteConfirmation = true } label: { Label(ar ? "حذف" : "Delete", systemImage: "trash") }
+                                } preview: {
+                                    GhafTransactionPeek(transaction: transaction, account: accounts.first { $0.id == transaction.accountID }, theme: theme, languageCode: lang)
+                                        .padding(16).frame(width: 330).ghafCard(theme: theme)
                                 }
                             }
                         }
@@ -184,6 +197,10 @@ struct GhafTransactionsView: View {
                     .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
+            .sheet(item: $categoryTransaction) { transaction in
+                GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
+                    .presentationDetents([.height(360)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+            }
             .confirmationDialog(
                 ar ? "حذف هذه العملية؟" : "Delete this transaction?",
                 isPresented: $showDeleteConfirmation,
@@ -203,26 +220,27 @@ struct GhafTransactionsView: View {
 
     private func monthSummary(_ totals: (spent: Decimal, income: Decimal)) -> some View {
         HStack(spacing: 0) {
-            summaryCell(ar ? "صرفت هذا الشهر" : "Spent this month", totals.spent, theme.debit, icon: "arrow.down.right")
+            summaryCell(ar ? "صرفت هذا الشهر" : "Spent this month", totals.spent, theme.debit)
             Rectangle().fill(theme.outline).frame(width: 1, height: 40)
-            summaryCell(ar ? "الدخل هذا الشهر" : "Income this month", totals.income, theme.credit, icon: "arrow.up.right")
+            summaryCell(ar ? "الدخل هذا الشهر" : "Income this month", totals.income, theme.credit)
         }
-        .frame(minHeight: 132)
+        .frame(minHeight: 116)
         .ghafCard(theme: theme)
     }
 
-    private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color, icon: String) -> some View {
+    private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color) -> some View {
         VStack(spacing: 6) {
-            Label(title, systemImage: icon)
+            Text(title)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
-            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 26)
+                .minimumScaleFactor(0.75)
+            GhafMoneyLabel(amount: amount, currency: settings.currency, languageCode: lang, size: 22)
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
         }
-        .padding(.horizontal, 12)
+        .padding(16)
         .frame(maxWidth: .infinity)
     }
 
@@ -246,7 +264,7 @@ struct GhafTransactionsView: View {
             }
         }
         .padding(.horizontal, 16)
-        .frame(height: 48)
+        .frame(height: 52)
         .background(theme.primaryText.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityLabel(ar ? "بحث" : "Search")
     }
@@ -305,12 +323,79 @@ struct GhafTransactionsView: View {
     }
 }
 
+private struct GhafQuickCategoryEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    let transaction: GhafTransaction
+    let categories: [String]
+    let theme: GhafTheme
+    let languageCode: String
+    @State private var category: String
+    @State private var subcategory: String?
+    @State private var errorMessage = ""
+
+    init(transaction: GhafTransaction, categories: [String], theme: GhafTheme, languageCode: String) {
+        self.transaction = transaction; self.categories = categories; self.theme = theme; self.languageCode = languageCode
+        _category = State(initialValue: transaction.category); _subcategory = State(initialValue: transaction.subcategory)
+    }
+    var body: some View {
+        VStack(spacing: 16) {
+            GhafScreenTitle(title: languageCode == "ar" ? "تغيير الفئة" : "Change category", subtitle: GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant), languageCode: languageCode, theme: theme)
+            GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: languageCode, tint: theme.accent)
+            if !errorMessage.isEmpty { Text(errorMessage).font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.over) }
+            Button(languageCode == "ar" ? "حفظ" : "Save category", action: save)
+                .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .primary))
+        }
+        .padding(GhafMetrics.gutter).frame(maxWidth: .infinity, maxHeight: .infinity).background(theme.background)
+        .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
+    }
+    private func save() {
+        transaction.category = category; transaction.subcategory = subcategory
+        if let merchant = transaction.merchant, !merchant.isEmpty {
+            do { try MerchantCategorizer.learn(merchant: merchant, category: category, subcategory: subcategory, context: modelContext) }
+            catch { errorMessage = languageCode == "ar" ? "تعذر حفظ الفئة." : "Could not save the category."; return }
+        }
+        do { try modelContext.save(); dismiss() }
+        catch { modelContext.rollback(); errorMessage = languageCode == "ar" ? "تعذر حفظ الفئة." : "Could not save the category." }
+    }
+}
+
+private struct GhafTransactionPeek: View {
+    let transaction: GhafTransaction
+    let account: GhafAccount?
+    let theme: GhafTheme
+    let languageCode: String
+    private var ar: Bool { languageCode == "ar" }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? GhafLocalization.category(transaction.category, languageCode: languageCode)).font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText).lineLimit(1)
+                    Text(GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)).font(GhafTypography.number(18, weight: .bold)).foregroundStyle(transaction.isExpense ? theme.debit : theme.credit)
+                }
+            }
+            peekRow(ar ? "الفئة" : "Category", GhafLocalization.category(transaction.category, languageCode: languageCode))
+            peekRow(ar ? "الحساب" : "Account", account.map { "\($0.name) · \($0.currency)" } ?? (ar ? "غير محدد" : "Unassigned"))
+            peekRow(ar ? "التاريخ" : "Date", transaction.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute().locale(Locale(identifier: languageCode))))
+            if let note = transaction.note, !note.isEmpty { peekRow(ar ? "ملاحظة" : "Note", note) }
+            if let place = GhafPlaces.saved(merchant: transaction.merchant ?? "", transactionID: transaction.id) { peekRow(ar ? "المكان" : "Place", place.name ?? "") }
+        }
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+    private func peekRow(_ title: String, _ value: String) -> some View {
+        HStack { Text(title).foregroundStyle(theme.secondaryText); Spacer(minLength: 12); Text(value).foregroundStyle(theme.primaryText).multilineTextAlignment(.trailing).lineLimit(2) }
+            .font(GhafTypography.body(13, languageCode: languageCode))
+    }
+}
+
 // MARK: - Transaction Editor
 
 struct GhafTransactionEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
 
     let transaction: GhafTransaction
     let categories: [String]
@@ -327,6 +412,10 @@ struct GhafTransactionEditor: View {
     @State private var date: Date
     @State private var accountID: UUID?
     @State private var errorMessage = ""
+    @State private var showingDatePicker = false
+    @State private var showingTimePicker = false
+    @State private var showingDiscard = false
+    @State private var showingMerchantRenameScope = false
 
     private let accounts: [GhafAccount]
 
@@ -358,7 +447,7 @@ struct GhafTransactionEditor: View {
         }
         self.categories = availableCategories
         _amount = State(initialValue: GhafFormat.decimal(transaction.amount))
-        _merchant = State(initialValue: transaction.merchant ?? "")
+        _merchant = State(initialValue: GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? "")
         _category = State(initialValue: transaction.category)
         _subcategory = State(initialValue: transaction.subcategory)
         _direction = State(initialValue: transaction.direction)
@@ -381,7 +470,7 @@ struct GhafTransactionEditor: View {
                                     theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
-                    editorField("Merchant", text: $merchant)
+                    editorField("Merchant", text: $merchant).lineLimit(1).submitLabel(.done)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
                     GhafSegmented(options: [("debit", languageCode == "ar" ? "مصروف" : "Expense"), ("credit", languageCode == "ar" ? "دخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
@@ -467,8 +556,18 @@ struct GhafTransactionEditor: View {
                     }
 
                     editorLabel(languageCode == "ar" ? "التاريخ" : "DATE")
-                    GhafDateRow(title: languageCode == "ar" ? "التاريخ" : "Date", selection: $date, components: [.date, .hourAndMinute], theme: theme, languageCode: languageCode)
-                        .tint(theme.accent)
+                    HStack(spacing: 10) {
+                        Button { showingDatePicker = true } label: {
+                            Label(editDateLabel, systemImage: "calendar").font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold))
+                                .lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity, minHeight: 44)
+                                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                        }.buttonStyle(.plain)
+                        Button { showingTimePicker = true } label: {
+                            Label(date.formatted(.dateTime.hour().minute().locale(Locale(identifier: languageCode))), systemImage: "clock")
+                                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                                .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                        }.buttonStyle(.plain)
+                    }
 
                     editorLabel(languageCode == "ar" ? "ملاحظة" : "NOTE")
                     editorField("Optional note", text: $note)
@@ -488,14 +587,55 @@ struct GhafTransactionEditor: View {
             }
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
+            .interactiveDismissDisabled(isDirty)
+            .overlay { if showingDiscard { GhafConfirmCard(title: languageCode == "ar" ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: languageCode == "ar" ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: languageCode == "ar" ? "متابعة التعديل" : "Keep editing", discardTitle: languageCode == "ar" ? "تجاهل" : "Discard", theme: theme, languageCode: languageCode, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
+            .sheet(isPresented: $showingDatePicker) {
+                VStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        editQuickDate(languageCode == "ar" ? "اليوم" : "Today", value: .now)
+                        editQuickDate(languageCode == "ar" ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
+                    }
+                    DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
+                }.padding(20).background(theme.background).presentationDetents([.height(430)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingTimePicker) {
+                VStack(spacing: 8) {
+                    DatePicker(languageCode == "ar" ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().tint(theme.accent)
+                    Button(languageCode == "ar" ? "تم" : "Done") { showingTimePicker = false }.buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .primary))
+                }.padding(20).background(theme.background).presentationDetents([.height(300)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+            }
             .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(languageCode == "ar" ? "إلغاء" : "Cancel") { dismiss() }
+                    Button(languageCode == "ar" ? "إلغاء" : "Cancel") { if isDirty { showingDiscard = true } else { dismiss() } }
                 }
             }
+            .confirmationDialog(languageCode == "ar" ? "تغيير اسم المتجر" : "Rename this merchant", isPresented: $showingMerchantRenameScope) {
+                Button(languageCode == "ar" ? "تغيير الاسم في كل العمليات المطابقة" : "Rename matching past transactions") { applySave(renameAll: true) }
+                Button(languageCode == "ar" ? "هذه العملية فقط" : "Only this transaction") { applySave(renameAll: false) }
+                Button(languageCode == "ar" ? "إلغاء" : "Cancel", role: .cancel) {}
+            } message: {
+                Text(languageCode == "ar" ? "هل تريد استخدام الاسم الجديد لكل العمليات التي وصل اسم متجرها من البنك بهذا الشكل؟" : "Use the new name for every transaction with this bank merchant name?")
+            }
         }
+    }
+
+    private var isDirty: Bool {
+        amount != GhafFormat.decimal(transaction.amount) || merchant != (GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? "") || category != transaction.category || note != (transaction.note ?? "") || date != transaction.date || direction != transaction.direction || accountID != transaction.accountID
+    }
+    private var editDateLabel: String {
+        if Calendar.current.isDateInToday(date) { return languageCode == "ar" ? "اليوم" : "Today" }
+        if Calendar.current.isDateInYesterday(date) { return languageCode == "ar" ? "أمس" : "Yesterday" }
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: languageCode)))
+    }
+    private func editQuickDate(_ title: String, value: Date) -> some View {
+        Button(title) {
+            date = Calendar.current.date(bySettingHour: Calendar.current.component(.hour, from: date), minute: Calendar.current.component(.minute, from: date), second: 0, of: value) ?? value
+            showingDatePicker = false
+        }
+        .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+        .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
     }
 
     private func editorLabel(_ value: String) -> some View {
@@ -510,13 +650,30 @@ struct GhafTransactionEditor: View {
     }
 
     private func save() {
+        if transaction.bank != nil, let raw = transaction.rawMerchant ?? transaction.merchant,
+           merchant != (GhafMerchantAliasStore.displayName(raw) ?? raw) {
+            showingMerchantRenameScope = true
+            return
+        }
+        applySave(renameAll: false)
+    }
+
+    private func applySave(renameAll: Bool) {
         guard let value = Decimal(string: amount), value > 0 else {
             errorMessage = languageCode == "ar" ? "أدخل مبلغاً صحيحاً." : "Enter a valid amount."
             return
         }
 
+        var pendingAlias: (raw: String, display: String)?
         transaction.amount = value
-        transaction.merchant = merchant.isEmpty ? nil : merchant
+        if renameAll, let raw = transaction.rawMerchant ?? transaction.merchant, !merchant.isEmpty {
+            pendingAlias = (raw, merchant)
+            transaction.rawMerchant = raw
+            transaction.merchant = raw
+        } else if merchant != (GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? "") {
+            transaction.merchant = merchant.isEmpty ? nil : merchant
+            transaction.rawMerchant = nil
+        }
         transaction.category = category
         transaction.subcategory = subcategory
         transaction.direction = direction
@@ -524,6 +681,10 @@ struct GhafTransactionEditor: View {
         transaction.date = date
         transaction.accountID = accountID
         transaction.needsReview = false
+        // Saving an automated transaction confirms its account, so the next alert from that card lands there.
+        if transaction.bank != nil, let accountID {
+            GhafAccountMappings.confirm(transactionID: transaction.id, bank: transaction.bank, sender: nil, accountRef: nil, accountID: accountID)
+        }
 
         if let merchantName = transaction.merchant, !merchantName.isEmpty {
             do {
@@ -536,6 +697,7 @@ struct GhafTransactionEditor: View {
 
         do {
             try modelContext.save()
+            if let pendingAlias { GhafMerchantAliasStore.rename(pendingAlias.raw, to: pendingAlias.display) }
             dismiss()
         } catch {
             errorMessage = languageCode == "ar" ? "تعذر حفظ التعديلات." : "Could not save changes."

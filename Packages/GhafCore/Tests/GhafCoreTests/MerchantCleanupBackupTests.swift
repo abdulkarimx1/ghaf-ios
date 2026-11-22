@@ -4,7 +4,7 @@ import XCTest
 /// Card clauses leak into merchant names from older parses; cleanup must change only those names.
 final class MerchantCleanupBackupTests: XCTestCase {
     func testStripsCardClauseOnly() {
-        XCTAssertEqual(MerchantName.clean("Digital Dubai using DFM iVESTOR card xxxx9838"), "Digital Dubai")
+        XCTAssertEqual(MerchantName.clean("Digital Dubai using DFM iVESTOR card xxxx4407"), "Digital Dubai")
         XCTAssertEqual(MerchantName.clean("Tabby card payment"), "Tabby card payment")
         XCTAssertEqual(MerchantName.clean("Coffee with Love"), "Coffee with Love")
     }

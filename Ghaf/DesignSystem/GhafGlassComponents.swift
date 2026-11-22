@@ -133,7 +133,6 @@ struct GhafPillButton: View {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .bold))
-                    .symbolEffect(.bounce, value: taps)
                 Text(title)
                     .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
                     .lineLimit(1)
@@ -266,18 +265,6 @@ extension GhafListRow where Trailing == EmptyView {
          languageCode: String, chevron: Bool = false) {
         self.init(icon: icon, tint: tint, title: title, subtitle: subtitle, theme: theme,
                   languageCode: languageCode, chevron: chevron) { EmptyView() }
-    }
-}
-
-struct GhafTreeMark: View {
-    let color: Color
-
-    var body: some View {
-        GhafTreeShape()
-            .fill(color)
-            .aspectRatio(1, contentMode: .fit)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityLabel("Ghaf tree")
     }
 }
 

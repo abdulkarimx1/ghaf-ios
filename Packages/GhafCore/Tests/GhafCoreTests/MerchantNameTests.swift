@@ -11,6 +11,7 @@ final class MerchantNameTests: XCTestCase {
 
     func testExpandsLearnedAndDictionaryNamesButNotAmbiguousOnes() {
         XCTAssertEqual(MerchantName.expand("KOOKH AL SHAY CAFETER", known: []), "KOOKH AL SHAY CAFETERIA")
+        XCTAssertEqual(MerchantName.clean("SHAY AL NASHAMA CAFET"), "SHAY AL NASHAMA")
         XCTAssertEqual(MerchantName.expand("AL MAYA SUPERMARK", known: []), "AL MAYA SUPERMARKET")
         XCTAssertEqual(MerchantName.expand("KOOKH AL SHAY CAFETER", known: ["Kookh Al Shay Cafeteria LLC"]), "Kookh Al Shay Cafeteria LLC")
         XCTAssertEqual(MerchantName.expand("AL MAYA SHOPP", known: ["AL MAYA SHOPPE LTD", "AL MAYA SHOPPING"]), "AL MAYA SHOPP")
@@ -19,5 +20,10 @@ final class MerchantNameTests: XCTestCase {
     func testMerchantKeysIgnoreBusinessSuffixes() {
         let keys = ["KOOKH AL SHAY", "KOOKH AL SHAY CAFETER", "Kookh Al Shay Cafeteria LLC"].map(MerchantName.key)
         XCTAssertEqual(Set(keys).count, 1)
+    }
+
+    func testUserAliasWinsOverCleanedBankMerchant() {
+        XCTAssertEqual(MerchantName.displayName("SHAY AL NASHAMA CAFET", aliases: ["shay al nashama": "Shay Al Nashama"]), "Shay Al Nashama")
+        XCTAssertEqual(MerchantName.displayName("SHAY AL NASHAMA CAFET", aliases: [:]), "SHAY AL NASHAMA")
     }
 }

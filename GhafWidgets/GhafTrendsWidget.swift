@@ -55,17 +55,19 @@ struct GhafTrendsWidget: Widget {
     static let kind = "GhafTrends"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafTrendsConfig.self, provider: GhafConfigProvider<GhafTrendsConfig>(kind: Self.kind)) { entry in
-            GhafTrendsView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+            GhafTrendsView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
                 .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Trends")
         .description("How your spending is moving, like a stock chart. Tap to switch between 1D, 1W and 1M.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
     }
 }
 
 struct GhafTrendsView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafTrendsConfig>
 
     var body: some View {

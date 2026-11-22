@@ -66,6 +66,11 @@ enum GhafCloudAI {
         facts.components(separatedBy: "\nLatest transactions:").first ?? facts
     }
 
+    static func prewarm() async {
+        guard let url = URL(string: "/health", relativeTo: endpoint.deletingLastPathComponent()) else { return }
+        _ = try? await URLSession.shared.data(from: url)
+    }
+
     static func reply(question: String, facts: String, direct: String?, history: [(isUser: Bool, text: String)],
                       languageCode: String) async throws -> String {
         var request = URLRequest(url: endpoint, timeoutInterval: 25)
@@ -77,6 +82,7 @@ enum GhafCloudAI {
             "facts": minimized(facts),
             "direct": direct ?? "",
             "language": languageCode,
+            "tier": GhafAITier.current,
             "history": history.suffix(6).map { ["isUser": $0.isUser, "text": $0.text] },
             "mode": await conversational ? "voice" : "chat"
         ]
@@ -90,5 +96,16 @@ enum GhafCloudAI {
               let reply = (json["reply"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !reply.isEmpty
         else { throw Failure.unavailable }
         return reply
+    }
+}
+
+enum GhafAITier {
+    static var current: String {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked") {
+            return UserDefaults.standard.string(forKey: "ghaf.pro.testTier") == "pro_monthly" ? "pro_monthly" : "pro_yearly"
+        }
+        #endif
+        return UserDefaults.standard.string(forKey: "ghaf.pro.activeTier") ?? "free"
     }
 }

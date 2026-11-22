@@ -66,6 +66,7 @@ final class BankMessageParserTests: XCTestCase {
         XCTAssertEqual(transaction.merchant, "SAMPLE MERCHANT, TEST AREA")
         XCTAssertEqual(transaction.direction, .debit)
         XCTAssertEqual(transaction.bank, "mbank")
+        XCTAssertEqual(transaction.accountRef, "000")
         XCTAssertTrue(transaction.confidence >= 0.80)
 
         // No transaction date was present, so referenceDate is used.
@@ -111,6 +112,7 @@ final class BankMessageParserTests: XCTestCase {
         XCTAssertNil(transaction.merchant)
         XCTAssertEqual(transaction.direction, .credit)
         XCTAssertEqual(transaction.bank, "iVESTOR")
+        XCTAssertEqual(transaction.accountRef, "0000")
         XCTAssertTrue(transaction.confidence >= 0.80)
         XCTAssertEqual(transaction.date, referenceDate)
     }
@@ -133,6 +135,7 @@ final class BankMessageParserTests: XCTestCase {
         XCTAssertNil(transaction.merchant)
         XCTAssertEqual(transaction.direction, .debit)
         XCTAssertEqual(transaction.bank, "ruya")
+        XCTAssertEqual(transaction.accountRef, "0000")
         XCTAssertTrue(transaction.confidence >= 0.80)
 
         let components = Calendar.current.dateComponents(
@@ -142,6 +145,16 @@ final class BankMessageParserTests: XCTestCase {
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 6)
         XCTAssertEqual(components.day, 1)
+    }
+
+    func testExtractsMashreqCardReferenceAndArabicReference() {
+        XCTAssertEqual(parser.parse("Mashreq: AED 8.00 was debited from card ending 1234 at Shop.", referenceDate: referenceDate)?.accountRef, "1234")
+        XCTAssertEqual(parser.parse("تم خصم 8 درهم من البطاقة المنتهية بـ ١٢٣٤ لدى متجر.", referenceDate: referenceDate)?.accountRef, "1234")
+    }
+
+    func testExtractsAccountReferenceAndLeavesMissingReferenceNil() {
+        XCTAssertEqual(parser.parse("ruya: AED 8.00 was debited from a/c XXXX5678.", referenceDate: referenceDate)?.accountRef, "5678")
+        XCTAssertNil(parser.parse("Mashreq: AED 8.00 was debited at Shop.", referenceDate: referenceDate)?.accountRef)
     }
 
     func testGenericFallbackParsesUnknownBankTransaction() {

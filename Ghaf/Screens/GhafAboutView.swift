@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Social and support links. shortcut: placeholders until the real accounts exist; replace the URLs here.
 enum GhafLinks {
-    static let instagram = URL(string: "https://instagram.com/")!
+    static let instagram = URL(string: "https://instagram.com/instagram")!
     static let x = URL(string: "https://x.com/")!
     static let tiktok = URL(string: "https://tiktok.com/")!
     static let website = URL(string: "https://example.com/")!
@@ -73,15 +73,9 @@ struct GhafAboutView: View {
 
     private var hero: some View {
         VStack(spacing: 10) {
-            Image("GhafBrandMark")
-                .resizable().scaledToFit()
-                .frame(width: 76, height: 76)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
-                .scaleEffect(appeared ? 1 : 0.7)
-                .rotationEffect(.degrees(appeared || reduceMotion ? 0 : -8))
             Text(ar ? "غاف" : "Ghaf")
                 .font(GhafTypography.display(36, languageCode: lang))
+                .opacity(appeared || reduceMotion ? 1 : 0)
             Text(ar ? "أموالك، بوضوح." : "Your money, clearly.")
                 .font(GhafTypography.body(16, languageCode: lang, weight: .medium))
                 .opacity(0.85)
@@ -117,7 +111,7 @@ struct GhafAboutView: View {
 
     private var story: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(ar ? "لماذا غاف؟" : "Why Ghaf?", systemImage: "leaf.fill")
+            Label(ar ? "لماذا غاف؟" : "Why Ghaf?", systemImage: "questionmark.circle")
                 .font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accent)
             Text(ar ? "سمّينا غاف تيمّناً بشجرة الغاف التي تمنح الظل لمن حولها. ونشكر دولة الإمارات على دعمها لكل من يعيش على أرضها."
                     : "Ghaf is named for the ghaf tree, which offers shade to everyone around it. We’re grateful to the UAE for supporting everyone who lives here.")
@@ -139,6 +133,10 @@ struct GhafAboutView: View {
                 .disabled(GhafLinks.appStore.path.count <= 1).opacity(GhafLinks.appStore.path.count <= 1 ? 0.4 : 1)
             Divider().overlay(theme.outline).padding(.leading, 58)
             Link(destination: GhafLinks.feedback) { row(ar ? "أرسل ملاحظاتك" : "Send feedback", "bubble.left.and.text.bubble.right.fill") }
+            Divider().overlay(theme.outline).padding(.leading, 58)
+            NavigationLink { GhafWhyPaidPage(settings: settings) } label: {
+                row(ar ? "لماذا غاف مدفوع؟" : "Why is Ghaf paid?", "heart.text.square.fill")
+            }
             Divider().overlay(theme.outline).padding(.leading, 58)
             NavigationLink { GhafTermsView(settings: settings) } label: { row(ar ? "شروط الاشتراك" : "Terms of subscription", "doc.text.fill") }
             Divider().overlay(theme.outline).padding(.leading, 58)
@@ -192,5 +190,75 @@ struct GhafAboutView: View {
                 .foregroundStyle(theme.secondaryText.opacity(0.8))
         }
         .padding(.top, 4)
+    }
+}
+
+private struct GhafWhyPaidPage: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showProSheet = false
+    let settings: GhafSettings
+    private var ar: Bool { settings.languageCode == "ar" }
+    private var theme: GhafTheme {
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 12) {
+                Image(systemName: "heart.text.square")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 64, height: 64)
+                    .background(theme.accent.opacity(0.12), in: Circle())
+                Text(ar ? "صُمّم ليبقى هادئاً وصادقاً ولك." : "Built to stay calm, honest and yours.")
+                    .font(GhafTypography.heading(20, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.primaryText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            VStack(spacing: 0) {
+                paidReason("nosign", ar ? "بلا إعلانات، أبداً" : "No ads, ever",
+                           ar ? "تبقى تجربتك هادئة وخالية من الإعلانات." : "Your experience stays calm and ad-free.")
+                Divider().overlay(theme.outline).padding(.leading, 56)
+                paidReason("lock.shield", ar ? "مستقل ويحترم خصوصيتك" : "Independent and private",
+                           ar ? "يدعم Pro التطوير، لا بيع بياناتك." : "Pro supports development, not the sale of your data.")
+                Divider().overlay(theme.outline).padding(.leading, 56)
+                paidReason("checkmark.seal", ar ? "يبقى الإصدار المجاني مفيداً" : "Free stays useful",
+                           ar ? "ستبقى الميزانيات والحسابات والتنبيهات البنكية مجانية." : "Budgets, accounts and bank alerts stay free.")
+            }
+            .padding(.horizontal, 16).padding(.vertical, 4)
+            .ghafCard(theme: theme)
+
+            Button { showProSheet = true } label: {
+                Text(ar ? "اكتشف غاف برو" : "See Ghaf Pro")
+                    .font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .semibold))
+                    .foregroundStyle(theme.accentContrast)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .background(theme.accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 24).padding(.top, 16).padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(theme.background.ignoresSafeArea())
+        .ghafPageTitle(ar ? "لماذا غاف مدفوع؟" : "Why is Ghaf paid?", languageCode: settings.languageCode, theme: theme)
+        .ghafProSheet(isPresented: $showProSheet, settings: settings)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+
+    private func paidReason(_ symbol: String, _ title: String, _ subtitle: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol).font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(theme.accent).frame(width: 28)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Text(subtitle).font(GhafTypography.body(12, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 64)
+        .contentShape(Rectangle())
     }
 }

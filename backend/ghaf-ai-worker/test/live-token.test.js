@@ -20,8 +20,8 @@ test('live token authorization, quota, response and upstream privacy', async t =
   const denied = await worker.fetch(request(), env);
   assert.equal(denied.status, 401);
 
-  const key = `l:${new Date().toISOString().slice(0, 10)}:${device}`;
-  env.values.set(key, '1');
+  const key = `v:free:${new Date().toISOString().slice(0, 10)}:${device}`;
+  env.values.set(key, '15');
   const capped = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
   assert.equal(capped.status, 429);
   env.values.delete(key);
@@ -33,6 +33,9 @@ test('live token authorization, quota, response and upstream privacy', async t =
   assert.equal(payload.token, 'authTokens/test');
   assert.equal(payload.voice, 'Orus');
   assert.equal(payload.model, 'models/gemini-3.8-live');
+
+  const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'free' }), env);
+  assert.equal((await mariam.json()).voice, 'Kore');
 
   env.values.clear();
   globalThis.fetch = async () => new Response('secret upstream body', { status: 500 });

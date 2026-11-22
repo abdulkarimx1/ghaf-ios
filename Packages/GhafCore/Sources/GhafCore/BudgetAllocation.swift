@@ -8,17 +8,33 @@ public enum BudgetAllocation {
 
     public enum Preset: String, CaseIterable, Sendable {
         case balanced, highRentCity, essentialsFirst
+        case guardian
 
         public var shares: [Bucket: Decimal] {
             switch self {
             case .balanced: [.needs: 0.5, .wants: 0.3, .savings: 0.2]
             case .highRentCity: [.needs: 0.6, .wants: 0.2, .savings: 0.2]
             case .essentialsFirst: [.needs: 0.6, .wants: 0.3, .savings: 0.1]
+            case .guardian: [.needs: 0.7, .wants: 0.2, .savings: 0.1]
             }
         }
 
         public var title: String {
-            switch self { case .balanced: "50/30/20"; case .highRentCity: "60/20/20"; case .essentialsFirst: "60/30/10" }
+            switch self {
+            case .balanced: "50/30/20"
+            case .highRentCity: "60/20/20"
+            case .essentialsFirst: "60/30/10"
+            case .guardian: "70/20/10"
+            }
+        }
+
+        public var name: String {
+            switch self {
+            case .balanced: "The Hero"
+            case .highRentCity: "The Strategist"
+            case .essentialsFirst: "The Explorer"
+            case .guardian: "The Guardian"
+            }
         }
 
         public var description: String {
@@ -26,6 +42,7 @@ public enum BudgetAllocation {
             case .balanced: "For fixed costs under half your pay"
             case .highRentCity: "When rent and bills take 55% or more"
             case .essentialsFirst: "When bills are high and savings start small"
+            case .guardian: "When essentials need most of your income"
             }
         }
 

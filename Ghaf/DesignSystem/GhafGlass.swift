@@ -214,8 +214,9 @@ private struct GhafGlassRim: View {
 
 struct GhafGlassPreview: View {
     let theme: GhafTheme
+    var arabic = false
     var body: some View {
-        HStack { VStack(alignment: .leading, spacing: 8) { Text("Monthly").font(.caption).foregroundStyle(theme.secondaryText); Text("AED 2,340").font(.title2.bold()).foregroundStyle(theme.primaryText); Image(systemName: "waveform.path").font(.title2).foregroundStyle(theme.accent) }; Spacer() }
+        HStack { VStack(alignment: .leading, spacing: 8) { Text(arabic ? "شهري" : "Monthly").font(.caption).foregroundStyle(theme.secondaryText); Text(GhafFormat.shownMoney(2340, currency: "AED", languageCode: arabic ? "ar" : "en")).font(.title2.bold()).foregroundStyle(theme.primaryText); Image(systemName: "waveform.path").font(.title2).foregroundStyle(theme.accent) }; Spacer() }
             .padding(16).frame(maxWidth: .infinity).modifier(GhafGlassSurface(theme: theme, radius: 18))
     }
 }

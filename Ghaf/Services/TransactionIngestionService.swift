@@ -79,7 +79,9 @@ final class TransactionIngestionService {
         let matchedAccount = GhafAccountBalanceCalculator.matchAccount(
             bank: rawParsed.bank,
             sender: sender,
-            accounts: accounts
+            accounts: accounts,
+            accountRef: rawParsed.accountRef,
+            cardPurchase: rawParsed.direction == .debit && rawParsed.merchant != nil && rawParsed.kind == .standard
         )
         // A purchase abroad ("TRY 597.60") is recorded in the account's currency at the last known market
         // rate, keeping the original amount. Without any rate it stays in its own currency, in review.
@@ -87,14 +89,14 @@ final class TransactionIngestionService {
             ?? (try? GhafPersistence.settings(in: context).currency) ?? rawParsed.currency
         var parsed = ParsedTransaction(amount: rawParsed.amount, currency: rawParsed.currency, merchant: merchant,
                                        date: rawParsed.date, direction: rawParsed.direction, confidence: rawParsed.confidence,
-                                       bank: rawParsed.bank, kind: rawParsed.kind)
+                                       bank: rawParsed.bank, kind: rawParsed.kind, accountRef: rawParsed.accountRef)
         var fx: (rate: Decimal, date: Date)?
         if rawParsed.currency != targetCurrency, let rates = GhafExchangeRates.cached,
            let converted = rates.convert(rawParsed.amount, from: rawParsed.currency, to: targetCurrency),
            let rate = rates.rate(from: rawParsed.currency, to: targetCurrency) {
             parsed = ParsedTransaction(amount: converted, currency: targetCurrency, merchant: merchant,
                                        date: rawParsed.date, direction: rawParsed.direction, confidence: rawParsed.confidence,
-                                       bank: rawParsed.bank, kind: rawParsed.kind)
+                                       bank: rawParsed.bank, kind: rawParsed.kind, accountRef: rawParsed.accountRef)
             fx = (rate, rates.updated)
         }
 
@@ -116,6 +118,7 @@ final class TransactionIngestionService {
         if let existing = try samePurchaseFromOtherSource(parsed, fromWallet: fromWallet) {
             // Keep one record and fill in whatever the first source was missing.
             if existing.merchant == nil { existing.merchant = parsed.merchant }
+            if existing.rawMerchant == nil { existing.rawMerchant = rawParsed.merchant }
             if existing.bank == nil { existing.bank = parsed.bank }
             try context.save()
             return TransactionIngestionResult(
@@ -162,6 +165,7 @@ final class TransactionIngestionService {
             isReversal: isReversal,
             accountID: resolvedAccount?.id
         )
+        transaction.rawMerchant = rawParsed.merchant
         if let fx {
             transaction.originalAmount = rawParsed.amount
             transaction.originalCurrency = rawParsed.currency
@@ -187,6 +191,8 @@ final class TransactionIngestionService {
 
         context.insert(transaction)
         try context.save()
+        GhafAccountMappings.recordAlert(transactionID: transaction.id, bank: parsed.bank, sender: sender,
+                                        accountRef: parsed.accountRef)
         // One notification per transaction: the unusual-charge note when it applies, else what was added.
         if let unusual, let merchant = parsed.merchant {
             notifyUnusual(merchant: merchant, parsed: parsed, typical: unusual.typical)
@@ -204,7 +210,7 @@ final class TransactionIngestionService {
         amountFormatter.maximumFractionDigits = 2
         amountFormatter.numberStyle = .decimal
         let amount = amountFormatter.string(from: NSDecimalNumber(decimal: parsed.amount)) ?? NSDecimalNumber(decimal: parsed.amount).stringValue
-        let savedName = parsed.merchant ?? category
+        let savedName = GhafMerchantAliasStore.displayName(rawParsed.merchant) ?? parsed.merchant ?? category
         if needsReview {
             return TransactionIngestionResult(
                 status: .needsReview,
@@ -218,6 +224,23 @@ final class TransactionIngestionService {
             confirmation: "Saved: \(savedName) · \(parsed.currency) \(amount)",
             transactionID: transaction.id
         )
+    }
+
+    /// Shared transaction update entry point for explicit account corrections.
+    func confirmAccount(transactionID: UUID, accountID: UUID) throws {
+        guard let transaction = try context.fetch(FetchDescriptor<GhafTransaction>(
+            predicate: #Predicate { $0.id == transactionID }
+        )).first else { return }
+        guard let account = try context.fetch(FetchDescriptor<GhafAccount>(
+            predicate: #Predicate { $0.id == accountID }
+        )).first, !account.isArchived else { return }
+        transaction.accountID = accountID
+        transaction.needsReview = transaction.confidence < 0.8
+            || (transaction.merchant != nil && transaction.category == "Other")
+            || transaction.currency != account.currency || transaction.isReversal
+        try context.save()
+        GhafAccountMappings.confirm(transactionID: transactionID, bank: transaction.bank, sender: nil,
+                                    accountRef: nil, accountID: accountID)
     }
 
     /// The active subscription this debit pays, if it is due around the charge date.

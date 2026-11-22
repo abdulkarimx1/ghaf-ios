@@ -30,6 +30,9 @@ public enum MerchantName {
         }
         value = value.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        if value.range(of: #"(?i)\s+CAFET$"#, options: .regularExpression) != nil {
+            value = value.replacingOccurrences(of: #"(?i)\s+CAFET$"#, with: "", options: .regularExpression)
+        }
         if value.range(of: #"(?i)^(?:on|at|dated|بتاريخ|في|يوم)$"#, options: .regularExpression) != nil {
             return raw.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -79,4 +82,13 @@ public enum MerchantName {
         while let last = words.last, suffixes.contains(last) || (last.hasPrefix("#") && last.dropFirst().allSatisfy(\.isNumber)) { words.removeLast() }
         return words.joined(separator: " ")
     }
+
+    public static func displayName(_ raw: String?, aliases: [String: String]) -> String? {
+        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return aliases[key(raw)]?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? clean(raw)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

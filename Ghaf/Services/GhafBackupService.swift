@@ -14,6 +14,7 @@ private struct GhafBackupPayload: Codable {
     var glass: GhafGlassBackup?
     var memories: [GhafMemoryBackup]?
     var preferences: GhafBackupPreferences?
+    var accountMappings: Data?
 }
 
 private struct GhafBackupPreferences: Codable {
@@ -85,6 +86,7 @@ private struct GhafTransactionBackup: Codable {
     var amount: Decimal
     var currency: String
     var merchant: String?
+    var rawMerchant: String?
     var date: Date
     var direction: String
     var category: String
@@ -197,6 +199,7 @@ enum GhafBackupService {
                 amount: transaction.amount,
                 currency: transaction.currency,
                 merchant: transaction.merchant,
+                rawMerchant: transaction.rawMerchant,
                 date: transaction.date,
                 direction: transaction.direction,
                 category: transaction.category,
@@ -267,7 +270,8 @@ enum GhafBackupService {
                                    tilt: UserDefaults.standard.object(forKey: "ghaf.glass.tilt") as? Bool ?? true),
             memories: memories.map { .init(id: $0.id, text: $0.text, kind: $0.kind, source: $0.source,
                                            createdAt: $0.createdAt, updatedAt: $0.updatedAt, lastUsedAt: $0.lastUsedAt) },
-            preferences: exportPreferences()
+            preferences: exportPreferences(),
+            accountMappings: GhafAccountMappings.backupData()
         )
 
         let encoder = JSONEncoder()
@@ -300,6 +304,9 @@ enum GhafBackupService {
         if let preferences = payload.preferences, preferences.version != 1 {
             throw GhafBackupError.unsupportedVersion
         }
+        guard GhafAccountMappings.isValidBackup(payload.accountMappings) else {
+            throw GhafBackupError.invalidBackup("account mappings")
+        }
 
         let problems = BackupIntegrity.validate(
             transactionIDs: payload.transactions.map(\.id),
@@ -326,7 +333,9 @@ enum GhafBackupService {
         try context.fetch(FetchDescriptor<GhafAccount>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafSettings>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<MerchantCategoryRule>()).forEach { context.delete($0) }
-        try context.fetch(FetchDescriptor<GhafMemory>()).forEach { context.delete($0) }
+        if payload.memories != nil {
+            try context.fetch(FetchDescriptor<GhafMemory>()).forEach { context.delete($0) }
+        }
         let oldSubscriptions = payload.subscriptions == nil ? [] : try context.fetch(FetchDescriptor<GhafSubscription>())
         // Read ids now: a deleted model's properties can't be read after the save.
         let oldReminderIDs = oldSubscriptions.map(\.id)
@@ -413,6 +422,7 @@ enum GhafBackupService {
             transaction.subcategory = item.subcategory
             transaction.createdAt = item.createdAt
             transaction.originalAmount = item.originalAmount
+            transaction.rawMerchant = item.rawMerchant ?? item.merchant
             transaction.originalCurrency = item.originalCurrency
             transaction.exchangeRate = item.exchangeRate
             transaction.exchangeRateDate = item.exchangeRateDate
@@ -465,15 +475,15 @@ enum GhafBackupService {
             context.rollback()
             throw error
         }
+        if let mappings = payload.accountMappings { GhafAccountMappings.restore(from: mappings) }
         oldReminderIDs.forEach { GhafSubscriptionReminderService.cancel(id: $0) }
         if let preferences = payload.preferences, preferences.version == 1 {
             restorePreferences(preferences)
         } else if let glass = payload.glass {
             preferenceKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
             restoreGlass(glass)
-        } else {
-            preferenceKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
         }
+        GhafMerchantAliasStore.invalidateCache()
         for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }
@@ -545,7 +555,8 @@ enum GhafBackupService {
         "ghaf.glass.glow", "ghaf.glass.tilt", "ghaf.ai.cloudEnabled", "ghaf.ai.modelLearning", "ghaf.ai.memoryEnabled",
         "ghaf.ai.speakReplies", "ghaf.notify.autoTransaction", "ghaf.notify.morning",
         "ghaf.notify.evening", "ghaf.notify.weekly", "ghaf.liveActivity", "ghaf.places.byMerchant",
-        "ghaf.places.byTransaction", "ghaf.voice.learnedPause"
+        "ghaf.places.byTransaction", "ghaf.voice.learnedPause", "ghaf.liveActivity.enabled",
+        "ghaf.liveActivity.balance", "ghaf.liveActivity.duration", "ghaf.ai.voiceCharacter", "ghaf.merchant.aliases"
     ]
 
     private static func exportPreferences() -> GhafBackupPreferences {
@@ -564,7 +575,6 @@ enum GhafBackupService {
     }
 
     private static func restorePreferences(_ preferences: GhafBackupPreferences) {
-        preferenceKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
         for (key, value) in preferences.values where preferenceKeys.contains(key) {
             switch value {
             case .bool(let value): UserDefaults.standard.set(value, forKey: key)

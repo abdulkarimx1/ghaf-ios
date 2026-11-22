@@ -58,8 +58,13 @@ final class SubscriptionPaymentMatchTests: XCTestCase {
         XCTAssertFalse(SubscriptionDetector.sameService(merchant: "CHATGPTX", subscriptionName: "Chat GPT"))
         XCTAssertFalse(SubscriptionDetector.sameService(merchant: "CHAT GPTS", subscriptionName: "ChatGPT"))
         XCTAssertFalse(pays("Spotify", 56, 0))
+        XCTAssertTrue(SubscriptionDetector.isPayment(merchant: "Netflix", amount: 56, date: day(-15), subscriptionName: "Netflix", subscriptionAmount: 56, dueDate: due, toleranceDays: 5))
+        XCTAssertFalse(SubscriptionDetector.isPayment(merchant: "Netflix", amount: 56, date: day(15), subscriptionName: "Netflix", subscriptionAmount: 56, dueDate: due, toleranceDays: 5))
+        XCTAssertTrue(SubscriptionDetector.isPayment(merchant: "Meal Box", amount: 99, date: day(-2), subscriptionName: "Meal Box", subscriptionAmount: 99, dueDate: due, toleranceDays: 2))
+        XCTAssertFalse(SubscriptionDetector.isPayment(merchant: "Meal Box", amount: 99, date: day(-3), subscriptionName: "Meal Box", subscriptionAmount: 99, dueDate: due, toleranceDays: 2))
         XCTAssertFalse(pays("Netflix", 120, 0))
-        XCTAssertFalse(pays("Netflix", 56, 12))
+        XCTAssertTrue(pays("Netflix", 56, -12))
+        XCTAssertFalse(pays("Netflix", 56, 16))
     }
 
     func testHigherChargeInDueWindowIsAPriceRise() {
@@ -72,7 +77,7 @@ final class SubscriptionPaymentMatchTests: XCTestCase {
         XCTAssertNil(raised("ChatGPT", 75, 0))      // same price: a normal payment
         XCTAssertNil(raised("ChatGPT", 60, 0))      // cheaper: not a rise
         XCTAssertNil(raised("ChatGPT", 400, 0))     // over 3x: a different purchase
-        XCTAssertNil(raised("ChatGPT", 90, 12))     // outside the due window
+        XCTAssertNil(raised("ChatGPT", 90, 16))     // outside the due window
         XCTAssertNil(raised("Spotify", 90, 0))
     }
 }

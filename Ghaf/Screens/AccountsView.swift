@@ -81,7 +81,7 @@ struct GhafAccountsView: View {
 
     private var eyeButton: some View {
         Button {
-            withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
+            withAnimation(.easeOut(duration: 0.35)) { hideBalances.toggle() }
         } label: {
             Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                 .font(.system(size: 17, weight: .bold))
@@ -183,6 +183,7 @@ struct GhafAccountEditorView: View {
     @State private var cardDesign: GhafCardDesign?
     /// The plain face, chosen on purpose; otherwise a designed card or note is always shown.
     @State private var plainChosen = false
+    @State private var addedCardName: String?
     private var isCash: Bool { accountType == .cash }
     private var defaultDesign: GhafCardDesign? {
         GhafCardDesign.defaultDesign(isCash: isCash, bank: GhafUAEBank.match([institution, name]))
@@ -259,10 +260,15 @@ struct GhafAccountEditorView: View {
                     }
                     if !isCash {
                         GhafFormDivider(theme: theme)
-                        fieldRow(ar ? "آخر ٤ أرقام" : "Last 4 digits") {
+                        fieldRow(ar ? "آخر ٤ أرقام للبطاقة" : "Card ending") {
                             GhafAmountField(value: $lastFourDigits, currency: nil, label: "", theme: theme, languageCode: lang, integerMode: true, maxDigits: 4, fontSize: 20, chromeless: true)
                                 .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
                         }
+                        Text(ar ? "لمطابقة تنبيهات البنك بهذا الحساب" : "Used to match bank alerts to this account")
+                            .font(GhafTypography.body(11, languageCode: lang))
+                            .foregroundStyle(theme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 42)
                     }
                     GhafFormDivider(theme: theme)
                     GhafFormToggleRow(icon: "checkmark.circle", tint: theme.comfortable, title: ar ? "الحساب الرئيسي" : "Primary account", isOn: $isPrimary, theme: theme, languageCode: lang)
@@ -361,6 +367,14 @@ struct GhafAccountEditorView: View {
             }
         }
         .ghafKeyboardDone()
+        .overlay {
+            if let addedCardName {
+                GhafSuccessSplash(title: ar ? "تمت إضافة البطاقة" : "Card added", subtitle: addedCardName,
+                                  theme: theme, languageCode: lang) { dismiss() }
+                    .transition(.opacity)
+                    .zIndex(5)
+            }
+        }
         .onAppear(perform: load)
         // A card belongs to its bank: changing the bank drops a card from the old one.
         .onChange(of: GhafUAEBank.match([institution, name])?.id) { _, bank in
@@ -469,7 +483,7 @@ struct GhafAccountEditorView: View {
         case "Currency", "العملة": "dollarsign.circle"
         case "Available right now", "الرصيد المتاح الآن": "wallet.pass"
         case "Credit limit", "الحد الائتماني": "creditcard"
-        case "Last 4 digits", "آخر ٤ أرقام": "number"
+        case "Card ending", "آخر ٤ أرقام للبطاقة": "number"
         default: "square.grid.2x2"
         }
     }
@@ -503,7 +517,7 @@ struct GhafAccountEditorView: View {
             GhafAccountBalanceCalculator.balance(for: account, transactions: transactions)
         )
         creditLimitText = account.creditLimit.map(GhafFormat.decimal) ?? ""
-        lastFourDigits = account.lastFourDigits ?? ""
+        lastFourDigits = account.cardLast4 ?? ""
         isPrimary = account.isPrimary
         cardDesign = account.cardDesign.flatMap(GhafCardDesign.init(rawValue:))
         plainChosen = account.cardDesign == GhafCardDesign.plainID
@@ -513,7 +527,8 @@ struct GhafAccountEditorView: View {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty,
               let balance = Decimal(string: balanceText),
-              balance >= 0 else {
+              balance >= 0,
+              lastFourDigits.isEmpty || lastFourDigits.count == 4 else {
             errorMessage = true
             return
         }
@@ -551,7 +566,7 @@ struct GhafAccountEditorView: View {
                 target.openingDate = .now
             }
             target.creditLimit = Decimal(string: creditLimitText)
-            target.lastFourDigits = lastFourDigits.isEmpty || isCash ? nil : lastFourDigits
+            target.cardLast4 = lastFourDigits.isEmpty || isCash ? nil : lastFourDigits
             target.isArchived = false
             target.isPrimary = isPrimary
             target.cardDesign = plainChosen ? GhafCardDesign.plainID : shownDesign?.rawValue
@@ -580,7 +595,11 @@ struct GhafAccountEditorView: View {
 
         do {
             try modelContext.save()
-            dismiss()
+            if account == nil {
+                withAnimation(.easeOut(duration: 0.25)) { addedCardName = cleanName }
+            } else {
+                dismiss()
+            }
         } catch {
             errorMessage = true
         }

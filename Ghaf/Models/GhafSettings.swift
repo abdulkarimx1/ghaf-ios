@@ -27,6 +27,7 @@ final class GhafSettings {
     var userName: String
     var languageCode: String = "en"
     var hasSeenAutomationIntro: Bool = false
+    var showKeypadOnAdd: Bool = true
     var currency: String
     var monthlyIncome: Decimal
     var fixedCommitments: Decimal

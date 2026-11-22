@@ -38,6 +38,53 @@ struct GhafSubscriptionsView: View {
 
     private var lang: String { settings.languageCode }
 
+    private var paymentMatches: [(GhafSubscription, GhafTransaction)] {
+        let window = Calendar.current.dateInterval(of: .month, for: .now)
+        return active.compactMap { item in
+            guard !item.needsConfirmation else { return nil }
+            let match = debits.first { transaction in
+                guard transaction.currency == item.currency, window?.contains(transaction.date) == true,
+                      !UserDefaults.standard.bool(forKey: "ghaf.subscription.match.dismissed.\(item.id).\(transaction.id)") else { return false }
+                return SubscriptionDetector.isPayment(merchant: transaction.merchant, amount: transaction.amount, date: transaction.date,
+                                                      subscriptionName: item.name, subscriptionAmount: item.amount,
+                                                      dueDate: item.nextPaymentDate, toleranceDays: 15)
+                    || SubscriptionDetector.raisedPrice(merchant: transaction.merchant, amount: transaction.amount, date: transaction.date,
+                                                        subscriptionName: item.name, subscriptionAmount: item.amount,
+                                                        dueDate: item.nextPaymentDate, toleranceDays: 15) != nil
+            }
+            return match.map { (item, $0) }
+        }
+    }
+
+    private var paymentMatchCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(paymentMatches, id: \.1.id) { item, transaction in
+                let next = item.cycle.nextDate(after: item.nextPaymentDate).formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(ar ? "هل كانت هذه دفعة هذا الشهر لاشتراك \(item.name)؟ ينتقل التجديد القادم إلى \(next)."
+                            : "Was this your \(item.name) payment for this month? The next payment moves to \(next).")
+                        .font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 10) {
+                        Button(ar ? "ليست هذه الدفعة" : "Not this one") {
+                            UserDefaults.standard.set(true, forKey: "ghaf.subscription.match.dismissed.\(item.id).\(transaction.id)")
+                        }.ghafGlassButton(theme: theme, languageCode: lang)
+                        Button(ar ? "تأكيد" : "Confirm") { confirmPayment(item, transaction: transaction) }
+                            .ghafProminentButton(theme: theme, languageCode: lang)
+                    }
+                }
+            }
+        }.padding(16).ghafCard(theme: theme)
+    }
+
+    private func confirmPayment(_ item: GhafSubscription, transaction: GhafTransaction) {
+        item.nextPaymentDate = item.cycle.nextDate(after: max(item.nextPaymentDate, transaction.date))
+        do {
+            try context.save()
+            GhafSubscriptionReminderService.schedule(item, language: lang)
+        } catch { context.rollback() }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -49,6 +96,7 @@ struct GhafSubscriptionsView: View {
                         .ghafEntrance(0)
                     costCard.ghafEntrance(1)
                     monthTiles.ghafEntrance(1)
+                    if !paymentMatches.isEmpty { paymentMatchCard.ghafEntrance(2) }
                     if !priceChanges.isEmpty { priceChangeCard.ghafEntrance(2) }
                     if let next = active.filter({ !$0.needsConfirmation }).min(by: { $0.nextPaymentDate < $1.nextPaymentDate }) {
                         nextUpCard(next).ghafEntrance(2)
@@ -435,6 +483,10 @@ private struct GhafSubscriptionEditor: View {
     @State private var active = true
     @State private var saveFailed = false
     @State private var showDatePicker = false
+    @State private var showUpcomingPrompt = false
+    @State private var originalAmount: Decimal = 0
+    @State private var originalCycle: GhafBillingCycle = .monthly
+    @State private var originalNextDate = Date.now
     @FocusState private var nameFocused: Bool
 
     private var theme: GhafTheme {
@@ -449,7 +501,7 @@ private struct GhafSubscriptionEditor: View {
                 VStack(spacing: 0) {
                     Text(name.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init) ?? "+")
                         .font(GhafTypography.number(26, weight: .bold)).foregroundStyle(theme.accent)
-                        .frame(width: 64, height: 64).background(theme.accent.opacity(0.14), in: Circle())
+                        .frame(width: 48, height: 48).background(theme.accent.opacity(0.14), in: Circle())
                         .padding(.top, 8)
                     TextField(ar ? "اسم الخدمة" : "Service name", text: $name, prompt: Text(ar ? "اسم الخدمة" : "Service name").font(GhafTypography.body(24, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText))
                         .font(GhafTypography.userContent(name, size: 24, languageCode: settings.languageCode, heading: true))
@@ -461,10 +513,10 @@ private struct GhafSubscriptionEditor: View {
                                 Rectangle().fill(theme.accent).frame(width: max(160, min(340, CGFloat(max(name.count, ar ? 10 : 12)) * 13 + 24)), height: 1.5)
                             }
                         }
-                        .padding(.top, 12)
+                        .padding(.top, 0)
                     GhafAmountField(value: $amount, currency: currency, label: "", theme: theme,
-                                    languageCode: settings.languageCode, fontSize: 48, chromeless: true)
-                        .padding(.top, 20)
+                                    languageCode: settings.languageCode, fontSize: 40, chromeless: true)
+                        .padding(.top, 4)
                     Menu {
                         Picker(ar ? "العملة" : "Currency", selection: $currency) {
                             ForEach(["AED", "SAR", "KWD", "BHD", "OMR", "QAR"], id: \.self) { Text($0).tag($0) }
@@ -477,10 +529,10 @@ private struct GhafSubscriptionEditor: View {
                         .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
                         .background(theme.elevatedSurface, in: Capsule())
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 0)
                     GhafSegmented(options: GhafBillingCycle.allCases.map { ($0, cycleTitle($0, arabic: ar)) },
                                   selection: $cycle, theme: theme, languageCode: settings.languageCode)
-                        .padding(.top, 24)
+                        .padding(.top, 8)
                     if cycle != .monthly, let estimate = monthlyEstimate {
                         HStack(spacing: 5) {
                             Text("≈")
@@ -489,14 +541,14 @@ private struct GhafSubscriptionEditor: View {
                         }
                         .font(GhafTypography.body(14, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText).frame(maxWidth: .infinity)
-                        .padding(.top, 8)
+                        .padding(.top, 0)
                     }
 
                     GhafFormCard(theme: theme) {
-                        GhafFormDateRow(icon: "calendar", tint: theme.accent, title: ar ? "التجديد القادم" : "Next renewal",
+                        GhafFormDateRow(icon: "calendar", tint: theme.secondaryText, title: ar ? "التجديد القادم" : "Next renewal",
                                         selection: $nextDate, isExpanded: $showDatePicker, theme: theme, languageCode: settings.languageCode)
                         GhafFormDivider(theme: theme)
-                        GhafFormMenuRow(icon: "bell.badge", tint: theme.close, title: ar ? "التذكير" : "Reminder",
+                        GhafFormMenuRow(icon: "bell.badge", tint: theme.secondaryText, title: ar ? "التذكير" : "Reminder",
                                         value: reminderName, theme: theme, languageCode: settings.languageCode) {
                             Picker(ar ? "التذكير" : "Reminder", selection: $reminderDays) {
                                 Text(ar ? "في نفس اليوم" : "Same day").tag(0)
@@ -506,7 +558,7 @@ private struct GhafSubscriptionEditor: View {
                             }
                         }
                         GhafFormDivider(theme: theme)
-                        GhafFormMenuRow(icon: "creditcard", tint: theme.accent, title: ar ? "حساب الدفع" : "Paid from",
+                        GhafFormMenuRow(icon: "creditcard", tint: theme.secondaryText, title: ar ? "حساب الدفع" : "Paid from",
                                         value: accounts.first(where: { $0.id == accountID })?.name ?? (ar ? "غير محدد" : "Not specified"),
                                         theme: theme, languageCode: settings.languageCode) {
                             Picker(ar ? "حساب الدفع" : "Paid from", selection: $accountID) {
@@ -515,10 +567,10 @@ private struct GhafSubscriptionEditor: View {
                             }
                         }
                         GhafFormDivider(theme: theme)
-                        GhafFormToggleRow(icon: "power", tint: theme.comfortable, title: ar ? "نشط" : "Active",
+                        GhafFormToggleRow(icon: "power", tint: theme.secondaryText, title: ar ? "نشط" : "Active",
                                           isOn: $active, theme: theme, languageCode: settings.languageCode)
                     }
-                    .padding(.top, 24)
+                    .padding(.top, 8)
                     if subscription != nil {
                         Button(ar ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
                             guard let subscription else { return dismiss() }
@@ -527,18 +579,35 @@ private struct GhafSubscriptionEditor: View {
                             catch { context.rollback(); saveFailed = true }
                         }
                         .ghafDestructiveButton(theme: theme, languageCode: settings.languageCode)
-                        .padding(.top, 20)
+                        .padding(.top, 8)
                     }
+                    Button { requestSave() } label: { Text(ar ? "حفظ" : "Save") }
+                        .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
+                        .disabled(!valid).opacity(valid ? 1 : 0.4)
+                        .padding(.top, subscription == nil ? 8 : 4)
                 }
-                .ghafScreenPadding().padding(.bottom, 24).frame(maxWidth: 620).frame(maxWidth: .infinity)
+                .ghafScreenPadding().padding(.bottom, 0).frame(maxWidth: 620).frame(maxWidth: .infinity)
             }
-            .safeAreaInset(edge: .top, spacing: 0) { editorToolbar(ar: ar, valid: valid) }
             .ghafBackground(theme: theme).ghafKeyboardDone()
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(ar ? "إلغاء" : "Cancel") { dismiss() } }
+                ToolbarItem(placement: .principal) {
+                    Text(subscription == nil ? (ar ? "اشتراك جديد" : "New subscription") : (ar ? "تعديل الاشتراك" : "Edit subscription"))
+                        .font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                }
+            }
+            .scrollBounceBehavior(.basedOnSize)
             .onAppear(perform: load)
             .alert(ar ? "تعذر حفظ التغيير" : "Couldn't save the change", isPresented: $saveFailed) {
                 Button(ar ? "حسناً" : "OK", role: .cancel) {}
             } message: { Text(ar ? "لم يتغير شيء. حاول مرة أخرى." : "Nothing was changed. Please try again.") }
+            .alert(ar ? "تحديث الدفعات القادمة؟" : "Update upcoming payments too?", isPresented: $showUpcomingPrompt) {
+                Button(ar ? "تحديث التذكيرات" : "Update reminders") { save(updateReminders: true) }
+                Button(ar ? "حفظ فقط" : "Save only", role: .cancel) { save(updateReminders: false) }
+            } message: {
+                Text(ar ? "ستستخدم التذكيرات القادمة المبلغ ودورة الفوترة الجديدين." : "Future reminders will use the new amount and billing cycle.")
+            }
         }
         .ghafDirection(settings.languageCode).preferredColorScheme(theme.isDark ? .dark : .light)
     }
@@ -546,31 +615,6 @@ private struct GhafSubscriptionEditor: View {
     private var monthlyEstimate: Decimal? {
         guard let value = Decimal(string: amount), value > 0 else { return nil }
         return value * cycle.monthlyFactor
-    }
-
-    private func editorToolbar(ar: Bool, valid: Bool) -> some View {
-        let title = subscription == nil ? (ar ? "اشتراك جديد" : "New subscription") : (ar ? "تعديل الاشتراك" : "Edit subscription")
-        return ZStack {
-            HStack {
-                Button(ar ? "إلغاء" : "Cancel") { dismiss() }
-                    .font(GhafTypography.body(16, languageCode: settings.languageCode, weight: .semibold))
-                    .foregroundStyle(theme.accent).buttonStyle(.plain)
-                Spacer()
-                Button { save() } label: {
-                    Text(ar ? "حفظ" : "Save").font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .bold))
-                        .foregroundStyle(valid ? theme.accentContrast : theme.secondaryText)
-                        .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
-                        .background(valid ? theme.accent : theme.accent.opacity(0.10), in: Capsule())
-                }
-                .buttonStyle(.plain).disabled(!valid)
-            }
-            .padding(.horizontal, 16)
-            Text(title).font(GhafTypography.body(17, languageCode: settings.languageCode, weight: .semibold))
-                .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.75)
-                .frame(maxWidth: .infinity)
-                .allowsHitTesting(false)
-        }
-        .frame(height: 56).background(theme.background)
     }
 
     private func cycleTitle(_ cycle: GhafBillingCycle, arabic: Bool) -> String {
@@ -588,14 +632,21 @@ private struct GhafSubscriptionEditor: View {
     }
 
     private func load() {
-        guard let subscription else { return }
+        guard let subscription else { originalNextDate = nextDate; return }
         name = subscription.name; amount = NSDecimalNumber(decimal: subscription.amount).stringValue
         currency = subscription.currency; cycle = subscription.cycle; nextDate = subscription.nextPaymentDate
         category = subscription.category; accountID = subscription.accountID
         reminderDays = subscription.reminderDays; active = subscription.isActive
+        originalAmount = subscription.amount; originalCycle = subscription.cycle; originalNextDate = subscription.nextPaymentDate
     }
 
-    private func save() {
+    private func requestSave() {
+        if subscription != nil, (Decimal(string: amount) ?? 0) != originalAmount || cycle != originalCycle {
+            showUpcomingPrompt = true
+        } else { save(updateReminders: true) }
+    }
+
+    private func save(updateReminders: Bool) {
         let value = Decimal(string: amount) ?? 0
         let item: GhafSubscription
         if let subscription { item = subscription } else {
@@ -608,9 +659,15 @@ private struct GhafSubscriptionEditor: View {
         item.reminderDays = reminderDays; item.isActive = active; item.needsConfirmation = false
         do {
             try context.save()
-            Task {
-                _ = await GhafSubscriptionReminderService.requestPermission()
-                GhafSubscriptionReminderService.schedule(item, language: settings.languageCode)
+            if updateReminders || nextDate != originalNextDate {
+                if item.isActive {
+                    Task {
+                        _ = await GhafSubscriptionReminderService.requestPermission()
+                        GhafSubscriptionReminderService.schedule(item, language: settings.languageCode)
+                    }
+                } else {
+                    GhafSubscriptionReminderService.cancel(item)
+                }
             }
             dismiss()
         } catch {
@@ -634,6 +691,7 @@ private struct GhafSubscriptionDetailView: View {
     @State private var editing = false
 
     private var lang: String { settings.languageCode }
+
     private var ar: Bool { lang == "ar" }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
@@ -650,20 +708,27 @@ private struct GhafSubscriptionDetailView: View {
                     costCard.ghafEntrance(1)
                     timeline.ghafEntrance(2)
                     reminderRow.ghafEntrance(3)
+                    HStack(spacing: 12) {
+                        Button(action: toggleActive) {
+                            Image(systemName: subscription.isActive ? "pause.fill" : "play.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(theme.primaryText)
+                                .frame(width: 64, height: 56)
+                                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                        }
+                        .buttonStyle(.ghafPress)
+                        .accessibilityLabel(subscription.isActive ? (ar ? "إيقاف مؤقت" : "Pause") : (ar ? "استئناف" : "Resume"))
+                        GhafPrimaryButton(title: ar ? "تعديل الاشتراك" : "Edit subscription", theme: theme,
+                                          languageCode: lang) { editing = true }
+                    }
+                    .ghafScreenPadding()
                 }
                 .ghafScreenPadding()
-                .padding(.top, 8).padding(.bottom, 120)
+                .padding(.top, 8).padding(.bottom, 24)
                 .frame(maxWidth: 620).frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
-            .safeAreaInset(edge: .bottom) {
-                GhafDetailActionBar(theme: theme, languageCode: lang,
-                                    secondarySymbol: subscription.isActive ? "pause.fill" : "play.fill",
-                                    secondaryLabel: subscription.isActive ? (ar ? "إيقاف مؤقت" : "Pause") : (ar ? "استئناف" : "Resume"),
-                                    secondaryAction: toggleActive,
-                                    primaryTitle: ar ? "تعديل الاشتراك" : "Edit subscription",
-                                    primaryAction: { editing = true })
-            }
+            .scrollBounceBehavior(.basedOnSize)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

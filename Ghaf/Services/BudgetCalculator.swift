@@ -54,7 +54,8 @@ enum BudgetCalculator {
             )
         }
 
-        let expectedIncome = settings.salaryEnabled == true
+        let salaryCurrency = settings.salaryCurrency ?? settings.currency
+        let expectedIncome = settings.salaryEnabled == true && salaryCurrency == settings.currency
             ? (settings.salaryAmount ?? settings.monthlyIncome)
             : settings.monthlyIncome
         let availableIncome = max(expectedIncome - settings.fixedCommitments, Decimal.zero)

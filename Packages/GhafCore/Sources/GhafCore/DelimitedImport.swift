@@ -83,10 +83,11 @@ public enum DelimitedImport {
     }
 
     public static func rows(_ text: String) throws -> [[String]] {
-        let delimiter = [",", ";", "\t"].max { score(text, $0) < score(text, $1) } ?? ","
+        let normalizedText = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+        let delimiter = [",", ";", "\t"].max { score(normalizedText, $0) < score(normalizedText, $1) } ?? ","
         var result: [[String]] = [], row: [String] = [], field = ""
         var quoted = false
-        let chars = Array(text)
+        let chars = Array(normalizedText)
         var i = 0
         while i < chars.count {
             let c = chars[i]

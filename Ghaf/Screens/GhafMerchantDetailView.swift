@@ -8,6 +8,7 @@ import GhafCore
 struct GhafMerchantDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.openURL) private var openURL
+    @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
     let transaction: GhafTransaction
     let theme: GhafTheme
     let languageCode: String
@@ -19,7 +20,7 @@ struct GhafMerchantDetailView: View {
 
     private var ar: Bool { languageCode == "ar" }
     private var merchant: String? {
-        guard let name = transaction.merchant?.trimmingCharacters(in: .whitespaces), !name.isEmpty else { return nil }
+        guard let name = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant), !name.isEmpty else { return nil }
         return name
     }
 
@@ -56,17 +57,18 @@ struct GhafMerchantDetailView: View {
 
     private func placeCard(_ item: MKMapItem) -> some View {
         let coordinate = item.placemark.coordinate
+        let displayName = merchant ?? item.name ?? ""
         return VStack(alignment: .leading, spacing: 0) {
             // A fixed preview: Directions and the other buttons below handle navigation.
             Map(initialPosition: .camera(MapCamera(centerCoordinate: coordinate, distance: 900)), interactionModes: []) {
-                Marker(item.name ?? "", systemImage: "bag.fill", coordinate: coordinate).tint(theme.accent)
+                Marker(displayName, systemImage: "bag.fill", coordinate: coordinate).tint(theme.accent)
             }
             .mapControlVisibility(.hidden)
             .frame(height: 170)
 
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(item.name ?? "").font(GhafTypography.heading(18, languageCode: languageCode))
+                    Text(displayName).font(GhafTypography.heading(18, languageCode: languageCode))
                         .foregroundStyle(theme.primaryText)
                     if let address = item.placemark.title {
                         Text(address).font(GhafTypography.body(13, languageCode: languageCode))
@@ -156,10 +158,8 @@ struct GhafMerchantDetailView: View {
     private func load() async {
         guard let merchant else { lookupDone = true; return }
         let name = merchant
-        history = (try? context.fetch(FetchDescriptor<GhafTransaction>(
-            predicate: #Predicate { $0.merchant == name },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        ))) ?? []
+        history = ((try? context.fetch(FetchDescriptor<GhafTransaction>(sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? [])
+            .filter { GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) == name }
         guard canHavePlace else { lookupDone = true; return }
         place = await GhafPlaces.place(for: merchant, transactionID: transaction.id)
         lookupDone = true

@@ -1,15 +1,19 @@
 import SwiftUI
 import SwiftData
+import GhafCore
 
 /// Transactions Ghaf was not sure about. Each card says why it is here and fixes the common case in
 /// place (which account); the category opens the editor, so the correction is learned.
 struct GhafReviewInboxView: View {
+    @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }, sort: \GhafTransaction.date, order: .reverse)
     private var reviewTransactions: [GhafTransaction]
+
+    @Query private var allTransactions: [GhafTransaction]
 
     @Query(sort: \GhafAccount.sortOrder)
     private var accounts: [GhafAccount]
@@ -21,6 +25,7 @@ struct GhafReviewInboxView: View {
     @State private var showSubscriptions = false
     @State private var alerts = GhafEventNotifications.events
     @State private var confirmed = 0
+    @State private var movedSimilar: [UUID: Int] = [:]
 
     let settings: GhafSettings
     var initialTargetID: String? = nil
@@ -28,6 +33,9 @@ struct GhafReviewInboxView: View {
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
+    private var activeAlerts: [GhafInboxEvent] {
+        alerts.filter { $0.kind != .transactionReview && $0.kind != .detectedSubscription }
+    }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode,
                           systemIsDark: systemColorScheme == .dark)
@@ -35,48 +43,54 @@ struct GhafReviewInboxView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        header.ghafEntrance(0)
-                        if reviewTransactions.isEmpty && detectedSubscriptions.isEmpty && alerts.isEmpty {
-                            allClear.ghafEntrance(1)
-                        } else {
-                            if !reviewTransactions.isEmpty {
-                                inboxSection(ar ? "تحتاج إلى مراجعة" : "Needs review") {
-                                    ForEach(reviewTransactions, id: \.id) { transaction in
-                                        card(transaction).id(transaction.id.uuidString)
+            GeometryReader { viewport in
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 22) {
+                            header.ghafEntrance(0)
+                            if reviewTransactions.isEmpty && detectedSubscriptions.isEmpty && activeAlerts.isEmpty {
+                                Spacer(minLength: 0)
+                                allClear.ghafEntrance(1)
+                                Spacer(minLength: 0)
+                            } else {
+                                if !reviewTransactions.isEmpty {
+                                    inboxSection(ar ? "تحتاج إلى مراجعة" : "Needs review") {
+                                        ForEach(reviewTransactions, id: \.id) { transaction in
+                                            card(transaction).id(transaction.id.uuidString)
+                                        }
                                     }
                                 }
-                            }
-                            if !detectedSubscriptions.isEmpty {
-                                inboxSection(ar ? "اشتراكات مرصودة" : "Detected subscriptions") {
-                                    ForEach(detectedSubscriptions, id: \.id) { subscription in
-                                        detectedSubscriptionRow(subscription).id(subscription.id.uuidString)
+                                if !detectedSubscriptions.isEmpty {
+                                    inboxSection(ar ? "اشتراكات مرصودة" : "Detected subscriptions") {
+                                        ForEach(detectedSubscriptions, id: \.id) { subscription in
+                                            detectedSubscriptionRow(subscription).id(subscription.id.uuidString)
+                                        }
                                     }
                                 }
-                            }
-                            if !alerts.isEmpty {
-                                inboxSection(ar ? "التنبيهات" : "Alerts") {
-                                    ForEach(alerts) { event in
-                                        alertRow(event).id(event.itemID ?? event.id)
+                                if !activeAlerts.isEmpty {
+                                    inboxSection(ar ? "التنبيهات" : "Alerts") {
+                                        ForEach(activeAlerts) { event in
+                                            alertRow(event).id(event.itemID ?? event.id)
+                                        }
                                     }
                                 }
                             }
                         }
+                        .frame(minHeight: reviewTransactions.isEmpty && detectedSubscriptions.isEmpty && activeAlerts.isEmpty
+                               ? max(0, viewport.size.height - 48) : nil)
+                        .ghafScreenPadding()
+                        .padding(.top, 18)
+                        .padding(.bottom, 30)
+                        .frame(maxWidth: 620)
+                        .frame(maxWidth: .infinity)
                     }
-                    .ghafScreenPadding()
-                    .padding(.top, 18)
-                    .padding(.bottom, 30)
-                    .frame(maxWidth: 620)
-                    .frame(maxWidth: .infinity)
-                }
-                .onAppear {
-                    GhafEventNotifications.configure()
-                    if let initialTargetID { DispatchQueue.main.async { proxy.scrollTo(initialTargetID, anchor: .top) } }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) { _ in
-                    alerts = GhafEventNotifications.events
+                    .onAppear {
+                        GhafEventNotifications.configure()
+                        if let initialTargetID { DispatchQueue.main.async { proxy.scrollTo(initialTargetID, anchor: .top) } }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) { _ in
+                        alerts = GhafEventNotifications.events
+                    }
                 }
             }
             .ghafBackground(theme: theme)
@@ -101,7 +115,7 @@ struct GhafReviewInboxView: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            Text(ar ? "الإشعارات" : "Notifications")
+            Text(ar ? "النشاط" : "Activity")
                 .font(GhafTypography.display(30, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
             Text(ar ? "العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, subscriptions and alerts that need your attention.")
@@ -121,8 +135,7 @@ struct GhafReviewInboxView: View {
                 .font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
         }
-        .padding(24).frame(maxWidth: .infinity).frame(minHeight: 300)
-        .ghafCard(theme: theme)
+        .padding(.vertical, 34).frame(maxWidth: .infinity, minHeight: 240)
     }
 
     private func inboxSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -166,39 +179,48 @@ struct GhafReviewInboxView: View {
 
     /// Why Ghaf held this one back, in the order the user should fix things.
     private func reason(_ transaction: GhafTransaction) -> (text: String, icon: String) {
-        if transaction.accountID == nil { return (ar ? "من أي حساب؟" : "Which account?", "creditcard.fill") }
-        if transaction.originalCurrency == nil && transaction.currency != settings.currency {
-            return (ar ? "عملة أجنبية بدون سعر صرف" : "Foreign currency, no rate yet", "dollarsign.arrow.circlepath")
+        let duplicate = allTransactions.contains {
+            $0.id != transaction.id && $0.amount == transaction.amount
+                && $0.currency == transaction.currency
+                && abs($0.date.timeIntervalSince(transaction.date)) < 86_400
+                && MerchantName.key($0.merchant ?? "") == MerchantName.key(transaction.merchant ?? "")
+                && !MerchantName.key(transaction.merchant ?? "").isEmpty
         }
-        if transaction.isReversal { return (ar ? "استرداد لم يُربط بعملية" : "Refund not matched to a purchase", "arrow.uturn.backward") }
-        if transaction.category == "Other" { return (ar ? "الفئة غير واضحة" : "Category unclear", "questionmark.circle.fill") }
-        return (ar ? "تأكد من التفاصيل" : "Check the details", "eye.fill")
+        if duplicate { return (ar ? "عملية مكررة محتملة" : "Possible duplicate", "doc.on.doc") }
+        if transaction.accountID == nil { return (ar ? "الحساب غير واضح" : "Account unclear", "creditcard.fill") }
+        if !allTransactions.contains(where: { !$0.needsReview && MerchantName.key($0.merchant ?? "") == MerchantName.key(transaction.merchant ?? "") }) {
+            return (ar ? "متجر جديد" : "New merchant", "storefront")
+        }
+        return (ar ? "تفاصيل غير واضحة" : "Details unclear", "questionmark.circle.fill")
     }
 
     private func card(_ transaction: GhafTransaction) -> some View {
         let isCredit = transaction.direction == "credit"
-        let name = transaction.merchant?.isEmpty == false ? transaction.merchant!
-            : GhafLocalization.category(transaction.category, languageCode: lang)
+        let name = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
+            ?? GhafLocalization.category(transaction.category, languageCode: lang)
         let why = reason(transaction)
         let account = activeAccounts.first { $0.id == transaction.accountID }
         return VStack(spacing: 16) {
+            Button { selectedTransaction = transaction } label: {
             HStack(spacing: 12) {
                 GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText).lineLimit(1)
                     Text(transaction.date.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang))))
                         .font(GhafTypography.body(12, languageCode: lang))
                         .foregroundStyle(theme.secondaryText)
+                    Label(why.text, systemImage: why.icon)
+                        .font(GhafTypography.body(11, languageCode: lang, weight: .bold))
+                        .foregroundStyle(theme.close)
+                        .padding(.horizontal, 9).padding(.vertical, 6)
+                        .background(theme.close.opacity(0.1), in: Capsule())
                 }
                 Spacer(minLength: 0)
-                Label(why.text, systemImage: why.icon)
-                    .font(GhafTypography.body(11, languageCode: lang, weight: .bold))
-                    .foregroundStyle(theme.close)
-                    .padding(.horizontal, 9).padding(.vertical, 6)
-                    .background(theme.close.opacity(0.1), in: Capsule())
-                    .lineLimit(1)
             }
+            .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
             VStack(spacing: 2) {
                 HStack(spacing: 3) {
@@ -218,6 +240,11 @@ struct GhafReviewInboxView: View {
                     ForEach(activeAccounts) { item in
                         Button(item.name) {
                             transaction.accountID = item.id
+                            if let bank = transaction.bank {
+                                let moved = (try? GhafAccountMappings.apply(bank: bank, accountRef: nil, accountID: item.id, context: modelContext)) ?? 0
+                                if moved > 0 { movedSimilar[transaction.id] = moved }
+                                GhafAccountMappings.confirm(transactionID: transaction.id, bank: bank, sender: nil, accountRef: nil, accountID: item.id)
+                            }
                             try? modelContext.save()
                         }
                     }
@@ -251,7 +278,7 @@ struct GhafReviewInboxView: View {
                 }
                 .ghafGlassButton(theme: theme, languageCode: lang)
                 Button {
-                    withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
+                    withAnimation(.easeOut(duration: 0.25)) {
                         transaction.needsReview = false
                         try? modelContext.save()
                     }
@@ -263,6 +290,13 @@ struct GhafReviewInboxView: View {
                 .disabled(account == nil)
             }
             .frame(maxWidth: .infinity)
+            if let moved = movedSimilar[transaction.id], moved > 0 {
+                Text(ar ? "ونُقلت \(GhafLocalization.count(moved, singular: "عملية مشابهة", dual: "عمليتان مشابهتان", plural: "عمليات مشابهة", afterTen: "عملية مشابهة", languageCode: lang))" : "Also moved \(moved) similar transactions")
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .medium))
+                    .foregroundStyle(theme.comfortable)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+            }
             if account == nil {
                 Text(ar ? "اختر الحساب أولاً حتى يُحتسب في الرصيد الصحيح." : "Pick the account first so it counts toward the right balance.")
                     .font(GhafTypography.body(11, languageCode: lang))

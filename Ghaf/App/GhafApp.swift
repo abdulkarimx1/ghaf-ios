@@ -4,6 +4,7 @@ import UIKit
 
 @main
 struct GhafApp: App {
+    @UIApplicationDelegateAdaptor(GhafAppDelegate.self) private var appDelegate
 
     private let modelContainer: ModelContainer
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
@@ -48,5 +49,31 @@ struct GhafApp: App {
                 }
         }
         .modelContainer(modelContainer)
+    }
+}
+
+final class GhafAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        let ar = Locale.current.languageCode == "ar"
+        application.shortcutItems = [
+            UIApplicationShortcutItem(type: "com.ghaf.app.feedback", localizedTitle: ar ? "تحذف غاف؟ أخبرنا بالسبب" : "Deleting? Tell us why",
+                                      localizedSubtitle: ar ? "أرسل ملاحظاتك قبل الحذف" : "Send feedback before you delete",
+                                      icon: UIApplicationShortcutIcon(systemImageName: "square.and.pencil"), userInfo: nil),
+            UIApplicationShortcutItem(type: "com.ghaf.app.goodbye-offer", localizedTitle: ar ? "هدية قبل الرحيل" : "A gift before you go",
+                                      localizedSubtitle: ar ? "خصم ٢٥٪ لمرة واحدة على Pro" : "One-time 25% off Pro",
+                                      icon: UIApplicationShortcutIcon(systemImageName: "gift"), userInfo: nil)
+        ]
+        return true
+    }
+
+    func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem,
+                     completionHandler: @escaping (Bool) -> Void) {
+        let destination = shortcutItem.type == "com.ghaf.app.feedback"
+            ? GhafLinks.instagram
+            : URL(string: "ghaf://pro")!
+        if shortcutItem.type == "com.ghaf.app.goodbye-offer" {
+            UserDefaults.standard.set(true, forKey: "ghaf.pro.offerHighlight")
+        }
+        application.open(destination, options: [:]) { completionHandler($0) }
     }
 }

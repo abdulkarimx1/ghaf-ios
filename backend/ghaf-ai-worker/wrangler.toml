@@ -5,15 +5,21 @@ workers_dev = true
 preview_urls = false
 
 [vars]
-GEMINI_MODEL = "gemini-flash-latest"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
+REASONING_MODEL = "gemini-3.8-flash"
+LIVE_MODEL = "models/gemini-3.8-live"
+TTS_MODEL = "gemini-3.1-flash-tts-preview"
+VOICE_HAMAD = "Orus"
+VOICE_MARIAM = "Kore"
 # Free plan: questions per device per day, and a cap across all devices to protect the free Gemini quota.
 FREE_DAILY_LIMIT = "20"
 GLOBAL_DAILY_LIMIT = "1000"
-LIVE_DAILY_CALLS = "10"
-LIVE_GLOBAL_DAILY_CALLS = "300"
-LIVE_VOICE_AR = "Orus"
-LIVE_VOICE_EN = "Puck"
-TTS_VOICE_AR = "Orus"
+VOICE_GLOBAL_DAILY_LIMIT = "3000"
+SPEAK_DAILY_LIMIT = "10"
+YEARLY_MONTHLY_BUDGET_USD = "1.50"
+TEXT_INPUT_USD_PER_MILLION = "0.10"
+TEXT_OUTPUT_USD_PER_MILLION = "0.40"
+TTS_AUDIO_USD_PER_SECOND = "0.0003"
 # Used when Gemini refuses the request (unsupported region, quota or busy).
 FALLBACK_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 
@@ -24,3 +30,7 @@ binding = "AI"
 [[kv_namespaces]]
 binding = "USAGE"
 id = "b36119d2f2974be9a8dda42ee9b712b5"
+
+[[analytics_engine_datasets]]
+binding = "USAGE_EVENTS"
+dataset = "ghaf_ai_events"

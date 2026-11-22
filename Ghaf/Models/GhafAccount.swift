@@ -50,6 +50,11 @@ final class GhafAccount {
     var openingDate: Date
     var creditLimit: Decimal?
     var lastFourDigits: String?
+    /// Name used by bank-alert matching; stored in the existing migration-safe field.
+    var cardLast4: String? {
+        get { lastFourDigits }
+        set { lastFourDigits = newValue.map { String($0.filter(\.isNumber).suffix(4)) } }
+    }
     var isArchived: Bool
     var isPrimary: Bool
     var sortOrder: Int

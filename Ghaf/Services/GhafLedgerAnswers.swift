@@ -24,7 +24,7 @@ enum GhafLedgerAnswers {
         if let category = matchedCategory(in: q, transactions: transactions, languageCode: languageCode) {
             items = items.filter { $0.isExpense && $0.category == category }
         } else if let merchant = matchedMerchant(in: q, transactions: transactions) {
-            items = items.filter { $0.isExpense && SubscriptionDetector.normalize($0.merchant ?? "") == merchant.key }
+            items = items.filter { $0.isExpense && MerchantName.key(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "") == merchant.key }
         }
         let purchaseQuery = ["spen", "cost", "expense", "purchase", "where", "most", "top", "categor", "breakdown", "chart", "graph",
                              "صرف", "مصروف", "مشتري", "دفعت", "وين", "أكثر", "اكثر", "فئة", "رسم"].contains { q.contains($0) }
@@ -89,12 +89,13 @@ enum GhafLedgerAnswers {
                 return ar ? "لا تجديدات خلال ٣٠ يوماً. اشتراكاتك تكلّف تقريباً \(money(monthly)) شهرياً."
                           : "Nothing renews in the next 30 days. Your subscriptions cost about \(money(monthly)) a month."
             }
-            let list = due.prefix(4).map {
-                "\($0.name) \(money($0.amount, $0.currency)) " + (ar ? "في " : "on ")
-                    + $0.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: languageCode)))
-            }.joined(separator: ar ? "، " : ", ")
-            return ar ? "القادم خلال ٣٠ يوماً: \(list). المجموع الشهري التقريبي \(money(monthly))."
-                      : "Coming up in the next 30 days: \(list). All subscriptions come to about \(money(monthly)) a month."
+            let locale = Locale(identifier: languageCode)
+            let list = due.prefix(4).map { item in
+                let date = item.nextPaymentDate.formatted(.dateTime.day().month(.wide).locale(locale))
+                return "• \(item.name) · \(money(item.amount, item.currency)) · \(date)"
+            }.joined(separator: "\n")
+            return ar ? "القادم خلال ٣٠ يوماً:\n\(list)\nالمجموع الشهري التقريبي: \(money(monthly))."
+                      : "Coming up in the next 30 days:\n\(list)\nAbout \(money(monthly)) a month in total."
         }
 
         let comparing = has(["compare", " vs", "versus", "more than", "less than", "than last", "قارن", "مقارنة", "أكثر من", "اكثر من", "أقل من"])
@@ -107,7 +108,7 @@ enum GhafLedgerAnswers {
             let typical = forecast.typicalMonth.map {
                 ar ? " عادةً تصرف \(money($0)) في الشهر." : " You usually spend \(money($0)) a month."
             } ?? ""
-            return ar ? "بهذا المعدل ستصرف تقريباً \(money(forecast.projected)) بنهاية الشهر. صرفت \(money(forecast.spentSoFar)) حتى الآن وباقي \(forecast.daysLeft) يوم.\(typical)"
+            return ar ? "بهذا المعدل ستصرف تقريباً \(money(forecast.projected)) بنهاية الشهر. صرفت \(money(forecast.spentSoFar)) حتى الآن وباقي \(GhafLocalization.arabicDays(forecast.daysLeft)).\(typical)"
                       : "At this pace you'll spend about \(money(forecast.projected)) by month end. \(money(forecast.spentSoFar)) so far, \(forecast.daysLeft) days left.\(typical)"
         }
 
@@ -133,7 +134,7 @@ enum GhafLedgerAnswers {
         }
 
         if let merchant = matchedMerchant(in: q, transactions: inCurrency) {
-            let items = spending.filter { SubscriptionDetector.normalize($0.merchant ?? "") == merchant.key }
+            let items = spending.filter { MerchantName.key(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "") == merchant.key }
             let total = items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
             return ar ? "صرفت \(money(total)) عند \(merchant.name) \(label) في \(items.count) عملية."
                       : "You spent \(money(total)) at \(merchant.name) \(label), across \(items.count) transactions."
@@ -156,8 +157,23 @@ enum GhafLedgerAnswers {
                 return ar ? "لا مصاريف \(label)." : "No spending \(label)."
             }
             let date = top.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: languageCode)))
-            return ar ? "أكبر عملية \(label): \(top.merchant ?? GhafLocalization.category(top.category, languageCode: languageCode)) بمبلغ \(money(top.amount)) في \(date)."
-                      : "Your biggest purchase \(label) was \(top.merchant ?? top.category) for \(money(top.amount)) on \(date)."
+            let merchantName = GhafMerchantAliasStore.displayName(top.rawMerchant ?? top.merchant) ?? GhafLocalization.category(top.category, languageCode: languageCode)
+            return ar ? "أكبر عملية \(label): \(merchantName) بمبلغ \(money(top.amount)) في \(date)."
+                      : "Your biggest purchase \(label) was \(merchantName) for \(money(top.amount)) on \(date)."
+        }
+
+        if has(["merchant", "store", "shop", "shops", "trader", "تاجر", "التجار", "متجر", "محل"]),
+           has(["most", "top", "where", "أكثر", "اكثر", "وين", "أين"]) {
+            let grouped = Dictionary(grouping: spending.filter { !(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "").isEmpty }) {
+                MerchantName.key(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "")
+            }
+            let rows = grouped.values.map { items -> (String, Decimal) in
+                (GhafMerchantAliasStore.displayName(items[0].rawMerchant ?? items[0].merchant) ?? "", items.reduce(Decimal.zero) { $0 + $1.spendingAmount })
+            }.sorted { $0.1 > $1.1 }.prefix(4)
+            guard !rows.isEmpty else { return ar ? "لا توجد متاجر مسجلة \(label)." : "No merchants are recorded \(label)." }
+            let list = rows.map { "• \($0.0) · \(money($0.1))" }.joined(separator: "\n")
+            return ar ? "أكثر المتاجر إنفاقاً \(label):\n\(list)\nإجمالي المصروف: \(money(spent))."
+                      : "Top merchants \(label):\n\(list)\nTotal spending: \(money(spent))."
         }
 
         if has(["income", "earn", "salary", "received", "دخل", "راتب", "استلمت"]) {
@@ -174,10 +190,10 @@ enum GhafLedgerAnswers {
             guard spent > 0, !byCategory.isEmpty else { return ar ? "لا مصاريف \(label) بعد." : "No spending \(label) yet." }
             let parts = byCategory.map { item -> String in
                 let share = Int((NSDecimalNumber(decimal: item.value / spent).doubleValue * 100).rounded())
-                return "\(GhafLocalization.category(item.key, languageCode: languageCode)) \(money(item.value)) (\(share)%)"
-            }.joined(separator: ar ? "، " : ", ")
-            return ar ? "من أصل \(money(spent)) \(label)، ذهب أغلبها إلى: \(parts)."
-                      : "Of the \(money(spent)) you spent \(label), most went to \(parts)."
+                return "• \(GhafLocalization.category(item.key, languageCode: languageCode)) · \(money(item.value)) · \(share)%"
+            }.joined(separator: "\n")
+            return ar ? "أعلى الفئات \(label):\n\(parts)\nإجمالي المصروف: \(money(spent))."
+                      : "Top categories \(label):\n\(parts)\nTotal spending: \(money(spent))."
         }
 
         if has(["spen", "spent", "cost", "صرف", "مصروف", "دفعت", "كم"]) {
@@ -290,7 +306,7 @@ enum GhafLedgerAnswers {
     static func matchedMerchant(in q: String, transactions: [GhafTransaction]) -> (key: String, name: String)? {
         var seen: [String: String] = [:]
         for item in transactions where item.isExpense {
-            guard let name = item.merchant else { continue }
+            guard let name = GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) else { continue }
             let key = MerchantName.key(name)
             if key.count >= 3, seen[key] == nil { seen[key] = name }
         }

@@ -114,19 +114,30 @@ struct GhafWalletStack: View {
 
     private func recent(_ account: GhafAccount) -> some View {
         let own = transactions.filter { $0.accountID == account.id }.sorted { $0.date > $1.date }.prefix(3)
-        return Group {
+        return VStack(spacing: 0) {
             if !own.isEmpty {
                 VStack(spacing: 0) {
-                    ForEach(own, id: \.id) { item in
+                    ForEach(0..<3, id: \.self) { index in
+                        if own.indices.contains(index) {
+                            let item = own[index]
                         GhafTransactionRow(transaction: item, theme: theme, languageCode: languageCode)
                             .frame(minHeight: 58)
-                        if item.id != own.last?.id { Divider().overlay(theme.outline).padding(.leading, 58) }
+                            if index < 2 { Divider().overlay(theme.outline).padding(.leading, 58) }
+                        } else {
+                            Color.clear.frame(height: 58)
+                        }
                     }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 6)
-                .ghafCard(theme: theme, radius: 22)
+            } else {
+                Text(ar ? "لا توجد عمليات بعد" : "No transactions yet")
+                    .font(GhafTypography.body(14, languageCode: languageCode))
+                    .foregroundStyle(theme.secondaryText)
+                    .frame(maxWidth: .infinity, minHeight: 174)
             }
         }
+        .frame(height: 186)
+        .padding(.horizontal, 16).padding(.vertical, 6)
+        .ghafCard(theme: theme, radius: 22)
     }
 }
 
@@ -140,10 +151,12 @@ private struct GhafWalletCarousel: View {
     let onEdit: (GhafAccount) -> Void
     let onMove: (GhafAccount, Int) -> Void
     @GestureState private var dragOffset: CGFloat = 0
+    @State private var dragOriginIndex: Int?
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
     private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
     private var cardHeight: CGFloat { width / 1.586 }
+    private var step: CGFloat { width * 0.6 }
 
     var body: some View {
         ZStack {
@@ -158,19 +171,26 @@ private struct GhafWalletCarousel: View {
                         walletCard(account, at: itemIndex)
                     }
                 }
-                .offset(x: (geometry.size.width - width) / 2 - CGFloat(index) * width * 0.6 + dragOffset)
+                .offset(x: (geometry.size.width - width) / 2 - CGFloat(dragOriginIndex ?? index) * step + dragOffset)
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 12)
                     .updating($dragOffset) { value, state, _ in state = value.translation.width }
+                    .onChanged { value in
+                        if dragOriginIndex == nil { dragOriginIndex = index }
+                        guard let origin = dragOriginIndex else { return }
+                        let preview = min(max(origin + Int((-value.translation.width / step).rounded()), 0), accounts.count - 1)
+                        if accounts.indices.contains(preview), selectedID != accounts[preview].id {
+                            withTransaction(Transaction(animation: nil)) { selectedID = accounts[preview].id }
+                        }
+                    }
                     .onEnded { value in
                         // Follow the finger: a long drag or fast flick moves several cards (owner rule), using the
                         // predicted end so momentum counts; one card is 0.6 × width of travel.
-                        let step = width * 0.6
+                        let origin = dragOriginIndex ?? index
                         let travel = value.predictedEndTranslation.width
-                        guard abs(travel) > width * 0.18 else { return }
-                        let moved = max(1, Int((abs(travel) / step).rounded()))
-                        let next = min(max(index + (travel < 0 ? moved : -moved), 0), accounts.count - 1)
-                        withAnimation(deckAnimation) { selectedID = accounts[next].id }
+                        let moved = Int((-travel / step).rounded())
+                        let next = min(max(origin + moved, 0), accounts.count - 1)
+                        withAnimation(deckAnimation) { selectedID = accounts[next].id; dragOriginIndex = nil }
                     })
             }
             .frame(height: cardHeight + 50)
@@ -189,8 +209,7 @@ private struct GhafWalletCarousel: View {
         let delta = itemIndex - index
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
-            // Shrink side cards from the top edge so every card's top sits on the same line (owner).
-            .scaleEffect(delta == 0 ? 1 : 0.9, anchor: .top)
+            .scaleEffect(delta == 0 ? 1 : 0.9, anchor: .center)
             .zIndex(Double(-abs(delta)))
             .frame(width: width, height: cardHeight)
             .frame(width: width, height: cardHeight + 50)

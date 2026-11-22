@@ -266,16 +266,18 @@ struct GhafRecentWidget: Widget {
     static let kind = "GhafRecent"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafRecentConfig.self, provider: GhafConfigProvider<GhafRecentConfig>(kind: Self.kind)) { entry in
-            GhafRecentView(entry: entry).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+            GhafRecentView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Latest transaction")
         .description("The last purchase or deposit Ghaf recorded, from a bank message, a shortcut or by hand.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }
 
 struct GhafRecentView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafRecentConfig>
 
     var body: some View {
@@ -375,12 +377,14 @@ struct GhafSpendingWidget: Widget {
         }
         .configurationDisplayName("Spending")
         .description("Today, this week or this month. Tap Day, Week or Month to switch.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
 struct GhafSpendingView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafSpendingConfig>
 
     var body: some View {
@@ -443,16 +447,18 @@ struct GhafBudgetWidget: Widget {
     static let kind = "GhafBudget"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBudgetConfig.self, provider: GhafConfigProvider<GhafBudgetConfig>(kind: Self.kind)) { entry in
-            GhafBudgetView(entry: entry).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+            GhafBudgetWidgetView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Budget")
         .description("How much of your budget is left, from your Budget settings in Ghaf.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular])
     }
 }
 
-struct GhafBudgetView: View {
-    @Environment(\.widgetFamily) private var family
+struct GhafBudgetWidgetView: View {
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafBudgetConfig>
 
     var body: some View {
@@ -551,16 +557,18 @@ struct GhafCategoriesWidget: Widget {
     static let kind = "GhafCategories"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafCategoriesConfig.self, provider: GhafConfigProvider<GhafCategoriesConfig>(kind: Self.kind)) { entry in
-            GhafCategoriesView(entry: entry).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+            GhafCategoriesView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
         }
         .configurationDisplayName("Where it went")
         .description("Your top spending categories. Tap Day, Week or Month to switch.")
-        .supportedFamilies([.systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
 struct GhafCategoriesView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafCategoriesConfig>
 
     var body: some View {
@@ -635,12 +643,14 @@ struct GhafBillsWidget: Widget {
         }
         .configurationDisplayName("Upcoming payments")
         .description("Subscriptions due soon. A reminder is not a payment: Ghaf records it when the charge arrives.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
     }
 }
 
 struct GhafBillsView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafBillsConfig>
 
     var body: some View {

@@ -3,7 +3,9 @@ import SwiftUI
 import ActivityKit
 import UIKit
 
+#if WIDGET_EXTENSION
 @main
+#endif
 struct GhafWidgetBundle: WidgetBundle {
     var body: some Widget {
         GhafBalanceWidget()
@@ -14,7 +16,35 @@ struct GhafWidgetBundle: WidgetBundle {
         GhafCategoriesWidget()
         GhafBillsWidget()
         GhafTrendsWidget()
+        GhafQuickAddWidget()
+        GhafAskWidget()
+        GhafMoneyTipWidget()
         GhafPurchaseLiveActivity()
+    }
+}
+
+/// Pro entitlement is shared through the app group so the extension can gate premium content.
+enum GhafWidgetProAccess {
+    static let key = "ghaf.pro.unlocked"
+    static var unlocked: Bool {
+        GhafWidgetSnapshot.groupIDs.contains { UserDefaults(suiteName: $0)?.bool(forKey: key) == true }
+    }
+}
+
+struct GhafWidgetProLock: ViewModifier {
+    let required: Bool
+    func body(content: Content) -> some View {
+        if required && !GhafWidgetProAccess.unlocked {
+            content.blur(radius: 8).overlay {
+                Link(destination: URL(string: "ghaf://pro")!) {
+                    VStack(spacing: 5) {
+                        Text("Pro").font(.system(size: 15, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 12).padding(.vertical, 6).background(ink, in: Capsule())
+                        Text("Unlock with Ghaf Pro").font(.system(size: 11, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                    }.foregroundStyle(.white).padding(8).background(ink.opacity(0.96), in: Capsule())
+                }
+            }
+        } else { content }
     }
 }
 
@@ -164,12 +194,14 @@ struct GhafBalanceWidget: Widget {
         }
         .configurationDisplayName("Balance")
         .description("Your total balance and this week's spending.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }
 
 struct GhafBalanceView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafBalanceConfig>
 
     var body: some View {
@@ -230,17 +262,19 @@ struct GhafTodayWidget: Widget {
     static let kind = "GhafToday"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>(kind: Self.kind)) { entry in
-            GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+            GhafTodayView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
                 .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.snapshot?.glass ?? false) }
         }
         .configurationDisplayName("Today")
         .description("What you spent today, by category.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
     }
 }
 
 struct GhafTodayView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var systemFamily
+    var galleryFamily: WidgetFamily? = nil
+    private var family: WidgetFamily { galleryFamily ?? systemFamily }
     let entry: GhafConfigEntry<GhafTodayConfig>
 
     /// The snapshot with today's numbers swapped for the week's or month's, when the widget has been tapped on.

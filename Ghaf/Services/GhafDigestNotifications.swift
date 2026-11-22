@@ -98,7 +98,7 @@ enum GhafDigestNotifications {
         guard needsReview else { return }
         let ar = languageCode == "ar"
         let amount = GhafFormat.balancesHidden ? GhafMoneyLabel.mask : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
-        let merchant = transaction.merchant.map(MerchantName.clean)
+        let merchant = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
             ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
         GhafEventNotifications.record(
             key: "transaction-review-\(transaction.id.uuidString)", kind: .transactionReview,
@@ -159,7 +159,10 @@ enum GhafDigestNotifications {
             }
         }
 
-        let monthlyIncome = settings.salaryEnabled == true ? (settings.salaryAmount ?? settings.monthlyIncome) : settings.monthlyIncome
+        let salaryCurrency = settings.salaryCurrency ?? settings.currency
+        let monthlyIncome = settings.salaryEnabled == true && salaryCurrency == settings.currency
+            ? (settings.salaryAmount ?? settings.monthlyIncome)
+            : settings.monthlyIncome
         for bucket in [BudgetAllocation.Bucket.needs, .wants] where monthlyIncome > 0 {
             let name = ar ? (bucket == .needs ? "الاحتياجات" : "الرغبات") : (bucket == .needs ? "Needs" : "Wants")
             let key = "ghaf.budget.observed.\(monthKey).bucket.\(bucket.rawValue)"

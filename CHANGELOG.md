@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.28 (42)
+
+### English
+- Ghaf AI speaks with a voice you choose, Hamad or Mariam, in English and Arabic. Tap the orb, talk in either language, and Ghaf answers in the same voice. Answers with several items now show as a tidy list.
+- Notifications is now Activity, with a small dot when something needs you. Items open on tap, and confirmed ones leave the list.
+- Bank alerts learn your accounts: confirm an account once and the next alert from that card lands there. Accounts get an optional "Card ending" field.
+- Your merchant renames now show everywhere, including new bank alerts, with the option to rename past transactions too.
+- Wallet cards preview while you drag; hiding balances animates without moving anything; tabs switch with a short slide.
+- Subscriptions are recognised up to 15 days early for monthly and yearly plans, and Ghaf asks before counting a payment.
+- Salary can have its own currency. Budget presets have names: The Hero, The Strategist, The Explorer and The Guardian.
+- Fixes: Excel (CSV) files import correctly, same-day purchases are no longer merged, restoring an older backup keeps your newer settings, and spoken amounts are rounded the way a person would say them.
+- Privacy policy updated: Ghaf AI keeps anonymous statistics only for fair-use limits and cost, never your questions or financial data.
+
+### العربية
+- يتكلم ذكاء غاف بالصوت الذي تختاره، حمد أو مريم، بالعربية والإنجليزية. اضغط على الكرة وتكلم بأي من اللغتين، ويجيبك غاف بالصوت نفسه. وتظهر الإجابات التي فيها عدة عناصر في قائمة مرتبة.
+- أصبح اسم الإشعارات «النشاط»، مع نقطة صغيرة عندما يحتاج شيء إلى انتباهك. تفتح العناصر بلمسة، وتختفي العناصر التي أكدتها.
+- يتعلم غاف حساباتك من رسائل البنك: أكّد الحساب مرة واحدة، وستذهب الرسالة التالية من البطاقة نفسها إليه تلقائياً. ويمكنك إضافة آخر أربعة أرقام للبطاقة إلى الحساب.
+- يظهر الاسم الذي اخترته للمتجر في كل مكان، حتى في رسائل البنك الجديدة، مع خيار تغيير اسم العمليات السابقة.
+- تتحرك بطاقات المحفظة مع إصبعك وتعرض تفاصيلها فوراً، وإخفاء الأرصدة صار متحركاً دون أن يتغير شيء في الشاشة، والتنقل بين التبويبات أنعم.
+- يتعرف غاف على الاشتراكات الشهرية والسنوية قبل موعدها بـ١٥ يوماً، ويسألك قبل احتساب الدفعة.
+- يمكن أن يكون للراتب عملة خاصة به. ولخطط الميزانية أسماء: البطل، والمخطط، والمستكشف، والحارس.
+- إصلاحات: استيراد ملفات Excel (CSV) يعمل بشكل صحيح، ولا تُدمج المشتريات المتشابهة في اليوم نفسه، واستعادة نسخة احتياطية قديمة تحافظ على إعداداتك الأحدث، وتُنطق المبالغ مقرّبة كما يقولها الناس.
+- تحديث سياسة الخصوصية: يحتفظ ذكاء غاف بإحصاءات مجهولة فقط لحدود الاستخدام العادل ومعرفة التكلفة، ولا يحتفظ أبداً بأسئلتك أو بياناتك المالية.
+
 ## 1.27 (41)
 
 ### English
