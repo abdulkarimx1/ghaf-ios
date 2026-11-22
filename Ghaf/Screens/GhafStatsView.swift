@@ -305,6 +305,23 @@ struct GhafStatsView: View {
         }
     }
 
+    @ChartContentBuilder
+    private func actualTrendMark(_ bucket: Bucket) -> some ChartContent {
+        if period == .month {
+            BarMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total), width: .fixed(6))
+                .foregroundStyle(theme.accent)
+        } else {
+            AreaMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
+                .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.18), theme.accent.opacity(0)], startPoint: .top, endPoint: .bottom))
+                .interpolationMethod(.catmullRom)
+            LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
+                .foregroundStyle(theme.accent)
+                .interpolationMethod(.catmullRom)
+                .symbolSize(0)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        }
+    }
+
     /// One card in the theme's surface, Stocks style: the total (or the scrubbed point), the change against the previous
     /// period, a line you drag across, and the period chips under it. Every value comes from the ledger.
     private func trendHero(_ all: [Bucket], current: [GhafTransaction], previous: [GhafTransaction]) -> some View {
@@ -351,14 +368,7 @@ struct GhafStatsView: View {
                 let isSelected = selected?.id == bucket.id
                 let pointOpacity = isSelected ? 1.0 : 0.0
                 if bucket.start <= .now {
-                    AreaMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(LinearGradient(colors: [accent.opacity(0.18), accent.opacity(0)], startPoint: .top, endPoint: .bottom))
-                        .interpolationMethod(.catmullRom)
-                    LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                        .foregroundStyle(accent)
-                        .interpolationMethod(.catmullRom)
-                        .symbolSize(0)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    actualTrendMark(bucket)
                     PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                         .symbol { Circle().fill(accent).frame(width: isSelected ? 10 : 0, height: isSelected ? 10 : 0) }
                         .foregroundStyle(accent.opacity(pointOpacity))
@@ -437,9 +447,7 @@ struct GhafStatsView: View {
                 let labels: [String] = switch period {
                 case .week: plotted.map { chartKey($0.start) }
                 case .month:
-                    plotted.enumerated().compactMap { index, bucket in
-                        index.isMultiple(of: 7) || index == plotted.count - 1 ? chartKey(bucket.start) : nil
-                    }
+                    plotted.filter { [1, 8, 15, 22].contains(calendar.component(.day, from: $0.start)) }.map { chartKey($0.start) }
                 case .quarter:
                     plotted.enumerated().compactMap { index, bucket in
                         index == 0 || calendar.component(.month, from: bucket.start) != calendar.component(.month, from: plotted[index - 1].start)
