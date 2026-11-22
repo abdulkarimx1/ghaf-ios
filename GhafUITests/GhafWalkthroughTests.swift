@@ -231,6 +231,35 @@ extension GhafWalkthroughTests {
 }
 
 extension GhafWalkthroughTests {
+    func testSessionFUnreadTransactionsTabIndicatorPersistsUntilOpened() {
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafUITestInjectUnread"]
+        app.launch()
+        let transactionsTab = app.tabBars.buttons["Transactions"]
+        XCTAssertTrue(transactionsTab.waitForExistence(timeout: 20))
+        XCTAssertEqual(transactionsTab.value as? String, "New transaction")
+        XCTAssertTrue(app.otherElements["transactions-unread-dot"].exists)
+
+        app.terminate()
+        app = XCUIApplication()
+        app.launch()
+        let reopenedTab = app.tabBars.buttons["Transactions"]
+        XCTAssertTrue(reopenedTab.waitForExistence(timeout: 20))
+        XCTAssertEqual(reopenedTab.value as? String, "New transaction", "Unread state must persist while Transactions stays unopened")
+
+        reopenedTab.tap()
+        let predicate = NSPredicate(format: "value == %@", "")
+        expectation(for: predicate, evaluatedWith: reopenedTab)
+        waitForExpectations(timeout: 8)
+        XCTAssertFalse(app.otherElements["transactions-unread-dot"].exists)
+
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafUITestCleanupUnread"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+    }
+
     func testRestoreBackupOpensTransactionsWithRealData() throws {
         guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
                 ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"] else {

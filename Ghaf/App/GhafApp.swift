@@ -8,6 +8,7 @@ struct GhafApp: App {
 
     private let modelContainer: ModelContainer
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
+    @State private var handledUnreadUITestHook = false
 
     init() {
 #if DEBUG
@@ -47,9 +48,29 @@ struct GhafApp: App {
                     GhafWidgetSync.refresh(context: modelContainer.mainContext)
                     if hidden { Task { await GhafWidgetSync.endAll() } }
                 }
+                .onAppear { runUnreadUITestHookIfRequested() }
         }
         .modelContainer(modelContainer)
     }
+
+#if DEBUG
+    @MainActor
+    private func runUnreadUITestHookIfRequested() {
+        guard !handledUnreadUITestHook else { return }
+        handledUnreadUITestHook = true
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-GhafUITestInjectUnread") {
+            let message = "Mashreq: AED 8.00 was debited from card ending 1234 at Session F Test Cafe."
+            _ = try? TransactionIngestionService(context: modelContainer.mainContext).ingest(messageText: message, sender: "Mashreq")
+        }
+        if arguments.contains("-GhafUITestCleanupUnread") {
+            let testTransactions = (try? modelContainer.mainContext.fetch(FetchDescriptor<GhafTransaction>())) ?? []
+            testTransactions.filter { $0.merchant == "Session F Test Cafe" || $0.rawMerchant == "Session F Test Cafe" }
+                .forEach(modelContainer.mainContext.delete)
+            try? modelContainer.mainContext.save()
+        }
+    }
+#endif
 }
 
 final class GhafAppDelegate: NSObject, UIApplicationDelegate {
