@@ -811,7 +811,10 @@ extension GhafWalkthroughTests {
     func testSessionIMerchantAliasProof() {
         launch()
         app.tabBars.buttons["Transactions"].tap()
-        let rawRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'SHAY AL NASHAMA'" )).firstMatch
+        // Real backups have hundreds of rows; search so the row is on screen whatever its date.
+        let search = app.textFields["Search merchant, category or bank"]
+        if search.waitForExistence(timeout: 5) { search.tap(); search.typeText("nashama"); app.keyboards.buttons["search"].firstMatch.tapIfExists() }
+        let rawRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'NASHAMA'" )).firstMatch
         XCTAssertTrue(rawRow.waitForExistence(timeout: 10))
         snap("i-merchant-before-list")
         rawRow.tap()
@@ -1167,4 +1170,8 @@ extension GhafWalkthroughTests {
         app.swipeUp()
         snap("k-grouped-learned-merchants")
     }
+}
+
+extension XCUIElement {
+    func tapIfExists() { if exists { tap() } }
 }
