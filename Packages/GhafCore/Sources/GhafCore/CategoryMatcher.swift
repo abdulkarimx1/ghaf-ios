@@ -104,7 +104,11 @@ public enum CategoryMatcher {
 
     private static func contains(_ padded: String, _ name: String) -> Bool {
         let word = normalize(name)
-        return !word.isEmpty && padded.contains(" \(word) ")
+        return !word.isEmpty && containsToken(padded, word)
+    }
+
+    private static func containsToken(_ padded: String, _ word: String) -> Bool {
+        padded.contains(" \(word) ") || padded.contains(" ال\(word) ")
     }
 
     private typealias Hit = (category: CategoryTaxonomy.Category, sub: CategoryTaxonomy.Subcategory)
@@ -116,7 +120,7 @@ public enum CategoryMatcher {
             for sub in category.subcategories {
                 for word in sub.words {
                     let key = normalize(word)
-                    guard !key.isEmpty, padded.contains(" \(key) "), key.count > (best?.length ?? 0) else { continue }
+                    guard !key.isEmpty, containsToken(padded, key), key.count > (best?.length ?? 0) else { continue }
                     best = ((category, sub), key.count)
                 }
             }

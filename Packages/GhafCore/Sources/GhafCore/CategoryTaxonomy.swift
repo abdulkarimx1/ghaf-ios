@@ -11,6 +11,8 @@ public enum CategoryTaxonomy {
         public let words: [String]
     }
 
+    public enum Kind: Equatable { case expense, income, transfer }
+
     public struct Category {
         public let name: String
         public let arabic: String
@@ -20,18 +22,31 @@ public enum CategoryTaxonomy {
         public let aliases: [String]
         public let subcategories: [Subcategory]
         public let isIncome: Bool
+        public var kind: Kind {
+            if name == "Transfers" { return .transfer }
+            return isIncome ? .income : .expense
+        }
     }
 
     static func sub(_ name: String, _ arabic: String, _ words: [String]) -> Subcategory {
         Subcategory(name: name, arabic: arabic, words: words)
     }
 
+    public static let transferSubcategories: [Subcategory] = [
+        sub("Friends & family", "الأصدقاء والعائلة", ["family transfer", "friend transfer", "friends and family", "تحويل للأهل", "تحويل للعائلة", "تحويل لصديق"]),
+        sub("Business", "الأعمال", ["business transfer", "company transfer", "تحويل تجاري", "تحويل للشركة"]),
+        sub("Lending", "الإقراض", ["lend", "lending", "loan to", "أقرض", "إقراض", "سلفة"]),
+        sub("Savings", "الادخار", ["savings transfer", "تحويل للادخار", "ادخار"]),
+        sub("Between my accounts", "بين حساباتي", ["own account", "between accounts", "تحويل بين حساباتي"]),
+        sub("Remittance abroad", "حوالة خارجية", ["remittance", "international transfer", "حوالة خارجية", "حوالة دولية"])
+    ]
+
     public static let all: [Category] = [
         Category(name: "Food & Dining", arabic: "الطعام والمطاعم", icon: "fork.knife", color: "orange",
                  aliases: ["Food", "Dining", "Restaurants", "Eating out"], subcategories: [
             sub("Restaurants", "مطاعم", ["restaurant", "dinner out", "mandi", "biryani", "machboos", "majboos", "sushi", "steak", "مطعم", "مندي", "برياني", "مجبوس", "كبسة"]),
             sub("Cafés & Karak", "مقاهي وكرك", ["cafe", "coffee", "karak", "chai", "latte", "starbucks", "tim hortons", "costa", "caribou", "dunkin", "قهوة", "كرك", "شاي", "كافيه", "كوفي", "مقهى"]),
-            sub("Cafeteria", "كافتيريا", ["cafeteria", "sandwich", "shawarma", "falafel", "paratha", "كافتيريا", "شاورما", "فلافل", "ساندويش", "سندويش", "براتا"]),
+            sub("Cafeteria", "كافتيريا", ["cafeteria", "tea shop", "tea house", "tea stall", "sandwich", "shawarma", "falafel", "paratha", "شاي", "محل شاي", "كافتيريا", "شاورما", "فلافل", "ساندويش", "سندويش", "براتا"]),
             sub("Fast food", "وجبات سريعة", ["burger", "pizza", "fries", "mcdonalds", "kfc", "hardees", "burger king", "subway", "popeyes", "شيك شاك", "برجر", "بيتزا", "ماكدونالدز", "هرفي", "البيك", "albaik", "herfy"]),
             sub("Delivery", "توصيل", ["talabat", "deliveroo", "noon food", "careem food", "hungerstation", "jahez", "keeta", "طلبات", "هنقرستيشن", "جاهز", "كيتا", "ديليفرو"]),
             sub("Breakfast", "فطور", ["breakfast", "فطور", "ريوق"]),
@@ -56,7 +71,7 @@ public enum CategoryTaxonomy {
             sub("Garage & Service", "صيانة وكراج", ["garage", "service", "oil change", "mechanic", "repair", "battery", "tyres", "tires", "كراج", "قراج", "ورشة", "صيانة", "زيت", "تواير", "كفرات", "بطارية"]),
             sub("Fines", "مخالفات", ["fine", "fines", "traffic fine", "radar", "مخالفة", "مخالفات", "رادار", "ساهر"]),
             sub("Rental", "تأجير", ["rental", "rent a car", "car rent", "hertz", "avis", "ekar", "تأجير", "إيجار سيارة", "ايجار سيارة"]),
-            sub("Insurance & Registration", "تأمين وتسجيل", ["car insurance", "registration", "mulkiya", "istimara", "renewal", "تأمين", "تسجيل", "ملكية", "استمارة", "تجديد"]),
+            sub("Insurance & Registration", "تأمين وتسجيل", ["car insurance", "registration", "mulkiya", "istimara", "renewal", "تأمين سيارة", "تسجيل", "ملكية", "استمارة", "تجديد"]),
             sub("Accident & Repairs", "حادث وإصلاح", ["accident", "body shop", "dent", "حادث", "صدمة", "سمكرة"]),
             sub("Taxi & Rides", "تاكسي", ["taxi", "uber", "careem", "bolt", "yango", "تاكسي", "اوبر", "أوبر", "كريم", "يانغو"]),
             sub("Metro & Bus", "مترو وحافلات", ["metro", "bus", "tram", "nol", "hafilat", "مترو", "باص", "حافلة", "نول", "حافلات"])
@@ -64,10 +79,11 @@ public enum CategoryTaxonomy {
         Category(name: "Housing", arabic: "السكن", icon: "house.fill", color: "teal",
                  aliases: ["Home", "Rent", "House"], subcategories: [
             sub("Rent", "إيجار", ["rent", "home rent", "ejari", "tawtheeq", "إيجار", "ايجار", "اجار", "ايجار البيت"]),
-            sub("Maintenance", "صيانة المنزل", ["plumber", "electrician", "ac service", "ac repair", "handyman", "سباك", "كهربائي", "صيانة مكيف", "تصليح"]),
+            sub("Maintenance", "صيانة المنزل", ["plumber", "electrician", "ac service", "ac repair", "handyman", "maintenance", "صيانة", "سباك", "كهربائي", "صيانة مكيف", "تصليح"]),
             sub("Furniture & Home", "أثاث ومنزل", ["furniture", "ikea", "home centre", "home center", "pan emirates", "أثاث", "ايكيا", "هوم سنتر", "مفروشات"]),
             sub("Cleaning & Maid", "تنظيف وعاملة", ["cleaning", "maid", "housekeeping", "justlife", "تنظيف", "خادمة", "شغالة", "عاملة"]),
-            sub("Laundry", "مغسلة", ["laundry", "dry clean", "ironing", "مغسلة ملابس", "كوي", "دراي كلين", "لوندري"])
+            sub("Laundry", "مغسلة", ["laundry", "dry clean", "ironing", "مغسلة ملابس", "كوي", "دراي كلين", "لوندري"]),
+            sub("Gardening", "تنسيق حدائق", ["gardening", "gardener", "garden service", "nursery", "plant shop", "مشتل", "حديقة", "تنسيق حدائق", "بستنة"])
         ], isIncome: false),
         Category(name: "Bills & Utilities", arabic: "الفواتير والخدمات", icon: "lightbulb.fill", color: "yellow",
                  aliases: ["Utilities", "Bills"], subcategories: [
@@ -80,12 +96,13 @@ public enum CategoryTaxonomy {
                  aliases: ["Health", "Medical", "Wellness"], subcategories: [
             sub("Pharmacy & Meds", "صيدلية وأدوية", ["pharmacy", "medicine", "meds", "aster", "boots", "life pharmacy", "nahdi", "al dawaa", "صيدلية", "دواء", "أدوية", "ادوية", "علاج", "النهدي", "الدواء"]),
             sub("Hospital", "مستشفى", ["hospital", "emergency", "er", "مستشفى", "طوارئ"]),
-            sub("Clinic & Checkups", "عيادة وفحوصات", ["clinic", "doctor", "checkup", "check up", "consultation", "lab", "blood test", "x ray", "عيادة", "دكتور", "طبيب", "فحص", "تحاليل", "مختبر", "كشفية"]),
+            sub("Clinic & Checkups", "عيادة وفحوصات", ["clinic", "doctor", "checkup", "check up", "consultation", "lab", "x ray", "عيادة", "دكتور", "طبيب", "فحص", "تحاليل", "مختبر", "كشفية"]),
             sub("Dental", "أسنان", ["dentist", "dental", "teeth", "braces", "أسنان", "اسنان", "تقويم"]),
             sub("Optical", "بصريات", ["optician", "glasses", "lenses", "eyewear", "نظارات", "عدسات", "نظارة"]),
             sub("Spa & Relaxation", "سبا واسترخاء", ["spa", "massage", "relaxation", "hammam", "sauna", "moroccan bath", "سبا", "مساج", "حمام مغربي", "استرخاء", "ساونا"]),
             sub("Barber & Salon", "حلاق وصالون", ["barber", "haircut", "salon", "nails", "beauty", "حلاق", "حلاقة", "صالون", "مشغل", "أظافر"]),
-            sub("Health insurance", "تأمين صحي", ["health insurance", "daman", "bupa", "تأمين صحي", "ضمان"])
+            sub("Health insurance", "تأمين صحي", ["health insurance", "daman", "bupa", "تأمين صحي", "ضمان"]),
+            sub("Lab tests", "تحاليل مخبرية", ["lab test", "blood test", "bloodwork", "laboratory", "تحليل", "تحليل دم", "فحص دم", "تحاليل", "مختبر"])
         ], isIncome: false),
         Category(name: "Sports & Fitness", arabic: "الرياضة واللياقة", icon: "figure.run", color: "green",
                  aliases: ["Sports", "Fitness", "Gym"], subcategories: [
@@ -164,6 +181,14 @@ public enum CategoryTaxonomy {
             sub("Remittance & Exchange", "حوالات وصرافة", ["remittance", "exchange", "al ansari", "lulu exchange", "western union", "حوالة", "صرافة", "الأنصاري"]),
             sub("Investments & Savings", "استثمار وادخار", ["investment", "stocks", "sarwa", "savings", "استثمار", "أسهم", "ادخار"])
         ], isIncome: false),
+        Category(name: "Insurance", arabic: "التأمين", icon: "shield.lefthalf.filled", color: "blue",
+                 aliases: ["Insurance"], subcategories: [
+            sub("Health insurance", "تأمين صحي", ["health insurance", "medical insurance", "daman", "bupa", "تأمين صحي", "ضمان"]),
+            sub("Home insurance", "تأمين المنزل", ["home insurance", "house insurance", "تأمين المنزل"]),
+            sub("Life insurance", "تأمين على الحياة", ["life insurance", "تأمين الحياة"]),
+            sub("Travel insurance", "تأمين السفر", ["travel insurance", "تأمين سفر", "تأمين السفر"]),
+            sub("Insurance", "التأمين", ["insurance", "تأمين"])
+        ], isIncome: false),
         Category(name: "Pets", arabic: "الحيوانات الأليفة", icon: "pawprint.fill", color: "orange",
                  aliases: ["Pets"], subcategories: [
             sub("Pet food", "طعام حيوانات", ["pet food", "cat food", "dog food", "أكل قطط", "أكل كلاب"]),
@@ -178,21 +203,74 @@ public enum CategoryTaxonomy {
         ], isIncome: true),
         Category(name: "Other Income", arabic: "دخل آخر", icon: "arrow.down.circle.fill", color: "green",
                  aliases: ["Other Income", "Income"], subcategories: [
-            sub("Freelance & Business", "عمل حر", ["freelance", "client", "business income", "عمل حر", "مشروع"]),
+            sub("Freelance", "عمل حر", ["freelance", "freelancer", "client", "عمل حر", "عمل مستقل"]),
+            sub("Business", "الأعمال", ["business income", "company income", "دخل تجاري", "إيراد شركة", "أعمال"]),
             sub("Refunds", "مسترجعات", ["refund", "cashback", "reimbursement", "استرجاع", "استرداد", "كاش باك"]),
             sub("Profits & Dividends", "أرباح", ["profit", "dividend", "returns", "أرباح", "ارباح"]),
-            sub("Rental income", "دخل إيجار", ["rental income", "tenant", "دخل إيجار"]),
+            sub("Rent received", "دخل إيجار", ["rental income", "rent received", "tenant", "دخل إيجار", "إيجار مستلم"]),
             sub("Gifts received", "هدايا مستلمة", ["gift received", "eidiya received", "عيدية مستلمة"])
-        ], isIncome: true)
+        ], isIncome: true),
+        Category(name: "Transfers", arabic: "التحويلات", icon: "arrow.left.arrow.right", color: "blue",
+                 aliases: ["Transfer"], subcategories: transferSubcategories, isIncome: false)
     ]
 
+    public static func deletionKey(category: String, subcategory: String? = nil) -> String {
+        subcategory.map { "\(category)::\($0)" } ?? category
+    }
+
+    public static func excludingDeleted(_ categories: [String], deleted: Set<String>) -> [String] {
+        categories.filter { !deleted.contains(deletionKey(category: $0)) }
+    }
+
+    public static func excludingDeleted(_ subcategories: [Subcategory], category: String, deleted: Set<String>) -> [Subcategory] {
+        subcategories.filter { !deleted.contains(deletionKey(category: category, subcategory: $0.name)) }
+    }
+
+    public static func excludingDeleted(_ subcategories: [String], category: String, deleted: Set<String>) -> [String] {
+        subcategories.filter { !deleted.contains(deletionKey(category: category, subcategory: $0)) }
+    }
+
+    /// One-time additive migration for settings created before deletion tombstones existed.
+    /// Only categories and subcategories that shipped in the previous template are considered;
+    /// a missing legacy entry is treated as an intentional user deletion.
+    public static func legacyDeletionKeys(categories: [String], subcategories: [String: [String]]) -> Set<String> {
+        let legacyNames: Set<String> = [
+            "Food & Dining", "Groceries", "Car & Transport", "Housing", "Bills & Utilities",
+            "Health & Wellness", "Sports & Fitness", "Shopping", "Entertainment", "Subscriptions",
+            "Travel", "Education", "Family & Kids", "Charity", "Government & Documents", "Financial",
+            "Pets", "Salary", "Other Income", "Transfers"
+        ]
+        var deleted = Set<String>()
+        for category in all where legacyNames.contains(category.name) {
+            let storedCategory = categories.first { CategoryMatcher.normalize($0) == CategoryMatcher.normalize(category.name) }
+                ?? categories.first { category.aliases.map(CategoryMatcher.normalize).contains(CategoryMatcher.normalize($0)) }
+            guard let storedCategory else {
+                deleted.insert(deletionKey(category: category.name))
+                continue
+            }
+            let storedSubs = Set((subcategories[storedCategory] ?? []).map(CategoryMatcher.normalize))
+            let previousNames: [String: [String]] = [
+                "Freelance": ["Freelance & Business"],
+                "Rent received": ["Rental income"]
+            ]
+            for subcategory in category.subcategories where category.kind != .transfer
+                && !["Gardening", "Lab tests", "Business"].contains(subcategory.name) {
+                let candidateNames = [subcategory.name] + (previousNames[subcategory.name] ?? [])
+                if !candidateNames.contains(where: { storedSubs.contains(CategoryMatcher.normalize($0)) }) {
+                    deleted.insert(deletionKey(category: category.name, subcategory: subcategory.name))
+                }
+            }
+        }
+        return deleted
+    }
+
     /// The category list a brand-new user starts with (plus system ones the app relies on).
-    public static var defaultNames: [String] { all.map(\.name) + ["Transfers", "Other"] }
+    public static var defaultNames: [String] { all.map(\.name) + ["Other"] }
 
     /// Money moved between the user's own wallets, or a balance correction: changes balances, never spending or income.
     /// Imported ledgers (Expend) can file a transfer as a subcategory "Transfer" under another category, so both are checked.
     public static func isTransferOrAdjustment(category: String, subcategory: String?) -> Bool {
-        category == "Transfers" || category == "Adjustment"
+        category == "Transfers" || CategoryTaxonomy.category(named: category)?.kind == .transfer || category == "Adjustment"
             || subcategory.map { ["transfer", "transfers"].contains(CategoryMatcher.normalize($0)) } == true
     }
 
@@ -202,6 +280,8 @@ public enum CategoryTaxonomy {
     }
 
     public static func arabicName(for name: String) -> String? {
+        if name == "Freelance & Business" { return "عمل حر" }
+        if name == "Rental income" { return "دخل إيجار" }
         if let category = all.first(where: { $0.name == name }) { return category.arabic }
         for category in all { if let sub = category.subcategories.first(where: { $0.name == name }) { return sub.arabic } }
         // The user's own names for a category ("Food", "Car" from an Expend import) read as that category in Arabic.

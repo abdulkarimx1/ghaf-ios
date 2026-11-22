@@ -250,7 +250,7 @@ struct GhafBudgetView: View {
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(ar ? "ميزانية الشهر" : "Monthly category budgets")
-            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map(\.name).joined(separator: ", "))")
+            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: ", "))")
             Text(ar ? "اضغط على فئة لعرض مصروفاتها" : "Tap a category to see its spending")
                 .font(GhafTypography.body(13, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
@@ -271,7 +271,7 @@ struct GhafBudgetView: View {
                                 .background(theme.accent.opacity(0.12), in: Circle())
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) {
-                                    Text(item.name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold)).lineLimit(2)
+                                    Text(GhafLocalization.category(item.name, languageCode: lang)).font(GhafTypography.body(16, languageCode: lang, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
                                 }
                                 HStack(spacing: 3) { spentOf(item) }
                                     .font(GhafTypography.body(13, languageCode: lang))

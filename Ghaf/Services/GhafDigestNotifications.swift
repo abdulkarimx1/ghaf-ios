@@ -154,7 +154,7 @@ enum GhafDigestNotifications {
                 let isLatest = latest.map { $0.category == category && Date.now.timeIntervalSince($0.createdAt) < 120 } ?? false
                 let previous = UserDefaults.standard.string(forKey: key).flatMap { Decimal(string: $0) }
                     ?? (isLatest ? max(Decimal.zero, total - latest!.spendingAmount) : total)
-                notifyThresholds(name: category, eventKey: "category-\(category)", total: total, limit: limit, previous: previous)
+                notifyThresholds(name: GhafLocalization.category(category, languageCode: settings.languageCode), eventKey: "category-\(category)", total: total, limit: limit, previous: previous)
                 UserDefaults.standard.set(NSDecimalNumber(decimal: total).stringValue, forKey: key)
             }
         }
