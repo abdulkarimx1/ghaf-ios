@@ -11,6 +11,7 @@ struct GhafApp: App {
     private let modelContainer: ModelContainer
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
     @State private var handledUnreadUITestHook = false
+    @State private var settingsAuditStatus: String?
 
     init() {
 #if DEBUG
@@ -22,7 +23,9 @@ struct GhafApp: App {
 
         do {
 #if DEBUG
-            if GhafScreenshotFixture.enabled {
+            if ProcessInfo.processInfo.arguments.contains("-GhafSettingsPersistenceAudit") {
+                modelContainer = try GhafPersistence.makeSettingsAuditContainer()
+            } else if GhafScreenshotFixture.enabled {
                 modelContainer = try GhafScreenshotFixture.makeContainer()
             } else {
                 modelContainer = try GhafPersistence.shared()
@@ -63,7 +66,21 @@ struct GhafApp: App {
                         }
                         catch { Self.proofLogger.error("GHAF_BACKUP_ARABIC_NAME_PROOF failed") }
                     }
+                    if ProcessInfo.processInfo.arguments.contains("-GhafSettingsPersistenceAudit"),
+                       let index = ProcessInfo.processInfo.arguments.firstIndex(of: "-GhafSettingsPersistenceAuditPhase"),
+                       ProcessInfo.processInfo.arguments.indices.contains(index + 1) {
+                        do { settingsAuditStatus = try GhafSettingsPersistenceAudit.run(ProcessInfo.processInfo.arguments[index + 1], context: modelContainer.mainContext) }
+                        catch { settingsAuditStatus = "Settings persistence audit failed: \(error.localizedDescription)" }
+                    }
 #endif
+                }
+                .overlay(alignment: .top) {
+                    if let settingsAuditStatus {
+                        Text(settingsAuditStatus)
+                            .font(.caption)
+                            .padding(8)
+                            .accessibilityIdentifier("ghaf.settings-audit.status")
+                    }
                 }
         }
         .modelContainer(modelContainer)
