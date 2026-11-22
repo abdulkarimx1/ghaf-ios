@@ -611,7 +611,7 @@ struct GhafHomeView: View {
                 ForEach(Array(slices.enumerated()), id: \.offset) { index, slice in
                     HStack(spacing: 8) {
                         Circle().fill(theme.inkText.opacity(shades[index])).frame(width: 8, height: 8)
-                        Text(index == 3 && rest > 0 ? slice.name : GhafLocalization.category(slice.name, languageCode: lang))
+                        Text(index == 3 && rest > 0 ? (lang == "ar" ? "أخرى" : "Other") : GhafLocalization.category(slice.name, languageCode: lang))
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.inkText)
                             .lineLimit(1)
@@ -730,7 +730,7 @@ struct GhafTransactionRow: View {
 
                 HStack(spacing: 5) {
                     Text(GhafLocalization.category(transaction.category, languageCode: languageCode)
-                         + (transaction.subcategory.map { " · \($0)" } ?? ""))
+                         + (transaction.subcategory.map { " · \(GhafLocalization.category($0, languageCode: languageCode))" } ?? ""))
                     Text("·")
                     Text(transaction.date.formatted(
                         .dateTime.hour().minute().locale(Locale(identifier: languageCode))
