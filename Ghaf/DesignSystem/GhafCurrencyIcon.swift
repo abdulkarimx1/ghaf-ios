@@ -126,8 +126,10 @@ struct GhafMoneyLabel: View {
     }
 
     @ViewBuilder private var numberText: some View {
-        let separator = Self.formatter(languageCode: languageCode, currency: currency).decimalSeparator ?? "."
-        let fractionStart = number.range(of: separator).map { number.distance(from: number.startIndex, to: $0.lowerBound) }
+        let separators = [Self.formatter(languageCode: languageCode, currency: currency).decimalSeparator, ".", "٫"]
+            .compactMap { $0 }
+        let fractionStart = separators.compactMap { number.range(of: $0) }
+            .map { number.distance(from: number.startIndex, to: $0.lowerBound) }.min()
         HStack(spacing: 0) {
             ForEach(Array(number.enumerated()), id: \.offset) { item in
                 let character = item.element
@@ -203,6 +205,9 @@ private struct GhafMoneyGlyph: View {
 /// Text with the currency mark in place of "AED", "SAR" or "OMR" next to an amount, sized to the
 /// text, so sentences ("You spent AED 3,582.50") show the same mark as every other amount.
 enum GhafMoneyText {
+    /// Keeps embedded amounts in their own directional run inside Arabic sentences.
+    static func isolate(_ amount: String) -> String { "\u{2068}\(amount)\u{2069}" }
+
     private static let codes = #"AED|SAR|OMR|د\.إ\.?|ر\.س\.?|ر\.ع\.?"#
     private static let pattern = try! NSRegularExpression(
         pattern: #"(\#(codes))[\s\x{200F}\x{00A0}]?(?=[0-9٠-٩])|(?<=[0-9٠-٩])[\s\x{200F}\x{00A0}]?(\#(codes))"#)
