@@ -51,6 +51,7 @@ final class GhafLiveCall: ObservableObject {
     private var inputSenderTask: Task<Void, Never>?
     private var capturingUserTurn = false
     private var userRequestedTurn = false
+    private var pendingEndReason: String?
     var isCapturingUserTurn: Bool { capturingUserTurn }
 
     func start(language: String, character: String, tier: String, systemInstruction: String, tools: [LiveFunctionDeclaration]) async throws {
@@ -83,7 +84,21 @@ final class GhafLiveCall: ObservableObject {
     }
 
     func end(reason: String = "") {
+        if !stopping && (queuedOutputBuffers > 0 || phase == .speaking || phase == .thinking) {
+            pendingEndReason = reason
+            if capturingUserTurn {
+                capturingUserTurn = false
+                if let message = try? LiveEncoder.activityEnd() { Task { try? await send(message) } }
+            }
+            engine.inputNode.removeTap(onBus: 0)
+            return
+        }
+        endNow(reason: reason)
+    }
+
+    private func endNow(reason: String) {
         stopping = true
+        pendingEndReason = nil
         inputContinuation?.finish(); inputContinuation = nil
         inputSenderTask?.cancel(); inputSenderTask = nil
         setupWaiter?.resume(throwing: CancellationError()); setupWaiter = nil
@@ -224,7 +239,11 @@ final class GhafLiveCall: ObservableObject {
             onInputTranscript?("", true); onOutputTranscript?("", true)
             turnCompleteReceived = true
             userRequestedTurn = false
-            if queuedOutputBuffers == 0 { phase = .listening; onTurnFinished?() }
+            if queuedOutputBuffers == 0 {
+                phase = .listening
+                onTurnFinished?()
+                if let pendingEndReason { endNow(reason: pendingEndReason) }
+            }
         case .toolCalls(let calls):
             phase = .thinking
             for call in calls {
@@ -344,7 +363,10 @@ final class GhafLiveCall: ObservableObject {
                 if self.queuedOutputBuffers == 0 {
                     self.outputLevel = 0
                     self.phase = .listening
-                    if self.turnCompleteReceived { self.onTurnFinished?() }
+                    if self.turnCompleteReceived {
+                        self.onTurnFinished?()
+                        if let pendingEndReason = self.pendingEndReason { self.endNow(reason: pendingEndReason) }
+                    }
                 }
             }
         }
