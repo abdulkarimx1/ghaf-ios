@@ -56,6 +56,7 @@ struct GhafSettingsView: View {
     @State private var showDeleteConfirmation = false
     @State private var hasLoadedSettings = false
     @State private var categoryToRemove: String?
+    @State private var subcategoryToRemove: String?
     @State private var editingCategory: String?
     @State private var categoryDraftName = ""
     @State private var showCategories = false
@@ -1061,7 +1062,8 @@ HStack(spacing: 8) {
 
     private func categoryEditor(_ category: String) -> some View {
         let builtIn = CategoryTaxonomy.category(named: category) != nil
-        return VStack(alignment: .leading, spacing: 16) {
+        return ScrollView {
+          VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
                 GhafCategoryIcon(category: category, tint: theme.accent, theme: theme)
                 Text(GhafLocalization.category(category, languageCode: languageCode))
@@ -1091,11 +1093,39 @@ HStack(spacing: 8) {
                     .font(GhafTypography.body(11, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             }
+            if !settings.subcategories(of: category).isEmpty {
+                settingsLabel(ar ? "الفئات الفرعية" : "Subcategories")
+                ForEach(settings.subcategories(of: category), id: \.self) { subcategory in
+                    HStack {
+                        Text(GhafLocalization.category(subcategory, languageCode: languageCode))
+                            .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                        Spacer()
+                        Button(ar ? "حذف" : "Remove", role: .destructive) { subcategoryToRemove = subcategory }
+                            .font(GhafTypography.body(12, languageCode: languageCode))
+                            .frame(minHeight: 44)
+                    }.frame(minHeight: 44)
+                }
+            }
         }
         .padding(GhafMetrics.gutter)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(theme.background)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        }
+        .padding(.vertical, 8)
+        .confirmationDialog(ar ? "حذف هذه الفئة الفرعية؟" : "Remove this subcategory?",
+                            isPresented: Binding(get: { subcategoryToRemove != nil }, set: { if !$0 { subcategoryToRemove = nil } }),
+                            titleVisibility: .visible) {
+            Button(ar ? "حذف" : "Remove", role: .destructive) {
+                if let subcategory = subcategoryToRemove {
+                    settings.deleteSubcategory(subcategory, from: category)
+                    try? modelContext.save()
+                }
+                subcategoryToRemove = nil
+            }
+        } message: {
+            Text(ar ? "تبقى العمليات المسجلة بها كما هي." : "Transactions already using it keep their category.")
+        }
     }
 
     /// Moves a category to a new name everywhere it is used: the list, budgets, subcategories,
@@ -1107,7 +1137,11 @@ HStack(spacing: 8) {
             prompt = .message(ar ? "توجد فئة بهذا الاسم." : "A category with that name already exists.")
             return
         }
-        settings.categories = settings.categories.map { $0 == old ? new : $0 }
+        let existingCategories = settings.categories
+        var deleted = settings.deletedCategoryKeys
+        deleted.insert(CategoryTaxonomy.deletionKey(category: old))
+        settings.deletedCategoryKeys = deleted
+        settings.categories = existingCategories.map { $0 == old ? new : $0 }
         var meta = settings.categoryMeta
         if let value = meta.removeValue(forKey: old) { meta[new] = value }
         settings.categoryMeta = meta
@@ -1351,11 +1385,9 @@ HStack(spacing: 8) {
     }
 
     private func removeCategory(_ category: String) {
-        var categories = settings.categories
-        guard categories.count > 1 else { return }
+        guard settings.categories.count > 1 else { return }
 
-        categories.removeAll { $0 == category }
-        settings.categories = categories
+        settings.deleteCategory(category)
         categoryBudgetTexts.removeValue(forKey: category)
 
         var budgets = settings.categoryBudgets

@@ -800,6 +800,7 @@ struct GhafQuickAddView: View {
     @State private var locationPermission: Bool?
     @State private var showingSuccess = false
     @State private var suggestedCategory = false
+    @State private var categoryWasManuallyPicked = false
     @State private var categorizationTask: Task<Void, Never>?
     @State private var noteExpanded = false
     @State private var errorMessage = ""
@@ -855,7 +856,7 @@ struct GhafQuickAddView: View {
                                     .onSubmit { suggestCategory() }
                                     .onChange(of: merchant) { _, _ in
                                         categorizationTask?.cancel()
-                                        categorizationTask = Task { try? await Task.sleep(for: .milliseconds(500)); if !Task.isCancelled { suggestCategory() } }
+                                        categorizationTask = Task { try? await Task.sleep(for: .milliseconds(150)); if !Task.isCancelled { suggestCategory() } }
                                     }
                                 Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
                             }
@@ -863,8 +864,7 @@ struct GhafQuickAddView: View {
                         divider
                         row(ar ? "الفئة" : "Category", icon: "square.grid.2x2") {
                             HStack(spacing: 6) {
-                                GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
-                                    .onChange(of: category) { _, _ in if suggestedCategory { suggestedCategory = false } }
+                                GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent) { categoryWasManuallyPicked = true; suggestedCategory = false }
                                 if suggestedCategory { Text(ar ? "مقترحة" : "Suggested").font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText) }
                             }
                         }
@@ -1036,12 +1036,19 @@ struct GhafQuickAddView: View {
     private var isDirty: Bool { !amount.isEmpty || !merchant.isEmpty || !note.isEmpty || category != "Other" || abs(date.timeIntervalSinceNow) > 60 }
     private func requestDismiss() { if isDirty { showingDiscard = true } else { dismiss() } }
     private func suggestCategory() {
-        guard category == "Other", !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let direction = TransactionDirection(rawValue: self.direction) ?? .debit
-        if let result = try? MerchantCategorizer.category(for: merchant, direction: direction, context: modelContext), result != "Other" {
-            category = result
-            Task { await Task.yield(); suggestedCategory = true }
+        guard !categoryWasManuallyPicked else { return }
+        let text = merchant.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            if suggestedCategory { category = "Other"; subcategory = nil; suggestedCategory = false }
+            return
         }
+        guard let match = MerchantCategorizer.suggestion(for: text, context: modelContext), !match.isNewCategory else {
+            if suggestedCategory { category = "Other"; subcategory = nil; suggestedCategory = false }
+            return
+        }
+        category = match.category
+        subcategory = match.subcategory
+        suggestedCategory = true
     }
 
     private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String) -> some View {

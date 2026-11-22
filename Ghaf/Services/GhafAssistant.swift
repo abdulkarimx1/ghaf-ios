@@ -13,6 +13,7 @@ enum GhafFinanceFacts {
         transactions: [GhafTransaction],
         subscriptions: [GhafSubscription],
         memories: [GhafMemory] = [],
+        languageCode: String = "en",
         now: Date = .now
     ) -> String {
         let calendar = GhafCalendar.current
@@ -56,7 +57,10 @@ enum GhafFinanceFacts {
         if let month = window(.month) {
             let debits = transactions.filter { month.contains($0.date) && $0.isExpense }
             let categoryTotals: [(String, Decimal, String)] = Dictionary(grouping: debits) { "\($0.category) (\($0.currency))" }
-                .map { key, items in (key, spendingSum(items), items[0].currency) }
+                .map { key, items in
+                    let category = items[0].category
+                    return (GhafLocalization.category(category, languageCode: languageCode) + " (\(items[0].currency))", spendingSum(items), items[0].currency)
+                }
                 .filter { $0.1 > 0 }.sorted { $0.1 > $1.1 }
             let byCategory = categoryTotals.prefix(5)
             if !byCategory.isEmpty {
@@ -96,7 +100,7 @@ enum GhafFinanceFacts {
             lines.append("Latest transactions:")
             for item in recent {
                 let sign = item.direction == "credit" ? "+" : "-"
-                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? item.category) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(item.category)]")
+                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? GhafLocalization.category(item.category, languageCode: languageCode)) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(GhafLocalization.category(item.category, languageCode: languageCode))]")
             }
         }
         return lines.joined(separator: "\n")

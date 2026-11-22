@@ -1104,3 +1104,67 @@ extension GhafWalkthroughTests {
         snap("d-home-screen-quick-actions")
     }
 }
+
+extension GhafWalkthroughTests {
+    func testSessionKCategoryScreenshots() throws {
+        guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+                ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"] else {
+            throw XCTSkip("Set TEST_RUNNER_GHAF_BACKUP to the private owner backup")
+        }
+        func launchFixture(language: String, screen: String? = nil) {
+            app = XCUIApplication()
+            app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", backup,
+                                  "-GhafTheme", "Graphite", "-GhafAppearance", "Dark",
+                                  "-GhafLanguage", language]
+            if let screen { app.launchArguments += ["-GhafScreen", screen] }
+            app.launch()
+            XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+        }
+
+        launchFixture(language: "ar")
+        app.tabBars.buttons["المزيد"].tap()
+        let budgetCategories = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "الميزانية والفئات")).firstMatch
+        for _ in 0..<8 where !budgetCategories.exists { app.swipeUp() }
+        XCTAssertTrue(budgetCategories.waitForExistence(timeout: 5))
+        budgetCategories.tap()
+        let categoriesTab = app.buttons["الفئات"]
+        XCTAssertTrue(categoriesTab.waitForExistence(timeout: 5))
+        categoriesTab.tap()
+        XCTAssertTrue(app.staticTexts["الطعام"].waitForExistence(timeout: 5))
+        snap("k-arabic-category-list")
+
+        app.terminate()
+        launchFixture(language: "ar", screen: "new-transaction")
+        let merchant = app.textFields["اسم المتجر"]
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5))
+        merchant.tap()
+        merchant.typeText("ورد")
+        Thread.sleep(forTimeInterval: 0.35)
+        merchant.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "فحص دم")
+        let labSuggestion = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "تحاليل مخبرية")).firstMatch
+        XCTAssertTrue(labSuggestion.waitForExistence(timeout: 5))
+        snap("k-category-mid-typing")
+
+        app.terminate()
+        launchFixture(language: "en", screen: "new-transaction")
+        app.buttons["Amount"].tap()
+        app.buttons["3"].tap(); app.buttons["5"].tap(); app.buttons["Done"].tap()
+        let learnedMerchant = app.textFields["Store name"]
+        XCTAssertTrue(learnedMerchant.waitForExistence(timeout: 5))
+        learnedMerchant.tap()
+        learnedMerchant.typeText("Shay Al Nashama")
+        app.keyboards.buttons["Done"].tap()
+        let cafeteriaSuggestion = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Cafeteria")).firstMatch
+        XCTAssertTrue(cafeteriaSuggestion.waitForExistence(timeout: 5))
+        app.buttons["Save transaction"].tap()
+        Thread.sleep(forTimeInterval: 3)
+        app.tabBars.buttons["More"].tap()
+        let learnedRow = app.buttons["What Ghaf learned"]
+        for _ in 0..<8 where !learnedRow.exists { app.swipeUp() }
+        XCTAssertTrue(learnedRow.waitForExistence(timeout: 5))
+        learnedRow.tap()
+        app.swipeUp()
+        app.swipeUp()
+        snap("k-grouped-learned-merchants")
+    }
+}

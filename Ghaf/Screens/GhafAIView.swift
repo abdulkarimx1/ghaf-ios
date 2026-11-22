@@ -911,7 +911,7 @@ struct GhafAIView: View {
 
         let history = messages.dropLast().filter { !$0.text.isEmpty }.map { (isUser: $0.isUser, text: $0.text) }
         let facts = GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions,
-                                              memories: memoryEnabled ? memories : [])
+                                              memories: memoryEnabled ? memories : [], languageCode: settings.languageCode)
         let progressQuery = GhafLedgerAnswers.progressQuery(for: resolved, transactions: transactions,
                                                             currency: settings.currency, languageCode: settings.languageCode)
         if let progressQuery {
@@ -1049,8 +1049,8 @@ struct GhafAIView: View {
             savedCount += 1
             let learned = message.wrappedValue.drafts.filter { !$0.merchant.isEmpty && $0.category != "Other" }
             let note = learned.isEmpty ? (ar ? "تم الحفظ." : "Saved.") : (ar
-                ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" }.joined(separator: "، ") + "."
-                : "Saved. I'll remember " + learned.map { "\($0.merchant) → \($0.category)" }.joined(separator: ", ") + ".")
+                ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: "ar"))" } ?? "") }.joined(separator: "، ") + "."
+                : "Saved. I'll remember " + learned.map { "\($0.merchant) → \(GhafLocalization.category($0.category, languageCode: settings.languageCode))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: settings.languageCode))" } ?? "") }.joined(separator: ", ") + ".")
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: note)) }
             speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?")
         } catch {
@@ -1071,7 +1071,7 @@ struct GhafAIView: View {
         }
         liveFacts = GhafCloudAI.minimized(GhafFinanceFacts.summary(accounts: accounts, transactions: transactions,
                                                                    subscriptions: subscriptions,
-                                                                   memories: memoryEnabled ? memories : []))
+                                                                   memories: memoryEnabled ? memories : [], languageCode: settings.languageCode))
         if liveGroundingSources.isEmpty { liveGroundingSources = [liveFacts] }
         let firstName = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
             ?? settings.userName
