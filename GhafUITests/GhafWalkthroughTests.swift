@@ -232,8 +232,10 @@ extension GhafWalkthroughTests {
 
 extension GhafWalkthroughTests {
     func testSessionFUnreadTransactionsTabIndicatorPersistsUntilOpened() {
+        // Own on-disk fixture: the simulator's real store may still be on the Welcome screen.
+        let fixture = ["-GhafFixture", "1", "-GhafFixtureOnDisk", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app = XCUIApplication()
-        app.launchArguments = ["-GhafUITestInjectUnread"]
+        app.launchArguments = fixture + ["-GhafFixtureReset", "-GhafUITestInjectUnread"]
         app.launch()
         let transactionsTab = app.tabBars.buttons["Transactions"]
         XCTAssertTrue(transactionsTab.waitForExistence(timeout: 20))
@@ -242,6 +244,7 @@ extension GhafWalkthroughTests {
 
         app.terminate()
         app = XCUIApplication()
+        app.launchArguments = fixture
         app.launch()
         let reopenedTab = app.tabBars.buttons["Transactions"]
         XCTAssertTrue(reopenedTab.waitForExistence(timeout: 20))
@@ -255,7 +258,7 @@ extension GhafWalkthroughTests {
 
         app.terminate()
         app = XCUIApplication()
-        app.launchArguments = ["-GhafUITestCleanupUnread"]
+        app.launchArguments = fixture + ["-GhafUITestCleanupUnread"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
     }
@@ -896,14 +899,16 @@ extension GhafWalkthroughTests {
         XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5))
         snap("i-merchant-before-detail")
         app.buttons["Edit"].tap()
-        let merchant = app.textFields["Merchant"]
+        let merchant = app.textFields["transaction-editor-merchant"]
         XCTAssertTrue(merchant.waitForExistence(timeout: 5))
         merchant.tap()
         let original = merchant.value as? String ?? ""
         // The simulator keeps aliases between runs; pick a name that differs from the current one.
         let newName = original == "Shay Al Nashama" ? "Shay Al Nashama Cafe" : "Shay Al Nashama"
-        for _ in 0..<original.count { merchant.typeText(XCUIKeyboardKey.delete.rawValue) }
+        app.buttons["Clear text"].firstMatch.tap()
+        merchant.tap()
         merchant.typeText(newName)
+        XCTAssertEqual(merchant.value as? String, newName, "Typed merchant name must arrive intact")
         app.keyboards.buttons["return"].tap()
         app.swipeUp()
         app.buttons["Save changes"].tap()

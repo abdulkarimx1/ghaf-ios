@@ -61,9 +61,18 @@ enum GhafScreenshotFixture {
     static func makeContainer() throws -> ModelContainer {
         let schema = Schema([GhafTransaction.self, GhafSettings.self, GhafAccount.self,
                              MerchantCategoryRule.self, GhafSubscription.self, GhafChat.self, GhafMemory.self])
-        let configuration = ModelConfiguration("GhafScreenshotFixture", schema: schema,
-                                                isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        // -GhafFixtureOnDisk: keep the fixture in a temp file so a UI test can prove state survives relaunch;
+        // -GhafFixtureReset starts that file fresh. Seeded only when empty.
+        let onDisk = arguments.contains("-GhafFixtureOnDisk")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("GhafFixtureOnDisk.store")
+        if onDisk, arguments.contains("-GhafFixtureReset") {
+            for suffix in ["", "-shm", "-wal"] { try? FileManager.default.removeItem(atPath: url.path + suffix) }
+        }
+        let configuration = onDisk
+            ? ModelConfiguration("GhafFixtureOnDisk", schema: schema, url: url, cloudKitDatabase: .none)
+            : ModelConfiguration("GhafScreenshotFixture", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: [configuration])
+        if onDisk, (try container.mainContext.fetchCount(FetchDescriptor<GhafSettings>())) > 0 { return container }
         // -GhafRestoreBackup <path>: load a real Ghaf backup instead of the sample data, to prove fixes on real data.
         if let i = arguments.firstIndex(of: "-GhafRestoreBackup"), i + 1 < arguments.count {
             try GhafBackupService.restore(from: URL(fileURLWithPath: arguments[i + 1]), context: container.mainContext)

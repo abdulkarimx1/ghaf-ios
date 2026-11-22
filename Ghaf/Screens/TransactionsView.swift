@@ -485,7 +485,8 @@ struct GhafTransactionEditor: View {
                                     theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
-                    editorField("Merchant", text: $merchant).lineLimit(1).submitLabel(.done)
+                    GhafTextField(text: $merchant, placeholder: languageCode == "ar" ? "المتجر" : "Merchant", theme: theme, languageCode: languageCode, autocorrection: false, capitalization: .words)
+                        .accessibilityIdentifier("transaction-editor-merchant").lineLimit(1).submitLabel(.done)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
                     GhafSegmented(options: [("debit", languageCode == "ar" ? "مصروف" : "Expense"), ("credit", languageCode == "ar" ? "دخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
