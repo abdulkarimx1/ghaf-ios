@@ -1240,7 +1240,11 @@ extension GhafWalkthroughTests {
         let cafeteriaSuggestion = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Cafeteria")).firstMatch
         XCTAssertTrue(cafeteriaSuggestion.waitForExistence(timeout: 5))
         app.buttons["Save transaction"].tap()
-        Thread.sleep(forTimeInterval: 3)
+        // The save splash (~3.3 s) covers the tabs; wait until it has gone back to Home.
+        let added = app.staticTexts["Transaction added"]
+        _ = added.waitForExistence(timeout: 8)
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: added)
+        waitForExpectations(timeout: 10)
         app.tabBars.buttons["More"].tap()
         let learnedRow = app.buttons["What Ghaf learned"]
         for _ in 0..<8 where !learnedRow.exists { app.swipeUp() }
