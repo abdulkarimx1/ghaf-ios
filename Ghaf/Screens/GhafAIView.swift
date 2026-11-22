@@ -108,6 +108,7 @@ struct GhafAIView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 header
+                voiceOrbControl
                 if messages.isEmpty {
                     ScrollView { welcome }
                         .scrollDismissesKeyboard(.interactively)
@@ -306,7 +307,6 @@ struct GhafAIView: View {
                     .foregroundStyle(theme.primaryText)
                     .accessibilityAddTraits(.isHeader)
             }
-            if GhafCloudAI.isEnabled, let voiceUsage { voiceLimitCounter(voiceUsage) }
         }
         .ghafScreenPadding()
         .padding(.top, 8)
@@ -428,7 +428,7 @@ struct GhafAIView: View {
             if microphoneOff {
                 microphonePermissionHint.padding(.top, 14)
             } else {
-                Text(ar ? "اضغط على غاف AI في الشريط السفلي للتحدث، واضغط مطولاً للكتابة" : "Tap Ghaf AI in the tab bar to talk · hold to type")
+                Text(ar ? "اضغط على الدائرة للتحدث، واضغط مطولاً ثم ارفع إصبعك للكتابة" : "Tap the orb to talk · hold, then release to type")
                     .font(GhafTypography.body(13, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
@@ -438,6 +438,31 @@ struct GhafAIView: View {
         }
         .frame(maxWidth: .infinity)
         .ghafScreenPadding()
+    }
+
+    private var voiceOrbControl: some View {
+        VStack(spacing: 4) {
+            GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+                .frame(width: 72, height: 72)
+                .contentShape(Circle())
+                .gesture(ExclusiveGesture(
+                    LongPressGesture(minimumDuration: 0.45, maximumDistance: 28),
+                    TapGesture()
+                ).onEnded { result in
+                    switch result {
+                    case .first: openTyping()
+                    case .second: toggleVoiceInput()
+                    }
+                })
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
+                .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
+                .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
+            if GhafCloudAI.isEnabled, let voiceUsage { voiceLimitCounter(voiceUsage) }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
+        .padding(.bottom, 4)
     }
 
     // MARK: Messages
@@ -708,6 +733,22 @@ struct GhafAIView: View {
             let speechDenied = SFSpeechRecognizer.authorizationStatus() == .denied
             let microphoneDenied = AVAudioApplication.shared.recordPermission == .denied
             microphoneOff = speechDenied || microphoneDenied
+        }
+    }
+
+    private func toggleVoiceInput() {
+        if liveCallActive {
+            if liveCall.isCapturingUserTurn {
+                liveCall.endUserTurn()
+                tabRouter.isListening = false
+            } else if liveCall.phase != .thinking {
+                beginLiveUserTurn()
+            }
+        } else if recorder.isRecording {
+            recorder.stop()
+            finishVoice()
+        } else {
+            startVoice()
         }
     }
 
