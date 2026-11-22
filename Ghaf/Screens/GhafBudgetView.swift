@@ -318,8 +318,11 @@ struct GhafBudgetView: View {
             }
         }
         }
-        .frame(height: CGFloat(rows.count * 64) + 350)
-        .padding(GhafMetrics.cardPadding).ghafStatsCard(theme: theme, radius: 22)
+        .frame(height: CGFloat(rows.count * 64) + 430)
+        .padding(GhafMetrics.cardPadding)
+        .frame(maxWidth: .infinity)
+        .ghafStatsCard(theme: theme, radius: 22)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private func hasRecentSpending(_ category: String) -> Bool {
