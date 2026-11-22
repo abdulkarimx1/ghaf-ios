@@ -55,6 +55,8 @@ final class GhafSettings {
     var lastSalaryDecisionKey: String?
     var salaryReminderEnabled: Bool?
     var biometricLockEnabled: Bool?
+    /// Maps app selected for directions. Defaults to Apple Maps on existing installs.
+    var mapsAppPreference: String = "apple"
 
     init(
         userName: String = "",
