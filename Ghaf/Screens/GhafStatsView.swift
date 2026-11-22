@@ -632,8 +632,8 @@ struct GhafStatsView: View {
                                 Text(GhafLocalization.category(slice.category, languageCode: lang))
                                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                                     .foregroundStyle(theme.primaryText)
-                                    // Two lines: Arabic names like "السيارة والمواصلات" don't fit one.
-                                    .lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.8)
+                                    .lineLimit(1).fixedSize(horizontal: false, vertical: true)
+                                    .multilineTextAlignment(.center).minimumScaleFactor(0.62)
                             }
                             .frame(maxWidth: .infinity, minHeight: 140)
                             .contentShape(Rectangle())
