@@ -209,7 +209,8 @@ struct GhafBudgetView: View {
                         .fill(item.spent > item.budget ? theme.over.opacity(theme.isDark ? 0.22 : 0.16) : theme.primaryText.opacity(theme.isDark ? 0.19 : 0.16))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
-                            if item.spent > 0 {
+                            // A sliver under ~6% of the radius reads as a rendering glitch, not data.
+                            if item.spent > 0, fillRadius - innerRatio >= 0.06 {
                                 GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: fillRadius)
                                     .fill(theme.primaryText.opacity(0.88))
                                     .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1), value: fillRadius)
@@ -219,16 +220,19 @@ struct GhafBudgetView: View {
                             GeometryReader { labelGeometry in
                                 let angle = (start + end) / 2
                                 let radians = angle * .pi / 180
-                                let radial = outerRadius * 0.62
+                                // Label sits in the larger band: the dark budget area (light text) or, once spending
+                                // passes half the radius, inside the light spent fill (dark text) once it is wide enough there. Never across both.
+                                let onFill = fillRadius >= 0.72 && item.spent > 0
+                                let radial = outerRadius * (onFill ? (innerRatio + fillRadius) / 2 + 0.04 : (max(fillRadius, innerRatio) + 1) / 2)
                                 let amount = GhafFormat.balancesHidden ? GhafMoneyLabel.mask : (GhafMoneyLabel.formatter(languageCode: lang, currency: currency).string(from: item.spent as NSDecimalNumber) ?? "0")
                                 VStack(spacing: 0) {
                                     Text(amount).font(GhafTypography.body(15, languageCode: lang, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
                                     Text(GhafLocalization.category(item.name, languageCode: lang)).font(GhafTypography.body(12, languageCode: lang)).lineLimit(1).minimumScaleFactor(0.7)
                                     if item.spent > item.budget { Text(ar ? "تجاوز" : "Over").font(GhafTypography.body(10, languageCode: lang, weight: .semibold)).lineLimit(1) }
                                 }
-                                .foregroundStyle(fillRadius >= 0.62 ? theme.background : theme.primaryText)
+                                .foregroundStyle(onFill ? theme.background : theme.primaryText)
                                 .multilineTextAlignment(.center)
-                                .frame(width: max(56, outerRadius * 0.66), height: 42)
+                                .frame(width: max(52, min(outerRadius * 0.66, 2 * radial * CGFloat(sin(step / 2 * .pi / 180)) - 8)), height: 42)
                                 .position(x: labelGeometry.size.width / 2 + CGFloat(cos(radians)) * radial,
                                           y: labelGeometry.size.height / 2 + CGFloat(sin(radians)) * radial)
                                 .accessibilityHidden(true)
