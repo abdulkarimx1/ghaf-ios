@@ -3,6 +3,19 @@ import XCTest
 import Testing
 
 final class BudgetAllocationTests: XCTestCase {
+    func testPetalBudgetAndSpentRadiiAreProportionalAndCapped() {
+        let halfBudget = BudgetAllocation.petalRadii(budget: 50, spent: 25, largestBudget: 100, innerRadius: 0.5)
+        XCTAssertEqual(halfBudget.outer, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(halfBudget.fill, 0.625, accuracy: 0.0001)
+
+        let overBudget = BudgetAllocation.petalRadii(budget: 100, spent: 140, largestBudget: 100, innerRadius: 0.5)
+        XCTAssertEqual(overBudget.outer, 1, accuracy: 0.0001)
+        XCTAssertEqual(overBudget.fill, 1, accuracy: 0.0001)
+
+        let empty = BudgetAllocation.petalRadii(budget: 0, spent: 0, largestBudget: 100, innerRadius: 0.5)
+        XCTAssertEqual(empty, .init(outer: 0.5, fill: 0.5))
+    }
+
     func testEssentialsAreNeeds() {
         for name in ["Groceries", "Housing", "Bills & Utilities", "Utilities", "Car", "Fuel", "Home rent", "Rent"] {
             XCTAssertEqual(BudgetAllocation.bucket(forCategory: name), .needs, name)

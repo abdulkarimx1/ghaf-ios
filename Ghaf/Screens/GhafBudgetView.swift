@@ -197,13 +197,12 @@ struct GhafBudgetView: View {
                     let gap = 6 / outerRadius * 180 / .pi
                     let start = -90 + Double(index) * step + gap / 2
                     let end = -90 + Double(index + 1) * step - gap / 2
-                    let budgetShare = largestBudget > 0 ? NSDecimalNumber(decimal: item.budget / largestBudget).doubleValue : 0
-                    let petalOuter = innerRatio + (1 - innerRatio) * budgetShare
-                    let fraction = item.budget > 0 ? min(1, NSDecimalNumber(decimal: item.spent / item.budget).doubleValue) : 0
-                    let visibleFraction = item.spent > 0 ? max(fraction, min(1, 6 / max((petalOuter - innerRatio) * outerRadius, 1))) : 0
-                    let fillRadius = innerRatio + (petalOuter - innerRatio) * visibleFraction
+                    let radii = BudgetAllocation.petalRadii(budget: item.budget, spent: item.spent,
+                                                            largestBudget: largestBudget, innerRadius: Double(innerRatio))
+                    let petalOuter = CGFloat(radii.outer)
+                    let fillRadius = CGFloat(radii.fill)
                     GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: petalOuter)
-                        .fill(theme.primaryText.opacity(theme.isDark ? 0.16 : 0.10))
+                        .fill(theme.accent.opacity(theme.isDark ? 0.34 : 0.20))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
                             if item.spent > 0 {
@@ -211,7 +210,28 @@ struct GhafBudgetView: View {
                             }
                         }
                         .overlay {
-                            GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: petalOuter).stroke(item.spent > item.budget ? theme.over : .clear, lineWidth: 2)
+                            if item.spent > item.budget {
+                                GhafPetalOuterEdge(start: start, end: end, radius: petalOuter)
+                                    .stroke(theme.over, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            }
+                        }
+                        .overlay {
+                            GeometryReader { labelGeometry in
+                                let angle = (start + end) / 2
+                                let radians = angle * .pi / 180
+                                let radial = outerRadius * CGFloat((Double(innerRatio) + radii.outer) / 2)
+                                let arcWidth = max(42, radial * CGFloat((end - start) * .pi / 180))
+                                let normalizedRotation = ((angle + 90 + 90).truncatingRemainder(dividingBy: 180)) - 90
+                                Text("\(GhafLocalization.category(item.name, languageCode: lang)) · \(GhafCompactNumber.string(NSDecimalNumber(decimal: item.spent).doubleValue, languageCode: lang)) \(currency)")
+                                    .font(GhafTypography.body(9, languageCode: lang, weight: .semibold))
+                                    .foregroundStyle(theme.primaryText)
+                                    .lineLimit(1).minimumScaleFactor(0.45)
+                                    .frame(width: arcWidth, height: 14)
+                                    .rotationEffect(.degrees(normalizedRotation))
+                                    .position(x: labelGeometry.size.width / 2 + CGFloat(cos(radians)) * radial,
+                                              y: labelGeometry.size.height / 2 + CGFloat(sin(radians)) * radial)
+                                    .accessibilityHidden(true)
+                            }
                         }
                         .opacity(selectedCategory == nil || selectedCategory == item.name ? 1 : 0.45)
                         .contentShape(GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: petalOuter))
@@ -622,5 +642,20 @@ struct GhafBudgetView: View {
         }
             .padding(GhafMetrics.cardPadding)
         .ghafStatsCard(theme: theme, radius: 22)
+    }
+}
+
+private struct GhafPetalOuterEdge: Shape {
+    let start: Double
+    let end: Double
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let circleRadius = min(rect.width, rect.height) / 2 * radius
+        var path = Path()
+        path.addArc(center: center, radius: circleRadius,
+                    startAngle: .degrees(start), endAngle: .degrees(end), clockwise: false)
+        return path
     }
 }

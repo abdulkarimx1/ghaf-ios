@@ -4,6 +4,21 @@ import Foundation
 /// Which bucket a category falls in is a fixed rule over the built-in taxonomy, so the split is
 /// deterministic and explainable; anything not recognised as a need counts as a want.
 public enum BudgetAllocation {
+    public struct PetalRadii: Equatable, Sendable {
+        public let outer: Double
+        public let fill: Double
+    }
+
+    /// Normalizes each category budget to the largest budget and grows its fill by spent ÷ budget.
+    public static func petalRadii(budget: Decimal, spent: Decimal, largestBudget: Decimal, innerRadius: Double) -> PetalRadii {
+        let inner = min(max(innerRadius, 0), 1)
+        guard budget > 0, largestBudget > 0 else { return PetalRadii(outer: inner, fill: inner) }
+        let budgetRatio = min(1, NSDecimalNumber(decimal: budget / largestBudget).doubleValue)
+        let outer = inner + (1 - inner) * budgetRatio
+        let spentRatio = min(1, max(0, NSDecimalNumber(decimal: spent / budget).doubleValue))
+        return PetalRadii(outer: outer, fill: inner + (outer - inner) * spentRatio)
+    }
+
     public enum Bucket: Int, CaseIterable, Sendable { case needs, wants, savings }
 
     public enum Preset: String, CaseIterable, Sendable {
