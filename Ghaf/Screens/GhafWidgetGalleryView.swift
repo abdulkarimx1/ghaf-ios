@@ -44,27 +44,25 @@ struct GhafWidgetGalleryView: View {
                 Text(ar ? "لإضافة أداة، اضغط مطولًا على الشاشة الرئيسية، ثم اختر تحرير وإضافة أداة." : "To add a widget, touch and hold your Home Screen, tap Edit, then Add Widget.")
                     .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
 
-                LazyVStack(spacing: 14) {
-                    ForEach(widgets, id: \.0) { name, detail, free in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text(ar ? arabicTitle(name) : name).font(GhafTypography.heading(17, languageCode: lang)).foregroundStyle(theme.primaryText)
-                                Spacer()
-                                Text(free ? (ar ? "مجانية" : "Free") : "Pro")
-                                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
-                                    .foregroundStyle(free ? theme.secondaryText : theme.accent)
-                                    .padding(.horizontal, 10).padding(.vertical, 6).background(theme.elevatedSurface, in: Capsule())
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+                    ForEach(Array(widgets.enumerated()), id: \.offset) { index, item in
+                        let (name, detail, free) = item
+                        let family: WidgetFamily = index.isMultiple(of: 3) ? .systemMedium : .systemSmall
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack(spacing: 5) {
+                                Text(ar ? arabicTitle(name) : name)
+                                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                                    .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.8)
+                                Spacer(minLength: 2)
+                                if !free { Image(systemName: "lock.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.accent) }
                             }
-                            ScrollView(.horizontal) {
-                                HStack(alignment: .top, spacing: 10) {
-                                    ForEach([WidgetFamily.systemSmall, .systemMedium, .systemLarge], id: \.self) { family in
-                                        widgetPreview(name, family: family)
-                                    }
-                                }
-                            }.scrollIndicators(.hidden)
-                            Text(ar ? arabicDetail(name) : detail).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            widgetPreview(name, family: family)
+                            Text(ar ? arabicDetail(name) : detail)
+                                .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                                .lineLimit(1).minimumScaleFactor(0.75)
                         }
-                        .padding(14).ghafCard(theme: theme)
+                        .padding(10).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme)
+                        .gridCellColumns(family == .systemMedium ? 2 : 1)
                     }
                 }
             }
@@ -72,6 +70,7 @@ struct GhafWidgetGalleryView: View {
         }
         .background(theme.background)
         .navigationTitle(ar ? "الأدوات" : "Widgets")
+        .ghafDirection(lang)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الأدوات")).ghafDirection(lang) }
     }
@@ -80,8 +79,7 @@ struct GhafWidgetGalleryView: View {
         let snapshot = GhafWidgetSnapshot.sample
         let config = GhafConfigEntry<GhafBalanceConfig>(date: .now, snapshot: snapshot, config: GhafBalanceConfig())
         let proLocked = !["Balance", "Spending", "Upcoming payments"].contains(name) && !GhafWidgetProAccess.unlocked
-        let size: CGFloat = family == .systemSmall ? 158 : 338
-        let height: CGFloat = family == .systemLarge ? 338 : 158
+        let height: CGFloat = 158
         Group {
             switch name {
             case "Balance": GhafBalanceView(galleryFamily: family, entry: config)
@@ -99,18 +97,13 @@ struct GhafWidgetGalleryView: View {
                             url: URL(string: name == "Money tip" ? "ghaf://money-tip?source=https%3A%2F%2Fwww.consumerfinance.gov%2F" : name == "Quick add" ? "ghaf://add-transaction" : "ghaf://ai/type")!)
             }
         }
-        .frame(width: size, height: height)
-        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
+        .padding(8)
         .background { GhafWidgetBackground(tile: GhafTile(.ink, snapshot), enabled: false) }
         .blur(radius: proLocked ? 7 : 0)
         .overlay {
             if proLocked {
-                Button { showPro = true } label: {
-                    VStack(spacing: 4) {
-                        Text("Pro").font(.system(size: 13, weight: .bold, design: .rounded)).padding(.horizontal, 12).padding(.vertical, 6).background(ink, in: Capsule())
-                        Text(ar ? "افتح غاف Pro" : "Unlock with Ghaf Pro").font(.system(size: 10, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                    }.foregroundStyle(paper).padding(7).background(ink.opacity(0.96), in: Capsule())
-                }.buttonStyle(.plain)
+                Button { showPro = true } label: { GhafWidgetProMask() }.buttonStyle(.plain)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))

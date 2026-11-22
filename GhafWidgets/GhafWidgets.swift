@@ -37,14 +37,25 @@ struct GhafWidgetProLock: ViewModifier {
         if required && !GhafWidgetProAccess.unlocked {
             content.blur(radius: 8).overlay {
                 Link(destination: URL(string: "ghaf://pro")!) {
-                    VStack(spacing: 5) {
-                        Text("Pro").font(.system(size: 15, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 12).padding(.vertical, 6).background(ink, in: Capsule())
-                        Text("Unlock with Ghaf Pro").font(.system(size: 11, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                    }.foregroundStyle(.white).padding(8).background(ink.opacity(0.96), in: Capsule())
+                    GhafWidgetProMask()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         } else { content }
+    }
+}
+
+/// Shared, legible lock treatment used by the in-app gallery and Home Screen widgets.
+struct GhafWidgetProMask: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "lock.fill").font(.system(size: 20, weight: .semibold))
+            Text("Ghaf Pro").font(.system(size: 18, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.black.opacity(0.48))
+        .contentShape(Rectangle())
     }
 }
 
@@ -443,6 +454,13 @@ private struct GhafActivityStatus: View {
                 Link(ar ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(context.attributes.glowColor)
             }
         }
+        if let recordedAt = s.recordedAt, let expiresAt = s.expiresAt, expiresAt > recordedAt {
+            ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
+                .progressViewStyle(.linear)
+                .tint(context.attributes.glowColor)
+                .scaleEffect(x: 1, y: 0.55, anchor: .center)
+                .accessibilityLabel(ar ? "ينتهي النشاط قريبًا" : "Activity time remaining")
+        }
     }
 }
 
@@ -548,6 +566,13 @@ struct GhafPurchaseLockView: View {
                         .font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
                 }
                 if let url = s.transactionURL { Link(a.arabic ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(a.glowColor) }
+            }
+            if let recordedAt = s.recordedAt, let expiresAt = s.expiresAt, expiresAt > recordedAt {
+                ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
+                    .progressViewStyle(.linear)
+                    .tint(a.glowColor)
+                    .scaleEffect(x: 1, y: 0.55, anchor: .center)
+                    .accessibilityLabel(a.arabic ? "ينتهي النشاط قريبًا" : "Activity time remaining")
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)

@@ -49,22 +49,30 @@ final class GhafLiveCall: ObservableObject {
     private var turnCompleteReceived = false
     private var inputContinuation: AsyncStream<Data>.Continuation?
     private var inputSenderTask: Task<Void, Never>?
+    private var capturingUserTurn = false
+    /// Mic audio flows only after activityStart has been sent, so the server never gets speech before the turn opens.
+    private var audioGateOpen = false
+    private var userRequestedTurn = false
+    private var pendingEndReason: String?
+    var isCapturingUserTurn: Bool { capturingUserTurn }
 
     func start(language: String, character: String, tier: String, systemInstruction: String, tools: [LiveFunctionDeclaration]) async throws {
         guard GhafCloudAI.isEnabled else { throw GhafCloudAI.Failure.unavailable }
         self.language = language; self.character = character; self.tier = tier; instruction = systemInstruction; self.tools = tools
         stopping = false; reconnects = 0; startedAt = Date(); turnCompleteReceived = false; phase = .connecting
+        capturingUserTurn = false; audioGateOpen = false; userRequestedTurn = false
         let stream = AsyncStream<Data>.makeStream()
         inputContinuation = stream.continuation
         inputSenderTask = Task { [weak self, stream = stream.stream] in
             for await chunk in stream {
-                guard let self, !self.stopping else { continue }
+                guard let self, !self.stopping, self.audioGateOpen else { continue }
                 guard !self.isMuted else { self.inputLevel = 0; continue }
                 let samples = chunk.withUnsafeBytes { raw in Array(raw.bindMemory(to: Int16.self)) }
                 let rms = sqrt(samples.reduce(Float.zero) { $0 + pow(Float($1) / 32768, 2) } / max(1, Float(samples.count)))
                 self.inputLevel = min(1, rms * 3)
                 for start in stride(from: 0, to: chunk.count, by: 640) {
-                    guard !self.isMuted, let message = try? LiveEncoder.audio(chunk.subdata(in: start..<min(start + 640, chunk.count))) else { continue }
+                    guard self.audioGateOpen, !self.isMuted,
+                          let message = try? LiveEncoder.audio(chunk.subdata(in: start..<min(start + 640, chunk.count))) else { continue }
                     self.startTurnLimitIfNeeded()
                     try? await self.send(message)
                 }
@@ -78,7 +86,28 @@ final class GhafLiveCall: ObservableObject {
     }
 
     func end(reason: String = "") {
+        if !stopping && (queuedOutputBuffers > 0 || phase == .speaking || phase == .thinking) {
+            pendingEndReason = reason
+            // Safety net: if the reply never reports completion, still close the call.
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(12))
+                guard let self, !self.stopping, let pending = self.pendingEndReason else { return }
+                self.endNow(reason: pending)
+            }
+            if capturingUserTurn {
+                capturingUserTurn = false
+                audioGateOpen = false
+                if let message = try? LiveEncoder.activityEnd() { Task { try? await send(message) } }
+            }
+            engine.inputNode.removeTap(onBus: 0)
+            return
+        }
+        endNow(reason: reason)
+    }
+
+    private func endNow(reason: String) {
         stopping = true
+        pendingEndReason = nil
         inputContinuation?.finish(); inputContinuation = nil
         inputSenderTask?.cancel(); inputSenderTask = nil
         setupWaiter?.resume(throwing: CancellationError()); setupWaiter = nil
@@ -106,6 +135,27 @@ final class GhafLiveCall: ObservableObject {
     }
 
     func setMuted(_ muted: Bool) { isMuted = muted }
+
+    func beginUserTurn() {
+        guard !stopping, phase != .connecting, !capturingUserTurn else { return }
+        userRequestedTurn = true
+        turnCompleteReceived = false
+        capturingUserTurn = true
+        phase = .listening
+        guard let message = try? LiveEncoder.activityStart() else { return }
+        Task {
+            try? await send(message)
+            if capturingUserTurn { audioGateOpen = true }
+        }
+    }
+
+    func endUserTurn() {
+        guard !stopping, capturingUserTurn else { return }
+        capturingUserTurn = false
+        audioGateOpen = false
+        inputLevel = 0
+        if let message = try? LiveEncoder.activityEnd() { Task { try? await send(message) } }
+    }
 
     private struct SetupRejected: Error {}
 
@@ -192,14 +242,23 @@ final class GhafLiveCall: ObservableObject {
             phase = .speaking; play(pcm)
         case .inputTranscript(let text): onInputTranscript?(text, false)
         case .outputTranscript(let text): finishTurnLimit(); onOutputTranscript?(text, false)
-        case .interrupted:
+        case .interrupted where userRequestedTurn:
             player.stop(); player.reset(); queuedOutputBuffers = 0; outputLevel = 0; phase = .listening
             onOutputTranscript?("", true)
+        case .interrupted: break
         case .turnComplete:
             finishTurnLimit()
+            capturingUserTurn = false
+            audioGateOpen = false
+            inputLevel = 0
             onInputTranscript?("", true); onOutputTranscript?("", true)
             turnCompleteReceived = true
-            if queuedOutputBuffers == 0 { phase = .listening; onTurnFinished?() }
+            userRequestedTurn = false
+            if queuedOutputBuffers == 0 {
+                phase = .listening
+                onTurnFinished?()
+                if let pendingEndReason { endNow(reason: pendingEndReason) }
+            }
         case .toolCalls(let calls):
             phase = .thinking
             for call in calls {
@@ -319,7 +378,10 @@ final class GhafLiveCall: ObservableObject {
                 if self.queuedOutputBuffers == 0 {
                     self.outputLevel = 0
                     self.phase = .listening
-                    if self.turnCompleteReceived { self.onTurnFinished?() }
+                    if self.turnCompleteReceived {
+                        self.onTurnFinished?()
+                        if let pendingEndReason = self.pendingEndReason { self.endNow(reason: pendingEndReason) }
+                    }
                 }
             }
         }

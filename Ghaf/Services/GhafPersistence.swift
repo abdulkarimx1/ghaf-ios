@@ -84,6 +84,16 @@ enum GhafPersistence {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
+#if DEBUG
+    static func makeSettingsAuditContainer() throws -> ModelContainer {
+        let schema = Schema([GhafTransaction.self, GhafSettings.self, GhafAccount.self,
+                             MerchantCategoryRule.self, GhafSubscription.self, GhafChat.self, GhafMemory.self])
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("GhafSettingsPersistenceAudit.store")
+        let configuration = ModelConfiguration("GhafSettingsPersistenceAudit", schema: schema, url: url, cloudKitDatabase: .none)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+#endif
+
     static func settings(in context: ModelContext) throws -> GhafSettings {
         var descriptor = FetchDescriptor<GhafSettings>()
         descriptor.fetchLimit = 1

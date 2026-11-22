@@ -8,10 +8,8 @@ public enum MerchantName {
     private static let numericDate = #"(?:[0-9٠-٩۰-۹]{1,4}[/-][0-9٠-٩۰-۹]{1,2}(?:[/-][0-9٠-٩۰-۹]{2,4})?|[0-9٠-٩۰-۹]{4}-[0-9٠-٩۰-۹]{1,2}-[0-9٠-٩۰-۹]{1,2})"#
     private static let time = #"(?:[0-9٠-٩۰-۹]{1,2}:[0-9٠-٩۰-۹]{2}(?::[0-9٠-٩۰-۹]{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)"#
 
-    public static func clean(_ raw: String) -> String {
-        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        // A weekday or month only counts as a date after a preposition or next to a number, and only as a whole
-        // word, so names like "AL MAYA", "DUBAI MARINA" or "ابو علي" stay intact.
+    /// Compiled once: building this regex per call made Stats and lists take seconds with ~1,000 transactions.
+    private static let tailRegex: NSRegularExpression? = {
         let prep = #"(?:on|at|dated|بتاريخ|في|يوم)\s+"#
         let word = "(?![\\p{L}])"
         let dated = "(?:" + prep + "(?:" + weekdays + "|" + months + ")" + word
@@ -21,8 +19,23 @@ public enum MerchantName {
             + "|" + numericDate + "(?!" + digit + ")"
             + "|" + time + "))"
         let noise = #"(?:(?:using|via)\s+(?:[\p{L}\d-]+\s+){0,4}?(?:card|account)\b|باستخدام\s+بطاقة|card\s+ending|ending\s+with|xx[0-9*]|ref\b|auth\b|avl\.?\s*bal\b|available\s+balance\b)"#
-        let tail = #"\s+(?:"# + dated + "|" + noise + ").*$"
-        if let regex = try? NSRegularExpression(pattern: tail, options: [.caseInsensitive]) {
+        return try? NSRegularExpression(pattern: #"\s+(?:"# + dated + "|" + noise + ").*$", options: [.caseInsensitive])
+    }()
+    /// `clean` is a pure function of its input, so results are memoised (thread-safe NSCache).
+    private static let cleanCache = NSCache<NSString, NSString>()
+
+    public static func clean(_ raw: String) -> String {
+        if let hit = cleanCache.object(forKey: raw as NSString) { return hit as String }
+        let result = uncachedClean(raw)
+        cleanCache.setObject(result as NSString, forKey: raw as NSString)
+        return result
+    }
+
+    private static func uncachedClean(_ raw: String) -> String {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A weekday or month only counts as a date after a preposition or next to a number, and only as a whole
+        // word, so names like "AL MAYA", "DUBAI MARINA" or "ابو علي" stay intact (see tailRegex).
+        if let regex = tailRegex {
             let range = NSRange(value.startIndex..<value.endIndex, in: value)
             if let match = regex.firstMatch(in: value, range: range), let swiftRange = Range(match.range, in: value) {
                 value.removeSubrange(swiftRange)

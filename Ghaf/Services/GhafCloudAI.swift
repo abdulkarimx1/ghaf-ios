@@ -1,6 +1,27 @@
 import Foundation
 import Observation
 
+struct GhafVoiceUsage: Decodable, Equatable {
+    let used: Int
+    let limit: Int
+    let resetsAt: Date
+
+    private enum CodingKeys: String, CodingKey { case used, limit, resetsAt }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        used = try values.decode(Int.self, forKey: .used)
+        limit = try values.decode(Int.self, forKey: .limit)
+        let raw = try values.decode(String.self, forKey: .resetsAt)
+        let formatter = ISO8601DateFormatter()
+        let date = formatter.date(from: raw) ?? {
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: raw)
+        }()
+        guard let date else { throw DecodingError.dataCorruptedError(forKey: .resetsAt, in: values, debugDescription: "Invalid reset date") }
+        resetsAt = date
+    }
+}
+
 enum GhafAIStage: Hashable {
     case listening, transcribing
     case checkingTransactions(count: Int, period: String)
@@ -41,6 +62,29 @@ enum GhafCloudAI {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
     /// Set while Ghaf AI's voice mode is open: replies come back short and conversational.
     @MainActor static var conversational = false
+
+    static func voiceUsage() async -> GhafVoiceUsage? {
+        guard let url = URL(string: "/voice-usage", relativeTo: endpoint.deletingLastPathComponent()) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        request.setValue(GhafAITier.current, forHTTPHeaderField: "X-Ghaf-Tier")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode(GhafVoiceUsage.self, from: data)
+    }
+
+    static func reserveVoiceTurn(languageCode: String) async -> (usage: GhafVoiceUsage, allowed: Bool)? {
+        guard let url = URL(string: "/voice-turn", relativeTo: endpoint.deletingLastPathComponent()) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["tier": GhafAITier.current, "language": languageCode])
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let status = (response as? HTTPURLResponse)?.statusCode,
+              let usage = try? JSONDecoder().decode(GhafVoiceUsage.self, from: data) else { return nil }
+        return (usage, status == 200)
+    }
 
     /// What turning it on means, shown wherever it can be switched on.
     static func disclosure(ar: Bool) -> String {

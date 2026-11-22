@@ -10,12 +10,16 @@ import GhafCore
 enum GhafPlaces {
     @MainActor
     private final class LocationDelegate: NSObject, @preconcurrency CLLocationManagerDelegate {
-        var continuation: CheckedContinuation<CLLocation?, Never>?
+        var continuations: [CheckedContinuation<CLLocation?, Never>] = []
         func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-            continuation?.resume(returning: locations.last); continuation = nil
+            let pending = continuations
+            continuations.removeAll()
+            pending.forEach { $0.resume(returning: locations.last) }
         }
         func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-            continuation?.resume(returning: nil); continuation = nil
+            let pending = continuations
+            continuations.removeAll()
+            pending.forEach { $0.resume(returning: nil) }
         }
     }
 
@@ -25,6 +29,10 @@ enum GhafPlaces {
         let longitude: Double
         let address: String?
         let phone: String?
+        var isUserChosen: Bool? = false
+        var isSuppressed: Bool? = false
+        var isArea: Bool? = false
+        var horizontalAccuracy: Double? = nil
     }
 
     private static let merchantKey = "ghaf.places.byMerchant"
@@ -58,10 +66,14 @@ enum GhafPlaces {
     /// ("Lunch") only to this transaction.
     static func remember(_ item: MKMapItem, merchant: String, transactionID: UUID) {
         let saved = Saved(name: item.name ?? merchant, latitude: item.placemark.coordinate.latitude,
-                          longitude: item.placemark.coordinate.longitude, address: item.placemark.title, phone: item.phoneNumber)
+                          longitude: item.placemark.coordinate.longitude, address: item.placemark.title, phone: item.phoneNumber,
+                          isUserChosen: true)
         if isGeneric(merchant) {
             var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
         } else {
+            var transactionMap = load(transactionKey)
+            transactionMap.removeValue(forKey: transactionID.uuidString)
+            store(transactionMap, transactionKey)
             var map = load(merchantKey); map[SubscriptionDetector.normalize(merchant)] = saved; store(map, merchantKey)
         }
         cache[SubscriptionDetector.normalize(merchant)] = nil
@@ -82,18 +94,31 @@ enum GhafPlaces {
         let saved = Saved(name: nearest?.name ?? MerchantName.clean(merchant),
                           latitude: nearest?.placemark.coordinate.latitude ?? location.coordinate.latitude,
                           longitude: nearest?.placemark.coordinate.longitude ?? location.coordinate.longitude,
-                          address: nearest?.placemark.title, phone: nearest?.phoneNumber)
+                          address: nearest?.placemark.title, phone: nil, isUserChosen: false)
         var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
     }
 
     static func saved(merchant: String, transactionID: UUID) -> MKMapItem? {
         let saved = load(transactionKey)[transactionID.uuidString] ?? load(merchantKey)[SubscriptionDetector.normalize(merchant)]
-        guard let saved else { return nil }
+        guard let saved, saved.isSuppressed != true else { return nil }
         let placemark = MKPlacemark(coordinate: .init(latitude: saved.latitude, longitude: saved.longitude))
         let item = MKMapItem(placemark: placemark)
         item.name = saved.name
-        item.phoneNumber = saved.phone
+        item.phoneNumber = saved.isUserChosen == true ? saved.phone : nil
         return item
+    }
+
+    static func clearPlace(merchant: String, transactionID: UUID) {
+        let saved = Saved(name: "", latitude: 0, longitude: 0, address: nil, phone: nil,
+                          isUserChosen: true, isSuppressed: true)
+        var map = load(transactionKey)
+        map[transactionID.uuidString] = saved
+        store(map, transactionKey)
+        cache[SubscriptionDetector.normalize(merchant)] = nil
+    }
+
+    private static func isSuppressed(merchant: String, transactionID: UUID) -> Bool {
+        load(transactionKey)[transactionID.uuidString]?.isSuppressed == true
     }
 
     // MARK: Search
@@ -133,20 +158,32 @@ enum GhafPlaces {
     static func rememberCurrentLocation(transactionID: UUID) async {
         guard locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways else { return }
         let location = await withCheckedContinuation { continuation in
-            locationDelegate.continuation = continuation
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationDelegate.continuations.append(continuation)
             locationManager.requestLocation()
         }
-        guard let location else { return }
+        guard let location, PlaceSelection.acceptsAreaAccuracy(location.horizontalAccuracy) else { return }
         let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first
-        let saved = Saved(name: placemark?.name ?? placemark?.locality ?? placemark?.subLocality ?? "Current location",
+        guard let area = placemark?.subLocality ?? placemark?.locality else { return }
+        let saved = Saved(name: area,
                           latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
-                          address: placemark?.name, phone: nil)
+                          address: nil, phone: nil, isUserChosen: false, isArea: true,
+                          horizontalAccuracy: location.horizontalAccuracy)
         var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
     }
 
     /// Best automatic match: the user's saved place, else a search for business-like names whose
     /// result starts like the merchant ("Samuel Claude" is not "Claude"), closest to the user.
-    static func place(for merchant: String, transactionID: UUID) async -> MKMapItem? {
+    static func place(for merchant: String, transactionID: UUID, isManual: Bool = false) async -> MKMapItem? {
+        if isSuppressed(merchant: merchant, transactionID: transactionID) { return nil }
+        if isManual {
+            let savedChoice = load(transactionKey)[transactionID.uuidString]
+                ?? load(merchantKey)[SubscriptionDetector.normalize(merchant)]
+            if let saved = savedChoice, saved.isUserChosen == true {
+                return saved.isSuppressed == true ? nil : Self.mapItem(saved)
+            }
+            return await manualPlace(merchant: merchant, transactionID: transactionID)
+        }
         if let saved = saved(merchant: merchant, transactionID: transactionID) { return saved }
         guard !isGeneric(merchant) else { return nil }
         let key = SubscriptionDetector.normalize(merchant)
@@ -161,8 +198,74 @@ enum GhafPlaces {
         let best = here.map { location in
             matching.min { ($0.placemark.location?.distance(from: location) ?? .infinity) < ($1.placemark.location?.distance(from: location) ?? .infinity) }
         } ?? matching.first
+        best?.phoneNumber = nil
         cache[key] = best
         return best
+    }
+
+    /// Manual entries use a strict location fix and only infer a shop when its nearest
+    /// POI is uniquely separated. Otherwise just the reverse-geocoded area is retained.
+    private static func manualPlace(merchant: String, transactionID: UUID) async -> MKMapItem? {
+        let prior = load(transactionKey)[transactionID.uuidString]
+        let location: CLLocation
+        if let prior, prior.isArea == true,
+           let accuracy = prior.horizontalAccuracy, PlaceSelection.acceptsAreaAccuracy(accuracy) {
+            location = CLLocation(coordinate: CLLocationCoordinate2D(latitude: prior.latitude, longitude: prior.longitude),
+                                  altitude: 0, horizontalAccuracy: accuracy, verticalAccuracy: -1, timestamp: .now)
+            if isGeneric(merchant) { return Self.mapItem(prior) }
+        } else {
+            guard locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways,
+                  let fix = await accurateCurrentLocation(),
+                  PlaceSelection.acceptsAreaAccuracy(fix.horizontalAccuracy) else { return nil }
+            location = fix
+        }
+
+        if !isGeneric(merchant) {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = MerchantName.clean(merchant)
+            request.resultTypes = .pointOfInterest
+            request.region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 250, longitudinalMeters: 250)
+            let items = (try? await MKLocalSearch(request: request).start().mapItems) ?? []
+            let candidates = items.compactMap { item -> (MKMapItem, Double)? in
+                guard let point = item.placemark.location else { return nil }
+                let distance = point.distance(from: location)
+                return distance <= 60 ? (item, distance) : nil
+            }
+            if let selected = PlaceSelection.selectedCandidateIndex(distances: candidates.map(\.1)) {
+                let item = candidates[selected].0
+                let saved = Saved(name: item.name ?? MerchantName.clean(merchant),
+                                  latitude: item.placemark.coordinate.latitude,
+                                  longitude: item.placemark.coordinate.longitude,
+                                  address: item.placemark.title, phone: nil, isUserChosen: false,
+                                  isArea: false, horizontalAccuracy: location.horizontalAccuracy)
+                var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
+                return Self.mapItem(saved)
+            }
+        }
+
+        if let prior, prior.isArea == true { return Self.mapItem(prior) }
+        guard let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first,
+              let area = placemark.subLocality ?? placemark.locality else { return nil }
+        let saved = Saved(name: area, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
+                          address: nil, phone: nil, isUserChosen: false, isArea: true,
+                          horizontalAccuracy: location.horizontalAccuracy)
+        var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
+        return Self.mapItem(saved)
+    }
+
+    private static func accurateCurrentLocation() async -> CLLocation? {
+        await withCheckedContinuation { continuation in
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationDelegate.continuations.append(continuation)
+            locationManager.requestLocation()
+        }
+    }
+
+    private static func mapItem(_ saved: Saved) -> MKMapItem {
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: .init(latitude: saved.latitude, longitude: saved.longitude)))
+        item.name = saved.name
+        item.phoneNumber = saved.phone
+        return item
     }
 
     static func distance(to item: MKMapItem) -> CLLocationDistance? {

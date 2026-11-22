@@ -3,6 +3,7 @@ import GhafCore
 import SwiftData
 import UniformTypeIdentifiers
 import PhotosUI
+import UIKit
 
 private enum GhafSettingsPrompt: Identifiable {
     case importBackup
@@ -29,6 +30,7 @@ struct GhafSettingsView: View {
     let settings: GhafSettings
 
     @State private var name = ""
+    @State private var arabicName = ""
     @State private var languageCode = "en"
     @State private var currency = "AED"
     @State private var income = ""
@@ -39,6 +41,7 @@ struct GhafSettingsView: View {
     @State private var newCategory = ""
     @State private var categoryBudgetTexts: [String: String] = [:]
     @State private var backupURL: URL?
+    @State private var showBackupShare = false
     @State private var pendingImportURL: URL?
     @State private var showImportSheet = false
     /// Weekly totals everywhere follow this; the region's first weekday until the user picks one.
@@ -48,14 +51,19 @@ struct GhafSettingsView: View {
     @AppStorage("ghaf.glass.grain") private var glassGrain = true
     @AppStorage("ghaf.glass.glow") private var glassGlow = true
     @AppStorage("ghaf.glass.tilt") private var glassTilt = true
+    @AppStorage("ghaf.inAppSounds") private var inAppSounds = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
+    @State private var showPhotoMenu = false
+    @State private var showCameraPicker = false
+    @State private var isEditingProfileName = false
     @FocusState private var profileNameFocused: Bool
     @State private var prompt: GhafSettingsPrompt?
     @State private var showDeleteConfirmation = false
     @State private var hasLoadedSettings = false
     @State private var categoryToRemove: String?
+    @State private var subcategoryToRemove: String?
     @State private var editingCategory: String?
     @State private var categoryDraftName = ""
     @State private var showCategories = false
@@ -120,8 +128,7 @@ struct GhafSettingsView: View {
                                 ZStack(alignment: .trailing) {
                                     RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous)
                                         .fill(LinearGradient(colors: [theme.accent.opacity(theme.isDark ? 0.34 : 0.22), theme.glow.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    Circle().fill(theme.glow.opacity(0.2)).frame(width: 150).blur(radius: 34).offset(x: 34, y: -24)
-                                    Circle().fill(theme.accent.opacity(0.16)).frame(width: 110).blur(radius: 28).offset(x: -48, y: 42)
+                                    GhafProBannerGlow(theme: theme)
                                 }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
                             }
                             .ghafCard(theme: theme)
@@ -147,7 +154,7 @@ struct GhafSettingsView: View {
                     menuGroup(ar ? "التطبيق" : "App") {
                         menuRow(ar ? "الأدوات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -167,8 +174,10 @@ struct GhafSettingsView: View {
                     Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
                         .font(GhafTypography.body(12, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(maxWidth: 320, alignment: .center)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity)
                         .padding(.top, 4)
                 }
                 .ghafScreenPadding()
@@ -201,6 +210,11 @@ struct GhafSettingsView: View {
             }
 #endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
+            .overlay {
+                if selectedMilestone != nil {
+                    theme.background.ignoresSafeArea().allowsHitTesting(false)
+                }
+            }
             .onAppear {
                 loadSettings()
                 proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
@@ -223,6 +237,7 @@ struct GhafSettingsView: View {
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }
             .onChange(of: name) { _, _ in persistSettings() }
+            .onChange(of: arabicName) { _, _ in persistSettings() }
             .onChange(of: currency) { _, _ in persistSettings() }
             .onChange(of: income) { _, _ in persistSettings() }
             .onChange(of: commitments) { _, _ in persistSettings() }
@@ -231,6 +246,15 @@ struct GhafSettingsView: View {
             .onChange(of: budgetMode) { _, _ in persistSettings() }
             .onChange(of: categoryBudgetTexts) { _, _ in persistSettings() }
             .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
+            .sheet(isPresented: $showBackupShare) {
+                if let backupURL { GhafSettingsShareSheet(items: [backupURL]) }
+            }
+            .sheet(isPresented: $showCameraPicker) {
+                GhafCameraPicker { image in
+                    do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                    catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
+                }
+            }
             .alert(item: $prompt) { selectedPrompt in
                 switch selectedPrompt {
                 case .importBackup:
@@ -287,11 +311,11 @@ struct GhafSettingsView: View {
 
     private var profileHeader: some View {
         NavigationLink {
-            subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
+            GhafDeferredView { subpage(ar ? "الملف الشخصي" : "Profile") { profilePage } }
         } label: {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode)
-                Text(name.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : name)
+                Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
                     .font(GhafTypography.display(26, languageCode: languageCode))
                     .foregroundStyle(theme.primaryText)
                 HStack(spacing: 6) {
@@ -311,6 +335,22 @@ struct GhafSettingsView: View {
 
     private var profilePage: some View { profileCard.offerCodeRedemption(isPresented: $redeemingVoucher) }
 
+    private var profileDisplayName: String {
+        let arabic = settings.arabicName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ar && !arabic.isEmpty ? arabic : name
+    }
+
+    private var budgetCharacterName: String {
+        let preset = BudgetAllocation.Preset(rawValue: settings.allocationPresetRaw) ?? .balanced
+        if !ar { return preset.name }
+        return switch preset {
+        case .balanced: "البطل"
+        case .highRentCity: "الاستراتيجي"
+        case .essentialsFirst: "المستكشف"
+        case .guardian: "الحارس"
+        }
+    }
+
     private func menuGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -326,7 +366,7 @@ struct GhafSettingsView: View {
     // The page is type-erased: each row carrying its whole page in its type made More's type so deep
     // that resolving it at launch overflowed the main thread's stack on iOS 27.
     private func menuRow<Destination: View>(_ title: String, icon: String, value: String? = nil, @ViewBuilder destination: @escaping () -> Destination) -> some View {
-        NavigationLink { AnyView(destination()) } label: {
+        NavigationLink { GhafDeferredView { AnyView(destination()) } } label: {
             GhafListRow(icon: icon, tint: theme.accent, title: title, theme: theme,
                         languageCode: languageCode, chevron: true) {
                 if let value {
@@ -461,30 +501,33 @@ struct GhafSettingsView: View {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
                     .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(theme.accentContrast)
-                            .frame(width: 44, height: 44)
-                            .background(theme.accent, in: Circle())
-                            .overlay(Circle().stroke(theme.surface, lineWidth: 3))
+                        Button { showPhotoMenu = true } label: {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(theme.accentContrast)
+                                .frame(width: 44, height: 44)
+                                .background(theme.accent, in: Circle())
+                                .overlay(Circle().stroke(theme.surface, lineWidth: 3))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(ar ? "صورة الملف الشخصي" : "Profile photo options")
                     }
                     .frame(width: 104, height: 104)
-                TextField(ar ? "اسمك" : "Your name", text: $name)
-                    .font(GhafTypography.display(26, languageCode: languageCode))
-                    .foregroundStyle(theme.primaryText)
-                    .multilineTextAlignment(.center)
-                    .textInputAutocapitalization(.words)
-                    .submitLabel(.done)
-                    .focused($profileNameFocused)
-                Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
-                HStack(spacing: 10) {
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label(ar ? "تغيير الصورة" : "Change photo", systemImage: "camera.fill")
+                    .confirmationDialog(ar ? "صورة الملف الشخصي" : "Profile photo", isPresented: $showPhotoMenu, titleVisibility: .visible) {
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            Label(ar ? "اختيار صورة" : "Choose photo", systemImage: "photo")
+                        }
+                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                            Button(ar ? "التقاط صورة" : "Take photo") { showCameraPicker = true }
+                        }
+                        if hasPhoto {
+                            Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
+                                GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
+                            }
+                        }
+                        Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
                     }
-                    .ghafGlassButton(theme: theme, languageCode: languageCode)
-                    .accessibilityLabel(ar ? "تغيير صورة الملف الشخصي" : "Change profile photo")
+                    .accessibilityLabel(ar ? "صورة الملف الشخصي" : "Profile photo options")
                     .onChange(of: photoItem) { _, item in
                         Task {
                             guard let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
@@ -492,26 +535,48 @@ struct GhafSettingsView: View {
                             catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
                         }
                     }
-                    Button {
-                        profileNameFocused = true
-                    } label: {
-                        Label(ar ? "تعديل الاسم" : "Edit name", systemImage: "pencil")
+                HStack(spacing: 5) {
+                    if isEditingProfileName {
+                        TextField(ar ? "اسمك" : "Your name", text: $name)
+                            .font(GhafTypography.display(23, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                            .multilineTextAlignment(.center).textInputAutocapitalization(.words).submitLabel(.done)
+                            .focused($profileNameFocused)
+                        Button(ar ? "تم" : "Done") { isEditingProfileName = false; profileNameFocused = false }
+                            .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
+                    } else {
+                        Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
+                            .font(GhafTypography.display(26, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                            .lineLimit(2).minimumScaleFactor(0.8)
+                        Button {
+                            isEditingProfileName = true
+                            profileNameFocused = true
+                        } label: { Image(systemName: "pencil").font(.system(size: 13, weight: .semibold)) }
+                            .foregroundStyle(theme.accent).frame(minWidth: 44, minHeight: 44)
+                            .accessibilityLabel(ar ? "تعديل الاسم" : "Edit name")
                     }
-                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                 }
-                if hasPhoto {
-                    Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
-                        GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
-                    }
-                    .ghafDestructiveButton(theme: theme, languageCode: languageCode)
+                if isEditingProfileName {
+                    TextField(ar ? "الاسم بالعربية (اختياري)" : "Name in Arabic (optional)", text: $arabicName)
+                        .font(GhafTypography.body(16, languageCode: "ar")).foregroundStyle(theme.primaryText)
+                        .multilineTextAlignment(.center).submitLabel(.done)
+                        .accessibilityLabel(ar ? "الاسم بالعربية" : "Name in Arabic")
                 }
+                Text(budgetCharacterName)
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
+                Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
+                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
             }
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 8) {
                 profileMetric(value: "\(streak)", title: ar ? "أيام متتالية" : "Logging streak")
-                profileMetric(value: "\(transactions.count)", title: ar ? "العمليات" : "Transactions")
-                profileMetric(value: "\(activeAccountCount)", title: ar ? "الحسابات" : "Accounts")
+                NavigationLink { GhafTransactionsView(settings: settings) } label: {
+                    profileMetric(value: "\(transactions.count)", title: ar ? "العمليات" : "Transactions")
+                }.buttonStyle(.plain)
+                NavigationLink { GhafAccountsView(settings: settings) } label: {
+                    profileMetric(value: "\(activeAccountCount)", title: ar ? "الحسابات" : "Accounts")
+                }.buttonStyle(.plain)
             }
 
             VStack(spacing: 8) {
@@ -574,14 +639,16 @@ struct GhafSettingsView: View {
     }
 
     private var placesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let summaries = placeSummaries
+        return GhafProFeatureMask(isUnlocked: proUnlocked, theme: theme, languageCode: languageCode, action: { showProSheet = true }) {
+          VStack(alignment: .leading, spacing: 12) {
             Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
                 .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            if placeSummaries.isEmpty {
+            if summaries.isEmpty {
                 Text(ar ? "تظهر الأماكن هنا بعد تسجيل عملية مع موقعها." : "Places appear here after a transaction is saved with a location.")
                     .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
             } else {
-                ForEach(placeSummaries) { place in
+                ForEach(summaries) { place in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(place.name).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
@@ -598,19 +665,8 @@ struct GhafSettingsView: View {
                 }
             }
         }
-        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme)
-        .overlay {
-            if !proUnlocked {
-                Rectangle().fill(theme.background.opacity(0.35)).overlay {
-                    Button { showProSheet = true } label: {
-                        Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
-                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                            .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
-                            .background(theme.surface, in: Capsule())
-                    }.buttonStyle(.plain)
-                }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
-            }
+            .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .ghafCard(theme: theme)
         }
         .accessibilityHint(ar ? "تُحفظ بيانات الأماكن على هذا الجهاز فقط." : "Place data stays on this iPhone.")
     }
@@ -655,21 +711,26 @@ struct GhafSettingsView: View {
     }
 
     private func milestoneSheet(days: Int, streak: Int) -> some View {
-        VStack(spacing: 16) {
+        ScrollView {
+          VStack(spacing: 16) {
             Image(systemName: streak >= days ? "checkmark.seal.fill" : "sparkle")
                 .font(.system(size: 36)).foregroundStyle(theme.accent)
             Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            Text(ar ? "هذا الإنجاز لمن سجّل \(GhafLocalization.arabicDays(days)) متتالية. تسلسلك الحالي \(GhafLocalization.arabicDays(streak))، وهو للمتعة فقط."
-                    : "This milestone marks \(days) consecutive days. Your current streak is \(streak) days; just for fun.")
+            Text(ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)) أيام. أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak)) يوماً."
+                    : "You tracked your money for \(days) days in a row. Your streak is now \(streak) days.")
                 .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             Button(ar ? "تم" : "Done") { selectedMilestone = nil }
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
+          }
+          .padding(24).frame(maxWidth: .infinity)
         }
-        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
-        .presentationDetents([.height(270)])
+        .safeAreaPadding(.bottom, 12)
+        .presentationBackground { theme.background.ignoresSafeArea() }
+        .presentationDetents([.medium, .large])
         .presentationCornerRadius(32)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
@@ -736,6 +797,17 @@ struct GhafSettingsView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
+    private var mapsCard: some View {
+        settingsCard(ar ? "تطبيق الخرائط" : "Maps app",
+                     subtitle: ar ? "يفتح زر الاتجاهات هذا التطبيق." : "The Directions button opens this app.") {
+            GhafMapsAppPicker(settings: settings)
+                .onChange(of: settings.mapsAppPreference) { _, _ in
+                    do { try modelContext.save() }
+                    catch { modelContext.rollback(); prompt = .message(ar ? "تعذر حفظ الإعداد." : "Couldn't save this setting.") }
+                }
+        }
+    }
+
     private var keypadCard: some View {
         settingsCard(ar ? "إدخال العمليات" : "Transaction entry",
                      subtitle: ar ? "اختر طريقة ظهور لوحة الأرقام عند إضافة عملية." : "Choose whether the number pad opens when you add a transaction.") {
@@ -746,6 +818,19 @@ struct GhafSettingsView: View {
             })) {
                 Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+            .frame(minHeight: 56)
+        }
+    }
+
+    private var soundCard: some View {
+        settingsCard(ar ? "الأصوات" : "Sounds",
+                     subtitle: ar ? "أصوات هادئة لتأكيد بعض الإجراءات داخل التطبيق." : "Quiet cues for a few in-app actions.") {
+            Toggle(isOn: $inAppSounds) {
+                Text(ar ? "أصوات التطبيق" : "In-app sounds")
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
             }
             .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
             .frame(minHeight: 56)
@@ -1034,6 +1119,7 @@ HStack(spacing: 8) {
         .sheet(item: Binding(get: { editingCategory.map(GhafEditingCategory.init) }, set: { editingCategory = $0?.name })) { item in
             categoryEditor(item.name)
                 .presentationDetents([.medium])
+                .ghafSheetFrame(theme: theme)
                 .presentationDragIndicator(.visible)
         }
         .confirmationDialog(ar ? "حذف هذه الفئة؟" : "Remove this category?",
@@ -1060,7 +1146,8 @@ HStack(spacing: 8) {
 
     private func categoryEditor(_ category: String) -> some View {
         let builtIn = CategoryTaxonomy.category(named: category) != nil
-        return VStack(alignment: .leading, spacing: 16) {
+        return ScrollView {
+          VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
                 GhafCategoryIcon(category: category, tint: theme.accent, theme: theme)
                 Text(GhafLocalization.category(category, languageCode: languageCode))
@@ -1090,11 +1177,39 @@ HStack(spacing: 8) {
                     .font(GhafTypography.body(11, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
             }
+            if !settings.subcategories(of: category).isEmpty {
+                settingsLabel(ar ? "الفئات الفرعية" : "Subcategories")
+                ForEach(settings.subcategories(of: category), id: \.self) { subcategory in
+                    HStack {
+                        Text(GhafLocalization.category(subcategory, languageCode: languageCode))
+                            .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                        Spacer()
+                        Button(ar ? "حذف" : "Remove", role: .destructive) { subcategoryToRemove = subcategory }
+                            .font(GhafTypography.body(12, languageCode: languageCode))
+                            .frame(minHeight: 44)
+                    }.frame(minHeight: 44)
+                }
+            }
         }
         .padding(GhafMetrics.gutter)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(theme.background)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+        }
+        .padding(.vertical, 8)
+        .confirmationDialog(ar ? "حذف هذه الفئة الفرعية؟" : "Remove this subcategory?",
+                            isPresented: Binding(get: { subcategoryToRemove != nil }, set: { if !$0 { subcategoryToRemove = nil } }),
+                            titleVisibility: .visible) {
+            Button(ar ? "حذف" : "Remove", role: .destructive) {
+                if let subcategory = subcategoryToRemove {
+                    settings.deleteSubcategory(subcategory, from: category)
+                    try? modelContext.save()
+                }
+                subcategoryToRemove = nil
+            }
+        } message: {
+            Text(ar ? "تبقى العمليات المسجلة بها كما هي." : "Transactions already using it keep their category.")
+        }
     }
 
     /// Moves a category to a new name everywhere it is used: the list, budgets, subcategories,
@@ -1106,7 +1221,11 @@ HStack(spacing: 8) {
             prompt = .message(ar ? "توجد فئة بهذا الاسم." : "A category with that name already exists.")
             return
         }
-        settings.categories = settings.categories.map { $0 == old ? new : $0 }
+        let existingCategories = settings.categories
+        var deleted = settings.deletedCategoryKeys
+        deleted.insert(CategoryTaxonomy.deletionKey(category: old))
+        settings.deletedCategoryKeys = deleted
+        settings.categories = existingCategories.map { $0 == old ? new : $0 }
         var meta = settings.categoryMeta
         if let value = meta.removeValue(forKey: old) { meta[new] = value }
         settings.categoryMeta = meta
@@ -1170,16 +1289,12 @@ HStack(spacing: 8) {
     private var backupCard: some View {
         settingsCard(languageCode == "ar" ? "البيانات والنسخ الاحتياطي" : "Data and backup", subtitle: languageCode == "ar" ? "تصدير نسخة من بياناتك أو استعادتها" : "Move or keep a copy of your local records") {
             Button(action: createBackup) {
-                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير الحسابات والعمليات والاشتراكات والإعدادات والذاكرة والتفضيلات" : "Export accounts, transactions, subscriptions, settings, memories and preferences", icon: "square.and.arrow.up")
+                Label(languageCode == "ar" ? "إنشاء نسخة JSON" : "Create JSON backup", systemImage: "square.and.arrow.up")
             }
-            .buttonStyle(.ghafPress)
-
-            if let backupURL {
-                ShareLink(item: backupURL) {
-                    settingsActionRow(languageCode == "ar" ? "مشاركة النسخة أو حفظها" : "Share or save backup", detail: languageCode == "ar" ? "احفظها في iCloud Drive أو Google Drive عبر تطبيق الملفات" : "Save to iCloud Drive or Google Drive through the Files app", icon: "square.and.arrow.up.on.square")
-                }
-                .buttonStyle(.ghafPress)
-            }
+            .ghafProminentButton(theme: theme, languageCode: languageCode)
+            Text(languageCode == "ar" ? "صدّر الحسابات والعمليات والاشتراكات والإعدادات إلى ملف يمكنك حفظه أو مشاركته." : "Export accounts, transactions, subscriptions and settings to a file you can save or share.")
+                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button { showImportSheet = true } label: {
                 settingsActionRow(languageCode == "ar" ? "استيراد بيانات" : "Import data", detail: languageCode == "ar" ? "نسخة غاف أو Expend أو ملف CSV" : "A Ghaf or Expend backup, or a CSV file", icon: "square.and.arrow.down")
@@ -1285,6 +1400,7 @@ HStack(spacing: 8) {
 
     private func loadSettings() {
         name = settings.userName
+        arabicName = settings.arabicName
         languageCode = settings.languageCode
         currency = settings.currency
         income = GhafFormat.decimal(settings.monthlyIncome)
@@ -1303,6 +1419,7 @@ HStack(spacing: 8) {
     private func persistSettings() {
         guard hasLoadedSettings else { return }
         settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.arabicName = arabicName.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.languageCode = languageCode
         settings.currency = currency
         settings.monthlyIncome = Decimal(string: income) ?? 0
@@ -1350,11 +1467,9 @@ HStack(spacing: 8) {
     }
 
     private func removeCategory(_ category: String) {
-        var categories = settings.categories
-        guard categories.count > 1 else { return }
+        guard settings.categories.count > 1 else { return }
 
-        categories.removeAll { $0 == category }
-        settings.categories = categories
+        settings.deleteCategory(category)
         categoryBudgetTexts.removeValue(forKey: category)
 
         var budgets = settings.categoryBudgets
@@ -1366,6 +1481,7 @@ HStack(spacing: 8) {
     private func createBackup() {
         do {
             backupURL = try GhafBackupService.export(context: modelContext)
+            showBackupShare = true
         } catch {
             prompt = .message(languageCode == "ar" ? "تعذر إنشاء النسخة الاحتياطية." : "Could not create the backup.")
         }
@@ -1458,8 +1574,75 @@ HStack(spacing: 8) {
     }
 }
 
+private struct GhafProBannerGlow: View {
+    let theme: GhafTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var drift = false
+
+    var body: some View {
+        ZStack {
+            Circle().fill(theme.glow.opacity(0.24)).frame(width: 150, height: 150)
+                .blur(radius: 34).offset(x: drift ? -38 : 32, y: drift ? 34 : -26)
+            Circle().fill(theme.accent.opacity(0.2)).frame(width: 112, height: 112)
+                .blur(radius: 30).offset(x: drift ? 42 : -38, y: drift ? -28 : 36)
+        }
+        .frame(width: 260, height: 180)
+        .allowsHitTesting(false).accessibilityHidden(true)
+        .task {
+            guard !reduceMotion else { return }
+            while !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 5)) { drift.toggle() }
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
+    }
+}
+
+private struct GhafSettingsShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        controller.popoverPresentationController?.sourceView = UIView()
+        return controller
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+private struct GhafCameraPicker: UIViewControllerRepresentable {
+    let onImage: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ picker: UIImagePickerController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onImage: onImage, dismiss: dismiss) }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let onImage: (UIImage) -> Void
+        let dismiss: DismissAction
+        init(onImage: @escaping (UIImage) -> Void, dismiss: DismissAction) { self.onImage = onImage; self.dismiss = dismiss }
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage { onImage(image) }
+            dismiss()
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { dismiss() }
+    }
+}
+
 
 private struct GhafEditingCategory: Identifiable {
     let name: String
     var id: String { name }
+}
+
+/// NavigationLink builds its destination when the link is created, so More rebuilt every subpage (profile,
+/// streak, places…) on each render. This defers building the page until the destination is shown.
+private struct GhafDeferredView<Content: View>: View {
+    let build: () -> Content
+    init(@ViewBuilder _ build: @escaping () -> Content) { self.build = build }
+    var body: some View { build() }
 }

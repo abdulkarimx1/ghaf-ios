@@ -478,6 +478,7 @@ private struct GhafSubscriptionEditor: View {
     @State private var cycle: GhafBillingCycle = .monthly
     @State private var nextDate = Calendar.current.date(byAdding: .month, value: 1, to: .now) ?? .now
     @State private var category = "Subscriptions"
+    @State private var categoryPickedManually = false
     @State private var accountID: UUID?
     @State private var reminderDays = 2
     @State private var active = true
@@ -545,6 +546,16 @@ private struct GhafSubscriptionEditor: View {
                     }
 
                     GhafFormCard(theme: theme) {
+                        GhafFormMenuRow(icon: "tag", tint: theme.secondaryText, title: ar ? "الفئة" : "Category",
+                                        value: GhafLocalization.category(category, languageCode: settings.languageCode),
+                                        theme: theme, languageCode: settings.languageCode) {
+                            Picker(ar ? "الفئة" : "Category", selection: Binding(get: { category }, set: { category = $0; categoryPickedManually = true })) {
+                                ForEach(settings.categories, id: \.self) { item in
+                                    Text(GhafLocalization.category(item, languageCode: settings.languageCode)).tag(item)
+                                }
+                            }
+                        }
+                        GhafFormDivider(theme: theme)
                         GhafFormDateRow(icon: "calendar", tint: theme.secondaryText, title: ar ? "التجديد القادم" : "Next renewal",
                                         selection: $nextDate, isExpanded: $showDatePicker, theme: theme, languageCode: settings.languageCode)
                         GhafFormDivider(theme: theme)
@@ -599,6 +610,12 @@ private struct GhafSubscriptionEditor: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .onAppear(perform: load)
+            .onChange(of: name) { _, value in
+                guard subscription == nil, !categoryPickedManually,
+                      let suggestion = SubscriptionDetector.suggestedCategory(for: value),
+                      settings.categories.contains(suggestion.category) else { return }
+                category = suggestion.category
+            }
             .alert(ar ? "تعذر حفظ التغيير" : "Couldn't save the change", isPresented: $saveFailed) {
                 Button(ar ? "حسناً" : "OK", role: .cancel) {}
             } message: { Text(ar ? "لم يتغير شيء. حاول مرة أخرى." : "Nothing was changed. Please try again.") }
@@ -633,6 +650,7 @@ private struct GhafSubscriptionEditor: View {
 
     private func load() {
         guard let subscription else { originalNextDate = nextDate; return }
+        categoryPickedManually = true
         name = subscription.name; amount = NSDecimalNumber(decimal: subscription.amount).stringValue
         currency = subscription.currency; cycle = subscription.cycle; nextDate = subscription.nextPaymentDate
         category = subscription.category; accountID = subscription.accountID

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import GhafCore
 
 /// Shows the merchant → category rules Ghaf learned from the user's own corrections, with reset.
 struct GhafLearnedRulesView: View {
@@ -15,6 +16,19 @@ struct GhafLearnedRulesView: View {
     let settings: GhafSettings
 
     private var ar: Bool { settings.languageCode == "ar" }
+    private var groupedRules: [(key: String, name: String, category: String, subcategory: String?, hits: Int)] {
+        let groups = Dictionary(grouping: rules, by: { rule in
+            MerchantName.key(GhafMerchantAliasStore.displayName(rule.normalizedMerchant) ?? rule.normalizedMerchant)
+        })
+        return groups.compactMap { key, values in
+            guard !key.isEmpty, let latest = values.max(by: { $0.updatedAt < $1.updatedAt }) else { return nil }
+            let normalized = latest.normalizedMerchant
+            let resolvedName = GhafMerchantAliasStore.displayName(normalized)
+            let displayName = resolvedName == normalized ? normalized.capitalized : (resolvedName ?? normalized.capitalized)
+            return (key, displayName,
+                    latest.category, latest.subcategory, values.reduce(0) { $0 + $1.hits })
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
@@ -69,18 +83,26 @@ struct GhafLearnedRulesView: View {
                     .foregroundStyle(theme.secondaryText)
             } else {
                 Section(ar ? "التجار" : "Merchants") {
-                    ForEach(rules) { rule in
-                        HStack {
-                            Text(rule.normalizedMerchant.capitalized)
-                                .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
-                            Spacer()
-                            Text(GhafLocalization.category(rule.category, languageCode: settings.languageCode))
-                                .font(GhafTypography.body(14, languageCode: settings.languageCode))
-                                .foregroundStyle(theme.accent)
+                    ForEach(Array(groupedRules.enumerated()), id: \.offset) { element in
+                        let row = element.element
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.name).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold))
+                                Text(GhafLocalization.category(row.category, languageCode: settings.languageCode)
+                                     + (row.subcategory.map { " › " + GhafLocalization.category($0, languageCode: settings.languageCode) } ?? ""))
+                                    .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.accent)
+                            }
+                            Spacer(minLength: 4)
+                            let count = row.hits.formatted(.number.locale(Locale(identifier: ar ? "ar_AE" : "en_US")))
+                            let arabicCount = row.hits == 1 ? "مرة واحدة" : (row.hits == 2 ? "مرتان" : "\(count) مرات")
+                            Text(ar ? arabicCount : "\(count)×")
+                                .font(GhafTypography.body(12, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
+                                .accessibilityLabel(ar ? "تأكيدات: \(count)" : "Confirmed \(count) times")
                         }
                     }
                     .onDelete { offsets in
-                        offsets.map { rules[$0] }.forEach(context.delete)
+                        let keys = Set(offsets.compactMap { index in groupedRules.indices.contains(index) ? groupedRules[index].key : nil })
+                        rules.filter { keys.contains(MerchantName.key(GhafMerchantAliasStore.displayName($0.normalizedMerchant) ?? $0.normalizedMerchant)) }.forEach(context.delete)
                         try? context.save()
                     }
                 }

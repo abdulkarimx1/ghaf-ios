@@ -103,11 +103,7 @@ struct GhafMoneyLabel: View {
     /// The eye toggle on Home hides every amount in the app, not just Home's.
     @AppStorage(GhafFormat.hideBalancesKey) private var hiddenEverywhere = false
 
-    static let mask = "✦✦✦✦"
-
     private var isHidden: Bool { hidden || hiddenEverywhere }
-    // shortcut: equal amounts share a stagger slot; pass row order if strict reading order is required.
-    private var concealmentDelay: Double { Double(abs("\(currency):\(amount)".hashValue % 12)) * 0.03 }
 
     // Formatters are costly to build; reuse per language and currency precision (main thread only).
     private static let formatters: [String: [Int: NumberFormatter]] = ["ar": "ar_AE", "en": "en_AE"].mapValues { id in
@@ -130,13 +126,20 @@ struct GhafMoneyLabel: View {
     }
 
     @ViewBuilder private var numberText: some View {
-        let separator = Self.formatters[languageCode == "ar" ? "ar" : "en"]![GhafCurrencyDigits.fractionDigits(for: currency)]!.decimalSeparator ?? "."
-        if size >= 28, let split = number.range(of: separator, options: .backwards), !number[split.upperBound...].isEmpty {
-            HStack(spacing: 0) {
-                Text(String(number[..<split.lowerBound]))
-                Text(String(number[split.lowerBound...])).opacity(0.45)
+        let separators = [Self.formatter(languageCode: languageCode, currency: currency).decimalSeparator, ".", "٫"]
+            .compactMap { $0 }
+        let fractionStart = separators.compactMap { number.range(of: $0) }
+            .map { number.distance(from: number.startIndex, to: $0.lowerBound) }.min()
+        HStack(spacing: 0) {
+            ForEach(Array(number.enumerated()), id: \.offset) { item in
+                let character = item.element
+                let isFraction = fractionStart.map { item.offset >= $0 } ?? false
+                let digitIndex = number.prefix(item.offset).filter(\.isNumber).count
+                GhafMoneyGlyph(character: character, hidden: isHidden, isFraction: isFraction,
+                               digitIndex: digitIndex, size: size, weight: weight,
+                               reduceMotion: reduceMotion)
             }
-        } else { Text(number) }
+        }
     }
 
     var body: some View {
@@ -150,26 +153,9 @@ struct GhafMoneyLabel: View {
             numberText
                 .font(GhafTypography.number(size, weight: weight))
                 .monospacedDigit()
-                .contentTransition(.numericText())
-                .opacity(isHidden ? 0 : 1)
-                .overlay {
-                    if isHidden {
-                        HStack(spacing: 0) {
-                            ForEach(0..<4, id: \.self) { _ in
-                                Text("✦")
-                                    .font(GhafTypography.number(size * 0.7, weight: weight))
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .transition(.opacity)
-                    }
-                }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)
-        .animation(.easeOut(duration: reduceMotion ? 0.12 : 0.15)
-            .delay(reduceMotion ? 0 : concealmentDelay), value: isHidden)
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isHidden ? (languageCode == "ar" ? "المبلغ مخفي" : "Amount hidden")
@@ -177,9 +163,51 @@ struct GhafMoneyLabel: View {
     }
 }
 
+private struct GhafMoneyGlyph: View {
+    let character: Character
+    let hidden: Bool
+    let isFraction: Bool
+    let digitIndex: Int
+    let size: CGFloat
+    let weight: Font.Weight
+    let reduceMotion: Bool
+
+    private var digitWidth: CGFloat { size * 0.60 }
+    private var columnHeight: CGFloat { size * 1.25 }
+
+    var body: some View {
+        if character.isNumber {
+            ZStack {
+                Text(String(character))
+                    .contentTransition(.numericText())
+                    .offset(y: hidden && !reduceMotion ? -columnHeight : 0)
+                    .opacity(hidden ? 0 : 1)
+                Text("★")
+                    .font(GhafTypography.number(size * 0.72, weight: weight))
+                    .frame(width: digitWidth)
+                    .offset(y: !hidden && !reduceMotion ? columnHeight : 0)
+                    .opacity(hidden && !isFraction ? 1 : 0)
+            }
+            .frame(width: digitWidth, height: columnHeight)
+            .clipped()
+            .animation(reduceMotion ? .easeInOut(duration: 0.15)
+                : .timingCurve(0.22, 1, 0.36, 1, duration: 0.26)
+                    .delay(min(Double(digitIndex) * 0.03, 0.20)), value: hidden)
+        } else {
+            Text(String(character))
+                .opacity(hidden && isFraction ? 0 : (isFraction && size >= 28 ? 0.45 : 1))
+                .animation(reduceMotion ? .easeInOut(duration: 0.15)
+                    : .timingCurve(0.22, 1, 0.36, 1, duration: 0.26), value: hidden)
+        }
+    }
+}
+
 /// Text with the currency mark in place of "AED", "SAR" or "OMR" next to an amount, sized to the
 /// text, so sentences ("You spent AED 3,582.50") show the same mark as every other amount.
 enum GhafMoneyText {
+    /// Keeps embedded amounts in their own directional run inside Arabic sentences.
+    static func isolate(_ amount: String) -> String { "\u{2068}\(amount)\u{2069}" }
+
     private static let codes = #"AED|SAR|OMR|د\.إ\.?|ر\.س\.?|ر\.ع\.?"#
     private static let pattern = try! NSRegularExpression(
         pattern: #"(\#(codes))[\s\x{200F}\x{00A0}]?(?=[0-9٠-٩])|(?<=[0-9٠-٩])[\s\x{200F}\x{00A0}]?(\#(codes))"#)

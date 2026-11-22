@@ -105,12 +105,81 @@ final class CategoryMatcherTests: XCTestCase {
             XCTAssertFalse(category.arabic.isEmpty, category.name)
         }
         XCTAssertGreaterThanOrEqual(CategoryTaxonomy.all.count, 15)
+        XCTAssertEqual(CategoryTaxonomy.category(named: "Salary")?.kind, .income)
+        XCTAssertEqual(CategoryTaxonomy.category(named: "Transfers")?.kind, .transfer)
+        XCTAssertEqual(CategoryTaxonomy.category(named: "Food & Dining")?.kind, .expense)
     }
 
     func testArabicNameCoversAliases() {
         XCTAssertEqual(CategoryTaxonomy.arabicName(for: "Food"), CategoryTaxonomy.category(named: "Dining")?.arabic)
         XCTAssertNotNil(CategoryTaxonomy.arabicName(for: "Car"))
         XCTAssertNil(CategoryTaxonomy.arabicName(for: "HDD selling"))
+    }
+
+    func testBilingualUniversalCategoryPhrases() {
+        let cases: [(String, String, String)] = [
+            ("coffee", "Food & Dining", "Cafés & Karak"), ("cafeteria", "Food & Dining", "Cafeteria"),
+            ("tea shop", "Food & Dining", "Cafeteria"), ("محل شاي", "Food & Dining", "Cafeteria"),
+            ("shawarma", "Food & Dining", "Cafeteria"), ("فطور", "Food & Dining", "Breakfast"),
+            ("ريوق", "Food & Dining", "Breakfast"), ("صيدلية", "Health & Wellness", "Pharmacy & Meds"),
+            ("pharmacy", "Health & Wellness", "Pharmacy & Meds"), ("فحص دم", "Health & Wellness", "Lab tests"),
+            ("bloodwork", "Health & Wellness", "Lab tests"), ("عيادة", "Health & Wellness", "Clinic & Checkups"),
+            ("مستشفى", "Health & Wellness", "Hospital"), ("dental", "Health & Wellness", "Dental"),
+            ("نظارات", "Health & Wellness", "Optical"), ("gym", "Sports & Fitness", "Gym"),
+            ("جيم", "Sports & Fitness", "Gym"), ("نادي", "Sports & Fitness", "Gym"),
+            ("padel", "Sports & Fitness", "Padel & Tennis"), ("sports gear", "Sports & Fitness", "Sports gear"),
+            ("gardener", "Housing", "Gardening"), ("مشتل", "Housing", "Gardening"),
+            ("حديقة", "Housing", "Gardening"), ("إيجار", "Housing", "Rent"),
+            ("maintenance", "Housing", "Maintenance"), ("فواتير كهرباء", "Bills & Utilities", "Electricity & Water"),
+            ("اتصالات", "Bills & Utilities", "Mobile"), ("insurance", "Insurance", "Insurance"),
+            ("تأمين السفر", "Insurance", "Travel insurance"), ("school fees", "Education", "School fees"),
+            ("جامعة", "Education", "University"), ("حضانة", "Family & Kids", "Childcare"),
+            ("زكاة", "Charity", "Zakat"), ("مخالفة", "Car & Transport", "Fines"),
+            ("بنزين", "Car & Transport", "Fuel"), ("مترو", "Car & Transport", "Metro & Bus"),
+            ("حوالة", "Financial", "Remittance & Exchange"), ("راتب", "Salary", "Salary"),
+            ("استرداد", "Other Income", "Refunds"), ("rent received", "Other Income", "Rent received"), ("pet food", "Pets", "Pet food")
+        ]
+        let catalog: [String: [String]] = [:]
+        for (phrase, category, subcategory) in cases {
+            let result = CategoryMatcher.match(phrase, catalog: catalog, learned: [:])
+            XCTAssertEqual(result?.category, category, phrase)
+            XCTAssertEqual(result?.subcategory, subcategory, phrase)
+        }
+        XCTAssertGreaterThanOrEqual(cases.count, 30)
+    }
+
+    func testLegacyDeletionMigrationRecordsRemovedItemsWithoutSuppressingAdditions() {
+        let deleted = CategoryTaxonomy.legacyDeletionKeys(
+            categories: ["Food", "Groceries", "Transfers"],
+            subcategories: ["Food": ["Cafeteria"], "Groceries": []]
+        )
+        XCTAssertTrue(deleted.contains(CategoryTaxonomy.deletionKey(category: "Car & Transport")))
+        XCTAssertTrue(deleted.contains(CategoryTaxonomy.deletionKey(category: "Food & Dining", subcategory: "Restaurants")))
+        XCTAssertFalse(deleted.contains(CategoryTaxonomy.deletionKey(category: "Food & Dining")))
+        XCTAssertFalse(deleted.contains(CategoryTaxonomy.deletionKey(category: "Housing", subcategory: "Gardening")))
+        XCTAssertFalse(deleted.contains(CategoryTaxonomy.deletionKey(category: "Transfers", subcategory: "Friends & family")))
+        let incomeDeleted = CategoryTaxonomy.legacyDeletionKeys(
+            categories: ["Other Income"],
+            subcategories: ["Other Income": ["Freelance & Business", "Rental income"]]
+        )
+        XCTAssertFalse(incomeDeleted.contains(CategoryTaxonomy.deletionKey(category: "Other Income", subcategory: "Freelance")))
+        XCTAssertFalse(incomeDeleted.contains(CategoryTaxonomy.deletionKey(category: "Other Income", subcategory: "Rent received")))
+    }
+
+    func testFreshInstallDefaultsMigrateToNoDeletions() {
+        let subs = Dictionary(uniqueKeysWithValues: CategoryTaxonomy.all.map { ($0.name, $0.subcategories.map(\.name)) })
+        XCTAssertEqual(CategoryTaxonomy.legacyDeletionKeys(categories: CategoryTaxonomy.defaultNames, subcategories: subs), [])
+    }
+
+    func testTaxonomyTombstonesKeepDeletedDefaultsAndSubcategoriesGone() {
+        let deleted: Set<String> = [
+            CategoryTaxonomy.deletionKey(category: "Insurance"),
+            CategoryTaxonomy.deletionKey(category: "Housing", subcategory: "Gardening")
+        ]
+        XCTAssertFalse(CategoryTaxonomy.excludingDeleted(CategoryTaxonomy.defaultNames, deleted: deleted).contains("Insurance"))
+        let housing = try! XCTUnwrap(CategoryTaxonomy.category(named: "Housing"))
+        XCTAssertFalse(CategoryTaxonomy.excludingDeleted(housing.subcategories, category: "Housing", deleted: deleted)
+            .contains(where: { $0.name == "Gardening" }))
     }
 
     func testTransfersAreNeverSpending() {

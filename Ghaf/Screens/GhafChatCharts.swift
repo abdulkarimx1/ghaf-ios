@@ -43,7 +43,7 @@ struct GhafPetalSegment: Shape {
         }
         let outerRadius = radius * outer, innerRadius = radius * inner
         let petalWidth = outerRadius * CGFloat((end - start) * .pi / 180)
-        let corner = min(18, petalWidth * 0.25, (outerRadius - innerRadius) / 2)
+        let corner = min(14, petalWidth * 0.25, (outerRadius - innerRadius) / 2)
         let outerInset = min((end - start) * 0.22, Double(atan(corner / max(outerRadius - corner, 1))) * 180 / .pi)
         let innerInset = min((end - start) * 0.22, Double(atan(corner / max(innerRadius + corner, 1))) * 180 / .pi)
         func arcControl(_ from: Double, _ to: Double, _ r: CGFloat) -> CGPoint {
@@ -226,7 +226,7 @@ struct GhafChatChartView: View {
         HStack(spacing: 2) {
             ForEach(styles, id: \.self) { item in
                 Button { withAnimation(.snappy) { styleOverride = item; selected = nil } } label: {
-                    Image(systemName: item == .bar ? "chart.bar.fill" : item == .donut ? "chart.pie.fill" : item == .rose ? "camera.macro" : "chart.xyaxis.line")
+                    Image(systemName: item == .bar ? "chart.bar.fill" : item == .donut ? "chart.pie.fill" : item == .rose ? "circle.hexagongrid.fill" : "chart.xyaxis.line")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(style == item ? theme.accentContrast : theme.secondaryText)
                         .frame(width: 44, height: 36)

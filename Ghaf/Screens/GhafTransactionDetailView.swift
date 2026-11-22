@@ -67,7 +67,8 @@ struct GhafTransactionDetailView: View {
                 header.ghafEntrance(0)
                 receipt.ghafEntrance(1)
                 if transaction.needsReview { reviewBanner }
-                GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang)
+                GhafMerchantDetailView(transaction: transaction, theme: theme, languageCode: lang,
+                                       mapsAppPreference: settings.mapsAppPreference)
                 bankContact
                 HStack(spacing: 12) {
                     Button { editing = true } label: {
