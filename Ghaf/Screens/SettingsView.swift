@@ -121,8 +121,7 @@ struct GhafSettingsView: View {
                                 ZStack(alignment: .trailing) {
                                     RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous)
                                         .fill(LinearGradient(colors: [theme.accent.opacity(theme.isDark ? 0.34 : 0.22), theme.glow.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    Circle().fill(theme.glow.opacity(0.2)).frame(width: 150).blur(radius: 34).offset(x: 34, y: -24)
-                                    Circle().fill(theme.accent.opacity(0.16)).frame(width: 110).blur(radius: 28).offset(x: -48, y: 42)
+                                    GhafProBannerGlow(theme: theme)
                                 }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
                             }
                             .ghafCard(theme: theme)
@@ -1486,6 +1485,30 @@ HStack(spacing: 8) {
                     : "Data was deleted, but some device files or keychain items could not be removed: \(issues.joined(separator: ", "))")
             } catch {
                 prompt = .message(arabic ? "تعذر حذف جميع البيانات: \(error.localizedDescription)" : "Could not delete all data: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+private struct GhafProBannerGlow: View {
+    let theme: GhafTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var drift = false
+
+    var body: some View {
+        ZStack {
+            Circle().fill(theme.glow.opacity(0.24)).frame(width: 150, height: 150)
+                .blur(radius: 34).offset(x: drift ? -38 : 32, y: drift ? 34 : -26)
+            Circle().fill(theme.accent.opacity(0.2)).frame(width: 112, height: 112)
+                .blur(radius: 30).offset(x: drift ? 42 : -38, y: drift ? -28 : 36)
+        }
+        .frame(width: 260, height: 180)
+        .allowsHitTesting(false).accessibilityHidden(true)
+        .task {
+            guard !reduceMotion else { return }
+            while !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 5)) { drift.toggle() }
+                try? await Task.sleep(for: .seconds(5))
             }
         }
     }
