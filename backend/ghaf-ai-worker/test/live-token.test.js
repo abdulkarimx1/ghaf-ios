@@ -20,19 +20,16 @@ test('live token authorization, quota, response and upstream privacy', async t =
   const denied = await worker.fetch(request(), env);
   assert.equal(denied.status, 401);
 
-  const key = `v:free:${new Date().toISOString().slice(0, 10)}:${device}`;
-  env.values.set(key, '15');
-  const capped = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
-  assert.equal(capped.status, 429);
-  env.values.delete(key);
-
   globalThis.fetch = async () => Response.json({ name: 'authTokens/test' });
+  const key = `v:free:${new Date().toISOString().slice(0, 10)}:${device}`;
+  env.values.set(key, '15'); // Session setup is separate; only a reserved user turn consumes this allowance.
   const success = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
   const payload = await success.json();
   assert.equal(success.status, 200);
   assert.equal(payload.token, 'authTokens/test');
   assert.equal(payload.voice, 'Orus');
   assert.equal(payload.model, 'models/gemini-3.8-live');
+  assert.equal(env.values.get(key), '15');
 
   const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'free' }), env);
   assert.equal((await mariam.json()).voice, 'Kore');
@@ -41,5 +38,8 @@ test('live token authorization, quota, response and upstream privacy', async t =
   globalThis.fetch = async () => new Response('secret upstream body', { status: 500 });
   const failure = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
   assert.equal(failure.status, 502);
-  assert.equal(await failure.text(), '{"error":"upstream"}');
+  assert.deepEqual(await failure.json(), {
+    error: 'upstream', used: 0, limit: 15,
+    resetsAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1)).toISOString()
+  });
 });

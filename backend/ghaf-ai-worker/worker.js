@@ -12,12 +12,22 @@ const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary,
 export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
-    const endpoint = ({ "/chat": "chat", "/speak": "speak", "/live-token": "live-token", "/health": "health", "/tips": "tips" })[path] || "other";
+    const endpoint = ({ "/chat": "chat", "/speak": "speak", "/live-token": "live-token", "/voice-usage": "voice-usage", "/voice-turn": "voice-turn", "/health": "health", "/tips": "tips" })[path] || "other";
     const usage = { endpoint, model: "", outcome: "error", lang: "other", device: request.headers.get("X-Ghaf-Device") || "", developer: Boolean(env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN), errorKind: "", input: 0, output: 0 };
     const started = Date.now();
     let response;
     try {
       response = await handle(request, env, usage);
+      const path = new URL(request.url).pathname;
+      if (["/chat", "/live-token", "/voice-turn"].includes(path)
+          && /^[0-9A-F-]{36}$/i.test(usage.device) && response.headers.get("Content-Type")?.includes("application/json")) {
+        const tier = normalizeTier(usage.tier);
+        const counters = path === "/chat"
+          ? await questionUsage(env, usage.device, tier)
+          : await voiceUsage(env, usage.device, tier);
+        const payload = await response.json();
+        response = json({ ...payload, ...counters }, response.status);
+      }
       if (response.status === 429) {
         if (!usage.outcome.startsWith("limited_")) usage.outcome = "limited_global";
       } else if (response.status >= 400) usage.outcome = "error";
@@ -37,18 +47,37 @@ async function handle(request, env, usage) {
     const path = new URL(request.url).pathname;
     if (request.method === "GET" && path === "/health") return json({ ok: true });
     if (request.method === "GET" && path === "/tips") return json({ version: 1, tips: MONEY_TIPS });
-    if (request.method !== "POST" || !["/chat", "/speak", "/live-token"].includes(path)) {
+    if (request.method === "GET" && path === "/voice-usage") {
+      const auth = authorize(request, env);
+      if (!auth) return json({ error: "unauthorized" }, 401);
+      const tier = normalizeTier(request.headers.get("X-Ghaf-Tier"));
+      if (usage) { usage.tier = tier; usage.model = "voice-usage-v1"; }
+      return json(await voiceUsage(env, auth.device, tier));
+    }
+    if (request.method !== "POST" || !["/chat", "/speak", "/live-token", "/voice-turn"].includes(path)) {
       return json({ error: "not_found" }, 404);
     }
-    const developer = env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN;
-    const device = request.headers.get("X-Ghaf-Device") || "";
-    if (!developer && !/^[0-9A-F-]{36}$/i.test(device)) return json({ error: "unauthorized" }, 401);
+    const auth = authorize(request, env);
+    if (!auth) return json({ error: "unauthorized" }, 401);
+    const { developer, device } = auth;
 
     const raw = await request.text();
     if (raw.length > MAX_BODY) return json({ error: "too_large" }, 413);
 
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
+    usage.tier = normalizeTier(body.tier);
+    if (path === "/voice-turn") {
+      const tier = normalizeTier(body.tier);
+      if (!developer) {
+        const usageState = await incrementVoiceUsage(env, device, tier);
+        if (!usageState.allowed) { if (usage) usage.outcome = "limited_device"; return json({ error: "daily_limit", ...usageState.usage }, 429); }
+        if (usage) { usage.model = "voice-turn-counter-v1"; usage.outcome = "ok"; usage.lang = body.language === "ar" ? "ar" : "en"; }
+        return json(usageState.usage);
+      }
+      if (usage) { usage.model = "voice-turn-counter-v1"; usage.outcome = "ok"; }
+      return json(await voiceUsage(env, device, tier));
+    }
     if (path === "/speak") {
       if (usage) usage.lang = detectLanguage(String(body.text || ""));
       return speak(body, env, developer, device, usage);
@@ -198,12 +227,8 @@ async function liveToken(body, env, developer, device, usage) {
   if (body.language !== "ar" && body.language !== "en") return json({ error: "bad_language" }, 400);
   const character = body.character === "Mariam" ? "Mariam" : "Hamad";
   const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
+  if (usage) usage.tier = tier;
   if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, 0, 0, 1)) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
-  if (!developer) {
-    const caps = { free: 15, pro_monthly: 60, pro_yearly: 200 };
-    const limited = await overLimit(env, device, `v:${tier}`, Number(caps[tier]), Number(env.VOICE_GLOBAL_DAILY_LIMIT || 3000));
-    if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "daily_limit" }, 429); }
-  }
   if (!env.GEMINI_API_KEY) return json({ error: "upstream" }, 502);
   const expires = new Date(Date.now() + 30 * 60_000).toISOString();
   let response;
@@ -226,6 +251,43 @@ async function liveToken(body, env, developer, device, usage) {
   if (usage) { usage.model = env.LIVE_MODEL || "models/gemini-3.8-live"; usage.outcome = "ok"; }
   return json({ token: data.name, model: env.LIVE_MODEL || "models/gemini-3.8-live", expiresAt: expires,
     voice: character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus" });
+}
+
+function authorize(request, env) {
+  const developer = Boolean(env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN);
+  const device = request.headers.get("X-Ghaf-Device") || "";
+  return developer || /^[0-9A-F-]{36}$/i.test(device) ? { developer, device } : null;
+}
+
+function normalizeTier(value) {
+  return ["pro_monthly", "pro_yearly"].includes(value) ? value : "free";
+}
+
+function voiceLimit(tier, env) {
+  return { free: 15, pro_monthly: 60, pro_yearly: 200 }[tier];
+}
+
+async function questionUsage(env, device, tier) {
+  const day = new Date().toISOString().slice(0, 10);
+  const used = Number(await env.USAGE.get(`d:${tier}:${day}:${device}`) || 0);
+  const limit = tier === "pro_yearly" ? 200 : tier === "pro_monthly" ? 60 : Number(env.FREE_DAILY_LIMIT || 20);
+  const resetsAt = new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)) + 1)).toISOString();
+  return { used, limit, resetsAt };
+}
+
+async function voiceUsage(env, device, tier) {
+  const day = new Date().toISOString().slice(0, 10);
+  const used = Number(await env.USAGE.get(`v:${tier}:${day}:${device}`) || 0);
+  const resetsAt = new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)) + 1)).toISOString();
+  return { used, limit: voiceLimit(tier, env), resetsAt };
+}
+
+async function incrementVoiceUsage(env, device, tier) {
+  const before = await voiceUsage(env, device, tier);
+  if (before.used >= before.limit) return { allowed: false, usage: before };
+  const day = new Date().toISOString().slice(0, 10);
+  await env.USAGE.put(`v:${tier}:${day}:${device}`, String(before.used + 1), { expirationTtl: 172800 });
+  return { allowed: true, usage: { ...before, used: before.used + 1 } };
 }
 
 // Text to speech for Ghaf AI's voice mode. Gemini's speech model first (Arabic and English);

@@ -91,6 +91,9 @@ struct GhafAIView: View {
     @State private var offerLiveConsent = false
     @State private var voiceUnavailable = false
     @State private var showVoicePicker = false
+    @State private var voiceUsage: GhafVoiceUsage?
+    @State private var voiceLimitReached = false
+    @State private var voiceGoodbyePlaying = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glassStyle
 
@@ -170,10 +173,11 @@ struct GhafAIView: View {
             .onAppear {
                 engine = assistant.engine
                 Task { await GhafCloudAI.prewarm() }
+                if GhafCloudAI.isEnabled { Task { voiceUsage = await GhafCloudAI.voiceUsage() } }
                 tabRouter.startVoice = {
                     if liveCallActive {
                         if liveCall.isCapturingUserTurn { liveCall.endUserTurn(); tabRouter.isListening = false }
-                        else if liveCall.phase != .speaking && liveCall.phase != .thinking { liveCall.beginUserTurn(); tabRouter.isListening = true }
+                        else if liveCall.phase != .thinking { beginLiveUserTurn() }
                     } else if recorder.isRecording { recorder.stop(); finishVoice() }
                     else { startVoice() }
                 }
@@ -290,16 +294,19 @@ struct GhafAIView: View {
     }
 
     private var header: some View {
-        HStack {
-            optionsMenu
-            Spacer()
-            Color.clear.frame(width: 44, height: 44)
-        }
-        .overlay {
-            Text("Ghaf AI")
-                .font(GhafTypography.heading(17, languageCode: "en"))
-                .foregroundStyle(theme.primaryText)
-                .accessibilityAddTraits(.isHeader)
+        VStack(spacing: 6) {
+            HStack {
+                optionsMenu
+                Spacer()
+                Color.clear.frame(width: 44, height: 44)
+            }
+            .overlay {
+                Text("Ghaf AI")
+                    .font(GhafTypography.heading(17, languageCode: "en"))
+                    .foregroundStyle(theme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            if GhafCloudAI.isEnabled, let voiceUsage { voiceLimitCounter(voiceUsage) }
         }
         .ghafScreenPadding()
         .padding(.top, 8)
@@ -704,6 +711,61 @@ struct GhafAIView: View {
         }
     }
 
+    private func voiceLimitCounter(_ usage: GhafVoiceUsage) -> some View {
+        let remaining = max(0, usage.limit - usage.used)
+        let spokenCount = remaining.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        let spokenLimit = usage.limit.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        return VStack(spacing: 4) {
+            Text(ar ? "باقي \(spokenCount) من \(spokenLimit) ردًا صوتيًا اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
+                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .center)
+            GeometryReader { geometry in
+                ZStack(alignment: ar ? .trailing : .leading) {
+                    Capsule().fill(theme.outline.opacity(0.45))
+                    Capsule().fill(theme.accent)
+                        .frame(width: geometry.size.width * CGFloat(usage.limit == 0 ? 0 : remaining) / CGFloat(max(usage.limit, 1)))
+                }
+            }
+            .frame(height: 2)
+            .accessibilityLabel(ar ? "الردود الصوتية المتبقية اليوم" : "Voice replies remaining today")
+            .accessibilityValue("\(remaining) of \(usage.limit)")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func beginLiveUserTurn() {
+        guard liveCallActive, !voiceLimitReached else { return }
+        Task {
+            guard let reservation = await GhafCloudAI.reserveVoiceTurn(languageCode: ar ? "ar" : "en") else {
+                voiceUsage = await GhafCloudAI.voiceUsage()
+                return
+            }
+            voiceUsage = reservation.usage
+            guard reservation.allowed else {
+                voiceLimitReached = true
+                tabRouter.isListening = false
+                let played = GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar) {
+                    voiceGoodbyePlaying = false
+                    liveCall.end(reason: "daily_limit")
+                    liveCallActive = false
+                }
+                if !played {
+                    voiceGoodbyePlaying = false
+                    liveCall.end(reason: "daily_limit")
+                    liveCallActive = false
+                    appendCallNote(ar ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر." : "That's all I can do for today. Come back tomorrow.")
+                } else {
+                    voiceGoodbyePlaying = true
+                }
+                return
+            }
+            liveCall.beginUserTurn()
+            tabRouter.isListening = true
+        }
+    }
+
     /// Called by the stop button, or automatically after a pause. Clear speech is sent;
     /// unclear speech is dropped.
     private func finishVoice() {
@@ -1088,8 +1150,7 @@ struct GhafAIView: View {
         do {
             try await liveCall.start(language: ar ? "ar" : "en", character: voiceCharacter, tier: GhafAITier.current, systemInstruction: instruction, tools: liveToolDeclarations)
             liveCallActive = true
-            liveCall.beginUserTurn()
-            tabRouter.isListening = true
+            beginLiveUserTurn()
         } catch GhafCloudAI.Failure.dailyLimit {
             appendCallNote(ar ? "وصلت إلى حد الرسائل الصوتية اليوم. يمكنك متابعة الكتابة." : "You've reached today's voice limit. You can keep chatting by text.")
         } catch {
@@ -1224,6 +1285,7 @@ struct GhafAIView: View {
     }
 
     private var orbMood: GhafAIOrb.Mood {
+        if voiceGoodbyePlaying { return .speaking }
         if voiceMode {
             switch liveCall.phase {
             case .connecting, .thinking: return .thinking

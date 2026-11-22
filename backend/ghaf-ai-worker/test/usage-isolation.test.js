@@ -29,5 +29,9 @@ test('chat upstream failure does not expose provider detail', async t => {
     body: JSON.stringify({ question: 'hello' })
   }), env);
   assert.equal(response.status, 502);
-  assert.deepEqual(await response.json(), { error: 'upstream' });
+  const body = await response.json();
+  assert.equal(body.error, 'upstream');
+  assert.equal(body.used, 0);
+  assert.equal(body.limit, 20);
+  assert.equal(typeof body.resetsAt, 'string');
 });
