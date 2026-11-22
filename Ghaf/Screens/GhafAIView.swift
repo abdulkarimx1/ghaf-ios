@@ -1079,6 +1079,9 @@ struct GhafAIView: View {
                 withAnimation(.spring(duration: 0.5, bounce: 0.2)) {
                     messages[index].chart = chart
                     messages[index].suggestions = suggestions(after: resolved)
+                    if chart != nil {
+                        messages[index].text = settings.languageCode == "ar" ? "هذا الرسم من سجلاتك." : "Here is a chart from your records."
+                    }
                     // Only answers the ledger computed say where their numbers came from.
                     if direct != nil {
                         messages[index].source = GhafChatChartBuilder.source(for: resolved, transactions: transactions,
