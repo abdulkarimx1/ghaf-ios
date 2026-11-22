@@ -3,17 +3,26 @@ import XCTest
 import Testing
 
 final class BudgetAllocationTests: XCTestCase {
-    func testPetalBudgetAndSpentRadiiAreProportionalAndCapped() {
-        let halfBudget = BudgetAllocation.petalRadii(budget: 50, spent: 25, largestBudget: 100, innerRadius: 0.5)
-        XCTAssertEqual(halfBudget.outer, 0.75, accuracy: 0.0001)
-        XCTAssertEqual(halfBudget.fill, 0.625, accuracy: 0.0001)
+    func testPetalOuterRadiusIsConstantAndSpentUsesBudgetRatio() {
+        let halfBudget = BudgetAllocation.petalRadii(budget: 50, spent: 25, innerRadius: 0.16)
+        XCTAssertEqual(halfBudget.outer, 1, accuracy: 0.0001)
+        XCTAssertEqual(halfBudget.fill, 0.48, accuracy: 0.0001)
 
-        let overBudget = BudgetAllocation.petalRadii(budget: 100, spent: 140, largestBudget: 100, innerRadius: 0.5)
+        let fullBudget = BudgetAllocation.petalRadii(budget: 100, spent: 100, innerRadius: 0.16)
+        XCTAssertEqual(fullBudget.outer, 1, accuracy: 0.0001)
+        XCTAssertEqual(fullBudget.fill, 0.8, accuracy: 0.0001)
+
+        let overBudget = BudgetAllocation.petalRadii(budget: 100, spent: 140, innerRadius: 0.16)
         XCTAssertEqual(overBudget.outer, 1, accuracy: 0.0001)
-        XCTAssertEqual(overBudget.fill, 1, accuracy: 0.0001)
+        XCTAssertEqual(overBudget.fill, 0.8, accuracy: 0.0001)
 
-        let empty = BudgetAllocation.petalRadii(budget: 0, spent: 0, largestBudget: 100, innerRadius: 0.5)
-        XCTAssertEqual(empty, .init(outer: 0.5, fill: 0.5))
+        let unspent = BudgetAllocation.petalRadii(budget: 100, spent: 0, innerRadius: 0.16)
+        XCTAssertEqual(unspent, .init(outer: 1, fill: 0.16))
+    }
+
+    func testPetalZeroBudgetHasNoSpentFill() {
+        let zeroBudget = BudgetAllocation.petalRadii(budget: 0, spent: 0, innerRadius: 0.16)
+        XCTAssertEqual(zeroBudget, .init(outer: 1, fill: 0.16))
     }
 
     func testRemainingAfterSpendingAndSavingsGoal() {

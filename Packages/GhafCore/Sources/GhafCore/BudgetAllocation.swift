@@ -9,14 +9,13 @@ public enum BudgetAllocation {
         public let fill: Double
     }
 
-    /// Normalizes each category budget to the largest budget and grows its fill by spent ÷ budget.
-    public static func petalRadii(budget: Decimal, spent: Decimal, largestBudget: Decimal, innerRadius: Double) -> PetalRadii {
+    /// Keeps every budget petal at the same outer radius and grows the spend inward from its edge.
+    public static func petalRadii(budget: Decimal, spent: Decimal, innerRadius: Double, fillLimit: Double = 0.8) -> PetalRadii {
         let inner = min(max(innerRadius, 0), 1)
-        guard budget > 0, largestBudget > 0 else { return PetalRadii(outer: inner, fill: inner) }
-        let budgetRatio = min(1, NSDecimalNumber(decimal: budget / largestBudget).doubleValue)
-        let outer = inner + (1 - inner) * budgetRatio
-        let spentRatio = min(1, max(0, NSDecimalNumber(decimal: spent / budget).doubleValue))
-        return PetalRadii(outer: outer, fill: inner + (outer - inner) * spentRatio)
+        let limit = min(max(fillLimit, inner), 1)
+        guard budget > 0, spent > 0 else { return PetalRadii(outer: 1, fill: inner) }
+        let spentRatio = min(1, NSDecimalNumber(decimal: spent / budget).doubleValue)
+        return PetalRadii(outer: 1, fill: inner + (limit - inner) * spentRatio)
     }
 
     /// Income not spent in the Needs and Wants buckets; this is a budget estimate, not a bank balance.
