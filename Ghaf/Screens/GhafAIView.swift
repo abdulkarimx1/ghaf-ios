@@ -94,6 +94,7 @@ struct GhafAIView: View {
     @State private var voiceUsage: GhafVoiceUsage?
     @State private var voiceLimitReached = false
     @State private var voiceGoodbyePlaying = false
+    @State private var liveTurnHasTransactionDrafts = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glassStyle
 
@@ -590,6 +591,19 @@ struct GhafAIView: View {
                                 .padding(.horizontal, 7).padding(.vertical, 3)
                                 .background(theme.accent, in: Capsule())
                         }
+                        if state == .pending {
+                            Picker(ar ? "الحساب" : "Account", selection: $draft.accountID) {
+                                let eligibleAccounts = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
+                                Text(eligibleAccounts.isEmpty ? (ar ? "لا يوجد حساب متاح" : "No account available") : (ar ? "تلقائي" : "Automatic"))
+                                    .tag(UUID?.none)
+                                ForEach(eligibleAccounts) { account in
+                                    Text(account.name).tag(Optional(account.id))
+                                }
+                            }
+                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
+                            .tint(theme.primaryText)
+                            .frame(minHeight: 40)
+                        }
                     }
                     Spacer(minLength: 6)
                     GhafAmountField(value: $draft.amountText, currency: draft.currency,
@@ -605,7 +619,7 @@ struct GhafAIView: View {
                 HStack(spacing: 10) {
                     Button(ar ? "تجاهل" : "Discard") { message.wrappedValue.draftState = .discarded }
                         .ghafGlassButton(theme: theme, languageCode: settings.languageCode)
-                    Button(ar ? "حفظ" : "Save") { saveDrafts(message) }
+                    Button(ar ? "تأكيد" : "Confirm") { saveDrafts(message) }
                         .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
             case .saved:
@@ -803,6 +817,7 @@ struct GhafAIView: View {
                 return
             }
             liveCall.beginUserTurn()
+            liveTurnHasTransactionDrafts = false
             tabRouter.isListening = true
         }
     }
@@ -958,17 +973,7 @@ struct GhafAIView: View {
         if applyCorrection(text) { return }
 
         // A purchase ("35 AED lunch") becomes a draft card; anything else goes to the assistant.
-        let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
-            var result = draft
-            result.merchant = Self.tidyTitle(draft.merchant)
-            if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
-                result.category = match.category
-                result.subcategory = match.subcategory
-            } else {
-                result.category = draft.direction == "credit" ? "Other Income" : "Other"
-            }
-            return result
-        }
+        let drafts = preparedVoiceDrafts(in: text)
         if !drafts.isEmpty {
             let intro = ar
                 ? (drafts.count == 1 ? "وجدت عملية. راجع الفئة ثم احفظ:" : "وجدت \(drafts.count) عمليات. راجعها ثم احفظ:")
@@ -987,7 +992,11 @@ struct GhafAIView: View {
                 hint += ar ? "\nلم أجد فئة لـ \(unmatched.joined(separator: "، ")). اضغط على الفئة واختر «فئة جديدة»."
                            : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category."
             }
-            withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro + hint, drafts: drafts)) }
+            withAnimation(.snappy) {
+                for draft in drafts {
+                    messages.append(GhafChatMessage(isUser: false, text: drafts.count == 1 ? intro + hint : (ar ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:"), drafts: [draft]))
+                }
+            }
             if isVoice {
                 // Read back what was heard and ask, then listen for "yes", "remove the coffee", "make it 5"…
                 listenAfterSpeaking = true
@@ -1138,6 +1147,24 @@ struct GhafAIView: View {
         }.joined(separator: " ")
     }
 
+    private func preparedVoiceDrafts(in text: String) -> [GhafVoiceTransactionDraft] {
+        GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft in
+            var result = draft
+            result.merchant = Self.tidyTitle(draft.merchant)
+            if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
+                result.category = match.category
+                result.subcategory = match.subcategory
+            } else {
+                result.category = draft.direction == "credit" ? "Other Income" : "Other"
+            }
+            let eligible = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
+            result.accountID = eligible.first(where: { $0.type == .cash })?.id
+                ?? eligible.first(where: { $0.isPrimary })?.id
+                ?? eligible.first?.id
+            return result
+        }
+    }
+
     /// The suggested category or subcategory isn't in the user's list yet.
     private func isNewCategory(_ draft: GhafVoiceTransactionDraft) -> Bool {
         guard draft.category != "Other" else { return false }
@@ -1158,7 +1185,7 @@ struct GhafAIView: View {
                 ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: "ar"))" } ?? "") }.joined(separator: "، ") + "."
                 : "Saved. I'll remember " + learned.map { "\($0.merchant) → \(GhafLocalization.category($0.category, languageCode: settings.languageCode))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: settings.languageCode))" } ?? "") }.joined(separator: ", ") + ".")
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: note)) }
-            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?")
+            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?", force: liveCallActive)
         } catch {
             withAnimation(.snappy) {
                 messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."))
@@ -1231,8 +1258,16 @@ struct GhafAIView: View {
                 liveGroundingSources.append(text)
             }
             if final {
+                let completeText = liveInputText
                 if let id = liveInputMessageID, let index = messages.firstIndex(where: { $0.id == id }) { messages[index].isVoice = true }
                 liveInputMessageID = nil; liveInputText = ""
+                let drafts = preparedVoiceDrafts(in: completeText)
+                if !drafts.isEmpty && !liveTurnHasTransactionDrafts {
+                    for draft in drafts {
+                        messages.append(GhafChatMessage(isUser: false, text: ar ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:", drafts: [draft]))
+                    }
+                    liveTurnHasTransactionDrafts = true
+                }
             }
         }
         liveCall.onOutputTranscript = { text, final in
@@ -1281,17 +1316,15 @@ struct GhafAIView: View {
             } else { response = ar ? "لا توجد بيانات للرسم." : "There is no data to chart." }
         case "log_transaction":
             let text = value("text")
-            let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
-                var result = draft
-                result.merchant = Self.tidyTitle(draft.merchant)
-                if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
-                    result.category = match.category; result.subcategory = match.subcategory
-                } else { result.category = draft.direction == "credit" ? "Other Income" : "Other" }
-                return result
-            }
+            let drafts = preparedVoiceDrafts(in: text)
             if !drafts.isEmpty {
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "وجدت عملية. راجعها ثم احفظ:" : "I found a transaction. Review it, then save:", drafts: drafts))
-                response = ar ? "بانتظار تأكيد المستخدم على بطاقة العملية." : "Awaiting the user's confirmation on the transaction card."
+                if !liveTurnHasTransactionDrafts {
+                    for draft in drafts {
+                        messages.append(GhafChatMessage(isUser: false, text: ar ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:", drafts: [draft]))
+                    }
+                    liveTurnHasTransactionDrafts = true
+                }
+                response = ar ? "تظهر بطاقة تأكيد مستقلة لكل عملية. اطلب من المستخدم مراجعتها قبل الحفظ." : "Each transaction has its own confirmation card. Ask the user to review before saving."
             } else { response = ar ? "لم أجد عملية واضحة." : "I couldn't parse a clear transaction." }
         case "remember":
             guard memoryEnabled else { response = ar ? "الذاكرة متوقفة." : "Memory is disabled."; return ["result": .string(response)] }

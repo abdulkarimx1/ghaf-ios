@@ -16,6 +16,7 @@ public struct GhafVoiceTransactionDraft: Identifiable {
     public var category: String
     public var subcategory: String? = nil
     public var direction: String
+    public var accountID: UUID? = nil
 }
 
 public enum GhafVoiceTransactionParser {
