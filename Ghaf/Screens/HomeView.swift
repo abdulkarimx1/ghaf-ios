@@ -456,9 +456,9 @@ struct GhafHomeView: View {
 
             HStack(spacing: 14) {
                 changeLine(icon: "arrow.down.right", value: summary.spent, color: theme.debit,
-                           label: ar ? "صرفت" : "spent", currency: summary.mainCurrency)
+                           label: ar ? "المصروف" : "spent", currency: summary.mainCurrency)
                 changeLine(icon: "arrow.up.right", value: summary.income, color: theme.credit,
-                           label: ar ? "دخل" : "in", currency: summary.mainCurrency)
+                           label: ar ? "الدخل" : "in", currency: summary.mainCurrency)
             }
 
             HStack(spacing: 6) {
@@ -646,17 +646,17 @@ struct GhafHomeView: View {
 
     /// Nothing spent yet: say what the period before cost.
     private func emptyInsight(_ summary: Summary) -> String {
-        let text = activityPeriodIndex == 1
-            ? (ar ? "ما صرفت شيئاً في آخر ٧ أيام." : "Nothing spent in the last 7 days.")
-            : (ar ? "ما صرفت شيئاً \(periodName) بعد." : "Nothing spent \(periodPhrase) yet.")
+        let text = ar
+            ? ["لا مصروفات اليوم حتى الآن.", "لا مصروفات في آخر ٧ أيام.", "لا مصروفات هذا الشهر حتى الآن."][activityPeriodIndex]
+            : activityPeriodIndex == 1 ? "Nothing spent in the last 7 days." : "Nothing spent \(periodPhrase) yet."
         guard summary.previousSpent > 0 else {
-            return text + (ar ? " يوم جميل لمحفظتك." : " A good day for your wallet.")
+            return text + (ar ? " يوم بلا مصروفات." : " A good day for your wallet.")
         }
-        let previousName = ar ? ["أمس", "في الأيام السبعة التي قبلها", "الشهر الماضي"][activityPeriodIndex]
+        let previousName = ar ? ["مصروف أمس", "مصروف الأيام السبعة السابقة", "مصروف الشهر الماضي"][activityPeriodIndex]
                               : ["Yesterday", "In the 7 days before", "Last month"][activityPeriodIndex]
         guard !hideBalances else { return text }
         let amount = GhafFormat.money(summary.previousSpent, currency: summary.mainCurrency, languageCode: lang)
-        return text + (ar ? " \(previousName) صرفت \(amount)." : " \(previousName) you spent \(amount).")
+        return text + (ar ? " \(previousName): \(amount)." : " \(previousName), you spent \(amount).")
     }
 
     // MARK: Recent activity (a short shortcut; the full list lives in Transactions)
