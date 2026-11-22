@@ -229,6 +229,14 @@ async function liveToken(body, env, developer, device, usage) {
   const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
   if (usage) usage.tier = tier;
   if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, 0, 0, 1)) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
+  if (!developer) {
+    // Turns are counted by /voice-turn, but a session token is the costly thing a client can request,
+    // so it is capped here too: no token once the day's turns are used, and sessions per device/global are bounded.
+    const turns = await voiceUsage(env, device, tier);
+    if (turns.used >= turns.limit) { if (usage) usage.outcome = "limited_device"; return json({ error: "daily_limit", ...turns }, 429); }
+    const limited = await overLimit(env, device, `vs:${tier}`, voiceLimit(tier, env), Number(env.VOICE_GLOBAL_DAILY_LIMIT || 3000));
+    if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "daily_limit", ...turns }, 429); }
+  }
   if (!env.GEMINI_API_KEY) return json({ error: "upstream" }, 502);
   const expires = new Date(Date.now() + 30 * 60_000).toISOString();
   let response;
@@ -237,7 +245,9 @@ async function liveToken(body, env, developer, device, usage) {
     headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify({
       uses: 1, expireTime: expires, newSessionExpireTime: new Date(Date.now() + 60_000).toISOString(),
-      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["AUDIO"] }, sessionResumption: {}, lockAdditionalFields: [] }
+      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["AUDIO"] }, sessionResumption: {} },
+      // Without a field mask Google ignores the app's whole setup (instructions, tools, voice). Lock only these.
+      fieldMask: "model,generationConfig.responseModalities,sessionResumption"
     })
   }); } catch { return json({ error: "upstream" }, 502); }
   if (!response.ok) {
@@ -366,7 +376,7 @@ function wav(pcm) {
 // KV is eventually consistent, so a burst can overshoot slightly; good enough for a free-quota guard.
 async function overLimit(env, device, kind = "d", deviceLimit = Number(env.FREE_DAILY_LIMIT || 20), globalLimit = Number(env.GLOBAL_DAILY_LIMIT || 1000)) {
   const day = new Date().toISOString().slice(0, 10);
-  const globalKind = kind.startsWith("v:") ? "live" : kind === "s" ? "speak" : "chat";
+  const globalKind = kind.startsWith("v:") || kind.startsWith("vs:") ? "live" : kind === "s" ? "speak" : "chat";
   const deviceKey = `${kind}:${day}:${device}`, globalKey = `g:${globalKind}:${day}`;
   const [used, all] = await Promise.all([env.USAGE.get(deviceKey), env.USAGE.get(globalKey)]);
   const deviceCount = Number(used || 0), globalCount = Number(all || 0);

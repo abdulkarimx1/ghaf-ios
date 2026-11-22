@@ -22,14 +22,14 @@ test('live token authorization, quota, response and upstream privacy', async t =
 
   globalThis.fetch = async () => Response.json({ name: 'authTokens/test' });
   const key = `v:free:${new Date().toISOString().slice(0, 10)}:${device}`;
-  env.values.set(key, '15'); // Session setup is separate; only a reserved user turn consumes this allowance.
+  env.values.set(key, '14'); // A session needs a turn left; opening one does not consume a turn.
   const success = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
   const payload = await success.json();
   assert.equal(success.status, 200);
   assert.equal(payload.token, 'authTokens/test');
   assert.equal(payload.voice, 'Orus');
   assert.equal(payload.model, 'models/gemini-3.8-live');
-  assert.equal(env.values.get(key), '15');
+  assert.equal(env.values.get(key), '14');
 
   const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'free' }), env);
   assert.equal((await mariam.json()).voice, 'Kore');

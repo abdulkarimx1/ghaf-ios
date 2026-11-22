@@ -73,7 +73,8 @@ test('live-token and speak write their own endpoint and actual model', async t =
   assert.equal(state.points[0].blobs[1], 'models/gemini-3.8-live');
   assert.equal(state.points[0].blobs[2], 'ok');
   assert.equal(state.points[0].blobs[3], 'ar');
-  assert.deepEqual(tokenRequest.bidiGenerateContentSetup.lockAdditionalFields, []);
+  assert.equal(tokenRequest.fieldMask, 'model,generationConfig.responseModalities,sessionResumption');
+  assert.equal(tokenRequest.bidiGenerateContentSetup.lockAdditionalFields, undefined);
 
   const speak = await invoke('/speak', { text: 'hello voice', language: 'en', tier: 'free' }, state);
   assert.equal(speak.status, 200);
@@ -93,4 +94,12 @@ test('health, tips and unmatched routes use fixed endpoint labels', async () => 
   assert.deepEqual(state.points.map(point => point.blobs[0]), ['health', 'tips', 'other']);
   assert.deepEqual(state.points.map(point => point.blobs[2]), ['ok', 'ok', 'error']);
   assert.equal(JSON.stringify(state.points).includes('private-prompt-in-path'), false);
+});
+
+test('live-token refuses a session once the day\'s voice turns are used', async () => {
+  const state = setup();
+  const day = new Date().toISOString().slice(0, 10);
+  await state.env.USAGE.put(`v:free:${day}:${device}`, '15');
+  const live = await invoke('/live-token', { language: 'en', tier: 'free' }, state);
+  assert.equal(live.status, 429);
 });
