@@ -21,7 +21,7 @@ struct GhafImportSheet: View {
     private var ar: Bool { settings.languageCode == "ar" }
     private var theme: GhafTheme { GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: scheme == .dark) }
     private var mailIsConfigured: Bool { MFMailComposeViewController.canSendMail() }
-    private var supportAddressIsConfigured: Bool { GhafLinks.supportEmail.contains("@") && !GhafLinks.supportEmail.contains("example.com") }
+    private var supportAddressIsConfigured: Bool { GhafLinks.hasConfiguredSupportEmail }
     private var canEmailDeveloper: Bool { mailIsConfigured && supportAddressIsConfigured }
 
     var body: some View {
