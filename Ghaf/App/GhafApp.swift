@@ -48,7 +48,14 @@ struct GhafApp: App {
                     GhafWidgetSync.refresh(context: modelContainer.mainContext)
                     if hidden { Task { await GhafWidgetSync.endAll() } }
                 }
-                .onAppear { runUnreadUITestHookIfRequested() }
+                .onAppear {
+                    runUnreadUITestHookIfRequested()
+#if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("-GhafActivityLifecycleProof") {
+                        Task { await GhafWidgetSync.runLifecycleProof() }
+                    }
+#endif
+                }
         }
         .modelContainer(modelContainer)
     }

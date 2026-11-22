@@ -347,6 +347,8 @@ struct GhafPurchaseAttributes: ActivityAttributes {
         var category: String = ""
         /// When Ghaf recorded it, so a stale activity can say how long ago.
         var recordedAt: Date? = nil
+        /// Fixed lifetime for this transaction activity; optional to decode activities made by older builds.
+        var expiresAt: Date? = nil
         /// The user hides balances: show stars instead of the amount.
         var hidden: Bool? = nil
         var transactionID: UUID? = nil
