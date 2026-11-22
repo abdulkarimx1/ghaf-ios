@@ -631,9 +631,9 @@ struct GhafBudgetView: View {
                     let center = proxy.size.width * (Double(index) + 0.5) / Double(months.count)
                     let x = min(max(center, width / 2), proxy.size.width - width / 2)
                     HStack(spacing: 5) {
-                        Text(selected.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))
-                        Text("·")
-                        Text(GhafFormat.shownMoney(Decimal(selected.total), currency: currency, languageCode: lang)).lineLimit(1).minimumScaleFactor(0.8)
+                        GhafMoneyLabel(amount: Decimal(selected.total), currency: currency, languageCode: lang,
+                                       size: 12, weight: .semibold)
+                            .lineLimit(1).minimumScaleFactor(0.8)
                     }
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.primaryText)
@@ -643,6 +643,8 @@ struct GhafBudgetView: View {
                 }
                 .frame(height: 28)
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel(selected.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang)))
+                                    + " · " + GhafFormat.shownMoney(Decimal(selected.total), currency: currency, languageCode: lang))
             }
             HStack(alignment: .bottom, spacing: 10) {
                 ForEach(months, id: \.start) { month in
