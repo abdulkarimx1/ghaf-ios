@@ -26,6 +26,7 @@ struct GhafCategoryMeta: Codable, Equatable {
 final class GhafSettings {
     var id: UUID
     var userName: String
+    var arabicName: String = ""
     var languageCode: String = "en"
     var hasSeenAutomationIntro: Bool = false
     var showKeypadOnAdd: Bool = true
@@ -58,6 +59,7 @@ final class GhafSettings {
 
     init(
         userName: String = "",
+        arabicName: String = "",
         languageCode: String = "en",
         hasSeenAutomationIntro: Bool = false,
         currency: String = "AED",
@@ -79,6 +81,7 @@ final class GhafSettings {
     ) {
         self.id = UUID()
         self.userName = userName
+        self.arabicName = arabicName
         self.languageCode = languageCode
         self.hasSeenAutomationIntro = hasSeenAutomationIntro
         self.currency = currency
