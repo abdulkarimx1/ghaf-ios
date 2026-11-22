@@ -50,6 +50,8 @@ final class GhafLiveCall: ObservableObject {
     private var inputContinuation: AsyncStream<Data>.Continuation?
     private var inputSenderTask: Task<Void, Never>?
     private var capturingUserTurn = false
+    /// Mic audio flows only after activityStart has been sent, so the server never gets speech before the turn opens.
+    private var audioGateOpen = false
     private var userRequestedTurn = false
     private var pendingEndReason: String?
     var isCapturingUserTurn: Bool { capturingUserTurn }
@@ -58,18 +60,18 @@ final class GhafLiveCall: ObservableObject {
         guard GhafCloudAI.isEnabled else { throw GhafCloudAI.Failure.unavailable }
         self.language = language; self.character = character; self.tier = tier; instruction = systemInstruction; self.tools = tools
         stopping = false; reconnects = 0; startedAt = Date(); turnCompleteReceived = false; phase = .connecting
-        capturingUserTurn = false; userRequestedTurn = false
+        capturingUserTurn = false; audioGateOpen = false; userRequestedTurn = false
         let stream = AsyncStream<Data>.makeStream()
         inputContinuation = stream.continuation
         inputSenderTask = Task { [weak self, stream = stream.stream] in
             for await chunk in stream {
-                guard let self, !self.stopping, self.capturingUserTurn else { continue }
+                guard let self, !self.stopping, self.audioGateOpen else { continue }
                 guard !self.isMuted else { self.inputLevel = 0; continue }
                 let samples = chunk.withUnsafeBytes { raw in Array(raw.bindMemory(to: Int16.self)) }
                 let rms = sqrt(samples.reduce(Float.zero) { $0 + pow(Float($1) / 32768, 2) } / max(1, Float(samples.count)))
                 self.inputLevel = min(1, rms * 3)
                 for start in stride(from: 0, to: chunk.count, by: 640) {
-                    guard self.capturingUserTurn, !self.isMuted,
+                    guard self.audioGateOpen, !self.isMuted,
                           let message = try? LiveEncoder.audio(chunk.subdata(in: start..<min(start + 640, chunk.count))) else { continue }
                     self.startTurnLimitIfNeeded()
                     try? await self.send(message)
@@ -86,8 +88,15 @@ final class GhafLiveCall: ObservableObject {
     func end(reason: String = "") {
         if !stopping && (queuedOutputBuffers > 0 || phase == .speaking || phase == .thinking) {
             pendingEndReason = reason
+            // Safety net: if the reply never reports completion, still close the call.
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(12))
+                guard let self, !self.stopping, let pending = self.pendingEndReason else { return }
+                self.endNow(reason: pending)
+            }
             if capturingUserTurn {
                 capturingUserTurn = false
+                audioGateOpen = false
                 if let message = try? LiveEncoder.activityEnd() { Task { try? await send(message) } }
             }
             engine.inputNode.removeTap(onBus: 0)
@@ -133,12 +142,17 @@ final class GhafLiveCall: ObservableObject {
         turnCompleteReceived = false
         capturingUserTurn = true
         phase = .listening
-        if let message = try? LiveEncoder.activityStart() { Task { try? await send(message) } }
+        guard let message = try? LiveEncoder.activityStart() else { return }
+        Task {
+            try? await send(message)
+            if capturingUserTurn { audioGateOpen = true }
+        }
     }
 
     func endUserTurn() {
         guard !stopping, capturingUserTurn else { return }
         capturingUserTurn = false
+        audioGateOpen = false
         inputLevel = 0
         if let message = try? LiveEncoder.activityEnd() { Task { try? await send(message) } }
     }
@@ -235,6 +249,7 @@ final class GhafLiveCall: ObservableObject {
         case .turnComplete:
             finishTurnLimit()
             capturingUserTurn = false
+            audioGateOpen = false
             inputLevel = 0
             onInputTranscript?("", true); onOutputTranscript?("", true)
             turnCompleteReceived = true

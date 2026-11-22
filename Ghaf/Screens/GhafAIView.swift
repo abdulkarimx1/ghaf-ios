@@ -792,33 +792,29 @@ struct GhafAIView: View {
 
     private func beginLiveUserTurn() {
         guard liveCallActive, !voiceLimitReached else { return }
+        // Open the turn at once (the orb must feel instant); the reservation runs alongside it.
+        liveCall.beginUserTurn()
+        liveTurnHasTransactionDrafts = false
+        tabRouter.isListening = true
         Task {
-            guard let reservation = await GhafCloudAI.reserveVoiceTurn(languageCode: ar ? "ar" : "en") else {
-                voiceUsage = await GhafCloudAI.voiceUsage()
-                return
-            }
+            // nil = network or server trouble: keep talking; /live-token still enforces the daily cap.
+            guard let reservation = await GhafCloudAI.reserveVoiceTurn(languageCode: ar ? "ar" : "en") else { return }
             voiceUsage = reservation.usage
-            guard reservation.allowed else {
-                voiceLimitReached = true
-                tabRouter.isListening = false
-                let played = GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar) {
-                    voiceGoodbyePlaying = false
-                    liveCall.end(reason: "daily_limit")
-                    liveCallActive = false
-                }
-                if !played {
-                    voiceGoodbyePlaying = false
-                    liveCall.end(reason: "daily_limit")
-                    liveCallActive = false
-                    appendCallNote(ar ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر." : "That's all I can do for today. Come back tomorrow.")
-                } else {
-                    voiceGoodbyePlaying = true
-                }
-                return
+            guard !reservation.allowed else { return }
+            voiceLimitReached = true
+            liveCall.endUserTurn()
+            tabRouter.isListening = false
+            let finish = {
+                voiceGoodbyePlaying = false
+                liveCall.end(reason: "daily_limit")
+                liveCallActive = false
             }
-            liveCall.beginUserTurn()
-            liveTurnHasTransactionDrafts = false
-            tabRouter.isListening = true
+            if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, onFinish: finish) {
+                voiceGoodbyePlaying = true
+            } else {
+                finish()
+                appendCallNote(ar ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر." : "That's all I can do for today. Come back tomorrow.")
+            }
         }
     }
 
