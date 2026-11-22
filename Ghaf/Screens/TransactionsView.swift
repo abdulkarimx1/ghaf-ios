@@ -41,7 +41,10 @@ struct GhafTransactionsView: View {
     /// Filtered once per render; search reads account names from a dictionary, not a scan per row.
     private func filtered() -> [GhafTransaction] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accountNames = Dictionary(accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        if filter == "All", query.isEmpty { return transactions }
+        let accountNames: [UUID: String] = query.isEmpty
+            ? [:]
+            : Dictionary(accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
         return transactions.filter { transaction in
             switch filter {
             case "Expenses": guard transaction.direction == "debit" else { return false }

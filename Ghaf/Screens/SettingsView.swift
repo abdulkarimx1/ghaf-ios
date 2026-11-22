@@ -287,7 +287,7 @@ struct GhafSettingsView: View {
 
     private var profileHeader: some View {
         NavigationLink {
-            subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
+            GhafDeferredView { subpage(ar ? "الملف الشخصي" : "Profile") { profilePage } }
         } label: {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode)
@@ -326,7 +326,7 @@ struct GhafSettingsView: View {
     // The page is type-erased: each row carrying its whole page in its type made More's type so deep
     // that resolving it at launch overflowed the main thread's stack on iOS 27.
     private func menuRow<Destination: View>(_ title: String, icon: String, value: String? = nil, @ViewBuilder destination: @escaping () -> Destination) -> some View {
-        NavigationLink { AnyView(destination()) } label: {
+        NavigationLink { GhafDeferredView { AnyView(destination()) } } label: {
             GhafListRow(icon: icon, tint: theme.accent, title: title, theme: theme,
                         languageCode: languageCode, chevron: true) {
                 if let value {
@@ -574,14 +574,15 @@ struct GhafSettingsView: View {
     }
 
     private var placesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let summaries = placeSummaries
+        return VStack(alignment: .leading, spacing: 12) {
             Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
                 .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            if placeSummaries.isEmpty {
+            if summaries.isEmpty {
                 Text(ar ? "تظهر الأماكن هنا بعد تسجيل عملية مع موقعها." : "Places appear here after a transaction is saved with a location.")
                     .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
             } else {
-                ForEach(placeSummaries) { place in
+                ForEach(summaries) { place in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(place.name).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
@@ -1462,4 +1463,12 @@ HStack(spacing: 8) {
 private struct GhafEditingCategory: Identifiable {
     let name: String
     var id: String { name }
+}
+
+/// NavigationLink builds its destination when the link is created, so More rebuilt every subpage (profile,
+/// streak, places…) on each render. This defers building the page until the destination is shown.
+private struct GhafDeferredView<Content: View>: View {
+    let build: () -> Content
+    init(@ViewBuilder _ build: @escaping () -> Content) { self.build = build }
+    var body: some View { build() }
 }
