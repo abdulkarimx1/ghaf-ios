@@ -342,24 +342,41 @@ struct GhafBudgetView: View {
     }
 
     private var presetSheet: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(ar ? "اختر التوزيع" : "Choose a budget split").font(GhafTypography.heading(22, languageCode: lang)).foregroundStyle(theme.primaryText).frame(maxWidth: .infinity)
             ForEach(BudgetAllocation.Preset.allCases, id: \.self) { item in
                 Button { settings.allocationPresetRaw = item.rawValue; showPresetSheet = false } label: {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(ar ? presetNameArabic(item) : item.name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
-                            Text(ar ? presetArabic(item) : item.description).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(ar ? presetNameArabic(item) : item.name)
+                                .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                                .lineLimit(1)
+                            Text(item.title)
+                                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(theme.accent)
+                            Text(ar ? presetArabic(item) : item.description)
+                                .font(GhafTypography.body(11, languageCode: lang))
+                                .foregroundStyle(theme.secondaryText)
+                                .lineLimit(1).minimumScaleFactor(0.8)
                         }
-                        Spacer(minLength: 8)
-                        HStack(spacing: 6) {
-                            Text(item.title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).monospacedDigit()
-                            if preset == item { Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)) }
+                        Spacer(minLength: 4)
+                        if preset == item {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(theme.accent)
                         }
-                        .foregroundStyle(theme.primaryText)
                     }
-                    .foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                }.buttonStyle(.plain)
+                    .foregroundStyle(theme.primaryText)
+                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .background(preset == item ? theme.accent.opacity(0.12) : theme.surface,
+                                in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(ar ? presetNameArabic(item) : item.name), \(item.title)")
+                .accessibilityAddTraits(preset == item ? .isSelected : [])
             }
             Text(ar ? "تستند قاعدة ٥٠/٣٠/٢٠ إلى كتاب Elizabeth Warren بعنوان All Your Worth (2005). أما التوزيعات الأخرى فتكيّفها لتناسب ارتفاع التكاليف الثابتة." : "The 50/30/20 rule comes from Elizabeth Warren's book All Your Worth (2005). The other splits adapt it for higher fixed costs.")
                 .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).fixedSize(horizontal: false, vertical: true)
