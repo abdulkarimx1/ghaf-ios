@@ -45,8 +45,8 @@ public enum CategoryTaxonomy {
         Category(name: "Food & Dining", arabic: "الطعام والمطاعم", icon: "fork.knife", color: "orange",
                  aliases: ["Food", "Dining", "Restaurants", "Eating out"], subcategories: [
             sub("Restaurants", "مطاعم", ["restaurant", "dinner out", "mandi", "biryani", "machboos", "majboos", "sushi", "steak", "مطعم", "مندي", "برياني", "مجبوس", "كبسة"]),
-            sub("Cafés & Karak", "مقاهي وكرك", ["cafe", "coffee", "karak", "chai", "latte", "starbucks", "tim hortons", "costa", "caribou", "dunkin", "قهوة", "كرك", "شاي", "كافيه", "كوفي", "مقهى"]),
-            sub("Cafeteria", "كافتيريا", ["cafeteria", "tea shop", "tea house", "tea stall", "sandwich", "shawarma", "falafel", "paratha", "شاي", "محل شاي", "كافتيريا", "شاورما", "فلافل", "ساندويش", "سندويش", "براتا"]),
+            sub("Cafés & Karak", "مقاهي وكرك", ["cafe", "coffee", "karak", "chai", "latte", "starbucks", "tim hortons", "costa", "caribou", "dunkin", "قهوة", "كرك", "كافيه", "كوفي", "مقهى"]),
+            sub("Cafeteria", "كافتيريا", ["cafeteria", "shay", "shai", "tea shop", "tea house", "tea stall", "sandwich", "shawarma", "falafel", "paratha", "شاي", "محل شاي", "كافتيريا", "شاورما", "فلافل", "ساندويش", "سندويش", "براتا"]),
             sub("Fast food", "وجبات سريعة", ["burger", "pizza", "fries", "mcdonalds", "kfc", "hardees", "burger king", "subway", "popeyes", "شيك شاك", "برجر", "بيتزا", "ماكدونالدز", "هرفي", "البيك", "albaik", "herfy"]),
             sub("Delivery", "توصيل", ["talabat", "deliveroo", "noon food", "careem food", "hungerstation", "jahez", "keeta", "طلبات", "هنقرستيشن", "جاهز", "كيتا", "ديليفرو"]),
             sub("Breakfast", "فطور", ["breakfast", "فطور", "ريوق"]),

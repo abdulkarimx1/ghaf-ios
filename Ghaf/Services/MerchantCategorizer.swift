@@ -191,12 +191,6 @@ enum MerchantCategorizer {
         for (name, category) in seededRules where catalog[category] != nil {
             learned[normalize(name)] = CategoryMatcher.Rule(category: category, subcategory: nil, hits: 0)
         }
-        // These merchants are known as cafeterias; learn the specific meal type rather than only Food.
-        let normalized = normalize(merchant)
-        if ["shay al nashama", "shai al nashama", "shay alnashama"].contains(normalized),
-           let cafeteria = CategoryMatcher.match("cafeteria", catalog: catalog, learned: [:]) {
-            learned[normalized] = CategoryMatcher.Rule(category: cafeteria.category, subcategory: cafeteria.subcategory, hits: 0)
-        }
         let rules = ((try? context.fetch(FetchDescriptor<MerchantCategoryRule>())) ?? []).sorted { $0.updatedAt < $1.updatedAt }
         for rule in rules where catalog[rule.category] != nil {
             let value = CategoryMatcher.Rule(category: rule.category, subcategory: rule.subcategory, hits: rule.hits)
