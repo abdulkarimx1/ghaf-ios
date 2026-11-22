@@ -16,12 +16,13 @@ struct GhafImportSheet: View {
     @State private var message: String?
     @State private var isFailure = false
     @State private var showMail = false
-    @State private var showShare = false
-    @State private var shareItems: [Any] = []
 
     private enum Kind: String, Identifiable { case ghaf, expend, other; var id: String { rawValue } }
     private var ar: Bool { settings.languageCode == "ar" }
     private var theme: GhafTheme { GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: scheme == .dark) }
+    private var mailIsConfigured: Bool { MFMailComposeViewController.canSendMail() }
+    private var supportAddressIsConfigured: Bool { GhafLinks.supportEmail.contains("@") && !GhafLinks.supportEmail.contains("example.com") }
+    private var canEmailDeveloper: Bool { mailIsConfigured && supportAddressIsConfigured }
 
     var body: some View {
         NavigationStack {
@@ -40,9 +41,9 @@ struct GhafImportSheet: View {
                             choice(ar ? "ملف CSV أو JSON آخر" : "Other CSV or JSON", subtitle: ar ? "راجع السجلات قبل الاستيراد" : "Review the rows before importing", icon: "tablecells", kind: .other)
                         }.padding(18).background(theme.surface, in: RoundedRectangle(cornerRadius: 24))
                     }
+                    sendButton
                     if let message {
                         Text(message).font(GhafTypography.body(15, languageCode: settings.languageCode)).foregroundStyle(isFailure ? theme.over : theme.comfortable).multilineTextAlignment(.center)
-                        if fileURL != nil { sendButton }
                     }
                     if let preview { previewCard(preview) }
                 }.padding(24)
@@ -53,8 +54,7 @@ struct GhafImportSheet: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(ar ? "إغلاق" : "Close") { dismiss() }.foregroundStyle(theme.primaryText) } }
             .fileImporter(isPresented: Binding(get: { selectedKind != nil }, set: { if !$0 { selectedKind = nil } }),
                           allowedContentTypes: [.json, .commaSeparatedText, .plainText], allowsMultipleSelection: false, onCompletion: handlePick)
-            .sheet(isPresented: $showMail) { if let fileURL { GhafMailComposer(file: fileURL) { showMail = false } } }
-            .sheet(isPresented: $showShare) { GhafShareSheet(items: shareItems) }
+            .sheet(isPresented: $showMail) { if let fileURL { GhafMailComposer(file: fileURL, arabic: ar) { showMail = false } } }
             .alert(ar ? "تعذّر الاستيراد" : "Couldn’t import this file", isPresented: Binding(get: { message != nil && isFailure && preview == nil }, set: { if !$0 { message = nil } })) {
                 Button(ar ? "حسنًا" : "OK", role: .cancel) { }
             } message: { Text(message ?? "") }
@@ -88,15 +88,33 @@ struct GhafImportSheet: View {
                 Text(ar ? "سيتم إنشاء هذه الحسابات بعد تأكيدك:" : "These accounts will be created only after you confirm:").font(.system(size: 14)).foregroundStyle(theme.secondaryText)
                 ForEach(preview.accountsToCreate, id: \.self) { Text("• \($0)").font(.system(size: 15, weight: .medium)).foregroundStyle(theme.primaryText) }
             }
-            sendButton
             Button(ar ? "تأكيد الاستيراد" : "Confirm import") { commit(preview) }
                 .ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
         }.padding(20).background(theme.surface, in: RoundedRectangle(cornerRadius: 24))
     }
 
     private var sendButton: some View {
-        Button(ar ? "إرسال هذا الملف إلى المطوّر" : "Send this file to the developer") { if let fileURL { compose(fileURL) } }
-            .font(.system(size: 15, weight: .medium)).foregroundStyle(theme.accent).frame(minHeight: 44)
+        VStack(spacing: 3) {
+            Button(ar ? "هل حدثت مشكلة بعد الاستيراد؟ أرسل الملف للمطوّر" : "Something wrong after import? Send the file to the developer") {
+                if let fileURL { compose(fileURL) }
+            }
+            .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .medium))
+            .foregroundStyle(theme.accent).frame(minHeight: 44)
+            .disabled(fileURL == nil || !canEmailDeveloper)
+            .opacity(fileURL != nil && canEmailDeveloper ? 1 : 0.45)
+            Text(ar ? "نستخدم الملف لإصلاح غاف فقط، ولا نشاركه مع جهات أخرى." : "We use the file only to fix Ghaf and do not share it further.")
+                .font(GhafTypography.body(10, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            if !mailIsConfigured {
+                Text(ar ? "لإرسال الملف، أضف حساباً إلى تطبيق Mail." : "To send the file, set up an account in the Mail app.")
+                    .font(GhafTypography.body(10, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            } else if !supportAddressIsConfigured {
+                Text(ar ? "لم يُعدّ عنوان دعم المطوّر بعد." : "The developer support address has not been configured yet.")
+                    .font(GhafTypography.body(10, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+        }
     }
 
     /// A restored Ghaf backup is a set-up app: never drop the user back into first-run onboarding.
@@ -133,15 +151,17 @@ struct GhafImportSheet: View {
             message = ar ? "تم استيراد \(result.imported) معاملة، وتخطي \(result.duplicates) مكررة." : "Imported \(result.imported) transactions. \(result.duplicates) duplicates skipped."
         } catch { isFailure = true; message = ar ? "تعذّر حفظ الاستيراد. لم تُحفظ التغييرات." : error.localizedDescription }
     }
-    private func compose(_ url: URL) { if MFMailComposeViewController.canSendMail() { showMail = true } else { prepareShare(url) } }
-    private func prepareShare(_ url: URL) { shareItems = [url]; showShare = true }
+    private func compose(_ url: URL) { guard canEmailDeveloper else { return }; showMail = true }
 }
 
 private struct GhafMailComposer: UIViewControllerRepresentable {
     let file: URL
+    let arabic: Bool
     let completion: () -> Void
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
-        let composer = MFMailComposeViewController(); composer.setToRecipients([GhafLinks.supportEmail]); composer.setSubject("Ghaf import support"); composer.setMessageBody("Please review this file to help add import support.", isHTML: false)
+        let composer = MFMailComposeViewController(); composer.setToRecipients([GhafLinks.supportEmail])
+        composer.setSubject(arabic ? "مساعدة في استيراد غاف" : "Ghaf import support")
+        composer.setMessageBody(arabic ? "أرفقت الملف لمساعدتكم في إصلاح الاستيراد. نستخدمه لهذا الغرض فقط ولا نشاركه مع جهات أخرى." : "I attached this file to help fix Ghaf's import support. We use it only for this purpose and do not share it further.", isHTML: false)
         if let data = try? Data(contentsOf: file) { composer.addAttachmentData(data, mimeType: file.pathExtension.lowercased() == "csv" ? "text/csv" : "application/json", fileName: file.lastPathComponent) }
         composer.mailComposeDelegate = context.coordinator; return composer
     }
@@ -152,10 +172,4 @@ private struct GhafMailComposer: UIViewControllerRepresentable {
         init(completion: @escaping () -> Void) { self.completion = completion }
         func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) { completion(); controller.dismiss(animated: true) }
     }
-}
-
-private struct GhafShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: items, applicationActivities: nil) }
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

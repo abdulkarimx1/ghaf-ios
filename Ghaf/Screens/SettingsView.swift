@@ -3,6 +3,7 @@ import GhafCore
 import SwiftData
 import UniformTypeIdentifiers
 import PhotosUI
+import UIKit
 
 private enum GhafSettingsPrompt: Identifiable {
     case importBackup
@@ -39,6 +40,7 @@ struct GhafSettingsView: View {
     @State private var newCategory = ""
     @State private var categoryBudgetTexts: [String: String] = [:]
     @State private var backupURL: URL?
+    @State private var showBackupShare = false
     @State private var pendingImportURL: URL?
     @State private var showImportSheet = false
     /// Weekly totals everywhere follow this; the region's first weekday until the user picks one.
@@ -51,6 +53,9 @@ struct GhafSettingsView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
+    @State private var showPhotoMenu = false
+    @State private var showCameraPicker = false
+    @State private var isEditingProfileName = false
     @FocusState private var profileNameFocused: Bool
     @State private var prompt: GhafSettingsPrompt?
     @State private var showDeleteConfirmation = false
@@ -231,6 +236,15 @@ struct GhafSettingsView: View {
             .onChange(of: budgetMode) { _, _ in persistSettings() }
             .onChange(of: categoryBudgetTexts) { _, _ in persistSettings() }
             .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
+            .sheet(isPresented: $showBackupShare) {
+                if let backupURL { GhafSettingsShareSheet(items: [backupURL]) }
+            }
+            .sheet(isPresented: $showCameraPicker) {
+                GhafCameraPicker { image in
+                    do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                    catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
+                }
+            }
             .alert(item: $prompt) { selectedPrompt in
                 switch selectedPrompt {
                 case .importBackup:
@@ -1204,16 +1218,12 @@ HStack(spacing: 8) {
     private var backupCard: some View {
         settingsCard(languageCode == "ar" ? "البيانات والنسخ الاحتياطي" : "Data and backup", subtitle: languageCode == "ar" ? "تصدير نسخة من بياناتك أو استعادتها" : "Move or keep a copy of your local records") {
             Button(action: createBackup) {
-                settingsActionRow(languageCode == "ar" ? "إنشاء نسخة احتياطية" : "Create JSON backup", detail: languageCode == "ar" ? "تصدير الحسابات والعمليات والاشتراكات والإعدادات والذاكرة والتفضيلات" : "Export accounts, transactions, subscriptions, settings, memories and preferences", icon: "square.and.arrow.up")
+                Label(languageCode == "ar" ? "إنشاء نسخة JSON" : "Create JSON backup", systemImage: "square.and.arrow.up")
             }
-            .buttonStyle(.ghafPress)
-
-            if let backupURL {
-                ShareLink(item: backupURL) {
-                    settingsActionRow(languageCode == "ar" ? "مشاركة النسخة أو حفظها" : "Share or save backup", detail: languageCode == "ar" ? "احفظها في iCloud Drive أو Google Drive عبر تطبيق الملفات" : "Save to iCloud Drive or Google Drive through the Files app", icon: "square.and.arrow.up.on.square")
-                }
-                .buttonStyle(.ghafPress)
-            }
+            .ghafProminentButton(theme: theme, languageCode: languageCode)
+            Text(languageCode == "ar" ? "صدّر الحسابات والعمليات والاشتراكات والإعدادات إلى ملف يمكنك حفظه أو مشاركته." : "Export accounts, transactions, subscriptions and settings to a file you can save or share.")
+                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button { showImportSheet = true } label: {
                 settingsActionRow(languageCode == "ar" ? "استيراد بيانات" : "Import data", detail: languageCode == "ar" ? "نسخة غاف أو Expend أو ملف CSV" : "A Ghaf or Expend backup, or a CSV file", icon: "square.and.arrow.down")
@@ -1398,6 +1408,7 @@ HStack(spacing: 8) {
     private func createBackup() {
         do {
             backupURL = try GhafBackupService.export(context: modelContext)
+            showBackupShare = true
         } catch {
             prompt = .message(languageCode == "ar" ? "تعذر إنشاء النسخة الاحتياطية." : "Could not create the backup.")
         }
@@ -1511,6 +1522,41 @@ private struct GhafProBannerGlow: View {
                 try? await Task.sleep(for: .seconds(5))
             }
         }
+    }
+}
+
+private struct GhafSettingsShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        controller.popoverPresentationController?.sourceView = UIView()
+        return controller
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+private struct GhafCameraPicker: UIViewControllerRepresentable {
+    let onImage: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ picker: UIImagePickerController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onImage: onImage, dismiss: dismiss) }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let onImage: (UIImage) -> Void
+        let dismiss: DismissAction
+        init(onImage: @escaping (UIImage) -> Void, dismiss: DismissAction) { self.onImage = onImage; self.dismiss = dismiss }
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage { onImage(image) }
+            dismiss()
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { dismiss() }
     }
 }
 
