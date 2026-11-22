@@ -5,6 +5,7 @@ import ActivityKit
 import SwiftUI
 import UIKit
 import AppIntents
+import StoreKit
 
 enum GhafLiveActivityBalance: String, CaseIterable {
     case total = "total"
@@ -24,23 +25,31 @@ enum GhafWidgetSync {
         GhafWidgetSnapshot.groupIDs.first.flatMap(UserDefaults.init(suiteName:))
     }
 
+    // Only the app reads these, so they live in standard defaults: sideloaded installs often have no
+    // working App Group, and writes there were silently lost (settings snapped back to defaults).
+    private static func liveActivityValue(_ key: String) -> Any? {
+        UserDefaults.standard.object(forKey: key) ?? liveActivityDefaults?.object(forKey: key)
+    }
+
     static var liveActivityEnabled: Bool {
-        liveActivityDefaults?.object(forKey: liveActivityEnabledKey) as? Bool
+        liveActivityValue(liveActivityEnabledKey) as? Bool
             ?? UserDefaults.standard.object(forKey: liveActivityKey) as? Bool ?? true
     }
 
     static var liveActivityBalance: GhafLiveActivityBalance {
-        liveActivityDefaults?.string(forKey: liveActivityBalanceKey).flatMap(GhafLiveActivityBalance.init(rawValue:)) ?? .card
+        (liveActivityValue(liveActivityBalanceKey) as? String).flatMap(GhafLiveActivityBalance.init(rawValue:)) ?? .card
     }
 
     static var liveActivityDuration: Int {
-        liveActivityDefaults?.object(forKey: liveActivityDurationKey) as? Int ?? 300
+        liveActivityValue(liveActivityDurationKey) as? Int ?? 300
     }
 
     static func setLiveActivityPreferences(enabled: Bool, balance: GhafLiveActivityBalance, duration: Int) {
-        liveActivityDefaults?.set(enabled, forKey: liveActivityEnabledKey)
-        liveActivityDefaults?.set(balance.rawValue, forKey: liveActivityBalanceKey)
-        liveActivityDefaults?.set(duration, forKey: liveActivityDurationKey)
+        for defaults in [UserDefaults.standard, liveActivityDefaults].compactMap({ $0 }) {
+            defaults.set(enabled, forKey: liveActivityEnabledKey)
+            defaults.set(balance.rawValue, forKey: liveActivityBalanceKey)
+            defaults.set(duration, forKey: liveActivityDurationKey)
+        }
         UserDefaults.standard.set(enabled, forKey: liveActivityKey)
     }
     /// Which channels the last refresh could write, shown in Notifications & widgets so a broken install is visible.
@@ -52,6 +61,7 @@ enum GhafWidgetSync {
 
     /// Recomputes what the widgets show and asks WidgetKit to redraw them.
     static func refresh(context: ModelContext) {
+        Task { await refreshWidgetProAccess() }
         guard let settings = try? GhafPersistence.settings(in: context),
               let transactions = try? context.fetch(FetchDescriptor<GhafTransaction>()),
               let accounts = try? context.fetch(FetchDescriptor<GhafAccount>()) else { return }
@@ -75,7 +85,7 @@ enum GhafWidgetSync {
             return spending.filter { calendar.isDate($0.date, inSameDayAs: day) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
         }
         var snapshot = GhafWidgetSnapshot(currency: currency, balance: balance, spentToday: today, spentThisMonth: month,
-                           lastPurchase: last.map { .init(merchant: GhafFormat.balancesHidden ? GhafLocalization.category($0.category, languageCode: settings.languageCode) : ($0.merchant ?? GhafLocalization.category($0.category, languageCode: settings.languageCode)),
+                           lastPurchase: last.map { .init(merchant: GhafFormat.balancesHidden ? GhafLocalization.category($0.category, languageCode: settings.languageCode) : (GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? GhafLocalization.category($0.category, languageCode: settings.languageCode)),
                                                           amount: $0.amount, currency: $0.currency, date: $0.date) },
                            hidden: GhafFormat.balancesHidden, arabic: settings.languageCode == "ar", updated: .now)
         snapshot.todayCategories = Array(byCategory.prefix(4))
@@ -96,7 +106,7 @@ enum GhafWidgetSync {
         snapshot.month = period(.month, slices: 5, slice: (.day, 7), spending: spending, calendar: calendar, name: name)
 
         if let latest = transactions.max(by: { $0.createdAt < $1.createdAt }) {
-            snapshot.recent = .init(merchant: GhafFormat.balancesHidden ? name(latest.category) : latest.merchant, category: name(latest.category),
+            snapshot.recent = .init(merchant: GhafFormat.balancesHidden ? name(latest.category) : GhafMerchantAliasStore.displayName(latest.rawMerchant ?? latest.merchant), category: name(latest.category),
                                     symbol: GhafCategoryIcon.builtIn(latest.category)?.symbol ?? (latest.direction == "credit" ? "arrow.down" : "bag.fill"),
                                     amount: latest.amount, currency: latest.currency, date: latest.date,
                                     isCredit: latest.direction == "credit",
@@ -130,6 +140,22 @@ enum GhafWidgetSync {
         UserDefaults.standard.set(["group": lastChannels?.group ?? false, "keychain": lastChannels?.keychain ?? false],
                                   forKey: "ghaf.widget.channels")
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    private static func refreshWidgetProAccess() async {
+        var unlocked = false
+        if GhafFeatureFlags.appStoreAccount {
+            for await result in StoreKit.Transaction.currentEntitlements {
+                if case .verified(let transaction) = result,
+                   ["com.ghaf.app.pro.monthly", "com.ghaf.app.pro.yearly"].contains(transaction.productID) {
+                    unlocked = true
+                    break
+                }
+            }
+        }
+        for group in GhafWidgetSnapshot.groupIDs {
+            UserDefaults(suiteName: group)?.set(unlocked, forKey: GhafWidgetProAccess.key)
+        }
     }
 
     /// Call from a LiveActivityIntent's perform() to start while automation runs in the background.
@@ -178,7 +204,7 @@ enum GhafWidgetSync {
             }
         }
         let state = GhafPurchaseAttributes.ContentState(
-            merchant: GhafFormat.balancesHidden ? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en") : (transaction.merchant ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en")),
+            merchant: GhafFormat.balancesHidden ? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en") : (GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en")),
             amount: transaction.amount, currency: transaction.currency, isCredit: transaction.direction == "credit",
             accountName: GhafFormat.balancesHidden ? nil : account?.name,
             balance: GhafFormat.balancesHidden ? nil : remainingBalance, needsReview: needsReview,

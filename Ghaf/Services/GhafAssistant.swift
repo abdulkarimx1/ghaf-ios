@@ -62,7 +62,7 @@ enum GhafFinanceFacts {
             if !byCategory.isEmpty {
                 lines.append("Top categories this month: " + byCategory.map { "\($0.0) \(fmt($0.1, currency: $0.2))" }.joined(separator: ", ") + ".")
             }
-            let merchantTotals: [(String, Decimal, String)] = Dictionary(grouping: debits.filter { $0.merchant != nil }) { "\($0.merchant ?? "") (\($0.currency))" }
+            let merchantTotals: [(String, Decimal, String)] = Dictionary(grouping: debits.filter { GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) != nil }) { "\(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "") (\($0.currency))" }
                 .map { key, items in (key, spendingSum(items), items[0].currency) }
                 .filter { $0.1 > 0 }.sorted { $0.1 > $1.1 }
             let byMerchant = merchantTotals.prefix(5)
@@ -96,7 +96,7 @@ enum GhafFinanceFacts {
             lines.append("Latest transactions:")
             for item in recent {
                 let sign = item.direction == "credit" ? "+" : "-"
-                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(item.merchant ?? item.category) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(item.category)]")
+                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? item.category) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(item.category)]")
             }
         }
         return lines.joined(separator: "\n")
@@ -176,8 +176,8 @@ final class GhafAssistant: ObservableObject {
                                                              history: history, languageCode: languageCode), into: continuation)
                     } catch GhafCloudAI.Failure.dailyLimit {
                         await Self.reveal(fallback + (languageCode == "ar"
-                            ? "\n\n(وصلت للحد اليومي للذكاء السحابي؛ أجبتك من جهازك.)"
-                            : "\n\n(Daily Cloud AI limit reached, so this answer came from your iPhone.)"), into: continuation)
+                            ? "\n\n(وصل غاف AI إلى الحد المجاني اليوم. أكملت الإجابة من جهازك.)"
+                            : "\n\n(Ghaf AI has reached today's free limit. I finished this answer on your iPhone.)"), into: continuation)
                     } catch {
                         // Offline or the server failed: the ledger's answer still comes from the device.
                         Logger(subsystem: "com.ghaf.app", category: "ai").error("Cloud AI failed: \(String(describing: error), privacy: .public)")

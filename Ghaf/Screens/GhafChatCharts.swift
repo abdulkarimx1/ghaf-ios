@@ -28,6 +28,43 @@ struct GhafChatChart: Codable {
     }
 }
 
+/// The rounded budget-petal segment shared by the Budget screen and Ghaf AI charts.
+struct GhafPetalSegment: Shape {
+    var start: Double
+    var end: Double
+    var inner: CGFloat
+    var outer: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY), radius = min(rect.width, rect.height) / 2
+        func point(_ angle: Double, _ r: CGFloat) -> CGPoint {
+            CGPoint(x: center.x + cos(angle * .pi / 180) * radius * r,
+                    y: center.y + sin(angle * .pi / 180) * radius * r)
+        }
+        let outerRadius = radius * outer, innerRadius = radius * inner
+        let petalWidth = outerRadius * CGFloat((end - start) * .pi / 180)
+        let corner = min(18, petalWidth * 0.25, (outerRadius - innerRadius) / 2)
+        let outerInset = min((end - start) * 0.22, Double(atan(corner / max(outerRadius - corner, 1))) * 180 / .pi)
+        let innerInset = min((end - start) * 0.22, Double(atan(corner / max(innerRadius + corner, 1))) * 180 / .pi)
+        func arcControl(_ from: Double, _ to: Double, _ r: CGFloat) -> CGPoint {
+            let middle = (from + to) / 2
+            return point(middle, r / CGFloat(cos((to - from) * .pi / 360)))
+        }
+        var path = Path()
+        path.move(to: point(start, outer - corner / radius))
+        path.addQuadCurve(to: point(start + outerInset, outer), control: point(start, outer))
+        path.addQuadCurve(to: point(end - outerInset, outer), control: arcControl(start + outerInset, end - outerInset, outer))
+        path.addQuadCurve(to: point(end, outer - corner / radius), control: point(end, outer))
+        path.addLine(to: point(end, inner + corner / radius))
+        path.addQuadCurve(to: point(end - innerInset, inner), control: point(end, inner))
+        path.addQuadCurve(to: point(start + innerInset, inner), control: arcControl(end - innerInset, start + innerInset, inner))
+        path.addQuadCurve(to: point(start, inner + corner / radius), control: point(start, inner))
+        path.addLine(to: point(start, outer - corner / radius))
+        path.closeSubpath()
+        return path
+    }
+}
+
 /// Picks the chart a question asks for and builds it from the user's transactions.
 @MainActor
 enum GhafChatChartBuilder {
@@ -60,7 +97,7 @@ enum GhafChatChartBuilder {
         if let category = GhafLedgerAnswers.matchedCategory(in: q, transactions: transactions, languageCode: languageCode) {
             used = used.filter { $0.isExpense && $0.category == category }
         } else if let merchant = GhafLedgerAnswers.matchedMerchant(in: q, transactions: transactions) {
-            used = used.filter { $0.isExpense && SubscriptionDetector.normalize($0.merchant ?? "") == merchant.key }
+            used = used.filter { $0.isExpense && SubscriptionDetector.normalize(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "") == merchant.key }
         }
         let count = used.count
         guard count > 0 else { return nil }
@@ -135,7 +172,6 @@ enum GhafChatChartBuilder {
 }
 
 struct GhafChatChartView: View {
-    @Environment(\.ghafGlass) private var glass
     let chart: GhafChatChart
     let theme: GhafTheme
     let languageCode: String
@@ -171,7 +207,7 @@ struct GhafChatChartView: View {
                 .foregroundStyle(theme.primaryText)
                 .contentTransition(.numericText())
             Text(chart.currency)
-                .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                .font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
             if let point = selectedPoint, total > 0, chart.kind == .categories {
                 Text("\(Int((point.value / total * 100).rounded()))%")
                     .font(GhafTypography.number(12, weight: .bold))
@@ -181,14 +217,9 @@ struct GhafChatChartView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
-    /// Categories get one distinct colour each; time series use the theme's accent and glow.
+    /// Keep every chart in the selected theme's accent family.
     private func shade(_ index: Int) -> Color {
-        if chart.kind == .categories {
-            let colors = GhafCategoryIcon.chartColors(for: chart.points.map(\.label), dark: theme.isDark)
-            return colors[chart.points[index].label] ?? theme.accent
-        }
-        let step = Double(index) / Double(max(chart.points.count - 1, 1))
-        return index.isMultiple(of: 2) ? theme.accent.opacity(1 - step * 0.55) : theme.glow.opacity(1 - step * 0.45)
+        theme.accent.opacity(1 - 0.55 * Double(index) / Double(max(chart.points.count - 1, 1)))
     }
 
     private var styleSwitch: some View {
@@ -207,7 +238,7 @@ struct GhafChatChartView: View {
             }
         }
         .padding(3)
-        .ghafGlassShape(theme: theme, shape: Capsule(), fallback: theme.elevatedSurface)
+        .background(theme.elevatedSurface, in: Capsule())
     }
 
     var body: some View {
@@ -232,7 +263,7 @@ struct GhafChatChartView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme, radius: 22)
+        .ghafStatsCard(theme: theme, radius: 22)
         .sensoryFeedback(.selection, trigger: selected)
         .accessibilityElement(children: .contain)
         .onAppear { withAnimation(.spring(duration: 0.9, bounce: 0.25)) { drawn = true } }
@@ -240,33 +271,24 @@ struct GhafChatChartView: View {
 
     private var bars: some View {
         Chart(chart.points) { point in
-            if glass.enabled && chart.style == .line {
-                LineMark(x: .value("Day", point.label), y: .value(chart.currency, drawn ? point.value : 0))
-                    .foregroundStyle(theme.accent.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 6, lineCap: .round)).blur(radius: 6)
-                    .interpolationMethod(.catmullRom)
-            }
             BarMark(x: .value("Label", point.label), y: .value(chart.currency, drawn ? point.value : 0))
-                .foregroundStyle(glass.enabled || point.label == selected || (selected == nil && point.highlight)
-                                 ? AnyShapeStyle(LinearGradient(colors: [theme.glow, theme.accent], startPoint: .top, endPoint: .bottom))
-                                 : AnyShapeStyle(theme.accent.opacity(isDimmed(point) ? 0.18 : 0.35)))
+                .foregroundStyle(theme.accent.opacity(isDimmed(point) ? 0.18 : point.label == selected || (selected == nil && point.highlight) ? 1 : 0.45))
                 .cornerRadius(7)
                 .annotation(position: .top) {
                     if point.value > 0 {
                         Text(point.value, format: .number.precision(.fractionLength(0)))
-                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                            .font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
                     }
                 }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
-                AxisGridLine().foregroundStyle(glass.enabled ? Color.white.opacity(0.05) : .clear)
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine().foregroundStyle(theme.outline.opacity(0.25))
             }
         }
         // Headroom so the value labels above the tallest bar are never cut off.
         .chartYScale(domain: 0...(maxValue * 1.25))
-        .chartXAxis {
-            AxisMarks { _ in AxisValueLabel(collisionResolution: .greedy).font(.system(size: 11, weight: .medium)) }
-        }
+        .chartXAxis { AxisMarks { _ in AxisValueLabel(collisionResolution: .greedy).font(GhafTypography.body(11, languageCode: languageCode)) } }
         .chartXSelection(value: $selected)
         .frame(height: 190)
     }
@@ -291,7 +313,7 @@ struct GhafChatChartView: View {
                 VStack(spacing: 0) {
                     Text(selectedPoint?.value ?? total, format: .number.precision(.fractionLength(0)))
                         .font(GhafTypography.number(17, weight: .heavy)).foregroundStyle(theme.primaryText)
-                    Text(chart.currency).font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondaryText)
+                    Text(chart.currency).font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
                 }
             }
             .frame(height: 200)
@@ -305,17 +327,18 @@ struct GhafChatChartView: View {
         let count = chart.points.count
         return VStack(spacing: 12) { ZStack {
             ForEach(Array(chart.points.enumerated()), id: \.element.id) { index, point in
-                let ratio = maxValue > 0 ? 0.38 + 0.62 * sqrt(point.value / maxValue) : 0.38
-                GhafPetal(index: index, count: count, ratio: drawn ? ratio : 0.2)
+                let step = 360.0 / Double(max(count, 1))
+                let ratio = maxValue > 0 ? 0.48 + 0.52 * sqrt(point.value / maxValue) : 0.48
+                GhafPetalSegment(start: -90 + Double(index) * step + 3,
+                                 end: -90 + Double(index + 1) * step - 3,
+                                 inner: 0.42, outer: drawn ? ratio : 0.42)
                     .fill(shade(index))
                     .opacity(isDimmed(point) ? 0.3 : 1)
-                    .contentShape(GhafPetal(index: index, count: count, ratio: ratio))
+                    .frame(width: 220, height: 220)
+                    .contentShape(GhafPetalSegment(start: -90 + Double(index) * step + 3,
+                                                   end: -90 + Double(index + 1) * step - 3,
+                                                   inner: 0.42, outer: ratio))
                     .onTapGesture { toggle(point.label) }
-                // Labels only where the petal has room; the legend-free small ones stay readable as shape.
-                if point.value >= maxValue * 0.12 {
-                    GhafPetalLabel(index: index, count: count, ratio: drawn ? ratio : 0.2,
-                                   value: point.value, label: point.label, color: theme.accentContrast)
-                }
             }
             Circle().fill(theme.surface).frame(width: 26, height: 26).allowsHitTesting(false)
         }
@@ -327,7 +350,7 @@ struct GhafChatChartView: View {
     private var line: some View {
         Chart(chart.points) { point in
             AreaMark(x: .value("Day", point.label), y: .value(chart.currency, drawn ? point.value : 0))
-                .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.35), .clear], startPoint: .top, endPoint: .bottom))
+                .foregroundStyle(theme.accent.opacity(0.12))
                 .interpolationMethod(.catmullRom)
             LineMark(x: .value("Day", point.label), y: .value(chart.currency, drawn ? point.value : 0))
                 .foregroundStyle(theme.accent)
@@ -345,12 +368,8 @@ struct GhafChatChartView: View {
                     .foregroundStyle(theme.accent)
                     .annotation(position: .top) {
                         Text(point.value, format: .number.precision(.fractionLength(0)))
-                            .font(.system(size: 11, weight: .bold)).foregroundStyle(theme.primaryText)
+                            .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold)).foregroundStyle(theme.primaryText)
                     }
-            }
-            if glass.enabled && chart.style == .line && point.highlight {
-                PointMark(x: .value("Day", point.label), y: .value(chart.currency, point.value))
-                    .foregroundStyle(.white).symbolSize(100).shadow(color: theme.accent.opacity(0.8), radius: 7)
             }
         }
         .chartXAxis { AxisMarks(values: .stride(by: 5)) }
@@ -381,50 +400,6 @@ struct GhafChatChartView: View {
                 }
                 .buttonStyle(.plain)
             }
-        }
-    }
-}
-
-private struct GhafPetal: Shape {
-    let index: Int
-    let count: Int
-    var ratio: Double
-    var animatableData: Double { get { ratio } set { ratio = newValue } }
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2 * ratio
-        let slice = 360.0 / Double(max(count, 1))
-        let start = Angle.degrees(Double(index) * slice - 90 + 2)
-        let end = Angle.degrees(Double(index + 1) * slice - 90 - 2)
-        var path = Path()
-        path.move(to: center)
-        path.addArc(center: center, radius: radius, startAngle: start, endAngle: end, clockwise: false)
-        path.closeSubpath()
-        return path
-    }
-}
-
-private struct GhafPetalLabel: View {
-    let index: Int
-    let count: Int
-    let ratio: Double
-    let value: Double
-    let label: String
-    let color: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            let slice = 360.0 / Double(max(count, 1))
-            let angle = Angle.degrees(Double(index) * slice + slice / 2 - 90)
-            let radius = min(geometry.size.width, geometry.size.height) / 2 * ratio * 0.68
-            VStack(spacing: 0) {
-                Text(value, format: .number.precision(.fractionLength(0))).font(.system(size: 12, weight: .heavy))
-                Text(label).font(.system(size: 11, weight: .semibold)).lineLimit(1).frame(maxWidth: 64)
-            }
-            .foregroundStyle(color)
-            .position(x: geometry.size.width / 2 + cos(angle.radians) * radius,
-                      y: geometry.size.height / 2 + sin(angle.radians) * radius)
         }
     }
 }

@@ -52,6 +52,12 @@ private enum BankPatterns {
         #"(?:بطاقتك|بطاقتكم|حسابك|حسابكم|البطاقة\s+رقم|الحساب\s+رقم|المنتهية\s+ب)"#
     ]
 
+    static let accountReferences = [
+        #"(?i)\b(?:card|account|a/c|acct)\s*(?:(?:no\.?|number)\s*)?(?:ending(?:\s+(?:in|with))?\s*)?[*x•.\-\s]*(\d{3,})\b"#,
+        #"(?i)\b(?:card|account)\s+ending\s+(?:in\s+)?(\d{3,})\b"#,
+        #"(?:المنتهية\s+بـ?|(?:ال)?بطاقة\s+(?:رقم\s*)?|الحساب\s+رقم\s*)[*x•.\-\s]*(\d{3,})\b"#
+    ]
+
     /// Marketing language: offers, rewards, links and invitations.
     static let marketing = [
         #"(?i)\b(?:offer|offers|deal|enjoy|win|reward|rewards|exclusive|apply\s+now|click|download|valid\s+(?:till|until)|t\s*&\s*c|terms\s+apply|up\s+to|discount|sale|voucher|coupon|instalment\s+plan|eligible)\b"#,
@@ -266,6 +272,9 @@ struct RegexBankMessageRule: BankMessageRule {
         // No currency: only a recognised bank's message with clear evidence is kept, and only for review.
         if !amount.hasExplicitCurrency, bankName == nil || !(completed || ownReference) && merchant == nil { return nil }
         let date = TransactionExtractor.date(message, fallback: referenceDate)
+        let accountRef = BankPatterns.accountReferences.lazy.compactMap { pattern in
+            Regex.captures(pattern, in: message).flatMap { $0.count > 1 ? $0[1] : nil }
+        }.first.flatMap { $0.count >= 3 ? String($0.suffix(4)) : nil }
         let hasSignal = Regex.matches(BankPatterns.transactionSignals, in: message)
 
         let confidence = Confidence.score(
@@ -284,7 +293,8 @@ struct RegexBankMessageRule: BankMessageRule {
             direction: direction.0,
             confidence: confidence,
             bank: bankName,
-            kind: kind
+            kind: kind,
+            accountRef: accountRef
         )
     }
 }

@@ -1,8 +1,8 @@
 // Ghaf AI cloud proxy for Cloudflare Workers (free plan).
 // Holds the Gemini API key server-side so it is never in the app. Every Ghaf install sends a random
 // device ID (X-Ghaf-Device); the Worker allows FREE_DAILY_LIMIT questions per device per day and
-// GLOBAL_DAILY_LIMIT across all devices, counted in KV. Only those daily counters are stored;
-// questions and replies are not. The developer's APP_TOKEN (X-Ghaf-Token) skips the limits.
+// GLOBAL_DAILY_LIMIT across all devices, counted in KV. Questions, replies and audio are never stored;
+// only counters and anonymous usage metadata are kept. APP_TOKEN skips the limits.
 //
 // Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, GLOBAL_DAILY_LIMIT,
 // LIVE_DAILY_CALLS, LIVE_GLOBAL_DAILY_CALLS, LIVE_VOICE_AR, LIVE_VOICE_EN.
@@ -10,8 +10,33 @@
 const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary, never full history
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
+    const endpoint = ({ "/chat": "chat", "/speak": "speak", "/live-token": "live-token", "/health": "health", "/tips": "tips" })[path] || "other";
+    const usage = { endpoint, model: "", outcome: "error", lang: "other", device: request.headers.get("X-Ghaf-Device") || "", developer: Boolean(env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN), errorKind: "", input: 0, output: 0 };
+    const started = Date.now();
+    let response;
+    try {
+      response = await handle(request, env, usage);
+      if (response.status === 429) {
+        if (!usage.outcome.startsWith("limited_")) usage.outcome = "limited_global";
+      } else if (response.status >= 400) usage.outcome = "error";
+      else if (usage.outcome === "error") usage.outcome = "ok";
+      return response;
+    } catch (error) {
+      usage.errorKind = error?.name === "AbortError" ? "timeout" : error instanceof SyntaxError ? "parse" : "upstream_5xx";
+      throw error;
+    } finally {
+      if (response?.status >= 500 && !usage.errorKind) usage.errorKind = "upstream_5xx";
+      writeUsage(env, ctx, usage, Date.now() - started);
+    }
+  }
+}
+
+async function handle(request, env, usage) {
+    const path = new URL(request.url).pathname;
+    if (request.method === "GET" && path === "/health") return json({ ok: true });
+    if (request.method === "GET" && path === "/tips") return json({ version: 1, tips: MONEY_TIPS });
     if (request.method !== "POST" || !["/chat", "/speak", "/live-token"].includes(path)) {
       return json({ error: "not_found" }, 404);
     }
@@ -24,16 +49,28 @@ export default {
 
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
-    if (path === "/speak") return speak(body, env, developer, device);
-    if (path === "/live-token") return liveToken(body, env, developer, device);
+    if (path === "/speak") {
+      if (usage) usage.lang = detectLanguage(String(body.text || ""));
+      return speak(body, env, developer, device, usage);
+    }
+    if (path === "/live-token") return liveToken(body, env, developer, device, usage);
     const { question, facts = "", direct = "", language = "en", history = [], mode = "chat" } = body;
     if (typeof question !== "string" || !question.trim()) return json({ error: "missing_question" }, 400);
+
+    // shortcut: tier is client-reported until App Attest/receipt validation at launch.
+    const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
+    if (!developer && tier === "pro_yearly") {
+      const inputTokens = Math.ceil((question.length + String(facts).length + String(direct).length + JSON.stringify(history).length) / 4);
+      if (!await reserveYearlyBudget(env, device, inputTokens, 400, 0)) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
+    }
 
     const system = [
       "You are Ghaf AI, a warm, concise personal finance assistant in a UAE money app.",
       "Answer only from the FACTS and the DIRECT ANSWER. Quote amounts exactly with their currency.",
       "Never invent transactions or balances and never add amounts in different currencies.",
       "If a DIRECT ANSWER is given, keep every number in it and add at most one short, useful tip.",
+      "Ghaf draws inline charts, including petal charts, using show_chart; never claim you cannot create a chart.",
+      "When the DIRECT ANSWER contains newline-separated list rows, preserve that readable list format.",
       "If the message is not about money, reply in one light, friendly line, then offer one thing you can do.",
       `Reply in ${language === "ar" ? "Arabic (Gulf-friendly Modern Standard Arabic)" : "English"}, in 1-4 short sentences.`,
       mode === "voice" ? "This reply is spoken aloud in a live voice conversation: 1-2 short, natural sentences, no lists, symbols or currency codes (say 'dirhams'), and end with a brief follow-up question when it helps the person continue." : "",
@@ -46,10 +83,15 @@ export default {
       ...history.slice(-6).map(m => ({ role: m.isUser ? "user" : "model", parts: [{ text: String(m.text).slice(0, 600) }] })),
       { role: "user", parts: [{ text: question.slice(0, 600) }] }
     ];
+    if (usage) {
+      const lastUserText = [...history].reverse().find(m => m?.isUser)?.text ?? question;
+      usage.lang = detectLanguage(String(lastUserText));
+    }
 
     if (!developer) {
-      const limited = await overLimit(env, device);
-      if (limited) return json({ error: "limit", scope: limited }, 429);
+      const cap = tier === "pro_yearly" ? 200 : tier === "pro_monthly" ? 60 : Number(env.FREE_DAILY_LIMIT || 20);
+      const limited = await overLimit(env, device, `d:${tier}`, cap, Number(env.GLOBAL_DAILY_LIMIT || 1000));
+      if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "limit", scope: limited }, 429); }
     }
 
     const request_ = JSON.stringify({
@@ -58,21 +100,34 @@ export default {
       generationConfig: { temperature: 0.4, maxOutputTokens: 400 }
     });
     // Busy (429/503) on the main model: try the lighter one before giving up.
-    const models = [env.GEMINI_MODEL || "gemini-flash-latest", "gemini-flash-lite-latest"];
-    let upstream, detail = "";
+    const needsReasoning = /chart|compare|comparison|advice|forecast|trend|مخطط|قارن|نصيحة|توقع/i.test(question);
+    const models = needsReasoning
+      ? [env.REASONING_MODEL || "gemini-3.8-flash", env.GEMINI_MODEL || "gemini-3.5-flash-lite"]
+      : [env.GEMINI_MODEL || "gemini-3.5-flash-lite"];
+    let upstream, detail = "", usedModel = models[0];
     for (const model of models) {
+      usedModel = model;
       upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: request_
       });
-      if (upstream.ok || ![429, 503].includes(upstream.status)) break;
+      if (upstream.ok || upstream.status !== 503) break;
     }
     if (upstream.ok) {
       const data = await upstream.json();
+      if (usage) {
+        usage.input = Number(data?.usageMetadata?.promptTokenCount) || 0;
+        usage.output = Number(data?.usageMetadata?.candidatesTokenCount) || 0;
+      }
       const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ?? "";
-      if (text) return json({ reply: text, engine: "gemini" });
+      if (text) { if (usage) { usage.model = usedModel; usage.outcome = usedModel === models[0] ? "ok" : "fallback"; } return json({ reply: text, engine: "gemini" }); }
+      if (usage) usage.errorKind = "parse";
+    } else if (upstream.status === 429) {
+      if (usage) { usage.outcome = "limited_global"; usage.errorKind = "upstream_4xx"; }
+      return json({ error: "limit" }, 429);
     } else {
+      if (usage) usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx";
       // Google's own message (e.g. location not supported); it never contains the key itself.
       detail = (await upstream.json().catch(() => null))?.error?.message ?? "";
     }
@@ -91,79 +146,145 @@ export default {
           temperature: 0.4
         });
         const text = result?.response ?? result?.choices?.[0]?.message?.content ?? "";
-        if (text) return json({ reply: String(text).trim(), engine: "workers-ai" });
+        if (text) {
+          if (usage) { usage.model = env.FALLBACK_MODEL || "@cf/google/gemma-4-26b-a4b-it"; usage.outcome = "fallback"; usage.input = Number(result?.usage?.prompt_tokens) || 0; usage.output = Number(result?.usage?.completion_tokens) || 0; }
+          return json({ reply: String(text).trim(), engine: "workers-ai" });
+        }
         detail = `${detail} | workers-ai returned no text`;
       } catch (error) {
         detail = `${detail} | workers-ai: ${String(error).slice(0, 120)}`;
       }
     }
-    return json({ error: "upstream", status: upstream.status, detail: String(detail).slice(0, 240) }, 502);
+    console.error("chat upstream", upstream.status, String(detail).slice(0, 240));
+    return json({ error: "upstream" }, 502);
   }
-};
 
-async function liveToken(body, env, developer, device) {
+// Short, source-linked financial literacy tips; update this list without shipping an app release.
+const MONEY_TIPS = [
+  ["Give every dirham a purpose before the month begins.", "حدّد وجهةً لكل درهم قبل بداية الشهر.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Track spending for a week to see where your money goes.", "تابع مصروفاتك أسبوعًا لتعرف أين يذهب مالك.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Set aside savings when income arrives, not only what remains.", "خصّص للادخار عند وصول الدخل، لا مما يتبقى فقط.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Keep a small buffer for bills that change from month to month.", "احتفظ بمبلغ احتياطي للفواتير التي تتغيّر من شهر إلى آخر.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Review subscriptions quarterly and cancel what you no longer use.", "راجع اشتراكاتك كل ثلاثة أشهر وألغِ ما لم تعد تستخدمه.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Compare a purchase with your priorities before you buy.", "وازن بين الشراء وأولوياتك قبل إتمامه.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["An emergency fund can help cover an unexpected expense.", "يساعدك صندوق الطوارئ على تغطية المصروفات المفاجئة.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Start an emergency fund with an amount that feels manageable.", "ابدأ صندوق الطوارئ بمبلغ يناسب قدرتك.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Plan for irregular costs such as car maintenance and annual fees.", "خطّط للمصروفات غير المنتظمة مثل صيانة السيارة والرسوم السنوية.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Check your account balance before a large discretionary purchase.", "تحقّق من رصيد حسابك قبل شراء شيء غير ضروري وباهظ الثمن.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["Use recent spending, not guesses, to set next month's budget.", "استند إلى مصروفاتك الفعلية عند إعداد ميزانية الشهر المقبل.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Separate needs, wants and savings when planning your spending.", "ميّز بين الاحتياجات والرغبات والادخار عند تخطيط مصروفاتك.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Pay attention to fees; small charges can add up over time.", "انتبه إلى الرسوم؛ فالمبالغ الصغيرة قد تتراكم مع الوقت.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["Set a realistic limit for flexible spending categories.", "ضع حدًا واقعيًا لبنود الإنفاق المرنة.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["If income varies, build your plan around a cautious estimate.", "إذا كان دخلك متغيّرًا، فابنِ خطتك على تقدير متحفّظ.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Save for known future costs a little at a time.", "ادّخر تدريجيًا للمصروفات المستقبلية المعروفة.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Check whether a discount still fits your budget before buying.", "تحقّق من ملاءمة الشراء لميزانيتك حتى عند وجود خصم.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["A budget is a plan you can adjust as your circumstances change.", "الميزانية خطة يمكنك تعديلها عندما تتغيّر ظروفك.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Review upcoming bills before choosing how much to spend this week.", "راجع الفواتير القادمة قبل تحديد إنفاقك لهذا الأسبوع.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Write down a savings goal and the date you hope to reach it.", "دوّن هدفًا للادخار والموعد الذي تطمح إلى بلوغه.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Automating a regular transfer can make saving more consistent.", "يساعدك التحويل الدوري التلقائي على الانتظام في الادخار.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Keep essential expenses in mind before taking on a new payment.", "ضع النفقات الأساسية في الحسبان قبل الالتزام بدفعة جديدة.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["Look at both the monthly cost and the full yearly cost of a plan.", "انظر إلى تكلفة الاشتراك شهريًا وسنويًا قبل اختياره.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Make room in your budget for occasional, not just monthly, expenses.", "اترك في ميزانيتك مجالًا للمصروفات العرضية إلى جانب الشهرية.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["If a bill is hard to pay, contact the provider early to discuss options.", "إذا تعذّر عليك سداد فاتورة، فتواصل مع الجهة مبكرًا لمعرفة الخيارات.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["Compare prices for recurring essentials when it is practical.", "قارن أسعار احتياجاتك المتكررة متى كان ذلك عمليًا.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/"],
+  ["Keep savings accessible for emergencies while separate from daily spending.", "احتفظ بمدخرات الطوارئ في مكان متاح ومنفصل عن إنفاقك اليومي.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"],
+  ["Update your plan after a major change in income or expenses.", "حدّث خطتك بعد أي تغيّر كبير في دخلك أو نفقاتك.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["A short weekly money check-in can help catch overspending early.", "تساعدك مراجعة أسبوعية سريعة لأموالك على ملاحظة تجاوز الإنفاق مبكرًا.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/budgeting/"],
+  ["Choose a savings amount you can repeat consistently.", "اختر مبلغًا للادخار تستطيع الالتزام به بانتظام.", "CFPB", "https://www.consumerfinance.gov/consumer-tools/saving/"]
+].map(([en, ar, source, url], index) => ({ id: index + 1, en, ar, source, url }));
+
+async function liveToken(body, env, developer, device, usage) {
+  if (usage) usage.lang = body.language === "ar" ? "ar" : body.language === "en" ? "en" : "other";
   if (body.language !== "ar" && body.language !== "en") return json({ error: "bad_language" }, 400);
+  const character = body.character === "Mariam" ? "Mariam" : "Hamad";
+  const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
+  if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, 0, 0, 1)) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
   if (!developer) {
-    const limited = await overLimit(env, device, "l", Number(env.LIVE_DAILY_CALLS || 10), Number(env.LIVE_GLOBAL_DAILY_CALLS || 300));
-    if (limited) return json({ error: "daily_limit" }, 429);
+    const caps = { free: 15, pro_monthly: 60, pro_yearly: 200 };
+    const limited = await overLimit(env, device, `v:${tier}`, Number(caps[tier]), Number(env.VOICE_GLOBAL_DAILY_LIMIT || 3000));
+    if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "daily_limit" }, 429); }
   }
   if (!env.GEMINI_API_KEY) return json({ error: "upstream" }, 502);
   const expires = new Date(Date.now() + 30 * 60_000).toISOString();
   let response;
-  try { response = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
+  try { response = await fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify({
       uses: 1, expireTime: expires, newSessionExpireTime: new Date(Date.now() + 60_000).toISOString(),
-      liveConnectConstraints: { model: "models/gemini-3.8-live", config: { responseModalities: ["AUDIO"], sessionResumption: {} } }
+      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["AUDIO"] }, sessionResumption: {} }
     })
   }); } catch { return json({ error: "upstream" }, 502); }
-  if (!response.ok) return json({ error: "upstream" }, 502);
+  if (!response.ok) {
+    if (usage) { usage.errorKind = response.status < 500 ? "upstream_4xx" : "upstream_5xx"; if (response.status === 429) usage.outcome = "limited_global"; }
+    const detail = (await response.json().catch(() => null))?.error?.message ?? "";
+    console.error("live-token upstream", response.status, String(detail).slice(0, 240));
+    return response.status === 429 ? json({ error: "limit" }, 429) : json({ error: "upstream" }, 502);
+  }
   const data = await response.json().catch(() => null);
-  if (!data?.name) return json({ error: "upstream" }, 502);
-  return json({ token: data.name, model: "models/gemini-3.8-live", expiresAt: expires,
-    voice: body.language === "ar" ? env.LIVE_VOICE_AR || "Orus" : env.LIVE_VOICE_EN || "Puck" });
+  if (!data?.name) { if (usage) usage.errorKind = "parse"; return json({ error: "upstream" }, 502); }
+  if (usage) { usage.model = env.LIVE_MODEL || "models/gemini-3.8-live"; usage.outcome = "ok"; }
+  return json({ token: data.name, model: env.LIVE_MODEL || "models/gemini-3.8-live", expiresAt: expires,
+    voice: character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus" });
 }
 
 // Text to speech for Ghaf AI's voice mode. Gemini's speech model first (Arabic and English);
 // Deepgram Aura on Workers AI for English when Gemini is unavailable. Returns audio bytes.
-async function speak(body, env, developer, device) {
+async function speak(body, env, developer, device, usage) {
   const text = String(body.text || "").trim().slice(0, 700);
   const arabic = body.language === "ar";
+  const character = body.character === "Mariam" ? "Mariam" : "Hamad";
+  const voice = character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus";
+  const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
   if (!text) return json({ error: "missing_text" }, 400);
+  const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${character}\n${text}`));
+  const cacheKey = `tts:${Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("")}`;
+  const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
+  if (cached) { if (usage) { usage.model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview"; usage.outcome = "ok"; } return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini", "X-Ghaf-Cache": "hit" } }); }
+  if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, Math.ceil(text.length / 4), 0, Math.max(1, text.length / 14))) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
   if (!developer) {
-    const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 60));
-    if (limited) return json({ error: "limit", scope: limited }, 429);
+    const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 10));
+    if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "limit", scope: limited }, 429); }
   }
   if (env.GEMINI_API_KEY) {
-    const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.TTS_MODEL || "gemini-2.5-flash-preview-tts"}:generateContent`, {
+    const makeRequest = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.TTS_MODEL || "gemini-3.1-flash-tts-preview"}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
         // The style line steers delivery: Gulf-friendly Arabic, like a friend talking, not a newsreader.
         contents: [{ parts: [{ text: (arabic
-          ? "اقرأ النص التالي بصوت شاب إماراتي من أبوظبي، دافئ وعفوي، بلهجة ونطق خليجي إماراتي (مثل شلونك، إن شاء الله، زين، وايد)، وليس مصرياً أو شامياً أو فصحى مذيع أخبار: "
-          : "Read this like a friendly, relaxed person talking, warm and natural, not like an announcer: ") + text }] }],
+          ? `اقرأ النص التالي بصوت ${character === "Mariam" ? "امرأة إماراتية" : "رجل إماراتي"}، دافئ وعفوي، بنطق خليجي إماراتي طبيعي وليس كمذيع أخبار: `
+          : `Read this in a warm, natural ${character === "Mariam" ? "female" : "male"} Emirati voice, conversationally, not like an announcer: `) + text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: arabic ? env.TTS_VOICE_AR || "Orus" : "Aoede" } } }
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
         }
       })
     });
+    let upstream = await makeRequest();
+    if (upstream.status === 503) {
+      await new Promise(resolve => setTimeout(resolve, 1_000));
+      upstream = await makeRequest();
+    }
+    if (upstream.status === 429) { if (usage) { usage.outcome = "limited_global"; usage.errorKind = "upstream_4xx"; } return json({ error: "limit" }, 429); }
     if (upstream.ok) {
       const data = await upstream.json();
+      if (usage) {
+        usage.input = Number(data?.usageMetadata?.promptTokenCount) || 0;
+        usage.output = Number(data?.usageMetadata?.candidatesTokenCount) || 0;
+      }
       const b64 = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-      if (b64) return new Response(wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0))),
-                                   { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini" } });
+      if (b64) {
+        const audio = wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+        if (usage) usage.model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview";
+        await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
+        if (usage) usage.outcome = "ok";
+        return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini" } });
+      }
+      if (usage) usage.errorKind = "parse";
+    } else if (usage) {
+      usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx";
     }
-  }
-  if (!arabic && env.AI) {
-    try {
-      // Deepgram Aura is English-only.
-      const audio = await env.AI.run("@cf/deepgram/aura-1", { text, speaker: "orion" }, { returnRawResponse: true });
-      const bytes = audio instanceof Response ? await audio.arrayBuffer() : audio;
-      if (bytes && bytes.byteLength > 0) return new Response(bytes, { headers: { "Content-Type": "audio/mpeg", "X-Ghaf-Voice": "aura" } });
-    } catch (error) { /* fall through */ }
   }
   return json({ error: "unavailable" }, 503);
 }
@@ -183,7 +304,8 @@ function wav(pcm) {
 // KV is eventually consistent, so a burst can overshoot slightly; good enough for a free-quota guard.
 async function overLimit(env, device, kind = "d", deviceLimit = Number(env.FREE_DAILY_LIMIT || 20), globalLimit = Number(env.GLOBAL_DAILY_LIMIT || 1000)) {
   const day = new Date().toISOString().slice(0, 10);
-  const deviceKey = `${kind}:${day}:${device}`, globalKey = kind === "l" ? `gl:${day}` : `g:${day}`;
+  const globalKind = kind.startsWith("v:") ? "live" : kind === "s" ? "speak" : "chat";
+  const deviceKey = `${kind}:${day}:${device}`, globalKey = `g:${globalKind}:${day}`;
   const [used, all] = await Promise.all([env.USAGE.get(deviceKey), env.USAGE.get(globalKey)]);
   const deviceCount = Number(used || 0), globalCount = Number(all || 0);
   if (deviceCount >= deviceLimit) return "device";
@@ -193,6 +315,46 @@ async function overLimit(env, device, kind = "d", deviceLimit = Number(env.FREE_
   return null;
 }
 
+async function reserveYearlyBudget(env, device, inputTokens, outputTokens, audioSeconds) {
+  const month = new Date().toISOString().slice(0, 7);
+  const key = `c:${month}:${device}`;
+  const used = Number(await env.USAGE.get(key) || 0);
+  const ceiling = Number(env.YEARLY_MONTHLY_BUDGET_USD || 1.50);
+  const estimate = inputTokens * Number(env.TEXT_INPUT_USD_PER_MILLION || 0.10) / 1_000_000
+    + outputTokens * Number(env.TEXT_OUTPUT_USD_PER_MILLION || 0.40) / 1_000_000
+    + audioSeconds * Number(env.TTS_AUDIO_USD_PER_SECOND || 0.0003);
+  if (used + estimate > ceiling) return false;
+  await env.USAGE.put(key, String(used + estimate), { expirationTtl: 35 * 86400 });
+  return true;
+}
+
 function json(value, status = 200) {
   return new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
+}
+
+function detectLanguage(text) {
+  const letters = [...text].filter(c => /\p{L}/u.test(c));
+  if (!letters.length) return "other";
+  const arabic = letters.filter(c => /\p{Script=Arabic}/u.test(c)).length;
+  if (!arabic) return "en";
+  if (arabic === letters.length) return "ar";
+  return arabic / letters.length >= 0.3 ? "ar" : "mixed";
+}
+
+function writeUsage(env, ctx, usage, latency) {
+  if (!env.USAGE_EVENTS?.writeDataPoint || !ctx?.waitUntil) return;
+  const write = Promise.resolve().then(async () => {
+    let deviceHash = "";
+    if (usage.device && env.AI_HASH_SALT) {
+      const bytes = new TextEncoder().encode(usage.device + env.AI_HASH_SALT);
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      deviceHash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+    }
+    env.USAGE_EVENTS.writeDataPoint({
+      indexes: ["ghaf"],
+      blobs: [usage.endpoint, usage.model, usage.outcome, usage.lang, deviceHash, usage.errorKind],
+      doubles: [latency, usage.input, usage.output, usage.developer ? 1 : 0]
+    });
+  }).catch(() => {});
+  try { ctx.waitUntil(write); } catch { /* analytics must never affect the response */ }
 }

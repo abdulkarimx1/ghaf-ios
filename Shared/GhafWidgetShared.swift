@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import WidgetKit
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -168,6 +169,41 @@ struct GhafWidgetSnapshot: Codable, Equatable {
         formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: code)
         formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: code)
         return "\(code) " + (formatter.string(from: value as NSDecimalNumber) ?? "\(value)")
+    }
+}
+
+struct GhafMoneyTip: Codable, Identifiable {
+    let id: Int
+    let en: String
+    let ar: String
+    let source: String
+    let url: String
+
+    static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/tips")!
+    private static let cacheKey = "ghaf.widget.money-tips"
+
+    static var cached: [GhafMoneyTip] {
+        GhafWidgetSnapshot.groupIDs.compactMap { UserDefaults(suiteName: $0)?.data(forKey: cacheKey) }
+            .compactMap { try? JSONDecoder().decode([GhafMoneyTip].self, from: $0) }.first ?? []
+    }
+
+    @discardableResult
+    static func refresh() async -> [GhafMoneyTip] {
+        guard let (data, response) = try? await URLSession.shared.data(from: endpoint),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let payload = try? JSONDecoder().decode(Payload.self, from: data), payload.tips.count == 30 else { return cached }
+        if let cache = try? JSONEncoder().encode(payload.tips) {
+            for group in GhafWidgetSnapshot.groupIDs { UserDefaults(suiteName: group)?.set(cache, forKey: cacheKey) }
+        }
+        return payload.tips
+    }
+
+    private struct Payload: Decodable { let tips: [GhafMoneyTip] }
+    static var today: GhafMoneyTip? {
+        let tips = cached
+        guard !tips.isEmpty else { return nil }
+        let day = Calendar.current.ordinality(of: .day, in: .era, for: .now) ?? 1
+        return tips[(day - 1) % tips.count]
     }
 }
 

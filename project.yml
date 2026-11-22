@@ -31,6 +31,8 @@ targets:
     sources:
       - path: Ghaf
       - path: Shared
+      - path: GhafWidgets
+        excludes: [PrivacyInfo.xcprivacy]
     dependencies:
       - package: GhafCore
         product: GhafCore
@@ -40,15 +42,15 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.27"
-        CFBundleVersion: "41"
+        CFBundleShortVersionString: "1.28"
+        CFBundleVersion: "42"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
           - ar
         NSFaceIDUsageDescription: Ghaf uses Face ID or your device passcode to protect your financial information.
-        NSLocationWhenInUseUsageDescription: Ghaf uses your location only while you choose where a purchase happened, to show nearby places first.
-        NSMicrophoneUsageDescription: Ghaf uses the microphone when you choose to record transaction details or have a live voice call.
+        NSLocationWhenInUseUsageDescription: Ghaf can add the place to a manual transaction. Place details stay on this iPhone; Apple Maps finds the name.
+        NSMicrophoneUsageDescription: Ghaf uses the microphone when you choose to record a transaction by voice or talk to Ghaf AI.
         NSSpeechRecognitionUsageDescription: Ghaf converts your spoken transaction details into editable text on your device.
         UIAppFonts:
           - IBMPlexSans-Variable.ttf
@@ -96,8 +98,8 @@ targets:
       path: BuildConfig/GhafWidgets-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.27"
-        CFBundleVersion: "41"
+        CFBundleShortVersionString: "1.28"
+        CFBundleVersion: "42"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -106,6 +108,7 @@ targets:
         PRODUCT_NAME: GhafWidgets
         CODE_SIGN_ENTITLEMENTS: Config/GhafWidgets.entitlements
         SWIFT_VERSION: "5.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_EXTENSION"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES

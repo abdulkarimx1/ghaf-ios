@@ -1,3 +1,5 @@
 "CFBundleDisplayName" = "Ghaf";
-"NSMicrophoneUsageDescription" = "Ghaf uses the microphone when you choose to record transaction details by voice."; 
+"NSMicrophoneUsageDescription" = "Ghaf uses the microphone when you record a transaction by voice or talk to Ghaf AI.";
 "NSSpeechRecognitionUsageDescription" = "Ghaf converts your spoken transaction details into editable text on your device.";
+"NSLocationWhenInUseUsageDescription" = "Ghaf can add the place to a transaction you log yourself. Your location stays on this iPhone; Apple Maps finds the place name.";
+"NSFaceIDUsageDescription" = "Ghaf uses Face ID or your device passcode to protect your financial information.";

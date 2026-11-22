@@ -10,6 +10,7 @@ final class GhafTransaction {
     var amount: Decimal
     var currency: String
     var merchant: String?
+    var rawMerchant: String? = nil
     var date: Date
     var direction: String
     var category: String
@@ -53,6 +54,7 @@ final class GhafTransaction {
         self.amount = parsed.amount
         self.currency = parsed.currency
         self.merchant = parsed.merchant
+        self.rawMerchant = parsed.merchant
         self.date = parsed.date
         self.direction = parsed.direction.rawValue
         self.category = category

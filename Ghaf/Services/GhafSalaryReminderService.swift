@@ -15,7 +15,9 @@ enum GhafSalaryReminderService {
 
     static func scheduleNext(
         salaryDay: Int,
-        languageCode: String
+        languageCode: String,
+        salaryAmount: Decimal? = nil,
+        salaryCurrency: String = "AED"
     ) async throws {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
@@ -27,9 +29,10 @@ enum GhafSalaryReminderService {
 
         let content = UNMutableNotificationContent()
         content.title = languageCode == "ar" ? "موعد الراتب" : "Salary day"
+        let expected = salaryAmount.map { GhafFormat.shownMoney($0, currency: salaryCurrency, languageCode: languageCode) }
         content.body = languageCode == "ar"
-            ? "هل وصلك راتبك؟ افتح غاف لتأكيد الاستلام وتحديث رصيدك."
-            : "Has your salary arrived? Open Ghaf to confirm it and update your balance."
+            ? "هل وصلك راتبك\(expected.map { " البالغ \($0)" } ?? "")؟ افتح غاف لتأكيد الاستلام وتحديث رصيدك."
+            : "Has your salary\(expected.map { " of \($0)" } ?? "") arrived? Open Ghaf to confirm it and update your balance."
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
@@ -101,6 +104,14 @@ struct GhafSalaryCheckInView: View {
                     GhafAmountField(value: $amountText, currency: activeAccounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency,
                                     label: settings.languageCode == "ar" ? "المبلغ المستلم" : "Amount received",
                                     theme: theme, languageCode: settings.languageCode, fontSize: 25)
+                    if let account = activeAccounts.first(where: { $0.id == selectedAccountID }),
+                       account.currency != (settings.salaryCurrency ?? settings.currency) {
+                        Text(settings.languageCode == "ar"
+                             ? "أدخل المبلغ بعملة الحساب \(account.currency). سيبقى مبلغ الراتب المتوقع بعملة \(settings.salaryCurrency ?? settings.currency)."
+                             : "Enter the amount in the account currency (\(account.currency)). Expected salary remains in \(settings.salaryCurrency ?? settings.currency).")
+                            .font(GhafTypography.body(12, languageCode: settings.languageCode))
+                            .foregroundStyle(theme.secondaryText)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 7) {
@@ -149,17 +160,35 @@ struct GhafSalaryCheckInView: View {
                 }
             }
             .onAppear(perform: loadDefaults)
+            .onChange(of: selectedAccountID) { _, _ in updateAmountForSelectedAccount() }
         }
     }
 
     private func loadDefaults() {
-        if amountText.isEmpty {
-            amountText = settings.salaryAmount.map(GhafFormat.decimal)
-                ?? GhafFormat.decimal(settings.monthlyIncome)
-        }
         selectedAccountID = settings.salaryAccountID
             ?? activeAccounts.first(where: \.isPrimary)?.id
             ?? activeAccounts.first?.id
+        if amountText.isEmpty {
+            let selectedCurrency = activeAccounts.first(where: { $0.id == selectedAccountID })?.currency
+            let salaryCurrency = settings.salaryCurrency ?? settings.currency
+            amountText = selectedCurrency == salaryCurrency
+                ? (settings.salaryAmount.map(GhafFormat.decimal) ?? GhafFormat.decimal(settings.monthlyIncome))
+                : ""
+        }
+    }
+
+    private func updateAmountForSelectedAccount() {
+        guard let account = activeAccounts.first(where: { $0.id == selectedAccountID }) else {
+            amountText = ""
+            return
+        }
+        let salaryCurrency = settings.salaryCurrency ?? settings.currency
+        guard account.currency == salaryCurrency else {
+            amountText = ""
+            return
+        }
+        amountText = settings.salaryAmount.map(GhafFormat.decimal)
+            ?? GhafFormat.decimal(settings.monthlyIncome)
     }
 
     private func confirmReceived() {
@@ -199,7 +228,9 @@ struct GhafSalaryCheckInView: View {
 
             settings.lastSalaryDecisionKey = periodKey
             settings.salaryAccountID = account.id
-            settings.salaryAmount = amount
+            if account.currency == (settings.salaryCurrency ?? settings.currency) {
+                settings.salaryAmount = amount
+            }
             try modelContext.save()
             dismiss()
         } catch {
@@ -230,6 +261,7 @@ struct GhafSalarySettingsView: View {
     @State private var enabled = false
     @State private var salaryDay = 28
     @State private var amountText = ""
+    @State private var salaryCurrency = "AED"
     @State private var accountID: UUID?
     @State private var reminderEnabled = true
     @State private var errorMessage = ""
@@ -237,6 +269,8 @@ struct GhafSalarySettingsView: View {
     private var activeAccounts: [GhafAccount] {
         accounts.filter { !$0.isArchived }
     }
+
+    private let supportedCurrencies = ["AED", "SAR", "OMR", "USD", "EUR", "GBP", "KWD", "BHD", "QAR"]
 
     private var theme: GhafTheme {
         GhafTheme.resolve(
@@ -274,9 +308,10 @@ struct GhafSalarySettingsView: View {
                                     title: settings.languageCode == "ar" ? "المبلغ المتوقع" : "Expected",
                                     theme: theme, languageCode: settings.languageCode) {
                             GhafAmountField(value: $amountText,
-                                            currency: activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency,
+                                            currency: salaryCurrency,
                                             label: "", theme: theme, languageCode: settings.languageCode, fontSize: 15, chromeless: true)
                                 .frame(width: 132)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                         }
                         GhafFormDivider(theme: theme)
                         GhafFormMenuRow(icon: "wallet.pass", tint: theme.accent,
@@ -287,11 +322,22 @@ struct GhafSalarySettingsView: View {
                                 ForEach(activeAccounts, id: \.id) { Text($0.name).tag(Optional($0.id)) }
                             }
                         }
-                        if let account = activeAccounts.first(where: { $0.id == accountID }) {
-                            GhafFormDivider(theme: theme)
-                            GhafFormRow(icon: "dollarsign.circle", tint: theme.accent,
+                        GhafFormDivider(theme: theme)
+                        GhafFormMenuRow(icon: "dollarsign.circle", tint: theme.accent,
                                         title: settings.languageCode == "ar" ? "عملة الراتب" : "Salary currency",
-                                        theme: theme, languageCode: settings.languageCode) { Text(account.currency) }
+                                        value: "\(salaryCurrency) · \(GhafCurrencyIcon.name(salaryCurrency, languageCode: settings.languageCode))",
+                                        theme: theme, languageCode: settings.languageCode) {
+                            ForEach(supportedCurrencies, id: \.self) { code in
+                                Button {
+                                    salaryCurrency = code
+                                } label: {
+                                    if let asset = GhafCurrencyIcon.assetName(code) {
+                                        Label("\(code) · \(GhafCurrencyIcon.name(code, languageCode: settings.languageCode))", image: asset)
+                                    } else {
+                                        Text("\(code) · \(GhafCurrencyIcon.name(code, languageCode: settings.languageCode))")
+                                    }
+                                }
+                            }
                         }
                         GhafFormDivider(theme: theme)
                         GhafFormToggleRow(icon: "bell.badge", tint: theme.close,
@@ -324,6 +370,7 @@ struct GhafSalarySettingsView: View {
         salaryDay = settings.salaryDay ?? 28
         amountText = settings.salaryAmount.map(GhafFormat.decimal)
             ?? GhafFormat.decimal(settings.monthlyIncome)
+        salaryCurrency = settings.salaryCurrency ?? settings.currency
         accountID = settings.salaryAccountID
             ?? activeAccounts.first(where: \.isPrimary)?.id
             ?? activeAccounts.first?.id
@@ -349,7 +396,7 @@ struct GhafSalarySettingsView: View {
         settings.salaryDay = enabled ? salaryDay : nil
         settings.salaryAmount = enabled ? Decimal(string: amountText) : nil
         settings.salaryAccountID = enabled ? (accountID ?? activeAccounts.first?.id) : nil
-        settings.salaryCurrency = activeAccounts.first(where: { $0.id == accountID })?.currency ?? settings.currency
+        settings.salaryCurrency = salaryCurrency
         settings.salaryReminderEnabled = enabled && reminderEnabled
 
         do {
@@ -360,7 +407,9 @@ struct GhafSalarySettingsView: View {
                     _ = await GhafSalaryReminderService.requestPermission()
                     try? await GhafSalaryReminderService.scheduleNext(
                         salaryDay: salaryDay,
-                        languageCode: settings.languageCode
+                        languageCode: settings.languageCode,
+                        salaryAmount: settings.salaryAmount,
+                        salaryCurrency: salaryCurrency
                     )
                 }
             } else {

@@ -4,6 +4,7 @@ import GhafCore
 
 @MainActor
 enum MerchantCategorizer {
+    private static var didRekeyRulesThisLaunch = false
 
     private static let seededRules: [(String, String)] = [
 
@@ -182,7 +183,7 @@ enum MerchantCategorizer {
 
     private static func ruleSuggestion(for merchant: String?, context: ModelContext) -> CategoryMatcher.Match? {
         guard let merchant, !merchant.isEmpty else { return nil }
-        try? rekeyRules(context: context)
+        migrateRulesOnce(context: context)
         let catalog = (try? context.fetch(FetchDescriptor<GhafSettings>()).first)?.catalog
             ?? Dictionary(uniqueKeysWithValues: GhafDefaults.defaultCategories.map { ($0, [String]()) })
         var learned: [String: CategoryMatcher.Rule] = [:]
@@ -223,7 +224,7 @@ enum MerchantCategorizer {
         invalidateLearner()
         let key = normalize(merchant)
         guard !key.isEmpty, category != "Other" else { return }
-        try rekeyRules(context: context, save: false)
+        migrateRulesOnce(context: context)
         if let existing = try context.fetch(FetchDescriptor<MerchantCategoryRule>()).first(where: { $0.normalizedMerchant == key }) {
             existing.hits = existing.category == category && existing.subcategory == subcategory ? existing.hits + 1 : 1
             existing.category = category
@@ -244,11 +245,20 @@ enum MerchantCategorizer {
         var changed = false
         for (key, matches) in groups where !key.isEmpty && (matches.count > 1 || matches[0].normalizedMerchant != key) {
             changed = true
-            let keeper = matches.max { $0.updatedAt < $1.updatedAt }!
+            let categories = Set(matches.map(\.category))
+            let keeper = categories.count == 1
+                ? matches.max { $0.updatedAt < $1.updatedAt }!
+                : matches.max { $0.hits < $1.hits }!
             for duplicate in matches where duplicate !== keeper { context.delete(duplicate) }
-            keeper.hits = matches.reduce(0) { $0 + $1.hits }
+            if categories.count == 1 { keeper.hits = matches.reduce(0) { $0 + $1.hits } }
             keeper.normalizedMerchant = key
         }
         if save && changed { try context.save() }
+    }
+
+    private static func migrateRulesOnce(context: ModelContext) {
+        guard !didRekeyRulesThisLaunch else { return }
+        didRekeyRulesThisLaunch = true
+        try? rekeyRules(context: context)
     }
 }

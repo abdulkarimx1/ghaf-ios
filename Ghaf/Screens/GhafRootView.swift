@@ -7,6 +7,7 @@ import UserNotifications
 import AVFoundation
 import Speech
 import UniformTypeIdentifiers
+import UIKit
 
 struct GhafRootView: View {
     @Environment(\.modelContext) private var modelContext
@@ -19,6 +20,7 @@ struct GhafRootView: View {
     @State private var appliedLanguage = ""
     @State private var languageTransitionText = ""
     @State private var showLanguageTransition = false
+    @State private var languageGlow = false
     @State private var showLaunch = true
     @State private var launchHasStarted = false
     @State private var launchSkipRequested = false
@@ -63,7 +65,11 @@ struct GhafRootView: View {
                                                         appearanceMode: currentSettings.appearanceMode,
                                                         systemIsDark: systemColorScheme == .dark)
                 VStack(spacing: 18) {
-                    Text("Ghaf").font(GhafTypography.display(34, languageCode: appliedLanguage.isEmpty ? languageCode : appliedLanguage))
+                    Text(languageCode == "ar" ? "غاف" : "Ghaf")
+                        .font(GhafTypography.display(40, languageCode: languageCode))
+                        .foregroundStyle(transitionTheme.primaryText)
+                        .shadow(color: transitionTheme.glow.opacity(languageGlow ? 0.65 : 0.2), radius: languageGlow ? 24 : 10)
+                        .overlay { Circle().fill(transitionTheme.glow.opacity(languageGlow ? 0.18 : 0)).frame(width: 86, height: 86).blur(radius: 24) }
                     Text(languageTransitionText).font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
                         .contentTransition(.opacity)
                 }
@@ -71,6 +77,10 @@ struct GhafRootView: View {
                 .foregroundStyle(transitionTheme.primaryText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(transitionTheme.background.ignoresSafeArea())
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(.easeOut(duration: 0.55)) { languageGlow = true }
+                }
                 .zIndex(30)
             }
         }
@@ -88,20 +98,21 @@ struct GhafRootView: View {
                 appliedLanguage = code
                 return
             }
-            let oldText = localized("Preparing your experience", "نجهّز تجربتك", languageCode: oldCode)
-            let newText = localized("Preparing your experience", "نجهّز تجربتك", languageCode: code)
+            let oldText = localized("Welcome", "أهلاً", languageCode: oldCode)
+            let newText = localized("Welcome", "أهلاً", languageCode: code)
             languageTransitionText = oldText
+            languageGlow = false
             showLanguageTransition = true
             Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(550))
+                try? await Task.sleep(for: .milliseconds(300))
                 withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .easeInOut(duration: 0.45)) {
                     languageTransitionText = newText
                 }
-                try? await Task.sleep(for: .milliseconds(250))
+                try? await Task.sleep(for: .milliseconds(200))
                 UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
                 appliedLanguage = code
-                try? await Task.sleep(for: .milliseconds(800))
-                withAnimation(.easeOut(duration: 0.2)) { showLanguageTransition = false }
+                try? await Task.sleep(for: .milliseconds(400))
+                withAnimation(.easeOut(duration: 0.15)) { showLanguageTransition = false; languageGlow = false }
             }
         }
         .scrollIndicators(.hidden)
@@ -233,6 +244,7 @@ struct GhafRootView: View {
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
             case "salary-settings": GhafSalarySettingsView(settings: currentSettings)
+            case "budget-salary-currency": GhafBudgetView(settings: currentSettings)
             case "account-editor": NavigationStack { GhafAccountEditorView(account: nil, settings: currentSettings) }
             case "new-transaction": GhafTabView(settings: currentSettings)
             case "amount-pad": GhafTabView(settings: currentSettings)
@@ -384,6 +396,9 @@ struct GhafTabView: View {
     @State private var router = GhafTabRouter()
     /// Opened from a Live Activity or widget link (ghaf://transaction/<UUID>).
     @State private var linkedTransaction: GhafTransaction?
+    @State private var showWidgetQuickAdd = false
+    @State private var showWidgetPro = false
+    @State private var tabOffset: CGFloat = 0
     @Query private var linkAccounts: [GhafAccount]
     /// Decoded once, not on every tab switch, so category icons are not invalidated needlessly.
     @State private var categoryMeta: [String: GhafCategoryMeta] = [:]
@@ -403,7 +418,19 @@ struct GhafTabView: View {
         let selection = Binding(get: { router.selectedTab }, set: { tab in
             if tab == 0 && router.selectedTab == 0 { router.homeReselects += 1 }
             if tab == 1 && router.selectedTab == 1 { router.startVoice?() }
-            else { withTransaction(Transaction(animation: nil)) { router.selectedTab = tab } }
+            else if tab != router.selectedTab {
+                let rtl = settings.languageCode == "ar"
+                let order = [0, 3, 1, 2, 4]
+                let forward = (order.firstIndex(of: tab) ?? 0) > (order.firstIndex(of: router.selectedTab) ?? 0)
+                let sign: CGFloat = forward != rtl ? 1 : -1
+                withTransaction(Transaction(animation: nil)) { tabOffset = sign * 8 }
+                DispatchQueue.main.async {
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.12) : .easeOut(duration: 0.2)) {
+                        router.selectedTab = tab
+                        tabOffset = 0
+                    }
+                }
+            }
         })
         TabView(selection: selection) {
             GhafHomeView(settings: settings)
@@ -415,7 +442,7 @@ struct GhafTabView: View {
                 .tag(3)
 
             GhafAIView(settings: settings)
-                // A full-colour Ghaf tree as the tab's own icon: unlike the monochrome tabs, and placed by iOS
+                // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
                     tabIcon(Image(uiImage: showOrbOverlay ? UIImage() : GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1)),
@@ -434,10 +461,30 @@ struct GhafTabView: View {
                 .tag(4)
         }
         .onOpenURL { url in
-            guard url.scheme == "ghaf", url.host == "transaction", let id = UUID(uuidString: url.lastPathComponent) else { return }
-            linkedTransaction = try? modelContext.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first
-            if linkedTransaction != nil { router.selectedTab = 3 }
+            guard url.scheme == "ghaf" else { return }
+            switch url.host {
+            case "transaction":
+                guard let id = UUID(uuidString: url.lastPathComponent) else { return }
+                linkedTransaction = try? modelContext.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first
+                if linkedTransaction != nil { router.selectedTab = 3 }
+            case "add-transaction":
+                showWidgetQuickAdd = true
+            case "pro":
+                showWidgetPro = true
+            case "ai":
+                router.selectedTab = 1
+                if url.path == "/voice" { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { router.startVoice?() } }
+                else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { router.typeQuestion?() } }
+            case "money-tip":
+                if let source = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "source" })?.value,
+                   let sourceURL = URL(string: source), ["https", "http"].contains(sourceURL.scheme?.lowercased() ?? "") {
+                    UIApplication.shared.open(sourceURL)
+                }
+            default: break
+            }
         }
+        .sheet(isPresented: $showWidgetQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
+        .sheet(isPresented: $showWidgetPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الأدوات")).ghafDirection(settings.languageCode) }
         .sheet(item: $linkedTransaction) { transaction in
             NavigationStack { GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: linkAccounts.filter { !$0.isArchived }) }
                 .ghafDirection(settings.languageCode)
@@ -463,6 +510,8 @@ struct GhafTabView: View {
             }
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
+        .offset(x: tabOffset)
+        .opacity(tabOffset == 0 ? 1 : 0.94)
         .tint(theme.accent)
 #if DEBUG
         .onAppear {
@@ -501,7 +550,7 @@ struct GhafTabView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
         .preferredColorScheme(
-            settings.appearanceMode == "Dark" ? .dark :
+            settings.appearanceMode == "Dark" || router.selectedTab == 1 ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
     }
@@ -573,7 +622,6 @@ struct GhafOnboardingView: View {
     @State private var salaryReminderEnabled = true
     @State private var salaryAccountDraftID: UUID?
     @State private var accountSetupError = false
-    @State private var showBackupImporter = false
     @State private var showImportSheet = false
     @State private var backupImportError: String?
 
@@ -700,18 +748,6 @@ struct GhafOnboardingView: View {
             }.environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         }
         .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
-        .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
-            do {
-                let url = try result.get()
-                try GhafBackupService.restore(from: url, context: modelContext)
-                if let restored = try modelContext.fetch(FetchDescriptor<GhafSettings>()).first {
-                    restored.hasCompletedOnboarding = true
-                    try modelContext.save()
-                }
-            } catch {
-                backupImportError = error.localizedDescription
-            }
-        }
         .alert(localized("Could not finish", "تعذر إكمال العملية"), isPresented: Binding(
             get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
         )) {
@@ -738,7 +774,7 @@ struct GhafOnboardingView: View {
 
     private var intro: some View {
         let pages = [
-            ("leaf", localized("Welcome to Ghaf", "أهلاً بك في غاف"), localized("Set up a new budget or bring yours back from a Ghaf backup.", "ابدأ ميزانية جديدة أو استعد ميزانيتك من نسخة غاف الاحتياطية.")),
+            ("hand.wave", localized("Welcome to Ghaf", "أهلاً بك في غاف"), localized("Set up a new budget or bring yours back from a Ghaf backup.", "ابدأ ميزانية جديدة أو استعد ميزانيتك من نسخة غاف الاحتياطية.")),
             ("wallet.bifold", localized("Your accounts in one place", "حساباتك في مكان واحد"), localized("Add a bank account or cash wallet. Each keeps its own balance and currency.", "أضف حساباً بنكياً أو محفظة نقدية. لكل حساب رصيده وعملته.")),
             ("bolt", localized("Capture bank alerts", "سجّل عملياتك من رسائل البنك"), localized("Connect a bank message to Ghaf in Shortcuts. You can set this up later.", "اربط رسائل البنك بغاف في تطبيق الاختصارات. يمكنك إعداد ذلك لاحقاً.")),
             ("bubble.left.and.bubble.right", localized("Ask Ghaf", "اسأل غاف"), localized("Ask how much you spent this week, in Arabic or English.", "اسأل بالعربية أو الإنجليزية عن إنفاقك هذا الأسبوع.")),
@@ -1260,7 +1296,9 @@ struct GhafOnboardingView: View {
                     _ = await GhafSalaryReminderService.requestPermission()
                     try? await GhafSalaryReminderService.scheduleNext(
                         salaryDay: salaryDay,
-                        languageCode: languageCode
+                        languageCode: languageCode,
+                        salaryAmount: settings.salaryAmount,
+                        salaryCurrency: settings.salaryCurrency ?? settings.currency
                     )
                 }
             }

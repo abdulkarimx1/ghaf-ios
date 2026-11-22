@@ -198,18 +198,37 @@ extension View {
     /// Screens that hide the navigation bar: fade content out under the status bar so text never
     /// scrolls behind the clock and battery.
     func ghafStatusBarFade(theme: GhafTheme) -> some View {
-        overlay(alignment: .top) {
+        modifier(GhafStatusBarFadeModifier(theme: theme))
+    }
+}
+
+private struct GhafStatusBarFadeModifier: ViewModifier {
+    let theme: GhafTheme
+    @State private var scrollOffset: CGFloat = 0
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        let faded = content.overlay(alignment: .top) {
             GeometryReader { geometry in
-                let top = geometry.safeAreaInsets.top, fade: CGFloat = 32
+                let top = geometry.safeAreaInsets.top, fade: CGFloat = 28
                 LinearGradient(stops: [.init(color: theme.background, location: 0),
-                                       .init(color: theme.background, location: top / (top + fade)),
                                        .init(color: theme.background.opacity(0), location: 1)],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: top + fade)
                     .offset(y: -top)
+                    .opacity(min(max(scrollOffset / 8, 0), 1))
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+        }
+        if #available(iOS 18, *) {
+            faded.onScrollGeometryChange(for: CGFloat.self) { geometry in
+                max(0, geometry.contentOffset.y + geometry.contentInsets.top)
+            } action: { _, offset in
+                scrollOffset = offset
+            }
+        } else {
+            faded.onAppear { scrollOffset = 8 }
         }
     }
 }

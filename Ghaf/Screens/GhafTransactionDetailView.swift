@@ -14,6 +14,7 @@ private struct GhafTransactionDetailHeightKey: PreferenceKey {
 struct GhafTransactionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var systemColorScheme
+    @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
 
     let transaction: GhafTransaction
     let settings: GhafSettings
@@ -31,8 +32,16 @@ struct GhafTransactionDetailView: View {
     private var isCredit: Bool { transaction.direction == "credit" }
     private var account: GhafAccount? { accounts.first { $0.id == transaction.accountID } }
     private var merchantName: String {
-        let name = transaction.merchant?.trimmingCharacters(in: .whitespaces) ?? ""
+        let name = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)?.trimmingCharacters(in: .whitespaces) ?? ""
         return name.isEmpty ? GhafLocalization.category(transaction.category, languageCode: lang) : name
+    }
+    private var transactionDateLabel: String {
+        let calendar = Calendar.current
+        let time = transaction.date.formatted(.dateTime.hour().minute().locale(Locale(identifier: lang)))
+        if calendar.isDateInToday(transaction.date) { return (ar ? "اليوم" : "Today") + (ar ? "، " : ", ") + time }
+        if calendar.isDateInYesterday(transaction.date) { return (ar ? "أمس" : "Yesterday") + (ar ? "، " : ", ") + time }
+        let day = transaction.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: lang)))
+        return day + " · " + time
     }
 
     private var status: (title: String, symbol: String, tint: Color) {
@@ -111,7 +120,7 @@ struct GhafTransactionDetailView: View {
                         .font(GhafTypography.userContent(merchantName, size: 17, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText)
                         .lineLimit(1)
-                    Text(transaction.date.formatted(.dateTime.weekday(.wide).day().month().hour().minute().locale(Locale(identifier: lang))))
+                    Text(transactionDateLabel)
                         .font(GhafTypography.body(13, languageCode: lang))
                         .foregroundStyle(theme.secondaryText)
                 }

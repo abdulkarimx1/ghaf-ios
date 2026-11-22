@@ -21,7 +21,9 @@ Automatic cloud backup, Google Drive account integration and Sign in with Apple 
 
 ## Data sharing, analytics and advertising
 
-Ghaf does not currently operate advertising, cross-app tracking, analytics collection or a remote financial-data service. Ghaf does not sell personal information.
+Ghaf does not show advertising, does not track you across apps and does not operate a remote financial-data service. Ghaf does not sell personal information.
+
+When you use Ghaf AI, the server records anonymous statistics for two reasons only: to apply fair-use limits and to see what running Ghaf AI costs. Each record holds the request type, AI model, outcome, language, response time and size, and a one-way scrambled device code that cannot identify you. Your name, questions, answers, voice, transactions and other financial data are never recorded. These statistics are not used to track you or build a profile, are not shared with anyone, and only Ghaf's developer can see them.
 
 ## Data retention and deletion
 

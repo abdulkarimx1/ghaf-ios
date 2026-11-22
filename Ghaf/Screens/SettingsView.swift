@@ -19,6 +19,8 @@ private enum GhafSettingsPrompt: Identifiable {
 }
 
 struct GhafSettingsView: View {
+    private struct SavedPlace: Decodable { let name: String; let latitude: Double; let longitude: Double; let address: String?; let phone: String? }
+    private struct PlaceSummary: Identifiable { let name: String; let count: Int; let totals: [String: Decimal]; var id: String { name } }
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
@@ -38,9 +40,7 @@ struct GhafSettingsView: View {
     @State private var categoryBudgetTexts: [String: String] = [:]
     @State private var backupURL: URL?
     @State private var pendingImportURL: URL?
-    @State private var showImporter = false
     @State private var showImportSheet = false
-    @State private var pickedImportURL: URL?
     /// Weekly totals everywhere follow this; the region's first weekday until the user picks one.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = Calendar.current.firstWeekday
     @AppStorage("ghaf.glass.enabled") private var glassEnabled = true
@@ -62,6 +62,8 @@ struct GhafSettingsView: View {
     @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
     @State private var selectedMilestone: Int?
     @State private var showProSheet = false
+    @State private var redeemingVoucher = false
+    @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
@@ -98,18 +100,30 @@ struct GhafSettingsView: View {
                     } else {
                         Button { showProSheet = true } label: {
                             VStack(alignment: .leading, spacing: 12) {
+                                Text("PRO")
+                                    .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
+                                    .padding(.horizontal, 11).padding(.vertical, 5)
+                                    .foregroundStyle(theme.accentContrast).background(theme.accent, in: Capsule())
                                 Text("Ghaf Pro")
                                     .font(GhafTypography.heading(22, languageCode: languageCode).weight(.bold))
                                     .foregroundStyle(theme.primaryText)
                                 Text(ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.")
                                     .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                                 Text(ar ? "عرض الخطط" : "See plans")
-                                    .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
-                                    .foregroundStyle(theme.accent)
+                                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
+                                    .foregroundStyle(theme.background).padding(.horizontal, 20).frame(minHeight: 48)
+                                    .background(theme.primaryText, in: Capsule())
                             }
                             .padding(GhafMetrics.cardPadding)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(theme.accent.opacity(theme.isDark ? 0.12 : 0.07), in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+                            .background {
+                                ZStack(alignment: .trailing) {
+                                    RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous)
+                                        .fill(LinearGradient(colors: [theme.accent.opacity(theme.isDark ? 0.34 : 0.22), theme.glow.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    Circle().fill(theme.glow.opacity(0.2)).frame(width: 150).blur(radius: 34).offset(x: 34, y: -24)
+                                    Circle().fill(theme.accent.opacity(0.16)).frame(width: 110).blur(radius: 28).offset(x: -48, y: 42)
+                                }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+                            }
                             .ghafCard(theme: theme)
                         }
                         .buttonStyle(.ghafPress)
@@ -125,11 +139,15 @@ struct GhafSettingsView: View {
 
                     menuGroup("Ghaf AI") {
                         menuRow(ar ? "ما تعلّمه غاف" : "What Ghaf learned", icon: "brain.head.profile") { GhafLearnedRulesView(settings: settings) }
+                        menuRow(ar ? "الصوت" : "Voice", icon: "waveform", value: voiceCharacter.isEmpty ? "Hamad" : voiceCharacter) {
+                            GhafAIVoiceSettingsView(settings: settings, firstChoiceRequired: false)
+                        }
                     }
 
                     menuGroup(ar ? "التطبيق" : "App") {
+                        menuRow(ar ? "الأدوات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -186,6 +204,7 @@ struct GhafSettingsView: View {
             .onAppear {
                 loadSettings()
                 proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+                    || GhafWidgetSnapshot.groupIDs.contains { UserDefaults(suiteName: $0)?.bool(forKey: "ghaf.pro.unlocked") == true }
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
                     switch GhafScreenshotFixture.destination {
@@ -211,17 +230,7 @@ struct GhafSettingsView: View {
             .onChange(of: appearanceMode) { _, _ in persistSettings() }
             .onChange(of: budgetMode) { _, _ in persistSettings() }
             .onChange(of: categoryBudgetTexts) { _, _ in persistSettings() }
-            // UIKit's picker in copy mode: iOS downloads iCloud files and hands over a local copy, and the
-            // confirm alert waits for the sheet to close. Any data file is selectable; contents are validated.
-            // iOS may report the pick before or after the sheet finishes closing; ask in whichever comes last.
             .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
-            .sheet(isPresented: $showImporter, onDismiss: askToImportPickedFile) {
-                GhafDocumentPicker { url in
-                    pickedImportURL = url
-                    if !showImporter { askToImportPickedFile() }
-                }
-                .ignoresSafeArea()
-            }
             .alert(item: $prompt) { selectedPrompt in
                 switch selectedPrompt {
                 case .importBackup:
@@ -300,7 +309,7 @@ struct GhafSettingsView: View {
         .buttonStyle(.ghafPress)
     }
 
-    private var profilePage: some View { profileCard }
+    private var profilePage: some View { profileCard.offerCodeRedemption(isPresented: $redeemingVoucher) }
 
     private func menuGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -316,10 +325,15 @@ struct GhafSettingsView: View {
 
     // The page is type-erased: each row carrying its whole page in its type made More's type so deep
     // that resolving it at launch overflowed the main thread's stack on iOS 27.
-    private func menuRow<Destination: View>(_ title: String, icon: String, @ViewBuilder destination: @escaping () -> Destination) -> some View {
+    private func menuRow<Destination: View>(_ title: String, icon: String, value: String? = nil, @ViewBuilder destination: @escaping () -> Destination) -> some View {
         NavigationLink { AnyView(destination()) } label: {
             GhafListRow(icon: icon, tint: theme.accent, title: title, theme: theme,
-                        languageCode: languageCode, chevron: true)
+                        languageCode: languageCode, chevron: true) {
+                if let value {
+                    Text(value).font(GhafTypography.body(14, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                }
+            }
                 .padding(.horizontal, 16)
         }
         .buttonStyle(.ghafPress)
@@ -536,7 +550,108 @@ struct GhafSettingsView: View {
             .sheet(isPresented: Binding(get: { selectedMilestone != nil }, set: { if !$0 { selectedMilestone = nil } })) {
                 if let days = selectedMilestone { milestoneSheet(days: days, streak: streak) }
             }
+            streakVoucherCard(streak: streak)
+            placesCard
         }
+    }
+
+    private var placeSummaries: [PlaceSummary] {
+        guard let data = UserDefaults.standard.data(forKey: "ghaf.places.byTransaction"),
+              let places = try? JSONDecoder().decode([String: SavedPlace].self, from: data),
+              let month = Calendar.current.dateInterval(of: .month, for: .now) else { return [] }
+        let purchases = transactions.filter { $0.direction == "debit" && !$0.isReversal && month.contains($0.date) }
+        let grouped = Dictionary(grouping: purchases.compactMap { transaction -> (String, GhafTransaction)? in
+            guard let place = places[transaction.id.uuidString] else { return nil }
+            let address = place.address?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } ?? []
+            let area = address.count > 1 ? address[address.count - 2] : place.name
+            return (area, transaction)
+        }, by: \.0)
+        return grouped.map { name, rows in
+            var totals: [String: Decimal] = [:]
+            for (_, row) in rows { totals[row.currency, default: 0] += row.amount }
+            return PlaceSummary(name: name, count: rows.count, totals: totals)
+        }.sorted { $0.count > $1.count }.prefix(3).map { $0 }
+    }
+
+    private var placesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
+                .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+            if placeSummaries.isEmpty {
+                Text(ar ? "تظهر الأماكن هنا بعد تسجيل عملية مع موقعها." : "Places appear here after a transaction is saved with a location.")
+                    .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+            } else {
+                ForEach(placeSummaries) { place in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(place.name).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                            Text(ar ? "\(place.count) عملية" : "\(place.count) transactions").font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            ForEach(place.totals.keys.sorted(), id: \.self) { code in
+                                GhafMoneyLabel(amount: place.totals[code] ?? 0, currency: code, languageCode: languageCode, size: 14)
+                                    .foregroundStyle(theme.primaryText)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+        .ghafCard(theme: theme)
+        .overlay {
+            if !proUnlocked {
+                Rectangle().fill(theme.background.opacity(0.35)).overlay {
+                    Button { showProSheet = true } label: {
+                        Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
+                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                            .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
+                            .background(theme.surface, in: Capsule())
+                    }.buttonStyle(.plain)
+                }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+            }
+        }
+        .accessibilityHint(ar ? "تُحفظ بيانات الأماكن على هذا الجهاز فقط." : "Place data stays on this iPhone.")
+    }
+
+    private func streakVoucherCard(streak: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(ar ? "مكافآت الاستمرارية" : "Streak rewards")
+                .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                .frame(maxWidth: .infinity, alignment: .center)
+            HStack(spacing: 6) {
+                ForEach(0..<7, id: \.self) { offset in
+                    let date = Calendar.current.date(byAdding: .day, value: offset - 6, to: .now) ?? .now
+                    let logged = transactions.contains { Calendar.current.isDate($0.date, inSameDayAs: date) && !$0.needsReview }
+                    VStack(spacing: 5) {
+                        Text(date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: languageCode))))
+                            .font(GhafTypography.body(11, languageCode: languageCode, weight: .medium)).foregroundStyle(theme.secondaryText)
+                        Circle().fill(logged ? theme.accent : theme.secondaryText.opacity(0.12)).frame(width: 28, height: 28)
+                            .overlay { if logged { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.accentContrast) } }
+                    }.frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(Array([7, 30, 90].enumerated()), id: \.offset) { item in
+                let days = item.element
+                let percent = [10, 25, 50][item.offset]
+                HStack(spacing: 10) {
+                    Image(systemName: streak >= days ? "checkmark.seal.fill" : "lock.circle")
+                        .foregroundStyle(streak >= days ? theme.accent : theme.secondaryText)
+                    Text(ar ? "\(GhafLocalization.arabicDays(days)) يوم · خصم \(percent)٪" : "\(days) days · \(percent)% off")
+                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                    Spacer()
+                    Button(ar ? "استرداد" : "Claim") { redeemingVoucher = true }
+                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText).padding(.horizontal, 15).frame(minHeight: 40)
+                        .background(theme.secondaryText.opacity(0.08), in: Capsule())
+                        .disabled(!GhafFeatureFlags.appStoreAccount || streak < days)
+                        .opacity(GhafFeatureFlags.appStoreAccount && streak >= days ? 1 : 0.4)
+                }.frame(minHeight: 48)
+            }
+            Text(ar ? "تتوفر رموز الخصم مرة واحدة لكل إنجاز بعد إطلاق غاف في App Store." : "One-time offer codes will be available for each milestone when Ghaf is on the App Store.")
+                .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
+        }.padding(18).frame(maxWidth: .infinity).ghafCard(theme: theme)
     }
 
     private func milestoneSheet(days: Int, streak: Int) -> some View {
@@ -619,6 +734,22 @@ struct GhafSettingsView: View {
         }
         .buttonStyle(.ghafPress)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var keypadCard: some View {
+        settingsCard(ar ? "إدخال العمليات" : "Transaction entry",
+                     subtitle: ar ? "اختر طريقة ظهور لوحة الأرقام عند إضافة عملية." : "Choose whether the number pad opens when you add a transaction.") {
+            Toggle(isOn: Binding(get: { settings.showKeypadOnAdd }, set: { value in
+                settings.showKeypadOnAdd = value
+                do { try modelContext.save() }
+                catch { modelContext.rollback(); prompt = .message(ar ? "تعذر حفظ الإعداد." : "Couldn't save this setting.") }
+            })) {
+                Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+            .frame(minHeight: 56)
+        }
     }
 
     private var appearanceCard: some View {
@@ -707,7 +838,7 @@ HStack(spacing: 8) {
 
     private var glassSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            GhafGlassPreview(theme: theme)
+            GhafGlassPreview(theme: theme, arabic: ar)
             VStack(spacing: 0) {
                 Toggle(ar ? "تأثير الزجاج" : "Glass effect", isOn: $glassEnabled)
                     .frame(minHeight: 56)
@@ -721,7 +852,7 @@ HStack(spacing: 8) {
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
                 glassDivider
-                Toggle(ar ? "ملمس حبيبي" : "Film grain", isOn: $glassGrain)
+                Toggle(ar ? "ملمس الحبيبات" : "Film grain", isOn: $glassGrain)
                     .frame(minHeight: 56)
                 glassDivider
                 Toggle(ar ? "توهج خلفي" : "Ambient glow", isOn: $glassGlow)
@@ -1240,13 +1371,6 @@ HStack(spacing: 8) {
         }
     }
 
-    private func askToImportPickedFile() {
-        guard let url = pickedImportURL else { return }
-        pickedImportURL = nil
-        pendingImportURL = url
-        prompt = GhafExpendImportService.canImport(url) ? .importExpend : .importBackup
-    }
-
     private func restoreBackup() {
         guard let url = pendingImportURL else { return }
         do {
@@ -1334,29 +1458,6 @@ HStack(spacing: 8) {
     }
 }
 
-
-/// Document picker that imports a copy, so the app never depends on access to the original file.
-private struct GhafDocumentPicker: UIViewControllerRepresentable {
-    let onPick: (URL) -> Void
-
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json, .text, .data], asCopy: true)
-        picker.allowsMultipleSelection = false
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ controller: UIDocumentPickerViewController, context: Context) {}
-    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
-
-    final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onPick: (URL) -> Void
-        init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            if let url = urls.first { onPick(url) }
-        }
-    }
-}
 
 private struct GhafEditingCategory: Identifiable {
     let name: String

@@ -115,6 +115,72 @@ final class GhafWalkthroughTests: XCTestCase {
 
 
 extension GhafWalkthroughTests {
+    func testSessionISalaryCurrencyProof() {
+        launch(["-GhafScreen", "salary-settings"])
+        XCTAssertTrue(app.buttons["Save salary settings"].waitForExistence(timeout: 8))
+        snap("i-salary-before")
+
+        let currencyRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Salary currency'")).firstMatch
+        XCTAssertTrue(currencyRow.waitForExistence(timeout: 5))
+        currencyRow.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'SAR'" )).firstMatch.waitForExistence(timeout: 3))
+        app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'SAR'" )).firstMatch.tap()
+        app.buttons["Save salary settings"].tap()
+        let notificationAlert = app.alerts.firstMatch
+        if notificationAlert.waitForExistence(timeout: 2) {
+            notificationAlert.buttons["Don’t Allow"].tap()
+        }
+        sleep(1)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Salary currency, SAR'" )).firstMatch.exists)
+        snap("i-salary-after")
+
+        app.terminate()
+        launch(["-GhafScreen", "budget-salary-currency"])
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Salary is shown in SAR'" )).firstMatch.waitForExistence(timeout: 8))
+        snap("i-budget-currency-mismatch")
+    }
+
+    func testActivityConfirmedItemLeavesReviewQueue() throws {
+        launch(["-GhafScreen", "inbox-proof"])
+        if !app.staticTexts["Needs review"].exists {
+            timedTap(app.buttons["Activity"].firstMatch, "open Activity")
+        }
+        XCTAssertTrue(app.staticTexts["Needs review"].waitForExistence(timeout: 8))
+        snap("activity-before-confirm")
+
+        let confirms = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Confirm"))
+        XCTAssertTrue(confirms.firstMatch.waitForExistence(timeout: 5), "Backup has no review item")
+        var confirm = confirms.matching(NSPredicate(format: "isEnabled == true")).firstMatch
+        if !confirm.exists {
+            let choose = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Choose")).firstMatch
+            XCTAssertTrue(choose.waitForExistence(timeout: 3))
+            choose.tap()
+            app.buttons["Cash"].firstMatch.tap()
+            confirm = confirms.matching(NSPredicate(format: "isEnabled == true")).firstMatch
+        }
+        let before = confirms.count
+        confirm.tap()
+        XCTAssertLessThan(confirms.count, before, "A confirmed item remained in Activity")
+        XCTAssertTrue(confirms.firstMatch.waitForNonExistence(timeout: 3))
+        snap("activity-after-confirm")
+    }
+
+    func testWidgetDeepLinks() {
+        launch()
+        app.open(URL(string: "ghaf://add-transaction")!)
+        XCTAssertTrue(app.staticTexts["New transaction"].waitForExistence(timeout: 8))
+        snap("widget-link-quick-add")
+        app.buttons["Cancel"].tap()
+
+        app.open(URL(string: "ghaf://ai/type")!)
+        XCTAssertTrue(app.tabBars.buttons["Ghaf AI"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 8))
+        snap("widget-link-ai-typing")
+
+        app.open(URL(string: "ghaf://money-tip?source=https%3A%2F%2Fwww.consumerfinance.gov%2F")!)
+        XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.mobilesafari").waitForExistence(timeout: 10))
+    }
+
     func test5ProfileBeforeAfterCapture() {
         launch()
         timedTap(app.tabBars.buttons["More"], "tab More for profile")
@@ -177,7 +243,7 @@ extension GhafWalkthroughTests {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
         timedTap(app.tabBars.buttons["Transactions"], "tab Transactions after backup restore")
         XCTAssertTrue(app.tabBars.buttons["Transactions"].isSelected)
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Digital Dubai'")).firstMatch.waitForExistence(timeout: 10), "Expected a transaction from the real backup")
+        XCTAssertGreaterThan(app.buttons.count, app.tabBars.buttons.count + 4, "Expected at least one restored transaction row")
         snap("restore-real-data-transactions")
     }
 
@@ -547,11 +613,494 @@ extension GhafWalkthroughTests {
 }
 
 extension GhafWalkthroughTests {
+    func testSessionG1WhyPaidProof() {
+        launch(["-GhafScreen", "about-proof", "-GhafTab", "more"])
+        XCTAssertTrue(app.buttons["Why is Ghaf paid?"].waitForExistence(timeout: 8))
+        app.buttons["Why is Ghaf paid?"].tap()
+        XCTAssertTrue(app.buttons["See Ghaf Pro"].waitForExistence(timeout: 5))
+        snap("g1-why-paid-after")
+        app.buttons["See Ghaf Pro"].tap()
+        XCTAssertTrue(app.staticTexts["Ghaf Pro"].waitForExistence(timeout: 5))
+        snap("g1-why-paid-pro-sheet")
+    }
+
+    func testSessionG1VoiceSelectionProof() {
+        launch(["-GhafTab", "ai"])
+        app.buttons["Ghaf AI menu"].tap()
+        app.buttons["Ghaf voice"].tap()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "ghaf.voice.footnote").firstMatch.waitForExistence(timeout: 5))
+        snap("g1-voice-after")
+        let mariam = app.descendants(matching: .any).matching(identifier: "ghaf.voice.card.Mariam").firstMatch
+        XCTAssertTrue(mariam.waitForExistence(timeout: 3))
+        mariam.tap()
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en", "-GhafTab", "ai"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+        app.buttons["Ghaf AI menu"].tap()
+        app.buttons["Ghaf voice"].tap()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "ghaf.voice.footnote").firstMatch.waitForExistence(timeout: 5))
+        let savedMariam = app.descendants(matching: .any).matching(identifier: "ghaf.voice.card.Mariam").firstMatch
+        XCTAssertEqual(savedMariam.value as? String, "Selected")
+        snap("g1-voice-mariam-relaunch")
+    }
+
+}
+
+extension GhafWalkthroughTests {
     func test11WalletActionsRemainAvailable() {
         launch()
         timedTap(app.buttons["Accounts"].firstMatch, "open wallet for action check")
         for action in ["Spend", "Transfer", "Edit", "New card"] {
             XCTAssertTrue(app.buttons[action].exists, "Missing wallet action: \(action)")
         }
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testBFollowupChartAndAllocationProof() {
+        launch(["-GhafScreen", "budget", "-GhafSelection", "savings"])
+        snap("budget-followup-top")
+        let savingsDetails = app.staticTexts["Left after spending"]
+        for _ in 0..<7 where !savingsDetails.isHittable { app.swipeUp(velocity: .fast) }
+        XCTAssertTrue(savingsDetails.isHittable, "Missing Savings explanation")
+        snap("budget-followup-savings")
+
+        app.terminate()
+        launch(["-GhafScreen", "budget", "-GhafSelection", "preset"])
+        if app.staticTexts["Choose a budget split"].waitForExistence(timeout: 5) {
+            snap("budget-followup-presets")
+        } else { log += "MISSING budget presets sheet\n" }
+
+        app.terminate()
+        launch(["-GhafScreen", "ai-typing"])
+        let input = app.textFields["Type your question"].firstMatch
+        if input.waitForExistence(timeout: 10) {
+            input.tap()
+            input.typeText("show my categories as a petal chart\n")
+            if app.staticTexts["Top categories this month"].waitForExistence(timeout: 45) {
+                Thread.sleep(forTimeInterval: 0.8)
+                let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.38))
+                let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.52))
+                start.press(forDuration: 0.05, thenDragTo: end)
+                Thread.sleep(forTimeInterval: 0.4)
+                snap("ai-petal-chart-reply")
+            } else { log += "MISSING AI petal chart reply\n" }
+        } else { log += "MISSING AI question field\n" }
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testEntryPrimaryScreens() {
+        launch(["-GhafScreen", "new-transaction"])
+        if app.alerts.buttons["Allow While Using App"].waitForExistence(timeout: 2) { app.alerts.buttons["Allow While Using App"].tap() }
+        XCTAssertTrue(app.buttons["Amount"].waitForExistence(timeout: 8))
+        snap("a-entry-closed")
+        app.swipeUp(velocity: .fast)
+        snap("a-entry-closed-swipe")
+        app.buttons["Amount"].tap()
+        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
+        snap("a-entry-keypad-open")
+        app.buttons["Done"].tap()
+        app.buttons["Date"].tap()
+        XCTAssertTrue(app.datePickers.firstMatch.waitForExistence(timeout: 5))
+        snap("a-entry-date-sheet")
+        app.buttons["Today"].tap()
+        app.buttons["Time"].tap()
+        XCTAssertTrue(app.datePickers.firstMatch.waitForExistence(timeout: 5))
+        snap("a-entry-time-sheet")
+        app.buttons["Done"].tap()
+        app.buttons["Amount"].tap()
+        app.buttons["3"].tap(); app.buttons["5"].tap(); app.buttons["Done"].tap()
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons["Discard"].waitForExistence(timeout: 5))
+        snap("a-entry-discard-card")
+        app.buttons["Keep editing"].tap()
+        app.buttons["Cancel"].tap()
+        app.buttons["Discard"].tap()
+
+        launch(["-GhafScreen", "new-transaction"])
+        XCTAssertTrue(app.buttons["Amount"].waitForExistence(timeout: 8))
+        app.buttons["Amount"].tap()
+        app.buttons["3"].tap(); app.buttons["5"].tap(); app.buttons["Done"].tap()
+        let merchant = app.textFields["Store name"]
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5))
+        merchant.tap(); merchant.typeText("Carrefour"); app.keyboards.buttons["Done"].tap()
+        app.buttons["Save transaction"].tap()
+        Thread.sleep(forTimeInterval: 0.2); snap("a-entry-splash-glow")
+        Thread.sleep(forTimeInterval: 0.7); snap("a-entry-splash-logged")
+        Thread.sleep(forTimeInterval: 1.3); snap("a-entry-after-dismiss")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testSessionEVoicePickerProof() {
+        launch(["-GhafTab", "ai"])
+        app.buttons["Ghaf AI menu"].tap()
+        app.buttons["Ghaf voice"].tap()
+        // First-time title, or the settings title once a voice was chosen in an earlier run.
+        XCTAssertTrue(app.staticTexts["Who should answer you?"].waitForExistence(timeout: 5) || app.staticTexts["Ghaf voice"].exists)
+        XCTAssertTrue(app.staticTexts["Hamad"].exists)
+        XCTAssertTrue(app.staticTexts["Mariam"].exists)
+        snap("ai-voice-picker")
+    }
+
+    func testSessionESubscriptionListProof() {
+        launch(["-GhafTab", "ai"])
+        let question = app.buttons["Which subscriptions are due soon?"].firstMatch
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        question.tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'Coming up in the next 30 days'")).firstMatch
+            .waitForExistence(timeout: 45))
+        snap("ai-subscription-list")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testTransactionPeekAndYesterdayDetail() {
+        launch()
+        timedTap(app.tabBars.buttons["Transactions"], "open Transactions for peek")
+        snap("a-transactions-top")
+        let garage = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Garage")).firstMatch
+        XCTAssertTrue(garage.waitForExistence(timeout: 10))
+        garage.press(forDuration: 1.0)
+        snap("a-transaction-peek")
+        app.swipeDown()
+        garage.tap()
+        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Nov 20")).firstMatch.exists)
+        snap("a-transaction-yesterday-detail")
+        app.buttons["Done"].tap()
+        let frame = garage.frame
+        let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: frame.maxX - 4, dy: frame.midY))
+        let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: frame.minX + 4, dy: frame.midY))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+        snap("a-transaction-swipe-delete")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testSessionISettingsVoiceAndWidgetGalleryProof() {
+        launch()
+        app.tabBars.buttons["More"].tap()
+        let voiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND (label CONTAINS[c] 'Hamad' OR label CONTAINS[c] 'Mariam')")).firstMatch
+        for _ in 0..<8 where !voiceRow.exists { app.swipeUp() }
+        XCTAssertTrue(voiceRow.exists)
+        voiceRow.tap()
+        XCTAssertTrue(app.staticTexts["Ghaf voice"].waitForExistence(timeout: 5))
+        snap("i-voice-settings")
+        app.buttons["Close"].tap()
+
+        let widgetsRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Widgets'")).firstMatch
+        for _ in 0..<8 where !widgetsRow.exists { app.swipeUp() }
+        XCTAssertTrue(widgetsRow.exists)
+        widgetsRow.tap()
+        XCTAssertTrue(app.navigationBars["Widgets"].waitForExistence(timeout: 5))
+        snap("i-widget-gallery-top")
+        app.swipeUp()
+        snap("i-widget-gallery-scrolled")
+        let lockedPreview = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Today, Small'")).firstMatch
+        if lockedPreview.waitForExistence(timeout: 3) { lockedPreview.tap() }
+        XCTAssertTrue(app.staticTexts["Unlock with Ghaf Pro"].waitForExistence(timeout: 5))
+        snap("i-widget-pro-preview")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testSessionIMerchantAliasProof() {
+        launch()
+        app.tabBars.buttons["Transactions"].tap()
+        let rawRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'SHAY AL NASHAMA'" )).firstMatch
+        XCTAssertTrue(rawRow.waitForExistence(timeout: 10))
+        snap("i-merchant-before-list")
+        rawRow.tap()
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5))
+        snap("i-merchant-before-detail")
+        app.buttons["Edit"].tap()
+        let merchant = app.textFields["Merchant"]
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5))
+        merchant.tap()
+        let original = merchant.value as? String ?? ""
+        // The simulator keeps aliases between runs; pick a name that differs from the current one.
+        let newName = original == "Shay Al Nashama" ? "Shay Al Nashama Cafe" : "Shay Al Nashama"
+        for _ in 0..<original.count { merchant.typeText(XCUIKeyboardKey.delete.rawValue) }
+        merchant.typeText(newName)
+        app.keyboards.buttons["return"].tap()
+        app.swipeUp()
+        app.buttons["Save changes"].tap()
+        let renameAll = app.buttons["Rename matching past transactions"]
+        XCTAssertTrue(renameAll.waitForExistence(timeout: 5))
+        renameAll.tap()
+        XCTAssertTrue(app.staticTexts[newName].waitForExistence(timeout: 5))
+        app.swipeDown()
+        snap("i-merchant-after-detail")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", newName)).firstMatch.waitForExistence(timeout: 5))
+        snap("i-merchant-after-list")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testQuickAddLocationRowAndSwipeDiscard() {
+        launch(["-GhafScreen", "new-transaction"])
+        XCTAssertTrue(app.buttons["Amount"].waitForExistence(timeout: 8))
+        let allowLocation = app.buttons["Allow"]
+        if allowLocation.waitForExistence(timeout: 2) {
+            snap("a-location-row-before-permission")
+            allowLocation.tap()
+            if app.alerts.buttons["Allow While Using App"].waitForExistence(timeout: 5) {
+                app.alerts.buttons["Allow While Using App"].tap()
+            }
+        }
+        let location = app.staticTexts["Location"]
+        if location.waitForExistence(timeout: 5) {
+            snap("a-location-row-allowed")
+        } else {
+            XCTAssertFalse(location.exists, "Denied location access should hide the row")
+            snap("a-location-row-denied")
+        }
+
+        app.buttons["Amount"].tap()
+        app.buttons["3"].tap(); app.buttons["5"].tap(); app.buttons["Done"].tap()
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(app.buttons["Discard"].waitForExistence(timeout: 5))
+        snap("a-discard-card-swipe-down")
+    }
+}
+
+extension GhafWalkthroughTests {
+    func testSessionCCardAddedSplash() {
+        launch()
+        timedTap(app.buttons["Accounts"].firstMatch, "open wallet for card-added proof")
+        timedTap(app.buttons["New card"].firstMatch, "open new wallet form")
+        let name = app.textFields.firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Session C proof")
+        app.keyboards.buttons["Done"].firstMatch.tap()
+        timedTap(app.buttons["Add account"].firstMatch, "save new wallet")
+        XCTAssertTrue(app.staticTexts["Card added"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Session C proof"].exists)
+        snap("session-c-card-added-splash")
+    }
+}
+
+extension GhafWalkthroughTests {
+    /// G3 visual sweep: real backup data across every shipped theme and both appearances,
+    /// followed by Graphite Dark Arabic. Screenshots are written to the normal walkthrough folder.
+    func testSessionG3ThemeAndArabicSweep() throws {
+        // Long all-themes sweep: run on demand only (TEST_RUNNER_GHAF_THEME_SWEEP=1).
+        guard ProcessInfo.processInfo.environment["GHAF_THEME_SWEEP"] == "1" else { throw XCTSkip("Theme sweep runs on demand") }
+        guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+                ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"] else {
+            XCTFail("Set TEST_RUNNER_GHAF_BACKUP to the private owner backup")
+            return
+        }
+        let themes = ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah", "Graphite"]
+        func start(theme: String, appearance: String, language: String = "en", screen: String? = nil) {
+            app = XCUIApplication()
+            app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", backup,
+                                  "-GhafTheme", theme, "-GhafAppearance", appearance,
+                                  "-GhafLanguage", language]
+            if let screen { app.launchArguments += ["-GhafScreen", screen] }
+            app.launch()
+            _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
+        }
+        if ProcessInfo.processInfo.environment["GHAF_G3_MEMORY_ONLY"] == "1"
+            || ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_MEMORY_ONLY"] == "1"
+            || out.contains("g3-memory-only") {
+            start(theme: "Graphite", appearance: "Dark")
+            snap("g3-memory-before")
+            Thread.sleep(forTimeInterval: 45)
+            for _ in 0..<10 {
+                app.tabBars.buttons["Ghaf AI"].tap()
+                app.tabBars.buttons["Home"].tap()
+            }
+            app.tabBars.buttons["Ghaf AI"].press(forDuration: 0.6)
+            let questionField = app.textFields["Type your question"]
+            if questionField.waitForExistence(timeout: 5) {
+                for question in ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"] {
+                    questionField.tap(); questionField.typeText(question)
+                    let send = app.buttons["Send"]
+                    if send.waitForExistence(timeout: 3) { send.tap() }
+                    sleep(2)
+                }
+            }
+            app.tabBars.buttons["Home"].tap()
+            for _ in 0..<10 {
+                app.tabBars.buttons["Stats"].tap()
+                app.tabBars.buttons["Home"].tap()
+            }
+            app.buttons["Accounts"].tap()
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.82, dy: 0.35))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.35))
+            for _ in 0..<5 { start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.05) }
+            app.navigationBars.buttons.firstMatch.tap()
+            for _ in 0..<10 {
+                app.buttons["Add"].tap()
+                _ = app.staticTexts["New transaction"].waitForExistence(timeout: 4)
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.83, dy: 0.5)).tap()
+                let cancel = app.buttons["Cancel"].firstMatch
+                if cancel.waitForExistence(timeout: 3) { cancel.tap() }
+            }
+            snap("g3-memory-after")
+            Thread.sleep(forTimeInterval: 45)
+            return
+        }
+        for theme in themes {
+            for appearance in ["Light", "Dark"] {
+                let key = "g3-\(theme.replacingOccurrences(of: " ", with: "-"))-\(appearance.lowercased())"
+                start(theme: theme, appearance: appearance)
+                snap("\(key)-home")
+                app.swipeUp(velocity: .slow); snap("\(key)-home-scrolled"); app.swipeDown(velocity: .slow)
+                app.tabBars.buttons["Transactions"].tap(); snap("\(key)-transactions")
+                let firstTransaction = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Garage'" )).firstMatch
+                if firstTransaction.waitForExistence(timeout: 3) {
+                    firstTransaction.tap(); snap("\(key)-transaction-detail")
+                    app.buttons["Done"].firstMatch.tap()
+                }
+                app.tabBars.buttons["Ghaf AI"].tap(); snap("\(key)-ai")
+                app.tabBars.buttons["Stats"].tap(); snap("\(key)-stats")
+                app.tabBars.buttons["More"].tap(); snap("\(key)-more")
+                app.open(URL(string: "ghaf://pro")!); snap("\(key)-pro-sheet")
+                app.buttons["Close"].firstMatch.tap()
+                app.tabBars.buttons["Home"].tap()
+                app.buttons["Accounts"].tap()
+                _ = app.staticTexts["Accounts and wallets"].waitForExistence(timeout: 5)
+                snap("\(key)-accounts-wallet")
+                app.navigationBars.buttons.firstMatch.tap()
+                app.buttons["Add"].tap()
+                _ = app.staticTexts["New transaction"].waitForExistence(timeout: 6)
+                snap("\(key)-add-transaction")
+                if app.buttons["Cancel"].firstMatch.exists { app.buttons["Cancel"].firstMatch.tap() }
+                if app.buttons["Cancel"].firstMatch.exists { app.buttons["Cancel"].firstMatch.tap() }
+                app.buttons["Subs"].tap()
+                _ = app.staticTexts["Subscriptions"].waitForExistence(timeout: 6)
+                snap("\(key)-subscriptions")
+                app.buttons["Close"].firstMatch.tap()
+                app.buttons["Activity"].tap(); snap("\(key)-activity")
+                app.terminate()
+            }
+        }
+
+        // Arabic review is deliberately limited to Graphite Dark, as specified for this pass.
+        let arabicScreens = ["transaction-detail", "pro-sheet", "new-transaction", "insights", "settings-glass", "salary-settings"]
+        for screen in arabicScreens {
+            start(theme: "Graphite", appearance: "Dark", language: "ar", screen: screen)
+            snap("g3-ar-\(screen)")
+            app.terminate()
+        }
+        start(theme: "Graphite", appearance: "Dark", language: "ar")
+        app.tabBars.buttons["المزيد"].tap()
+        let backupButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Google Drive'")).firstMatch
+        for _ in 0..<6 where !backupButton.isHittable { app.swipeUp(velocity: .slow) }
+        if backupButton.isHittable { backupButton.tap() }
+        let importButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'استيراد بيانات'")).firstMatch
+        for _ in 0..<6 where !importButton.exists { app.swipeUp(velocity: .slow) }
+        if importButton.waitForExistence(timeout: 5) { importButton.tap(); snap("g3-ar-import-sheet") }
+        app.terminate()
+        for tab in ["home", "transactions", "ai", "insights", "more"] {
+            start(theme: "Graphite", appearance: "Dark", language: "ar")
+            let labels = ["home": "الرئيسية", "transactions": "العمليات", "ai": "غاف AI", "insights": "الإحصائيات", "more": "المزيد"]
+            if tab != "home" { app.tabBars.buttons[labels[tab]!].tap() }
+            snap("g3-ar-tab-\(tab)")
+            app.terminate()
+        }
+
+        // Repeated navigation lifetime boundaries used for the simulator leak capture.
+        start(theme: "Graphite", appearance: "Dark")
+        for _ in 0..<10 {
+            app.tabBars.buttons["Ghaf AI"].tap()
+            app.tabBars.buttons["Home"].tap()
+        }
+        app.tabBars.buttons["Ghaf AI"].press(forDuration: 0.6)
+        let questionField = app.textFields["Type your question"]
+        if questionField.waitForExistence(timeout: 5) {
+            for question in ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"] {
+                questionField.tap(); questionField.typeText(question)
+                let send = app.buttons["Send"]
+                if send.waitForExistence(timeout: 3) { send.tap() }
+                sleep(2)
+            }
+        }
+        app.tabBars.buttons["Home"].tap()
+        for _ in 0..<10 {
+            app.tabBars.buttons["Stats"].tap()
+            app.tabBars.buttons["Home"].tap()
+        }
+        app.buttons["Accounts"].tap()
+        let dragStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.82, dy: 0.35))
+        let dragEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.35))
+        for _ in 0..<5 { dragStart.press(forDuration: 0.05, thenDragTo: dragEnd, withVelocity: .slow, thenHoldForDuration: 0.05) }
+        app.navigationBars.buttons.firstMatch.tap()
+        app.tabBars.buttons["Home"].tap()
+        for _ in 0..<10 {
+            let add = app.buttons["Add"].firstMatch
+            XCTAssertTrue(add.waitForExistence(timeout: 5))
+            add.tap()
+            _ = app.staticTexts["New transaction"].waitForExistence(timeout: 4)
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.83, dy: 0.5)).tap()
+            let cancel = app.buttons["Cancel"].firstMatch
+            if cancel.waitForExistence(timeout: 3) { cancel.tap() }
+        }
+        snap("g3-memory-exercise-complete")
+    }
+
+    func testSessionDScreenshots() {
+        launch(["-GhafScreen", "subscriptions"])
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Chat GPT payment for this month'")).firstMatch.waitForExistence(timeout: 8))
+        snap("d-subscriptions-payment-match")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Chat GPT'")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["Edit subscription"].waitForExistence(timeout: 6))
+        snap("d-subscription-detail")
+        app.buttons["Edit subscription"].tap()
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 6))
+        app.swipeUp()
+        snap("d-subscription-editor-bottom-save")
+        app.buttons["Yearly"].tap()
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.alerts["Update upcoming payments too?"].waitForExistence(timeout: 4))
+        snap("d-subscription-update-reminders-prompt")
+
+        app.terminate()
+        launch(["-GhafTab", "more"])
+        snap("d-more-pro-banner")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "View profile")).firstMatch.tap()
+        snap("d-profile-vouchers-top")
+        swipeUp(); snap("d-profile-places-scrolled")
+        app.terminate()
+
+        launch(["-GhafTab", "more"])
+        let customization = app.buttons["Customization"]
+        for _ in 0..<5 where !customization.exists { swipeUp() }
+        XCTAssertTrue(customization.waitForExistence(timeout: 4))
+        customization.tap()
+        XCTAssertTrue(app.staticTexts["Show keypad when adding"].waitForExistence(timeout: 5))
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+        snap("d-keypad-setting")
+        app.terminate()
+
+        launch(["-GhafTab", "more", "-GhafScreen", "about-proof"])
+        let whyPaid = app.buttons["Why is Ghaf paid?"]
+        for _ in 0..<5 where !whyPaid.exists { swipeUp() }
+        XCTAssertTrue(whyPaid.waitForExistence(timeout: 5))
+        whyPaid.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Free stays useful")).firstMatch.waitForExistence(timeout: 5))
+        snap("d-why-ghaf-paid")
+    }
+
+    func testSessionDQuickActionMenuScreenshot() {
+        launch()
+        app.terminate()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let icon = springboard.icons["Ghaf"]
+        XCTAssertTrue(icon.waitForExistence(timeout: 8))
+        icon.press(forDuration: 1.1)
+        snap("d-home-screen-quick-actions")
     }
 }

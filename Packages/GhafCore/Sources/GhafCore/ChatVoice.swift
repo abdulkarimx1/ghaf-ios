@@ -1,7 +1,6 @@
 import Foundation
 
-/// Turns written replies into what a person would say: "AED 4.00" becomes "4 dirhams", "4.50 AED"
-/// "4 dirhams 50 fils", and symbols a voice would read out ("·", "→", "•") become pauses.
+/// Turns written replies into natural speech, rounding currency to whole dirhams.
 public enum SpokenMoney {
     private static let amount = #"([0-9٠-٩][0-9٠-٩,٬]*(?:[.٫][0-9٠-٩]{1,2})?)"#
     private static let codes = #"(?:AED|Dhs?|DHS?|dhs?|د\.إ\.?|درهم|دراهم|درهماً)"#
@@ -10,6 +9,18 @@ public enum SpokenMoney {
 
     public static func speakable(_ text: String, arabic: Bool) -> String {
         var result = text
+        if !arabic {
+            let months = ["Jan": "January", "Feb": "February", "Mar": "March", "Apr": "April", "May": "May", "Jun": "June",
+                          "Jul": "July", "Aug": "August", "Sep": "September", "Oct": "October", "Nov": "November", "Dec": "December"]
+            let datePattern = try! NSRegularExpression(pattern: #"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2})\b"#, options: [.caseInsensitive])
+            let ns = result as NSString
+            for match in datePattern.matches(in: result, range: NSRange(location: 0, length: ns.length)).reversed() {
+                let month = ns.substring(with: match.range(at: 1))
+                let day = ns.substring(with: match.range(at: 2))
+                let fullMonth = months.first { $0.key.caseInsensitiveCompare(month) == .orderedSame }?.value ?? month
+                result = (result as NSString).replacingCharacters(in: match.range, with: "\(fullMonth) \(day)")
+            }
+        }
         for regex in [before, after] {
             let ns = result as NSString
             for match in regex.matches(in: result, range: NSRange(location: 0, length: ns.length)).reversed() {
@@ -29,16 +40,17 @@ public enum SpokenMoney {
             .replacingOccurrences(of: ",", with: "").replacingOccurrences(of: "٬", with: "").replacingOccurrences(of: "٫", with: ".")
         let value = Decimal(string: western, locale: Locale(identifier: "en_US_POSIX")) ?? 0
         var whole = Decimal(), copy = value
-        NSDecimalRound(&whole, &copy, 0, .down)
-        let fils = NSDecimalNumber(decimal: (value - whole) * 100).intValue
+        NSDecimalRound(&whole, &copy, 0, .plain)
         let n = NSDecimalNumber(decimal: whole).intValue
         let number = NumberFormatter.localizedString(from: NSNumber(value: n), number: .decimal)
+        let approximate = value != whole
+        if value > 0 && value < 1 { return arabic ? "أقل من درهم" : "less than one dirham" }
         if arabic {
             let unit = n == 1 ? "درهم واحد" : n == 2 ? "درهمين" : (3...10).contains(n % 100) ? "\(number) دراهم" : "\(number) درهم"
-            return fils > 0 ? "\(unit) و\(fils) فلس" : unit
+            return approximate || value >= 100 ? "حوالي \(unit)" : unit
         }
         let unit = n == 1 ? "1 dirham" : "\(number) dirhams"
-        return fils > 0 ? "\(unit) \(fils) fils" : unit
+        return approximate || value >= 100 ? "about \(unit)" : unit
     }
 }
 

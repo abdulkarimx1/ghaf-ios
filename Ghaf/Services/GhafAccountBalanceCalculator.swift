@@ -71,13 +71,31 @@ enum GhafAccountBalanceCalculator {
         .sorted { $0.currency < $1.currency }
     }
 
+    @MainActor
     static func matchAccount(
         bank: String?,
         sender: String?,
-        accounts: [GhafAccount]
+        accounts: [GhafAccount],
+        accountRef: String? = nil,
+        cardPurchase: Bool = false
     ) -> GhafAccount? {
         let active = accounts.filter { !$0.isArchived }
-        let candidates = active.map {
+        if GhafAccountMappings.hasConflictingReference(bank: bank, sender: sender, accountRef: accountRef) { return nil }
+        if let learned = GhafAccountMappings.exactAccountID(bank: bank, sender: sender, accountRef: accountRef),
+           let account = active.first(where: { $0.id == learned }) { return account }
+        if let accountRef {
+            let suffix = String(accountRef.filter(\.isNumber).suffix(4))
+            let matches = active.filter { $0.cardLast4 == suffix }
+            if matches.count == 1 { return matches[0] }
+        }
+        if let learnedID = GhafAccountMappings.bankOnlyAccountID(bank: bank, sender: sender),
+           let learned = active.first(where: { $0.id == learnedID }),
+           accountRef == nil || (learned.cardLast4 ?? "").isEmpty {
+            return learned
+        }
+        // A card purchase can't come from a savings account with no card on it, so it can't tie with the card's account.
+        let eligible = cardPurchase ? active.filter { $0.type != .savings || !($0.cardLast4 ?? "").isEmpty } : active
+        let candidates = eligible.map {
             AccountCandidate(id: $0.id, name: $0.name, institution: $0.institution,
                              isBankAccount: $0.type.isBankAccount, isPrimary: $0.isPrimary)
         }

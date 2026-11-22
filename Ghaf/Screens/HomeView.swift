@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import UIKit
 
 private struct HomeAccountsZoomSource: ViewModifier {
     let namespace: Namespace.ID
@@ -32,8 +33,7 @@ struct GhafHomeView: View {
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
     @State private var showAccounts = false
-    @State private var showBackupImporter = false
-    @State private var backupImportError: String?
+    @State private var showImportSheet = false
     @State private var showInsights = false
     @State private var showInbox = false
 #if DEBUG
@@ -66,7 +66,7 @@ struct GhafHomeView: View {
     private var inboxCount: Int {
         transactions.filter(\.needsReview).count
             + subscriptions.filter(\.needsConfirmation).count
-            + GhafEventNotifications.events.count
+            + GhafEventNotifications.events.filter { $0.kind == .budgetThreshold || $0.kind == .subscriptionDue }.count
     }
 
     /// Everything Home shows, derived in one pass per render instead of once per view.
@@ -211,14 +211,7 @@ struct GhafHomeView: View {
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
-            .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
-                do {
-                    let url = try result.get()
-                    try GhafBackupService.restore(from: url, context: modelContext)
-                } catch {
-                    backupImportError = error.localizedDescription
-                }
-            }
+            .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
             .onAppear {
                 GhafEventNotifications.configure()
                 if let target = GhafEventNotifications.consumePendingTarget(), !target.isEmpty {
@@ -244,11 +237,6 @@ struct GhafHomeView: View {
                 router.selectedTab = 0
                 showInbox = true
             }
-            .alert(ar ? "تعذر استيراد النسخة" : "Could not import backup", isPresented: Binding(
-                get: { backupImportError != nil }, set: { if !$0 { backupImportError = nil } }
-            )) {
-                Button(ar ? "حسناً" : "OK", role: .cancel) { backupImportError = nil }
-            } message: { Text(backupImportError ?? "") }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
                     GhafAutomationGuideView(settings: settings)
@@ -266,7 +254,9 @@ struct GhafHomeView: View {
             .task {
                 if settings.salaryEnabled == true, settings.salaryReminderEnabled == true,
                    let day = settings.salaryDay {
-                    try? await GhafSalaryReminderService.scheduleNext(salaryDay: day, languageCode: settings.languageCode)
+                    try? await GhafSalaryReminderService.scheduleNext(salaryDay: day, languageCode: settings.languageCode,
+                                                                      salaryAmount: settings.salaryAmount,
+                                                                      salaryCurrency: settings.salaryCurrency ?? settings.currency)
                 }
             }
         }
@@ -293,7 +283,7 @@ struct GhafHomeView: View {
                 Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
             }
             .ghafProminentButton(theme: theme, languageCode: lang)
-            Button { showBackupImporter = true } label: {
+            Button { showImportSheet = true } label: {
                 Label(ar ? "استيراد نسخة غاف الاحتياطية" : "Import Ghaf backup", systemImage: "arrow.down.doc")
             }
             .ghafGlassButton(theme: theme, languageCode: lang)
@@ -365,7 +355,7 @@ struct GhafHomeView: View {
             }
             .frame(maxWidth: .infinity)
             Button {
-                withAnimation(.spring(duration: 0.5, bounce: 0.25)) { hideBalances.toggle() }
+                withAnimation(.easeOut(duration: 0.35)) { hideBalances.toggle() }
             } label: {
                 Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 15, weight: .bold))
@@ -531,34 +521,33 @@ struct GhafHomeView: View {
 
     private func actionRow() -> some View {
         HStack(spacing: 8) {
-            actionButton(ar ? "إضافة" : "Add", icon: "plus") { showQuickAdd = true }
+            actionButton(ar ? "إضافة" : "Add", icon: "plus", prominent: true) { showQuickAdd = true }
             actionButton(ar ? "اشتراكات" : "Subs", icon: "repeat") { showSubscriptions = true }
-            actionButton(ar ? "الإشعارات" : "Notifications", icon: "tray.full.fill", count: inboxCount) {
+            actionButton(ar ? "النشاط" : "Activity", icon: "tray.full.fill", count: inboxCount) {
                 showInbox = true
             }
         }
     }
 
-    private func actionButton(_ title: String, icon: String, count: Int = 0, action: @escaping () -> Void) -> some View {
+    private func actionButton(_ title: String, icon: String, count: Int = 0, prominent: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {
-                HStack(spacing: 4) {
-                    Image(systemName: icon)
-                    if count > 0 { Text(count, format: .number) }
-                }
-                .font(.system(size: 14, weight: .semibold))
+                Image(systemName: icon).font(.system(size: 18, weight: .semibold))
                 Text(title)
                     .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(theme.primaryText)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .background(theme.surface, in: Capsule())
+            .foregroundStyle(prominent ? theme.background : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 68)
+            .background(prominent ? theme.primaryText : theme.surface, in: Capsule())
+            .overlay(alignment: .topTrailing) {
+                if count > 0 { Circle().fill(theme.accent).frame(width: 7, height: 7).padding(9) }
+            }
         }
         .buttonStyle(.ghafPress)
         .accessibilityLabel(title)
-        .accessibilityValue(count > 0 ? count.formatted() : "")
+        .accessibilityValue(count > 0 ? (ar ? "يحتاج إلى انتباه" : "Needs attention") : "")
     }
 
     // MARK: Dark insight card
@@ -723,6 +712,7 @@ struct GhafHomeView: View {
 // MARK: - Transaction Row
 
 struct GhafTransactionRow: View {
+    @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
     let transaction: GhafTransaction
     let theme: GhafTheme
     let languageCode: String
@@ -775,7 +765,7 @@ struct GhafTransactionRow: View {
     }
 
     private var merchantTitle: String {
-        if let merchant = transaction.merchant, !merchant.isEmpty {
+        if let merchant = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant), !merchant.isEmpty {
             return merchant
         }
         return GhafLocalization.category(transaction.category, languageCode: languageCode)
@@ -789,6 +779,7 @@ struct GhafQuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
 
     let settings: GhafSettings
@@ -803,7 +794,13 @@ struct GhafQuickAddView: View {
     @State private var direction = "debit"
     @State private var note = ""
     @State private var date = Date()
-    @State private var dateExpanded = false
+    @State private var showingDate = false
+    @State private var showingTime = false
+    @State private var showingDiscard = false
+    @State private var locationPermission: Bool?
+    @State private var showingSuccess = false
+    @State private var suggestedCategory = false
+    @State private var categorizationTask: Task<Void, Never>?
     @State private var noteExpanded = false
     @State private var errorMessage = ""
 
@@ -823,16 +820,25 @@ struct GhafQuickAddView: View {
     private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
     private var presentAmountPadOnAppear: Bool {
         #if DEBUG
-        GhafScreenshotFixture.screen != "new-transaction"
+        settings.showKeypadOnAdd && GhafScreenshotFixture.screen != "new-transaction"
         #else
-        true
+        settings.showKeypadOnAdd
         #endif
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                    ZStack {
+                        Text(ar ? "عملية جديدة" : "New transaction")
+                            .font(GhafTypography.body(17, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                        HStack {
+                            Button(ar ? "إلغاء" : "Cancel", action: requestDismiss).font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+                                .foregroundStyle(theme.accent).frame(width: 64, alignment: .leading)
+                            Spacer()
+                        }
+                    }
+                    .frame(height: 44)
                     amountHeader
                     GhafFormCard(theme: theme) {
                       if isTransfer {
@@ -843,17 +849,32 @@ struct GhafQuickAddView: View {
                       } else {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
                             HStack(spacing: 7) {
-                                TextField(ar ? "اسم المتجر" : "Store name", text: $merchant).multilineTextAlignment(.trailing)
+                                TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
+                                    .lineLimit(1).submitLabel(.done)
+                                    .multilineTextAlignment(.leading)
+                                    .onSubmit { suggestCategory() }
+                                    .onChange(of: merchant) { _, _ in
+                                        categorizationTask?.cancel()
+                                        categorizationTask = Task { try? await Task.sleep(for: .milliseconds(500)); if !Task.isCancelled { suggestCategory() } }
+                                    }
                                 Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
                             }
                         }
                         divider
                         row(ar ? "الفئة" : "Category", icon: "square.grid.2x2") {
-                            GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
+                            HStack(spacing: 6) {
+                                GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: lang, tint: theme.accent)
+                                    .onChange(of: category) { _, _ in if suggestedCategory { suggestedCategory = false } }
+                                if suggestedCategory { Text(ar ? "مقترحة" : "Suggested").font(GhafTypography.body(10, languageCode: lang)).foregroundStyle(theme.secondaryText) }
+                            }
                         }
                         divider
                         accountPicker($selectedAccountID, title: ar ? "الحساب" : "Account", icon: "wallet.pass")
                         divider
+                        if locationPermission != false {
+                            locationRow
+                            divider
+                        }
                       }
                         dateRow
                         divider
@@ -871,11 +892,6 @@ struct GhafQuickAddView: View {
                         }
                     }
 
-                    NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
-                        Label(ar ? "أو قلها بصوتك" : "Or say it out loud", systemImage: "mic.fill")
-                    }
-                    .ghafGlassButton(theme: theme, languageCode: lang)
-
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
                             .font(GhafTypography.body(13, languageCode: lang))
@@ -883,78 +899,149 @@ struct GhafQuickAddView: View {
                     }
                 }
                 .ghafScreenPadding()
-                .padding(.top, 8).padding(.bottom, 120)
+                .padding(.top, 0).padding(.bottom, 0)
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)
             }
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
             .safeAreaInset(edge: .bottom) {
-                GhafDetailActionBar(theme: theme, languageCode: lang,
-                                    primaryTitle: ar ? "حفظ العملية" : "Save transaction", primaryAction: save)
-            }
-            .navigationTitle(ar ? "عملية جديدة" : "New transaction")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    ZStack {
-                        Text(ar ? "عملية جديدة" : "New transaction")
-                            .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.primaryText)
-                        HStack {
-                            Button(ar ? "إلغاء" : "Cancel") { dismiss() }
-                                .foregroundStyle(theme.accent)
-                                .frame(width: 64, alignment: .leading)
-                            Spacer()
-                            Color.clear.frame(width: 64)
-                        }
-                        .padding(.horizontal, GhafMetrics.gutter)
-                    }
-                    .frame(width: UIScreen.main.bounds.width, height: 44)
+                HStack(spacing: 12) {
+                    NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
+                        Image(systemName: "mic.fill").font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(theme.primaryText).frame(width: 60, height: 60)
+                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
+                    }.accessibilityLabel(ar ? "قلها بصوتك" : "Say it aloud")
+                    Button(action: save) { Text(ar ? "حفظ العملية" : "Save transaction") }
+                        .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: lang, role: .primary))
                 }
+                .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 8)
+                .background(theme.background)
             }
-        }
+            .toolbar(.hidden, for: .navigationBar)
+        .background(GhafQuickAddDismissObserver { showingDiscard = true }.frame(width: 1, height: 1))
         .tint(theme.accent)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .preferredColorScheme(theme.isDark ? .dark : .light)
+        .interactiveDismissDisabled(isDirty)
+        .blur(radius: showingSuccess ? 10 : 0)
+        .animation(.easeOut(duration: 0.3), value: showingSuccess)
+        .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
+        .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تم تسجيل العملية" : "Transaction logged", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { dismiss() } } }
+        .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).presentationCornerRadius(32).presentationDragIndicator(.visible) }
+        .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).presentationCornerRadius(32).presentationDragIndicator(.visible) }
         .onAppear {
             selectedAccountID = presetAccountID
                 ?? accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
                 ?? accounts.first(where: { !$0.isArchived })?.id
             if startAsTransfer { direction = "transfer" }
             toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
+            locationPermission = GhafPlaces.locationPermission
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { locationPermission = GhafPlaces.locationPermission }
         }
     }
 
     /// Expense or income, then the amount, large and centred like the rest of Ghaf's money.
     private var amountHeader: some View {
         let currency = accounts.first { $0.id == selectedAccountID }?.currency ?? settings.currency
-        return VStack(spacing: 24) {
+        return VStack(spacing: 16) {
             GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
                             theme: theme, languageCode: lang, fontSize: 48, chromeless: true, presentOnAppear: presentAmountPadOnAppear)
             GhafSegmented(options: [("debit", ar ? "مصروف" : "Expense"), ("credit", ar ? "دخل" : "Income"), ("transfer", ar ? "تحويل" : "Transfer")],
                           selection: $direction, theme: theme, languageCode: lang)
         }
-        .padding(.top, 14)
+        .padding(.top, 8)
         .frame(maxWidth: .infinity)
     }
 
     private var dateRow: some View {
-        VStack(spacing: 0) {
-            GhafFormActionRow(icon: "calendar", tint: theme.accent, title: ar ? "التاريخ" : "Date",
-                              value: date.formatted(.dateTime.month(.abbreviated).day().year().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))) + " · " +
-                                date.formatted(.dateTime.hour().minute().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))),
-                              theme: theme, languageCode: lang) { dateExpanded.toggle() }
-            if dateExpanded {
-                DatePicker(ar ? "التاريخ" : "Date", selection: $date, displayedComponents: .date)
-                    .datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
-                    .environment(\.colorScheme, theme.isDark ? .dark : .light)
-                DatePicker(ar ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.compact).labelsHidden().tint(theme.accent)
-                    .padding(.horizontal, 12).padding(.bottom, 12)
+        HStack(spacing: 10) {
+            datePill
+            timePill
+        }.padding(.horizontal, 14).padding(.vertical, 6)
+    }
+
+    private var locationRow: some View {
+        HStack(spacing: 12) {
+            GhafIconBadge(symbol: "location", tint: theme.accent, size: 40, theme: theme)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ar ? "الموقع" : "Location")
+                    .font(GhafTypography.body(16, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                Text(ar ? "يُحفظ على iPhone فقط" : "Saved on your iPhone only")
+                    .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+            Spacer(minLength: 8)
+            if locationPermission == true {
+                Text(ar ? "الموقع الحالي" : "Current place")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+            } else {
+                Button(ar ? "سماح" : "Allow") {
+                    GhafPlaces.requestLocationIfUndecided()
+                }
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .padding(.horizontal, 16).frame(minHeight: 36)
+                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                .buttonStyle(.plain)
             }
         }
-        .buttonStyle(.plain)
+        .frame(minHeight: 64)
+    }
+
+    private var datePill: some View {
+        Button { showingDate = true } label: {
+            Label(dateLabel, systemImage: "calendar").font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                .lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity, minHeight: 44)
+                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+        }.buttonStyle(.plain).accessibilityLabel(ar ? "التاريخ" : "Date")
+    }
+    private var timePill: some View {
+        Button { showingTime = true } label: {
+            Label(date.formatted(.dateTime.hour().minute().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))), systemImage: "clock")
+                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+        }.buttonStyle(.plain).accessibilityLabel(ar ? "الوقت" : "Time")
+    }
+    private var dateLabel: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return ar ? "اليوم" : "Today" }
+        if calendar.isDateInYesterday(date) { return ar ? "أمس" : "Yesterday" }
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: ar ? "ar_AE" : "en_US")))
+    }
+    private var dateSheet: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 10) {
+                quickDate(ar ? "اليوم" : "Today", value: .now)
+                quickDate(ar ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
+            }
+            DatePicker(ar ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
+        }.padding(20).background(theme.background)
+    }
+    private func quickDate(_ title: String, value: Date) -> some View {
+        Button(title) { date = Calendar.current.date(bySettingHour: Calendar.current.component(.hour, from: date), minute: Calendar.current.component(.minute, from: date), second: 0, of: value) ?? value; showingDate = false }
+            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+    }
+    private var timeSheet: some View {
+        VStack(spacing: 8) {
+            DatePicker(ar ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().tint(theme.accent)
+            Button(ar ? "تم" : "Done") { showingTime = false }.buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: lang, role: .primary))
+        }.padding(20).background(theme.background)
+    }
+
+    private var isDirty: Bool { !amount.isEmpty || !merchant.isEmpty || !note.isEmpty || category != "Other" || abs(date.timeIntervalSinceNow) > 60 }
+    private func requestDismiss() { if isDirty { showingDiscard = true } else { dismiss() } }
+    private func suggestCategory() {
+        guard category == "Other", !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let direction = TransactionDirection(rawValue: self.direction) ?? .debit
+        if let result = try? MerchantCategorizer.category(for: merchant, direction: direction, context: modelContext), result != "Other" {
+            category = result
+            Task { await Task.yield(); suggestedCategory = true }
+        }
     }
 
     private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String) -> some View {
@@ -1054,10 +1141,66 @@ struct GhafQuickAddView: View {
         modelContext.insert(transaction)
 
         do {
+            if let merchant = transaction.merchant { try MerchantCategorizer.learn(merchant: merchant, category: finalCategory, subcategory: transaction.subcategory, context: modelContext) }
             try modelContext.save()
-            dismiss()
+            Task { await GhafPlaces.rememberCurrentLocation(transactionID: transaction.id) }
+            showingSuccess = true
         } catch {
             errorMessage = settings.languageCode == "ar" ? "تعذر حفظ العملية." : "Could not save transaction."
+        }
+    }
+}
+
+private struct GhafQuickAddDismissObserver: UIViewControllerRepresentable {
+    let onAttempt: () -> Void
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        let controller = DismissObserverController()
+        controller.onAttempt = onAttempt
+        controller.view.alpha = 0.01
+        controller.view.isUserInteractionEnabled = false
+        return controller
+    }
+    func updateUIViewController(_ controller: UIViewController, context: Context) {
+        guard let controller = controller as? DismissObserverController else { return }
+        controller.onAttempt = onAttempt
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            controller.attachToPresentedSheet()
+        }
+    }
+
+    final class DismissObserverController: UIViewController, UIAdaptivePresentationControllerDelegate {
+        var onAttempt: () -> Void
+        init() { onAttempt = {} ; super.init(nibName: nil, bundle: nil) }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            attachToPresentedSheet()
+        }
+
+        func attachToPresentedSheet() {
+            var current: UIViewController? = parent
+            while let candidate = current {
+                if candidate.presentingViewController != nil, let presentation = candidate.presentationController {
+                    presentation.delegate = self
+                    return
+                }
+                current = candidate.parent
+            }
+            current = view.window?.rootViewController
+            while let candidate = current {
+                if candidate.presentingViewController != nil, let presentation = candidate.presentationController {
+                    presentation.delegate = self
+                    return
+                }
+                current = candidate.presentedViewController
+            }
+        }
+
+        func presentationControllerDidAttemptToDismiss(_ presentationController: UIPresentationController) {
+            onAttempt()
         }
     }
 }

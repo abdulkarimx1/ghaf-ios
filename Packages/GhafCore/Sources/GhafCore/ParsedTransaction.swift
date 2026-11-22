@@ -21,6 +21,7 @@ public struct ParsedTransaction: Codable, Equatable {
     public let confidence: Double
     public let bank: String?
     public let kind: Kind
+    public let accountRef: String?
 
     public init(
         amount: Decimal,
@@ -30,7 +31,8 @@ public struct ParsedTransaction: Codable, Equatable {
         direction: TransactionDirection,
         confidence: Double,
         bank: String?,
-        kind: Kind = .standard
+        kind: Kind = .standard,
+        accountRef: String? = nil
     ) {
         self.amount = amount
         self.currency = currency
@@ -40,5 +42,6 @@ public struct ParsedTransaction: Codable, Equatable {
         self.confidence = min(max(confidence, 0.0), 1.0)
         self.bank = bank
         self.kind = kind
+        self.accountRef = accountRef
     }
 }

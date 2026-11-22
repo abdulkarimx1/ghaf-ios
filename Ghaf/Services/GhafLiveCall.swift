@@ -16,6 +16,7 @@ final class GhafLiveCall: ObservableObject {
     var onOutputTranscript: ((String, Bool) -> Void)?
     var onToolCall: ((LiveToolCall) async -> [String: LiveJSON])?
     var onToolCancellation: (([String]) -> Void)?
+    var onTurnFinished: (() -> Void)?
 
     private let session = URLSession.shared
     private var socket: URLSessionWebSocketTask?
@@ -28,10 +29,14 @@ final class GhafLiveCall: ObservableObject {
     private var priorOptions: AVAudioSession.CategoryOptions = []
     private var receiveTask: Task<Void, Never>?
     private var elapsedTask: Task<Void, Never>?
+    private var turnLimitTask: Task<Void, Never>?
+    private var turnLimitActive = false
     private var setupWaiter: CheckedContinuation<Void, Error>?
     private var setupTimeout: Task<Void, Never>?
     private var tokenModel = "models/gemini-3.8-live"
     private var language = "en"
+    private var character = "Hamad"
+    private var tier = "free"
     private var instruction = ""
     private var tools: [LiveFunctionDeclaration] = []
     private var resumeHandle: String?
@@ -41,13 +46,14 @@ final class GhafLiveCall: ObservableObject {
     private var toolTasks: [String: Task<[String: LiveJSON], Never>] = [:]
     private var cancelledToolIDs = Set<String>()
     private var queuedOutputBuffers = 0
+    private var turnCompleteReceived = false
     private var inputContinuation: AsyncStream<Data>.Continuation?
     private var inputSenderTask: Task<Void, Never>?
 
-    func start(language: String, systemInstruction: String, tools: [LiveFunctionDeclaration]) async throws {
+    func start(language: String, character: String, tier: String, systemInstruction: String, tools: [LiveFunctionDeclaration]) async throws {
         guard GhafCloudAI.isEnabled else { throw GhafCloudAI.Failure.unavailable }
-        self.language = language; instruction = systemInstruction; self.tools = tools
-        stopping = false; reconnects = 0; startedAt = Date(); phase = .connecting
+        self.language = language; self.character = character; self.tier = tier; instruction = systemInstruction; self.tools = tools
+        stopping = false; reconnects = 0; startedAt = Date(); turnCompleteReceived = false; phase = .connecting
         let stream = AsyncStream<Data>.makeStream()
         inputContinuation = stream.continuation
         inputSenderTask = Task { [weak self, stream = stream.stream] in
@@ -59,6 +65,7 @@ final class GhafLiveCall: ObservableObject {
                 self.inputLevel = min(1, rms * 3)
                 for start in stride(from: 0, to: chunk.count, by: 640) {
                     guard !self.isMuted, let message = try? LiveEncoder.audio(chunk.subdata(in: start..<min(start + 640, chunk.count))) else { continue }
+                    self.startTurnLimitIfNeeded()
                     try? await self.send(message)
                 }
             }
@@ -79,10 +86,14 @@ final class GhafLiveCall: ObservableObject {
         receiveTask?.cancel(); receiveTask = nil
         toolTasks.values.forEach { $0.cancel() }; toolTasks.removeAll(); cancelledToolIDs.removeAll()
         elapsedTask?.cancel(); elapsedTask = nil
+        turnLimitTask?.cancel(); turnLimitTask = nil
+        turnLimitActive = false
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
         NotificationCenter.default.removeObserver(self)
         engine.inputNode.removeTap(onBus: 0)
         engine.stop(); player.stop()
+        onInputTranscript = nil; onOutputTranscript = nil
+        onToolCall = nil; onToolCancellation = nil; onTurnFinished = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         try? AVAudioSession.sharedInstance().setCategory(priorCategory, mode: priorMode, options: priorOptions)
         phase = .ended(reason)
@@ -138,7 +149,6 @@ final class GhafLiveCall: ObservableObject {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self else { return }
                 self.elapsed = Date().timeIntervalSince(self.startedAt)
-                if self.elapsed >= 1800 { self.end(reason: "time_limit"); return }
             }
         } }
     }
@@ -150,7 +160,7 @@ final class GhafLiveCall: ObservableObject {
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["language": language])
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["language": language, "character": character, "tier": tier])
         let (data, response) = try await session.data(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw URLError(.badServerResponse) }
         if status == 429 { throw GhafCloudAI.Failure.dailyLimit }
@@ -178,15 +188,18 @@ final class GhafLiveCall: ObservableObject {
         case .setupComplete:
             setupWaiter?.resume(); setupWaiter = nil
         case .audio(let pcm):
+            finishTurnLimit()
             phase = .speaking; play(pcm)
         case .inputTranscript(let text): onInputTranscript?(text, false)
-        case .outputTranscript(let text): onOutputTranscript?(text, false)
+        case .outputTranscript(let text): finishTurnLimit(); onOutputTranscript?(text, false)
         case .interrupted:
             player.stop(); player.reset(); queuedOutputBuffers = 0; outputLevel = 0; phase = .listening
             onOutputTranscript?("", true)
         case .turnComplete:
+            finishTurnLimit()
             onInputTranscript?("", true); onOutputTranscript?("", true)
-            if queuedOutputBuffers == 0 { phase = .listening }
+            turnCompleteReceived = true
+            if queuedOutputBuffers == 0 { phase = .listening; onTurnFinished?() }
         case .toolCalls(let calls):
             phase = .thinking
             for call in calls {
@@ -209,10 +222,28 @@ final class GhafLiveCall: ObservableObject {
 
     private func reconnect() async {
         guard !stopping else { return }
+        finishTurnLimit()
         guard reconnects < 3, phase != .reconnecting else { return }
         reconnects += 1; phase = .reconnecting
         socket?.cancel(with: .goingAway, reason: nil)
         do { try await connect(resuming: resumeHandle) } catch { log(error); end(reason: "connection_lost") }
+    }
+
+    private func startTurnLimitIfNeeded() {
+        guard !turnLimitActive, !stopping else { return }
+        turnLimitActive = true
+        turnLimitTask?.cancel()
+        turnLimitTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            guard let self, !Task.isCancelled, !self.stopping, self.turnLimitActive else { return }
+            self.end(reason: "turn_limit")
+        }
+    }
+
+    private func finishTurnLimit() {
+        turnLimitActive = false
+        turnLimitTask?.cancel()
+        turnLimitTask = nil
     }
 
     private func finishTools(_ calls: [LiveToolCall]) async {
@@ -285,7 +316,11 @@ final class GhafLiveCall: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.queuedOutputBuffers = max(0, self.queuedOutputBuffers - 1)
-                if self.queuedOutputBuffers == 0 { self.outputLevel = 0; self.phase = .listening }
+                if self.queuedOutputBuffers == 0 {
+                    self.outputLevel = 0
+                    self.phase = .listening
+                    if self.turnCompleteReceived { self.onTurnFinished?() }
+                }
             }
         }
         if !player.isPlaying { player.play() }

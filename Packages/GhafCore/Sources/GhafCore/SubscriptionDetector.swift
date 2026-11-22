@@ -86,7 +86,7 @@ public enum SubscriptionDetector {
     }
 
     /// A charge pays a subscription due on `dueDate` when it is the same service, its amount is
-    /// within 10% and it lands within `toleranceDays` of the due date.
+    /// within 10% and it lands within `toleranceDays` of the due date. Services can bill early.
     public static func isPayment(
         merchant: String?, amount: Decimal, date: Date,
         subscriptionName: String, subscriptionAmount: Decimal, dueDate: Date, toleranceDays: Int
@@ -111,7 +111,8 @@ public enum SubscriptionDetector {
     private static func withinWindow(_ date: Date, of dueDate: Date, toleranceDays: Int) -> Bool {
         let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: dueDate),
                                                    to: Calendar.current.startOfDay(for: date)).day ?? .max
-        return abs(days) <= toleranceDays
+        let earlyDays = toleranceDays <= 2 ? toleranceDays : max(toleranceDays, 15)
+        return days >= -earlyDays && days <= toleranceDays
     }
 
     static func isSimilar(_ a: Decimal, _ b: Decimal) -> Bool {

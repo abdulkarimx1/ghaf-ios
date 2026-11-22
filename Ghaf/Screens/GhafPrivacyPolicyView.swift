@@ -76,8 +76,8 @@ struct GhafPrivacyPolicyView: View {
                 section(
                     isArabic ? "مشاركة البيانات والإعلانات" : "Data sharing and advertising",
                     isArabic
-                    ? "لا يشغّل غاف حالياً إعلانات أو تتبعاً بين التطبيقات أو جمعاً للتحليلات، ولا يبيع المعلومات الشخصية."
-                    : "Ghaf does not currently operate advertising, cross-app tracking or analytics collection, and does not sell personal information."
+                    ? "لا يعرض غاف إعلانات ولا يتتبعك ولا يبيع معلوماتك. عند استخدام ذكاء غاف يسجّل الخادم إحصاءات مجهولة فقط، والغرض منها أمران: تطبيق حدود الاستخدام العادل، ومعرفة تكلفة تشغيل ذكاء غاف. لا تتضمن هذه الإحصاءات اسمك ولا أسئلتك ولا الإجابات ولا صوتك ولا أي بيانات مالية، ولا تُستخدم لتتبعك أو لبناء ملف عنك، ولا يطّلع عليها إلا مطوّر غاف."
+                    : "Ghaf does not show ads, does not track you and does not sell your information. When you use Ghaf AI, the server records anonymous statistics for two reasons only: to apply fair-use limits and to see what running Ghaf AI costs. They never include your name, questions, answers, voice or any financial data, are never used to track you or build a profile, and only Ghaf's developer can see them."
                 )
 
                 section(

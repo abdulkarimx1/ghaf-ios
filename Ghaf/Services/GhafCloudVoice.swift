@@ -2,8 +2,7 @@ import Foundation
 import AVFoundation
 
 /// Natural speech for Ghaf AI's voice mode, from Ghaf's server (Gemini speech, Arabic and English).
-/// Only used when the user has turned on Cloud AI; only the reply text is sent. Any failure
-/// returns false so the caller falls back to the iPhone's own voice.
+/// Only used when the user has turned on Cloud AI; only reply text and the selected voice are sent.
 @MainActor
 final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     static let shared = GhafCloudVoice()
@@ -17,12 +16,12 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
 
     var isPlaying: Bool { player?.isPlaying ?? false }
 
-    func speak(_ text: String, arabic: Bool, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> Bool {
+    func speak(_ text: String, arabic: Bool, character: String, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> Bool {
         var request = URLRequest(url: Self.endpoint, timeoutInterval: 12)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "language": arabic ? "ar" : "en"])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "language": arabic ? "ar" : "en", "character": character, "tier": GhafAITier.current])
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let player = try? AVAudioPlayer(data: data) else { return false }
@@ -51,12 +50,15 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
         meter?.invalidate(); meter = nil
         player?.stop(); player = nil
         onLevel?(0)
+        onLevel = nil
+        onFinish = nil
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
             self.meter?.invalidate(); self.meter = nil
             self.onLevel?(0)
+            self.onLevel = nil
             let finish = self.onFinish
             self.onFinish = nil
             self.player = nil

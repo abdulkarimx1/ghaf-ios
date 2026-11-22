@@ -8,6 +8,17 @@ import GhafCore
 /// searches Apple Maps only for business-like names, near the user when location is allowed.
 @MainActor
 enum GhafPlaces {
+    @MainActor
+    private final class LocationDelegate: NSObject, @preconcurrency CLLocationManagerDelegate {
+        var continuation: CheckedContinuation<CLLocation?, Never>?
+        func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+            continuation?.resume(returning: locations.last); continuation = nil
+        }
+        func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+            continuation?.resume(returning: nil); continuation = nil
+        }
+    }
+
     struct Saved: Codable {
         let name: String
         let latitude: Double
@@ -88,7 +99,13 @@ enum GhafPlaces {
     // MARK: Search
 
     private static var cache: [String: MKMapItem?] = [:]
-    private static let locationManager = CLLocationManager()
+    private static let locationDelegate = LocationDelegate()
+    private static let locationManager: CLLocationManager = {
+        let manager = CLLocationManager()
+        manager.delegate = locationDelegate
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        return manager
+    }()
 
     /// Near the user when location is allowed; otherwise the UAE. Never asks for location by itself.
     static var searchRegion: MKCoordinateRegion {
@@ -101,6 +118,30 @@ enum GhafPlaces {
 
     static func requestLocationIfUndecided() {
         if locationManager.authorizationStatus == .notDetermined { locationManager.requestWhenInUseAuthorization() }
+    }
+
+    /// Nil means the system has not asked yet; false covers denied or restricted access.
+    static var locationPermission: Bool? {
+        switch locationManager.authorizationStatus {
+        case .notDetermined: return nil
+        case .authorizedWhenInUse, .authorizedAlways: return true
+        default: return false
+        }
+    }
+
+    /// Stores the current place locally for a manual transaction when permission and a fix already exist.
+    static func rememberCurrentLocation(transactionID: UUID) async {
+        guard locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways else { return }
+        let location = await withCheckedContinuation { continuation in
+            locationDelegate.continuation = continuation
+            locationManager.requestLocation()
+        }
+        guard let location else { return }
+        let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first
+        let saved = Saved(name: placemark?.name ?? placemark?.locality ?? placemark?.subLocality ?? "Current location",
+                          latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
+                          address: placemark?.name, phone: nil)
+        var map = load(transactionKey); map[transactionID.uuidString] = saved; store(map, transactionKey)
     }
 
     /// Best automatic match: the user's saved place, else a search for business-like names whose

@@ -14,6 +14,7 @@ struct GhafProView: View {
     @State private var entitled = false
     @State private var busy = false
     @State private var redeeming = false
+    @AppStorage("ghaf.pro.offerHighlight") private var offerHighlight = false
     @State private var notice: String?
     private var testUnlocked: Bool {
         #if DEBUG
@@ -32,10 +33,26 @@ struct GhafProView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Image(systemName: "leaf.fill").font(.largeTitle).foregroundStyle(theme.accent)
+                Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
                 Text("Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
                 Text(ar ? "تابع إنفاقك بتفاصيل أكثر" : "See where your money goes.")
                     .foregroundStyle(theme.secondaryText)
+                if offerHighlight {
+                    VStack(spacing: 10) {
+                        Label(ar ? "هدية قبل الرحيل" : "A gift before you go", systemImage: "gift.fill")
+                            .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
+                        Text(ar ? "خصم ٢٥٪ لمرة واحدة على Ghaf Pro" : "One-time 25% off Ghaf Pro")
+                            .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                        Button(ar ? "استرداد العرض" : "Claim offer") { redeeming = true }
+                            .ghafProminentButton(theme: theme, languageCode: lang)
+                            .disabled(!GhafFeatureFlags.appStoreAccount)
+                            .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
+                        Text(ar ? "يتوفر عند إطلاق غاف في App Store." : "Available when Ghaf is on the App Store.")
+                            .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(16).frame(maxWidth: .infinity).ghafCard(theme: theme)
+                }
                 VStack(alignment: .leading, spacing: 16) {
                     Label(ar ? "تقارير الإنفاق حسب المتجر والحساب" : "Spending reports by merchant and account", systemImage: "chart.bar")
                     Label(ar ? "ودجات للشاشة الرئيسية وشاشة القفل" : "Home and Lock Screen widgets", systemImage: "square.grid.2x2")
@@ -53,7 +70,6 @@ struct GhafProView: View {
                 HStack {
                     // Shown in every build; inactive until the App Store account exists.
                     Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
-                        .offerCodeRedemption(isPresented: $redeeming)
                         .disabled(!GhafFeatureFlags.appStoreAccount)
                         .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
                     NavigationLink(ar ? "الشروط" : "Terms") { GhafTermsView(settings: settings) }
@@ -65,6 +81,8 @@ struct GhafProView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .ghafBackground(theme: theme)
+        .offerCodeRedemption(isPresented: $redeeming)
+        .onDisappear { offerHighlight = false }
         .toolbar {
             if showsClose {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -173,8 +191,8 @@ struct GhafProView: View {
 /// Why Ghaf asks for money, in the voice of the person who makes it. Shown on the Pro page.
 enum GhafWhyPaidView {
     static func message(ar: Bool) -> String {
-        ar ? "الإمارات كانت دائماً سنداً لكل من يبني ويبدع. غاف صُنع هنا بيد مطوّر واحد وبنفس هذه الروح، واشتراكك هو طريقتك في رد هذا الحب. كل اشتراك يذهب لتطوير غاف وبناء تطبيقات أجدد وأفضل، وبياناتك لن تكون ثمناً له أبداً: لا إعلانات ولا بيع للبيانات."
-           : "The UAE has always stood behind the people who build. Ghaf is made here by one developer in that same spirit, and a plan is your way of passing that love on. Every plan goes into making Ghaf better and building newer apps, and your data will never be the price: no ads, no selling data."
+        ar ? "أريد أن تكون تجربة غاف هادئة وسلسة للجميع. لن تظهر فيه إعلانات أبداً. يساعد Ghaf Pro على إبقاء غاف مستقلاً ودعم تطويره. وسيظل الإصدار المجاني مفيداً."
+           : "I want Ghaf to feel calm and easy for everyone. There will never be ads. Ghaf Pro keeps Ghaf independent and supports its development. The free version will remain useful."
     }
 }
 

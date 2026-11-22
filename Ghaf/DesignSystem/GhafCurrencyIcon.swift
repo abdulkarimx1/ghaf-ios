@@ -106,18 +106,8 @@ struct GhafMoneyLabel: View {
     static let mask = "✦✦✦✦"
 
     private var isHidden: Bool { hidden || hiddenEverywhere }
-    private var concealmentDelay: Double {
-        // shortcut: equal currency/amount labels share a slot; pass row order if strict sequencing is required.
-        Double(abs("\(currency):\(amount)".hashValue % 10)) * 0.04
-    }
-
-    @ViewBuilder private func amountTransition<Content: View>(_ content: Content, scale: CGFloat) -> some View {
-        if reduceMotion {
-            content.transition(.opacity)
-        } else {
-            content.transition(.blurReplace.combined(with: .scale(scale)))
-        }
-    }
+    // shortcut: equal amounts share a stagger slot; pass row order if strict reading order is required.
+    private var concealmentDelay: Double { Double(abs("\(currency):\(amount)".hashValue % 12)) * 0.03 }
 
     // Formatters are costly to build; reuse per language and currency precision (main thread only).
     private static let formatters: [String: [Int: NumberFormatter]] = ["ar": "ar_AE", "en": "en_AE"].mapValues { id in
@@ -157,24 +147,28 @@ struct GhafMoneyLabel: View {
                 Text(currency.uppercased())
                     .font(GhafTypography.number(size * 0.55, weight: weight))
             }
-            // Hiding blurs the digits into stars (and back); a value change still rolls its digits.
-            if isHidden {
-                amountTransition(Text(Self.mask)
-                    .font(GhafTypography.number(size * 0.7, weight: weight))
-                    .tracking(size * 0.08), scale: 0.6)
-            } else {
-                amountTransition(
-                    numberText
-                        .font(GhafTypography.number(size, weight: weight))
-                        .monospacedDigit()
-                        .contentTransition(.numericText()),
-                    scale: 1.15
-                )
-            }
+            numberText
+                .font(GhafTypography.number(size, weight: weight))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .opacity(isHidden ? 0 : 1)
+                .overlay {
+                    if isHidden {
+                        HStack(spacing: 0) {
+                            ForEach(0..<4, id: \.self) { _ in
+                                Text("✦")
+                                    .font(GhafTypography.number(size * 0.7, weight: weight))
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity)
+                    }
+                }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)
-        .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.14)
+        .animation(.easeOut(duration: reduceMotion ? 0.12 : 0.15)
             .delay(reduceMotion ? 0 : concealmentDelay), value: isHidden)
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .ignore)

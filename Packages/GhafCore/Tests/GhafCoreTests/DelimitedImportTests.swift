@@ -3,6 +3,10 @@ import XCTest
 
 final class DelimitedImportTests: XCTestCase {
     func testCommaCSV() throws { XCTAssertEqual(try DelimitedImport.rows("Date,Amount,Merchant\n2026-01-02,12.5,Cafe")[1], ["2026-01-02", "12.5", "Cafe"]) }
+    func testCRLFAndCarriageReturnLineEndings() throws {
+        XCTAssertEqual(try DelimitedImport.rows("Date,Amount\r\n2026-01-01,10\r\n2026-01-02,20"), [["Date", "Amount"], ["2026-01-01", "10"], ["2026-01-02", "20"]])
+        XCTAssertEqual(try DelimitedImport.rows("Date,Amount\r2026-01-01,10\r2026-01-02,20"), [["Date", "Amount"], ["2026-01-01", "10"], ["2026-01-02", "20"]])
+    }
     func testSemicolonCSVAndDayFirstDate() throws {
         let values = try DelimitedImport.rows("Date;Amount;Merchant\n02/01/2026;12,5;Cafe")[1]
         XCTAssertEqual(values, ["02/01/2026", "12,5", "Cafe"])
