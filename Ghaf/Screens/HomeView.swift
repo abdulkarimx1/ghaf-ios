@@ -21,6 +21,7 @@ struct GhafHomeView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(GhafTabRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
     private var transactions: [GhafTransaction]
@@ -48,6 +49,7 @@ struct GhafHomeView: View {
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
+    @State private var eyeLidClosed = false
     @State private var showSubscriptions = false
     /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
     @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
@@ -355,17 +357,28 @@ struct GhafHomeView: View {
             }
             .frame(maxWidth: .infinity)
             Button {
-                withAnimation(.easeOut(duration: 0.35)) { hideBalances.toggle() }
+                GhafSounds.shared.play(.tick)
+                if reduceMotion {
+                    withAnimation(.easeInOut(duration: 0.15)) { hideBalances.toggle() }
+                } else {
+                    withAnimation(.easeInOut(duration: 0.11)) { eyeLidClosed = true }
+                    withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.26)) { hideBalances.toggle() }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(110))
+                        withAnimation(.easeOut(duration: 0.11)) { eyeLidClosed = false }
+                    }
+                }
             } label: {
                 Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 15, weight: .bold))
-                    .contentTransition(.symbolEffect(.replace))
+                    .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace.downUp))
+                    .scaleEffect(y: eyeLidClosed ? 0.15 : 1)
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
                     .background(theme.surface, in: Circle())
             }
             .buttonStyle(.ghafPress)
-            .sensoryFeedback(.impact(weight: .medium), trigger: hideBalances)
+            .sensoryFeedback(.selection, trigger: hideBalances)
             .accessibilityLabel(ar ? (hideBalances ? "إظهار الأرصدة" : "إخفاء الأرصدة")
                                    : (hideBalances ? "Show balances" : "Hide balances"))
         }
@@ -482,7 +495,7 @@ struct GhafHomeView: View {
     private func changeLine(icon: String, value: Decimal, color: Color, label: String, currency: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon).font(.system(size: 11, weight: .heavy))
-            GhafMoneyLabel(amount: value, currency: currency, languageCode: lang, size: 14, hidden: hideBalances)
+            GhafRollingNumber(amount: value, currency: currency, languageCode: lang, size: 14, hidden: hideBalances)
             Text(label).font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
         }
         .foregroundStyle(color)

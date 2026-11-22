@@ -138,9 +138,17 @@ enum GhafFormat {
     static let hideBalancesKey = "ghaf.hideBalances"
     static var balancesHidden: Bool { UserDefaults.standard.bool(forKey: hideBalancesKey) }
 
+    static func hiddenMoney(_ amount: Decimal, currency: String, languageCode: String) -> String {
+        let formatter = GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency)
+        let number = formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
+        let whole = number.components(separatedBy: formatter.decimalSeparator ?? ".").first ?? number
+        return String(whole.map { $0.isNumber ? "★" : $0 })
+    }
+
     /// `money`, or stars while balances are hidden. For text on screen; notifications and exports use `money`.
     static func shownMoney(_ amount: Decimal, currency: String, languageCode: String = "en") -> String {
-        balancesHidden ? "\(currency) \(GhafMoneyLabel.mask)" : money(amount, currency: currency, languageCode: languageCode)
+        balancesHidden ? "\(currency) \(hiddenMoney(amount, currency: currency, languageCode: languageCode))"
+            : money(amount, currency: currency, languageCode: languageCode)
     }
 
     static func money(
