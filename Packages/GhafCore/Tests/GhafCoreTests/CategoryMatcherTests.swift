@@ -166,6 +166,11 @@ final class CategoryMatcherTests: XCTestCase {
         XCTAssertFalse(incomeDeleted.contains(CategoryTaxonomy.deletionKey(category: "Other Income", subcategory: "Rent received")))
     }
 
+    func testFreshInstallDefaultsMigrateToNoDeletions() {
+        let subs = Dictionary(uniqueKeysWithValues: CategoryTaxonomy.all.map { ($0.name, $0.subcategories.map(\.name)) })
+        XCTAssertEqual(CategoryTaxonomy.legacyDeletionKeys(categories: CategoryTaxonomy.defaultNames, subcategories: subs), [])
+    }
+
     func testTaxonomyTombstonesKeepDeletedDefaultsAndSubcategoriesGone() {
         let deleted: Set<String> = [
             CategoryTaxonomy.deletionKey(category: "Insurance"),
