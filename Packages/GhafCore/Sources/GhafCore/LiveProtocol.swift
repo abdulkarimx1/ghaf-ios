@@ -4,9 +4,10 @@ public struct LiveFunctionDeclaration: Codable, Equatable {
     public var name: String
     public var description: String
     public var parameters: [String: LiveJSON]
+    public var behavior: String?
 
-    public init(name: String, description: String, parameters: [String: LiveJSON]) {
-        self.name = name; self.description = description; self.parameters = parameters
+    public init(name: String, description: String, parameters: [String: LiveJSON], behavior: String? = nil) {
+        self.name = name; self.description = description; self.parameters = parameters; self.behavior = behavior
     }
 }
 
@@ -64,6 +65,7 @@ public struct LiveSetup {
             "systemInstruction": ["parts": [["text": systemInstruction]]],
             "tools": [["functionDeclarations": try JSONSerialization.jsonObject(with: JSONEncoder().encode(tools))]],
             "inputAudioTranscription": [:], "outputAudioTranscription": [:],
+            "realtimeInputConfig": ["automaticActivityDetection": ["disabled": true]],
             "contextWindowCompression": ["slidingWindow": [:]], "sessionResumption": [:]
         ]
         if !responseModalitiesInGenerationConfig { setup["responseModalities"] = ["AUDIO"] }
@@ -116,6 +118,12 @@ public enum LiveServerEvent {
 }
 
 public enum LiveEncoder {
+    public static func activityStart() throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["realtimeInput": ["activityStart": [:]]])
+    }
+    public static func activityEnd() throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["realtimeInput": ["activityEnd": [:]]])
+    }
     public static func audio(_ pcm: Data) throws -> Data {
         try JSONSerialization.data(withJSONObject: ["realtimeInput": ["audio": ["data": pcm.base64EncodedString(), "mimeType": "audio/pcm;rate=16000"]]])
     }

@@ -91,6 +91,10 @@ struct GhafAIView: View {
     @State private var offerLiveConsent = false
     @State private var voiceUnavailable = false
     @State private var showVoicePicker = false
+    @State private var voiceUsage: GhafVoiceUsage?
+    @State private var voiceLimitReached = false
+    @State private var voiceGoodbyePlaying = false
+    @State private var liveTurnHasTransactionDrafts = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glassStyle
 
@@ -105,6 +109,7 @@ struct GhafAIView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 header
+                voiceOrbControl
                 if messages.isEmpty {
                     ScrollView { welcome }
                         .scrollDismissesKeyboard(.interactively)
@@ -170,8 +175,12 @@ struct GhafAIView: View {
             .onAppear {
                 engine = assistant.engine
                 Task { await GhafCloudAI.prewarm() }
+                if GhafCloudAI.isEnabled { Task { voiceUsage = await GhafCloudAI.voiceUsage() } }
                 tabRouter.startVoice = {
-                    if recorder.isRecording { recorder.stop(); finishVoice() }
+                    if liveCallActive {
+                        if liveCall.isCapturingUserTurn { liveCall.endUserTurn(); tabRouter.isListening = false }
+                        else if liveCall.phase != .thinking { beginLiveUserTurn() }
+                    } else if recorder.isRecording { recorder.stop(); finishVoice() }
                     else { startVoice() }
                 }
                 tabRouter.typeQuestion = { openTyping() }
@@ -287,16 +296,18 @@ struct GhafAIView: View {
     }
 
     private var header: some View {
-        HStack {
-            optionsMenu
-            Spacer()
-            Color.clear.frame(width: 44, height: 44)
-        }
-        .overlay {
-            Text("Ghaf AI")
-                .font(GhafTypography.heading(17, languageCode: "en"))
-                .foregroundStyle(theme.primaryText)
-                .accessibilityAddTraits(.isHeader)
+        VStack(spacing: 6) {
+            HStack {
+                optionsMenu
+                Spacer()
+                Color.clear.frame(width: 44, height: 44)
+            }
+            .overlay {
+                Text("Ghaf AI")
+                    .font(GhafTypography.heading(17, languageCode: "en"))
+                    .foregroundStyle(theme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
         .ghafScreenPadding()
         .padding(.top, 8)
@@ -418,7 +429,7 @@ struct GhafAIView: View {
             if microphoneOff {
                 microphonePermissionHint.padding(.top, 14)
             } else {
-                Text(ar ? "اضغط على غاف AI في الشريط السفلي للتحدث، واضغط مطولاً للكتابة" : "Tap Ghaf AI in the tab bar to talk · hold to type")
+                Text(ar ? "اضغط على الدائرة للتحدث، واضغط مطولاً ثم ارفع إصبعك للكتابة" : "Tap the orb to talk · hold, then release to type")
                     .font(GhafTypography.body(13, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
@@ -428,6 +439,31 @@ struct GhafAIView: View {
         }
         .frame(maxWidth: .infinity)
         .ghafScreenPadding()
+    }
+
+    private var voiceOrbControl: some View {
+        VStack(spacing: 4) {
+            GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+                .frame(width: 72, height: 72)
+                .contentShape(Circle())
+                .gesture(ExclusiveGesture(
+                    LongPressGesture(minimumDuration: 0.45, maximumDistance: 28),
+                    TapGesture()
+                ).onEnded { result in
+                    switch result {
+                    case .first: openTyping()
+                    case .second: toggleVoiceInput()
+                    }
+                })
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
+                .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
+                .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
+            if GhafCloudAI.isEnabled, let voiceUsage { voiceLimitCounter(voiceUsage) }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
+        .padding(.bottom, 4)
     }
 
     // MARK: Messages
@@ -555,6 +591,19 @@ struct GhafAIView: View {
                                 .padding(.horizontal, 7).padding(.vertical, 3)
                                 .background(theme.accent, in: Capsule())
                         }
+                        if state == .pending {
+                            Picker(ar ? "الحساب" : "Account", selection: $draft.accountID) {
+                                let eligibleAccounts = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
+                                Text(eligibleAccounts.isEmpty ? (ar ? "لا يوجد حساب متاح" : "No account available") : (ar ? "تلقائي" : "Automatic"))
+                                    .tag(UUID?.none)
+                                ForEach(eligibleAccounts) { account in
+                                    Text(account.name).tag(Optional(account.id))
+                                }
+                            }
+                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
+                            .tint(theme.primaryText)
+                            .frame(minHeight: 40)
+                        }
                     }
                     Spacer(minLength: 6)
                     GhafAmountField(value: $draft.amountText, currency: draft.currency,
@@ -570,7 +619,7 @@ struct GhafAIView: View {
                 HStack(spacing: 10) {
                     Button(ar ? "تجاهل" : "Discard") { message.wrappedValue.draftState = .discarded }
                         .ghafGlassButton(theme: theme, languageCode: settings.languageCode)
-                    Button(ar ? "حفظ" : "Save") { saveDrafts(message) }
+                    Button(ar ? "تأكيد" : "Confirm") { saveDrafts(message) }
                         .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
             case .saved:
@@ -698,6 +747,74 @@ struct GhafAIView: View {
             let speechDenied = SFSpeechRecognizer.authorizationStatus() == .denied
             let microphoneDenied = AVAudioApplication.shared.recordPermission == .denied
             microphoneOff = speechDenied || microphoneDenied
+        }
+    }
+
+    private func toggleVoiceInput() {
+        if liveCallActive {
+            if liveCall.isCapturingUserTurn {
+                liveCall.endUserTurn()
+                tabRouter.isListening = false
+            } else if liveCall.phase != .thinking {
+                beginLiveUserTurn()
+            }
+        } else if recorder.isRecording {
+            recorder.stop()
+            finishVoice()
+        } else {
+            startVoice()
+        }
+    }
+
+    private func voiceLimitCounter(_ usage: GhafVoiceUsage) -> some View {
+        let remaining = max(0, usage.limit - usage.used)
+        let spokenCount = remaining.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        let spokenLimit = usage.limit.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        return VStack(spacing: 4) {
+            Text(ar ? "باقي \(spokenCount) من \(spokenLimit) ردًا صوتيًا اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
+                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .center)
+            GeometryReader { geometry in
+                ZStack(alignment: ar ? .trailing : .leading) {
+                    Capsule().fill(theme.outline.opacity(0.45))
+                    Capsule().fill(theme.accent)
+                        .frame(width: geometry.size.width * CGFloat(usage.limit == 0 ? 0 : remaining) / CGFloat(max(usage.limit, 1)))
+                }
+            }
+            .frame(height: 2)
+            .accessibilityLabel(ar ? "الردود الصوتية المتبقية اليوم" : "Voice replies remaining today")
+            .accessibilityValue("\(remaining) of \(usage.limit)")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func beginLiveUserTurn() {
+        guard liveCallActive, !voiceLimitReached else { return }
+        // Open the turn at once (the orb must feel instant); the reservation runs alongside it.
+        liveCall.beginUserTurn()
+        liveTurnHasTransactionDrafts = false
+        tabRouter.isListening = true
+        Task {
+            // nil = network or server trouble: keep talking; /live-token still enforces the daily cap.
+            guard let reservation = await GhafCloudAI.reserveVoiceTurn(languageCode: ar ? "ar" : "en") else { return }
+            voiceUsage = reservation.usage
+            guard !reservation.allowed else { return }
+            voiceLimitReached = true
+            liveCall.endUserTurn()
+            tabRouter.isListening = false
+            let finish = {
+                voiceGoodbyePlaying = false
+                liveCall.end(reason: "daily_limit")
+                liveCallActive = false
+            }
+            if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, onFinish: finish) {
+                voiceGoodbyePlaying = true
+            } else {
+                finish()
+                appendCallNote(ar ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر." : "That's all I can do for today. Come back tomorrow.")
+            }
         }
     }
 
@@ -852,17 +969,7 @@ struct GhafAIView: View {
         if applyCorrection(text) { return }
 
         // A purchase ("35 AED lunch") becomes a draft card; anything else goes to the assistant.
-        let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
-            var result = draft
-            result.merchant = Self.tidyTitle(draft.merchant)
-            if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
-                result.category = match.category
-                result.subcategory = match.subcategory
-            } else {
-                result.category = draft.direction == "credit" ? "Other Income" : "Other"
-            }
-            return result
-        }
+        let drafts = preparedVoiceDrafts(in: text)
         if !drafts.isEmpty {
             let intro = ar
                 ? (drafts.count == 1 ? "وجدت عملية. راجع الفئة ثم احفظ:" : "وجدت \(drafts.count) عمليات. راجعها ثم احفظ:")
@@ -881,7 +988,11 @@ struct GhafAIView: View {
                 hint += ar ? "\nلم أجد فئة لـ \(unmatched.joined(separator: "، ")). اضغط على الفئة واختر «فئة جديدة»."
                            : "\nNo category fits \(unmatched.joined(separator: ", ")). Tap the category and choose New category."
             }
-            withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: intro + hint, drafts: drafts)) }
+            withAnimation(.snappy) {
+                for draft in drafts {
+                    messages.append(GhafChatMessage(isUser: false, text: drafts.count == 1 ? intro + hint : (ar ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:"), drafts: [draft]))
+                }
+            }
             if isVoice {
                 // Read back what was heard and ask, then listen for "yes", "remove the coffee", "make it 5"…
                 listenAfterSpeaking = true
@@ -964,6 +1075,9 @@ struct GhafAIView: View {
                 withAnimation(.spring(duration: 0.5, bounce: 0.2)) {
                     messages[index].chart = chart
                     messages[index].suggestions = suggestions(after: resolved)
+                    if chart != nil {
+                        messages[index].text = settings.languageCode == "ar" ? "هذا الرسم من سجلاتك." : "Here is a chart from your records."
+                    }
                     // Only answers the ledger computed say where their numbers came from.
                     if direct != nil {
                         messages[index].source = GhafChatChartBuilder.source(for: resolved, transactions: transactions,
@@ -1032,6 +1146,24 @@ struct GhafAIView: View {
         }.joined(separator: " ")
     }
 
+    private func preparedVoiceDrafts(in text: String) -> [GhafVoiceTransactionDraft] {
+        GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft in
+            var result = draft
+            result.merchant = Self.tidyTitle(draft.merchant)
+            if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
+                result.category = match.category
+                result.subcategory = match.subcategory
+            } else {
+                result.category = draft.direction == "credit" ? "Other Income" : "Other"
+            }
+            let eligible = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
+            result.accountID = eligible.first(where: { $0.type == .cash })?.id
+                ?? eligible.first(where: { $0.isPrimary })?.id
+                ?? eligible.first?.id
+            return result
+        }
+    }
+
     /// The suggested category or subcategory isn't in the user's list yet.
     private func isNewCategory(_ draft: GhafVoiceTransactionDraft) -> Bool {
         guard draft.category != "Other" else { return false }
@@ -1052,7 +1184,7 @@ struct GhafAIView: View {
                 ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: "ar"))" } ?? "") }.joined(separator: "، ") + "."
                 : "Saved. I'll remember " + learned.map { "\($0.merchant) → \(GhafLocalization.category($0.category, languageCode: settings.languageCode))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: settings.languageCode))" } ?? "") }.joined(separator: ", ") + ".")
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: note)) }
-            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?")
+            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?", force: liveCallActive)
         } catch {
             withAnimation(.snappy) {
                 messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."))
@@ -1077,15 +1209,15 @@ struct GhafAIView: View {
             ?? settings.userName
         let date = Date.now.formatted(date: .complete, time: .omitted)
         let persona = ar
-            ? "أنت غاف، \(voiceCharacter == "Mariam" ? "امرأة" : "رجل") إماراتي ودود. استخدم جملاً قصيرة وطبيعية بالعربية الخليجية الإماراتية أو الإنجليزية بحسب لغة المستخدم، مع وقفات طبيعية. لا تستخدم الفصحى الرسمية أو لهجة أخرى. كل رقم مالي يأتي من نتيجة أداة أو من الحقائق؛ عند الشك استدعِ get_finance_answer. استخدم remember أو forget فقط بطلب صريح، ولا تحفظ عملية دون تأكيدها."
-            : "You are Ghaf, a warm \(voiceCharacter == "Mariam" ? "female" : "male") Emirati assistant. Speak naturally in the user's language, with short conversational sentences and natural pauses. Use Gulf Arabic when addressed in Arabic, never formal newsreader Arabic. Every money figure must come from a tool result or the facts; when unsure, call get_finance_answer. Use remember or forget only when explicitly asked. Never save a transaction without confirmation."
+            ? "أنت غاف، \(voiceCharacter == "Mariam" ? "امرأة" : "رجل") إماراتي ودود. أجب دائماً بلغة آخر رسالة للمستخدم: العربية بلهجة خليجية إماراتية طبيعية، أو الإنجليزية. لا تخلط اللغتين إلا إذا خلط المستخدم بينهما، ولا تقدّم نفسك أو تمزج تحية إنجليزية بجملة عربية. عند السؤال عن الرصيد أو المصروفات أو الحسابات أو الاشتراكات، استدعِ get_finance_answer دائماً ولا تقل إنك لا تملك معلومات المستخدم. استخدم نتائج الأداة كما هي ولا تخمّن. استخدم remember أو forget فقط بطلب صريح. عند ذكر عملية، استدعِ log_transaction لعرض بطاقة تأكيد ولا تحفظها بنفسك."
+            : "You are Ghaf, a warm \(voiceCharacter == "Mariam" ? "female" : "male") Emirati assistant. Always reply in the language of the user's latest turn: English, or natural Gulf Emirati Arabic. Do not mix languages unless the user does, and do not introduce yourself or combine an English greeting with Arabic. For any question about balances, spending, accounts, or subscriptions, always call get_finance_answer; never claim you lack access to the user's data. Use the tool result exactly and never guess. For a transaction, call log_transaction to show a confirmation card; never save it yourself. Use remember or forget only when explicitly asked. Speak English with a soft, educated American delivery and light Emirati warmth; avoid rolled or tapped r sounds."
         let nameLine = firstName.isEmpty ? "" : (ar ? "اسم المستخدم: \(firstName)." : "User's name: \(firstName).")
         let instruction = String("\(persona)\n\(nameLine)\nToday's date: \(date).\n\nFACTS:\n\(liveFacts)".prefix(5_900))
         configureLiveCallbacks()
         do {
             try await liveCall.start(language: ar ? "ar" : "en", character: voiceCharacter, tier: GhafAITier.current, systemInstruction: instruction, tools: liveToolDeclarations)
             liveCallActive = true
-            tabRouter.isListening = true
+            beginLiveUserTurn()
         } catch GhafCloudAI.Failure.dailyLimit {
             appendCallNote(ar ? "وصلت إلى حد الرسائل الصوتية اليوم. يمكنك متابعة الكتابة." : "You've reached today's voice limit. You can keep chatting by text.")
         } catch {
@@ -1099,19 +1231,17 @@ struct GhafAIView: View {
         }
         let string: LiveJSON = .object(["type": .string("STRING")])
         return [
-            LiveFunctionDeclaration(name: "get_finance_answer", description: "Answer a financial question from deterministic ledger records.", parameters: schema(["question": string], required: ["question"])),
-            LiveFunctionDeclaration(name: "show_chart", description: "Ghaf draws inline charts from the user's transactions, including petal charts. Use this tool; do not claim charts cannot be made.", parameters: schema(["question": string, "style": .object(["type": .string("STRING"), "enum": .array(["bar", "donut", "line", "rose"].map(LiveJSON.string))])], required: ["question"])),
-            LiveFunctionDeclaration(name: "log_transaction", description: "Parse a transaction and show an editable confirmation card. Never save it.", parameters: schema(["text": string], required: ["text"])),
-            LiveFunctionDeclaration(name: "remember", description: "Save a short user fact or preference they explicitly asked Ghaf to remember.", parameters: schema(["fact": string], required: ["fact"])),
-            LiveFunctionDeclaration(name: "forget", description: "Forget a user fact they explicitly asked Ghaf to forget.", parameters: schema(["fact": string], required: ["fact"]))
+            LiveFunctionDeclaration(name: "get_finance_answer", description: "Required for every question about balances, spending, income, accounts, budgets, subscriptions, or financial comparisons. Return the deterministic answer from Ghaf ledger records.", parameters: schema(["question": string], required: ["question"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "show_chart", description: "Ghaf draws inline charts from the user's ledger transactions. Use this tool when asked for a chart; never claim charts cannot be made.", parameters: schema(["question": string, "style": .object(["type": .string("STRING"), "enum": .array(["bar", "donut", "line", "rose"].map(LiveJSON.string))])], required: ["question"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "log_transaction", description: "Parse the user's transaction and show an editable confirmation card. Never save it.", parameters: schema(["text": string], required: ["text"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "remember", description: "Save a short user fact or preference they explicitly asked Ghaf to remember.", parameters: schema(["fact": string], required: ["fact"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "forget", description: "Forget a user fact they explicitly asked Ghaf to forget.", parameters: schema(["fact": string], required: ["fact"]), behavior: "NON_BLOCKING")
         ]
     }
 
     private func configureLiveCallbacks() {
         liveCall.onTurnFinished = {
             guard liveCallActive else { return }
-            liveCall.end(reason: "turn_complete")
-            liveCallActive = false
             tabRouter.isListening = false
             persistChat()
         }
@@ -1127,8 +1257,16 @@ struct GhafAIView: View {
                 liveGroundingSources.append(text)
             }
             if final {
+                let completeText = liveInputText
                 if let id = liveInputMessageID, let index = messages.firstIndex(where: { $0.id == id }) { messages[index].isVoice = true }
                 liveInputMessageID = nil; liveInputText = ""
+                let drafts = preparedVoiceDrafts(in: completeText)
+                if !drafts.isEmpty && !liveTurnHasTransactionDrafts {
+                    for draft in drafts {
+                        messages.append(GhafChatMessage(isUser: false, text: ar ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:", drafts: [draft]))
+                    }
+                    liveTurnHasTransactionDrafts = true
+                }
             }
         }
         liveCall.onOutputTranscript = { text, final in
@@ -1177,17 +1315,15 @@ struct GhafAIView: View {
             } else { response = ar ? "لا توجد بيانات للرسم." : "There is no data to chart." }
         case "log_transaction":
             let text = value("text")
-            let drafts = GhafMessageIntent.drafts(in: text, baseCurrency: settings.currency).map { draft -> GhafVoiceTransactionDraft in
-                var result = draft
-                result.merchant = Self.tidyTitle(draft.merchant)
-                if let match = MerchantCategorizer.suggestion(for: draft.merchant, context: modelContext) {
-                    result.category = match.category; result.subcategory = match.subcategory
-                } else { result.category = draft.direction == "credit" ? "Other Income" : "Other" }
-                return result
-            }
+            let drafts = preparedVoiceDrafts(in: text)
             if !drafts.isEmpty {
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "وجدت عملية. راجعها ثم احفظ:" : "I found a transaction. Review it, then save:", drafts: drafts))
-                response = ar ? "بانتظار تأكيد المستخدم على بطاقة العملية." : "Awaiting the user's confirmation on the transaction card."
+                if !liveTurnHasTransactionDrafts {
+                    for draft in drafts {
+                        messages.append(GhafChatMessage(isUser: false, text: ar ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:", drafts: [draft]))
+                    }
+                    liveTurnHasTransactionDrafts = true
+                }
+                response = ar ? "تظهر بطاقة تأكيد مستقلة لكل عملية. اطلب من المستخدم مراجعتها قبل الحفظ." : "Each transaction has its own confirmation card. Ask the user to review before saving."
             } else { response = ar ? "لم أجد عملية واضحة." : "I couldn't parse a clear transaction." }
         case "remember":
             guard memoryEnabled else { response = ar ? "الذاكرة متوقفة." : "Memory is disabled."; return ["result": .string(response)] }
@@ -1222,6 +1358,7 @@ struct GhafAIView: View {
     }
 
     private var orbMood: GhafAIOrb.Mood {
+        if voiceGoodbyePlaying { return .speaking }
         if voiceMode {
             switch liveCall.phase {
             case .connecting, .thinking: return .thinking

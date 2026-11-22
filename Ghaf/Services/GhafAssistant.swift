@@ -346,7 +346,8 @@ enum GhafDraftSaver {
             let category = draft.category == "Other"
                 ? ((try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: context)) ?? "Other")
                 : draft.category
-            let preferred = accounts.first { $0.id == preferredAccountID && !$0.isArchived && $0.currency == draft.currency }
+            let preferred = accounts.first { $0.id == draft.accountID && !$0.isArchived && $0.currency == draft.currency }
+                ?? accounts.first { $0.id == preferredAccountID && !$0.isArchived && $0.currency == draft.currency }
             // Spoken and typed entries are usually cash: a cash wallet first, the primary account next.
             let active = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
             let assigned = preferred ?? active.first { $0.type == .cash } ?? active.first { $0.isPrimary } ?? active.first

@@ -226,7 +226,7 @@ struct GhafChatChartView: View {
         HStack(spacing: 2) {
             ForEach(styles, id: \.self) { item in
                 Button { withAnimation(.snappy) { styleOverride = item; selected = nil } } label: {
-                    Image(systemName: item == .bar ? "chart.bar.fill" : item == .donut ? "chart.pie.fill" : item == .rose ? "camera.macro" : "chart.xyaxis.line")
+                    Image(systemName: item == .bar ? "chart.bar.fill" : item == .donut ? "chart.pie.fill" : item == .rose ? "circle.hexagongrid.fill" : "chart.xyaxis.line")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(style == item ? theme.accentContrast : theme.secondaryText)
                         .frame(width: 44, height: 36)
