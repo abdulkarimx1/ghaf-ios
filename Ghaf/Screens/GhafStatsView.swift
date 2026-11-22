@@ -38,6 +38,9 @@ struct GhafStatsView: View {
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var currency: String { settings.currency }
+    private var proUnlocked: Bool {
+        UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked") || GhafWidgetProAccess.unlocked
+    }
     private var calendar: Calendar { GhafCalendar.current }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
@@ -778,7 +781,8 @@ struct GhafStatsView: View {
         }
         .sorted { $0.total > $1.total }
         let top = Array(ranked.prefix(3))
-        return VStack(alignment: .leading, spacing: 12) {
+        return GhafProFeatureMask(isUnlocked: proUnlocked, theme: theme, languageCode: lang, action: { showProSheet = true }) {
+          VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(ar ? "أكثر المتاجر" : "Top merchants")
                     .font(GhafTypography.heading(18, languageCode: lang))
@@ -810,7 +814,8 @@ struct GhafStatsView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .ghafStatsCard(theme: theme)
+            .ghafStatsCard(theme: theme)
+          }
     }
 
     private var proCard: some View {

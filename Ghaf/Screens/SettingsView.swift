@@ -634,7 +634,8 @@ struct GhafSettingsView: View {
 
     private var placesCard: some View {
         let summaries = placeSummaries
-        return VStack(alignment: .leading, spacing: 12) {
+        return GhafProFeatureMask(isUnlocked: proUnlocked, theme: theme, languageCode: languageCode, action: { showProSheet = true }) {
+          VStack(alignment: .leading, spacing: 12) {
             Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
                 .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
             if summaries.isEmpty {
@@ -658,19 +659,8 @@ struct GhafSettingsView: View {
                 }
             }
         }
-        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-        .ghafCard(theme: theme)
-        .overlay {
-            if !proUnlocked {
-                Rectangle().fill(theme.background.opacity(0.35)).overlay {
-                    Button { showProSheet = true } label: {
-                        Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
-                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                            .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
-                            .background(theme.surface, in: Capsule())
-                    }.buttonStyle(.plain)
-                }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
-            }
+            .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .ghafCard(theme: theme)
         }
         .accessibilityHint(ar ? "تُحفظ بيانات الأماكن على هذا الجهاز فقط." : "Place data stays on this iPhone.")
     }
