@@ -27,9 +27,6 @@ struct GhafMapsAppPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(ar ? "تطبيق الخرائط" : "Maps app")
-                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                .foregroundStyle(theme.primaryText)
             ForEach(options, id: \.id) { option in
                 Button {
                     settings.mapsAppPreference = option.id

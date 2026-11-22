@@ -827,7 +827,7 @@ extension GhafWalkthroughTests {
         snap("i-widget-gallery-scrolled")
         let lockedPreview = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Today, Small'")).firstMatch
         if lockedPreview.waitForExistence(timeout: 3) { lockedPreview.tap() }
-        XCTAssertTrue(app.staticTexts["Unlock with Ghaf Pro"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Ghaf Pro"].waitForExistence(timeout: 5))
         snap("i-widget-pro-preview")
     }
 }

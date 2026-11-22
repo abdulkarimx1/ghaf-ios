@@ -153,7 +153,7 @@ struct GhafSettingsView: View {
                     menuGroup(ar ? "التطبيق" : "App") {
                         menuRow(ar ? "الأدوات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -797,6 +797,17 @@ struct GhafSettingsView: View {
         }
         .buttonStyle(.ghafPress)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var mapsCard: some View {
+        settingsCard(ar ? "تطبيق الخرائط" : "Maps app",
+                     subtitle: ar ? "يفتح زر الاتجاهات هذا التطبيق." : "The Directions button opens this app.") {
+            GhafMapsAppPicker(settings: settings)
+                .onChange(of: settings.mapsAppPreference) { _, _ in
+                    do { try modelContext.save() }
+                    catch { modelContext.rollback(); prompt = .message(ar ? "تعذر حفظ الإعداد." : "Couldn't save this setting.") }
+                }
+        }
     }
 
     private var keypadCard: some View {
