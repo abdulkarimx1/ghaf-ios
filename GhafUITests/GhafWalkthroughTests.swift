@@ -781,6 +781,31 @@ extension GhafWalkthroughTests {
 }
 
 extension GhafWalkthroughTests {
+    func testSessionRPlanAndBackupScreenshotProof() {
+        launch(["-GhafScreen", "pro-sheet"])
+        snap("r-plans-en")
+
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "ar", "-GhafScreen", "pro-sheet"]
+        if let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"] {
+            app.launchArguments += ["-GhafRestoreBackup", backup]
+        }
+        app.launch()
+        snap("r-plans-ar")
+
+        launch()
+        app.tabBars.buttons["More"].tap()
+        let backupRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Google Drive' AND label CONTAINS[c] 'backup'")).firstMatch
+        for _ in 0..<8 where !backupRow.exists { app.swipeUp() }
+        XCTAssertTrue(backupRow.waitForExistence(timeout: 5))
+        backupRow.tap()
+        let createBackup = app.buttons["Create JSON backup"]
+        XCTAssertTrue(createBackup.waitForExistence(timeout: 5))
+        snap("r-backup-button")
+        createBackup.tap()
+        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5) || app.otherElements.firstMatch.waitForExistence(timeout: 5))
+    }
+
     func testSessionISettingsVoiceAndWidgetGalleryProof() {
         launch()
         app.tabBars.buttons["More"].tap()
