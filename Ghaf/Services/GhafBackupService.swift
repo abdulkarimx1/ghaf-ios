@@ -67,6 +67,8 @@ private struct GhafSettingsBackup: Codable {
     var budgetMode: String
     var categories: [String]
     var categoryMeta: [String: GhafCategoryMeta]?
+    /// Deleted built-in categories/subcategories (v5+). Absent in older backups: derived from `categories` on first read.
+    var deletedCategories: [String]?
     var categoryBudgets: [String: Decimal]
     var hasCompletedOnboarding: Bool
 
@@ -181,6 +183,7 @@ enum GhafBackupService {
             budgetMode: settings.budgetMode,
             categories: settings.categories,
             categoryMeta: settings.categoryMeta,
+            deletedCategories: settings.deletedCategoryKeys.sorted(),
             categoryBudgets: settings.categoryBudgets,
             hasCompletedOnboarding: settings.hasCompletedOnboarding,
             balanceSetupMode: settings.balanceSetupMode,
@@ -372,6 +375,8 @@ enum GhafBackupService {
         )
         settings.id = source.id ?? settings.id
         settings.createdAt = source.createdAt ?? settings.createdAt
+        // Tombstones first, so the category getters never merge a deleted default back in.
+        if let deleted = source.deletedCategories { settings.deletedCategoryKeys = Set(deleted) }
         settings.categories = source.categories
         settings.categoryMeta = source.categoryMeta ?? [:]
         settings.categoryBudgets = source.categoryBudgets
@@ -564,6 +569,7 @@ enum GhafBackupService {
         let (sourceContainer, sourceContext) = try makeContext("ArabicNameSource-\(UUID().uuidString)")
         defer { _ = sourceContainer }
         let settings = GhafSettings(userName: "Amina", arabicName: "أمينة")
+        settings.deletedCategoryKeys = [CategoryTaxonomy.deletionKey(category: "Insurance")]
         sourceContext.insert(settings)
         try sourceContext.save()
         let currentBackup = try export(context: sourceContext)
@@ -574,6 +580,10 @@ enum GhafBackupService {
         try restore(from: currentBackup, context: restoredContext)
         let restoredName = try GhafPersistence.settings(in: restoredContext).arabicName
         guard restoredName == "أمينة" else { throw GhafBackupError.invalidBackup("Arabic name round-trip") }
+        let restoredSettings = try GhafPersistence.settings(in: restoredContext)
+        guard restoredSettings.isDeleted(category: "Insurance"), !restoredSettings.categories.contains("Insurance") else {
+            throw GhafBackupError.invalidBackup("deleted category came back after restore")
+        }
 
         var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: currentBackup)) as! [String: Any]
         legacy["version"] = 4
@@ -590,7 +600,7 @@ enum GhafBackupService {
         guard try GhafPersistence.settings(in: legacyContext).arabicName.isEmpty else {
             throw GhafBackupError.invalidBackup("legacy Arabic name default")
         }
-        return "Arabic name round-trip passed; v4 backup without arabicName restored as empty."
+        return "Arabic name and deleted-category round-trip passed; v4 backup without arabicName restored as empty."
     }
     #endif
 
