@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import OSLog
 
 @main
 struct GhafApp: App {
+    private static let proofLogger = Logger(subsystem: "com.ghaf.app", category: "BackupProof")
     @UIApplicationDelegateAdaptor(GhafAppDelegate.self) private var appDelegate
 
     private let modelContainer: ModelContainer
@@ -53,6 +55,13 @@ struct GhafApp: App {
 #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("-GhafActivityLifecycleProof") {
                         Task { await GhafWidgetSync.runLifecycleProof() }
+                    }
+                    if ProcessInfo.processInfo.arguments.contains("-GhafBackupArabicNameProof") {
+                        do {
+                            let result = try GhafBackupService.debugArabicNameRoundTripProof()
+                            Self.proofLogger.notice("GHAF_BACKUP_ARABIC_NAME_PROOF \(result, privacy: .public)")
+                        }
+                        catch { Self.proofLogger.error("GHAF_BACKUP_ARABIC_NAME_PROOF failed") }
                     }
 #endif
                 }
