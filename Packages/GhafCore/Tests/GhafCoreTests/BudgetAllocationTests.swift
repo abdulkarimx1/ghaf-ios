@@ -16,6 +16,14 @@ final class BudgetAllocationTests: XCTestCase {
         XCTAssertEqual(empty, .init(outer: 0.5, fill: 0.5))
     }
 
+    func testRemainingAfterSpendingAndSavingsGoal() {
+        let remaining = BudgetAllocation.remainingAfterSpending(income: 10_000, needs: 2_500, wants: 2_457.79)
+        XCTAssertEqual(remaining, 5_042.21)
+        XCTAssertTrue(BudgetAllocation.savingsGoalReached(remaining: remaining, goal: 600))
+        XCTAssertFalse(BudgetAllocation.savingsGoalReached(remaining: 599.99, goal: 600))
+        XCTAssertFalse(BudgetAllocation.savingsGoalReached(remaining: 100, goal: 0))
+    }
+
     func testEssentialsAreNeeds() {
         for name in ["Groceries", "Housing", "Bills & Utilities", "Utilities", "Car", "Fuel", "Home rent", "Rent"] {
             XCTAssertEqual(BudgetAllocation.bucket(forCategory: name), .needs, name)

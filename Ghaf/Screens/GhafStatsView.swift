@@ -61,6 +61,7 @@ struct GhafStatsView: View {
         let previousFiltered: [GhafTransaction]
         let buckets: [Bucket]
         let slices: [Slice]
+        let transferTotal: Decimal
     }
 
     private var statsRevision: Int {
@@ -113,13 +114,37 @@ struct GhafStatsView: View {
         transactions.filter { $0.currency == currency && $0.isExpense && range.contains($0.date) }
     }
 
+    private func outgoingTransferAmount(_ transaction: GhafTransaction) -> Decimal {
+        let isAdjustment = transaction.category == "Adjustment"
+        let isTransfer = !isAdjustment
+            && CategoryTaxonomy.isTransferOrAdjustment(category: transaction.category, subcategory: transaction.subcategory)
+            && TransactionEffect.isKnownExternalTransferSubcategory(transaction.subcategory)
+        let ownAccountCategory = CategoryTaxonomy.transferSubcategories.first { $0.name == "Between my accounts" }
+        let ownAccountNames = Set(([ownAccountCategory?.name, ownAccountCategory?.arabic].compactMap { $0 } + (ownAccountCategory?.words ?? []))
+            .map(CategoryMatcher.normalize))
+        let isOwnAccountTransfer = transaction.subcategory.map { ownAccountNames.contains(CategoryMatcher.normalize($0)) } ?? false
+        return TransactionEffect.outgoingTransfer(amount: transaction.amount, isDebit: transaction.direction == "debit",
+                                                   isReversal: transaction.isReversal, isTransfer: isTransfer,
+                                                   isBetweenOwnAccounts: isOwnAccountTransfer)
+    }
+
+    private func outgoingTransfers(in range: DateInterval) -> [GhafTransaction] {
+        transactions.filter {
+            $0.currency == currency && range.contains($0.date) && outgoingTransferAmount($0) > 0
+        }
+    }
+
+    private func statisticsAmount(_ transaction: GhafTransaction) -> Decimal {
+        transaction.isSpendingOrIncome ? transaction.spendingAmount : outgoingTransferAmount(transaction)
+    }
+
     private var hasPreviousCoverage: Bool {
         SpendingForecast.hasPreviousPeriodCoverage(firstTransactionDate: transactions.filter { $0.currency == currency }.map(\.date).min(),
                                                     start: previousInterval.start, end: previousInterval.end, calendar: calendar)
     }
 
     private func total(_ items: [GhafTransaction]) -> Double {
-        NSDecimalNumber(decimal: items.reduce(Decimal.zero) { $0 + $1.spendingAmount }).doubleValue
+        NSDecimalNumber(decimal: items.reduce(Decimal.zero) { $0 + statisticsAmount($1) }).doubleValue
     }
 
     private func bucketWindows() -> [SpendingForecast.Window] {
@@ -147,7 +172,7 @@ struct GhafStatsView: View {
                                                  windows: windows, calendar: calendar)
         return windows.map { window in
             let actual = items.filter { window.start <= $0.date && $0.date < window.end }
-                .reduce(Decimal.zero) { $0 + $1.spendingAmount }
+                .reduce(Decimal.zero) { $0 + statisticsAmount($1) }
             return Bucket(start: window.start, end: window.end,
                           total: NSDecimalNumber(decimal: actual).doubleValue,
             forecast: forecasts[window.start].map { NSDecimalNumber(decimal: $0).doubleValue })
@@ -164,10 +189,20 @@ struct GhafStatsView: View {
     private func prepareStats() -> PreparedStats {
         let current = expenses(in: interval)
         let previous = expenses(in: previousInterval)
-        let filtered = selectedCategory.map { category in current.filter { $0.category == category } } ?? current
-        let previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
+        let currentTransfers = outgoingTransfers(in: interval)
+        let previousTransfers = outgoingTransfers(in: previousInterval)
+        let filtered: [GhafTransaction]
+        let previousFiltered: [GhafTransaction]
+        if selectedCategory == "Transfers" {
+            filtered = currentTransfers
+            previousFiltered = previousTransfers
+        } else {
+            filtered = selectedCategory.map { category in current.filter { $0.category == category } } ?? current
+            previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
+        }
+        let transferTotal = currentTransfers.reduce(Decimal.zero) { $0 + outgoingTransferAmount($1) }
         return PreparedStats(current: current, filtered: filtered, previousFiltered: previousFiltered,
-                             buckets: buckets(filtered), slices: slices(current))
+                             buckets: buckets(filtered), slices: slices(current), transferTotal: transferTotal)
     }
 
     // MARK: Body
@@ -191,7 +226,7 @@ struct GhafStatsView: View {
                                 if period == .month, let selected = selectedLabel.flatMap({ key in trendBuckets.first { chartKey($0.start) == key } }) {
                                     AnyView(weekBreakdown(selected, transactions: stats.filtered))
                                 }
-                                AnyView(whereItWent(stats.slices)).id("category-chart")
+                                AnyView(whereItWent(stats.slices, transferTotal: stats.transferTotal)).id("category-chart")
                                 AnyView(tiles(stats.current))
                                 AnyView(budgetLink)
                                 AnyView(merchants(stats.current))
@@ -481,7 +516,7 @@ struct GhafStatsView: View {
             guard let end = calendar.date(byAdding: .day, value: 1, to: date) else { return nil }
             return (date, SpendingForecast.Window(start: date, end: end))
         }
-        let history = self.transactions.filter {
+        let history = selectedCategory == "Transfers" ? [] : self.transactions.filter {
             $0.currency == currency && $0.isExpense && $0.spendingAmount > 0
                 && (selectedCategory == nil || $0.category == selectedCategory)
         }
@@ -492,7 +527,7 @@ struct GhafStatsView: View {
                 SpendingForecast.Subscription(nextPaymentDate: $0.nextPaymentDate, amount: $0.amount, isActive: $0.isActive)
             }, windows: windows.map(\.1), calendar: calendar)
         let days = windows.map { date, window in
-            let actual = date <= .now ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + $1.spendingAmount } : 0
+            let actual = date <= .now ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + statisticsAmount($1) } : 0
             let forecast = estimates[window.start].map { NSDecimalNumber(decimal: $0).doubleValue }
             return DayBar(date: date, amount: NSDecimalNumber(decimal: actual).doubleValue + (forecast ?? 0), forecast: forecast != nil)
         }
@@ -597,7 +632,7 @@ struct GhafStatsView: View {
     // MARK: Where it went
 
     /// Canvas "Where it went": the five biggest categories as tappable bars; a tap filters the hero line.
-    private func whereItWent(_ data: [Slice]) -> some View {
+    private func whereItWent(_ data: [Slice], transferTotal: Decimal) -> some View {
         let top = Array(data.prefix(5))
         let most = top.first?.total ?? 1
         return VStack(spacing: 10) {
@@ -643,6 +678,32 @@ struct GhafStatsView: View {
                         .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
+            }
+            if transferTotal > 0 {
+                Button { toggle("Transfers") } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                            .frame(width: 36, height: 36)
+                            .background(theme.accent.opacity(0.12), in: Circle())
+                        Text(ar ? "تحويلات خارجية" : "Outgoing transfers")
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.primaryText)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        GhafMoneyLabel(amount: transferTotal, currency: currency, languageCode: lang, size: 14, weight: .semibold)
+                            .foregroundStyle(theme.primaryText)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .padding(.horizontal, 8)
+                    .background(theme.accent.opacity(selectedCategory == "Transfers" ? 0.14 : 0.06),
+                                in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(ar ? "تحويلات خارجية" : "Outgoing transfers") \(GhafFormat.shownMoney(transferTotal, currency: currency, languageCode: lang))")
+                .accessibilityAddTraits(selectedCategory == "Transfers" ? .isSelected : [])
             }
         }
         .padding(GhafMetrics.cardPadding)

@@ -463,7 +463,8 @@ struct GhafBudgetView: View {
         let names = ar ? ["الأساسيات", "الرغبات", "الادخار"] : ["Needs", "Wants", "Savings"]
         let colors = [theme.accent, theme.glow, theme.secondaryText]
         let planned = bucketSelected ? allocationIncome * preset.share(bucket) : allocationIncome
-        let used: Decimal = bucket == .needs ? needs : bucket == .wants ? wants : allocationIncome - needs - wants
+        let used: Decimal = bucket == .needs ? needs : bucket == .wants ? wants
+            : BudgetAllocation.remainingAfterSpending(income: allocationIncome, needs: needs, wants: wants)
         return VStack(spacing: 14) {
             HStack {
                 Text(ar ? presetNameArabic(preset) : preset.name)
@@ -528,20 +529,32 @@ struct GhafBudgetView: View {
                 }
                 if bucketSelected {
                     VStack(spacing: 4) {
-                        HStack(spacing: 5) {
-                            Text(bucket == .savings ? (ar ? "المتبقي بعد الصرف" : "Left after spending") : (ar ? "المصروف" : "Spent"))
-                            GhafMoneyLabel(amount: used, currency: currency, languageCode: lang, size: 13, weight: .semibold)
-                            Text(ar ? "من" : "of")
-                            GhafMoneyLabel(amount: planned, currency: currency, languageCode: lang, size: 13, weight: .semibold)
-                            if bucket == .savings { Text(ar ? "هدف الادخار" : "goal") }
-                        }
-                        .font(GhafTypography.body(13, languageCode: lang))
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(1).minimumScaleFactor(0.7)
                         if bucket == .savings {
-                            Text(ar ? "ما يتبقى من دخلك بعد الأساسيات والرغبات." : "What remains from income after Needs and Wants.")
+                            HStack(spacing: 5) {
+                                Text(ar ? "المتبقي" : "Remaining")
+                                GhafMoneyLabel(amount: used, currency: currency, languageCode: lang, size: 13, weight: .semibold)
+                                Text("·")
+                                Text(ar ? "هدف الادخار" : "savings goal")
+                                GhafMoneyLabel(amount: planned, currency: currency, languageCode: lang, size: 13, weight: .semibold)
+                                if BudgetAllocation.savingsGoalReached(remaining: used, goal: planned) {
+                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.credit)
+                                }
+                            }
+                            .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            .lineLimit(1).minimumScaleFactor(0.65)
+                            Text(ar ? "المبلغ المتبقي من الدخل بعد مصروفات الأساسيات والرغبات المسجلة."
+                                    : "Income remaining after recorded Needs and Wants spending.")
                                 .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                                 .lineLimit(1).minimumScaleFactor(0.8)
+                        } else {
+                            HStack(spacing: 5) {
+                                Text(ar ? "المصروف" : "Spent")
+                                GhafMoneyLabel(amount: used, currency: currency, languageCode: lang, size: 13, weight: .semibold)
+                                Text(ar ? "من" : "of")
+                                GhafMoneyLabel(amount: planned, currency: currency, languageCode: lang, size: 13, weight: .semibold)
+                            }
+                            .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            .lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
                 }

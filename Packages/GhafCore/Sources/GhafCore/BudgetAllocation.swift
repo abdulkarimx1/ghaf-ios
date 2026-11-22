@@ -19,6 +19,15 @@ public enum BudgetAllocation {
         return PetalRadii(outer: outer, fill: inner + (outer - inner) * spentRatio)
     }
 
+    /// Income not spent in the Needs and Wants buckets; this is a budget estimate, not a bank balance.
+    public static func remainingAfterSpending(income: Decimal, needs: Decimal, wants: Decimal) -> Decimal {
+        income - needs - wants
+    }
+
+    public static func savingsGoalReached(remaining: Decimal, goal: Decimal) -> Bool {
+        goal > 0 && remaining >= goal
+    }
+
     public enum Bucket: Int, CaseIterable, Sendable { case needs, wants, savings }
 
     public enum Preset: String, CaseIterable, Sendable {
