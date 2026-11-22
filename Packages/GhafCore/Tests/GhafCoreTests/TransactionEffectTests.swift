@@ -21,4 +21,32 @@ final class TransactionEffectTests: XCTestCase {
             }
         }
     }
+
+    func testOutgoingTransfersAreSeparateAndExcludeOwnAccountMovesAndReversals() {
+        XCTAssertEqual(TransactionEffect.outgoingTransfer(amount: 120, isDebit: true, isReversal: false,
+                                                           isTransfer: true, isBetweenOwnAccounts: false), 120)
+        XCTAssertEqual(TransactionEffect.outgoingTransfer(amount: 120, isDebit: true, isReversal: false,
+                                                           isTransfer: true, isBetweenOwnAccounts: true), 0)
+        XCTAssertEqual(TransactionEffect.outgoingTransfer(amount: 120, isDebit: false, isReversal: false,
+                                                           isTransfer: true, isBetweenOwnAccounts: false), 0)
+        XCTAssertEqual(TransactionEffect.outgoingTransfer(amount: 120, isDebit: true, isReversal: true,
+                                                           isTransfer: true, isBetweenOwnAccounts: false), 0)
+        XCTAssertEqual(TransactionEffect.outgoingTransfer(amount: 120, isDebit: true, isReversal: false,
+                                                           isTransfer: false, isBetweenOwnAccounts: false), 0)
+    }
+
+    func testTaxonomyRecognizesOwnAndOtherTransferRowsWithoutCallingThemExpenses() {
+        XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Transfers", subcategory: "Between my accounts"))
+        XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Utilities", subcategory: "Transfer"))
+        XCTAssertFalse(CategoryTaxonomy.isTransferOrAdjustment(category: "Food & Dining", subcategory: "Restaurants"))
+    }
+
+    func testOnlyExplicitExternalTransferLabelsEnterSeparateTransferTotals() {
+        XCTAssertTrue(TransactionEffect.isKnownExternalTransferSubcategory("Friends & family"))
+        XCTAssertTrue(TransactionEffect.isKnownExternalTransferSubcategory("تحويل لصديق"))
+        XCTAssertTrue(TransactionEffect.isKnownExternalTransferSubcategory("Remittance abroad"))
+        XCTAssertFalse(TransactionEffect.isKnownExternalTransferSubcategory("Between my accounts"))
+        XCTAssertFalse(TransactionEffect.isKnownExternalTransferSubcategory("Transfer"))
+        XCTAssertFalse(TransactionEffect.isKnownExternalTransferSubcategory(nil))
+    }
 }

@@ -43,7 +43,7 @@ struct GhafPetalSegment: Shape {
         }
         let outerRadius = radius * outer, innerRadius = radius * inner
         let petalWidth = outerRadius * CGFloat((end - start) * .pi / 180)
-        let corner = min(18, petalWidth * 0.25, (outerRadius - innerRadius) / 2)
+        let corner = min(14, petalWidth * 0.25, (outerRadius - innerRadius) / 2)
         let outerInset = min((end - start) * 0.22, Double(atan(corner / max(outerRadius - corner, 1))) * 180 / .pi)
         let innerInset = min((end - start) * 0.22, Double(atan(corner / max(innerRadius + corner, 1))) * 180 / .pi)
         func arcControl(_ from: Double, _ to: Double, _ r: CGFloat) -> CGPoint {
