@@ -656,7 +656,7 @@ struct GhafHomeView: View {
                               : ["Yesterday", "In the 7 days before", "Last month"][activityPeriodIndex]
         guard !hideBalances else { return text }
         let amount = GhafFormat.money(summary.previousSpent, currency: summary.mainCurrency, languageCode: lang)
-        return text + (ar ? " \(previousName): \(amount)." : " \(previousName), you spent \(amount).")
+        return text + (ar ? " \(previousName): \(GhafMoneyText.isolate(amount))" : " \(previousName), you spent \(amount).")
     }
 
     // MARK: Recent activity (a short shortcut; the full list lives in Transactions)

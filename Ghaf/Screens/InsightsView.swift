@@ -103,9 +103,9 @@ struct GhafInsightsView: View {
                     ProgressView(value: min(ratio, 1.5), total: 1.5)
                         .tint(ratio > 1.1 ? theme.over : theme.accent)
                     GhafMoneyText.text(ratio > 1.1
-                         ? (ar ? "أعلى من شهرك المعتاد (\(GhafFormat.shownMoney(typical, currency: settings.currency, languageCode: settings.languageCode)))."
+                         ? (ar ? "أعلى من شهرك المعتاد (\(GhafMoneyText.isolate(GhafFormat.shownMoney(typical, currency: settings.currency, languageCode: settings.languageCode))))."
                                : "Above your usual month of \(GhafFormat.shownMoney(typical, currency: settings.currency, languageCode: settings.languageCode)).")
-                         : (ar ? "ضمن شهرك المعتاد (\(GhafFormat.shownMoney(typical, currency: settings.currency, languageCode: settings.languageCode)))."
+                         : (ar ? "ضمن شهرك المعتاد (\(GhafMoneyText.isolate(GhafFormat.shownMoney(typical, currency: settings.currency, languageCode: settings.languageCode))))."
                                : "In line with your usual month of \(GhafFormat.shownMoney(typical, currency: settings.currency, languageCode: settings.languageCode))."), size: 13)
                         .font(GhafTypography.body(13, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
