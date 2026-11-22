@@ -574,14 +574,15 @@ struct GhafSettingsView: View {
     }
 
     private var placesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let summaries = placeSummaries
+        return VStack(alignment: .leading, spacing: 12) {
             Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
                 .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            if placeSummaries.isEmpty {
+            if summaries.isEmpty {
                 Text(ar ? "تظهر الأماكن هنا بعد تسجيل عملية مع موقعها." : "Places appear here after a transaction is saved with a location.")
                     .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
             } else {
-                ForEach(placeSummaries) { place in
+                ForEach(summaries) { place in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(place.name).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
