@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GhafAIVoiceSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var systemColorScheme
     @AppStorage("ghaf.ai.voiceCharacter") private var character = ""
     @State private var playingSample: String?
     let settings: GhafSettings
@@ -9,7 +10,7 @@ struct GhafAIVoiceSettingsView: View {
     var onChoose: (() -> Void)?
 
     private var ar: Bool { settings.languageCode == "ar" }
-    private var theme: GhafTheme { GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true) }
+    private var theme: GhafTheme { GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: systemColorScheme == .dark) }
 
     var body: some View {
         NavigationStack {
