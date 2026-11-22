@@ -62,6 +62,7 @@ struct GhafWalletStack: View {
     private var deck: some View {
         GhafWalletCarousel(accounts: accounts, selectedID: $selectedID, languageCode: languageCode,
                           reduceMotion: reduceMotion, theme: theme, onEdit: onEdit, onMove: onMove)
+            .padding(.horizontal, -GhafMetrics.gutter)
     }
 
     private var pageIndicator: some View {
@@ -154,7 +155,7 @@ private struct GhafWalletCarousel: View {
     @State private var dragOriginIndex: Int?
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
-    private var width: CGFloat { min(UIScreen.main.bounds.width * 0.64, 300) }
+    private var width: CGFloat { max(240, UIScreen.main.bounds.width) }
     private var cardHeight: CGFloat { width / 1.586 }
     private var step: CGFloat { width * 0.6 }
 
