@@ -171,7 +171,10 @@ struct GhafAIView: View {
                 engine = assistant.engine
                 Task { await GhafCloudAI.prewarm() }
                 tabRouter.startVoice = {
-                    if recorder.isRecording { recorder.stop(); finishVoice() }
+                    if liveCallActive {
+                        if liveCall.isCapturingUserTurn { liveCall.endUserTurn(); tabRouter.isListening = false }
+                        else if liveCall.phase != .speaking && liveCall.phase != .thinking { liveCall.beginUserTurn(); tabRouter.isListening = true }
+                    } else if recorder.isRecording { recorder.stop(); finishVoice() }
                     else { startVoice() }
                 }
                 tabRouter.typeQuestion = { openTyping() }
@@ -1077,14 +1080,15 @@ struct GhafAIView: View {
             ?? settings.userName
         let date = Date.now.formatted(date: .complete, time: .omitted)
         let persona = ar
-            ? "أنت غاف، \(voiceCharacter == "Mariam" ? "امرأة" : "رجل") إماراتي ودود. استخدم جملاً قصيرة وطبيعية بالعربية الخليجية الإماراتية أو الإنجليزية بحسب لغة المستخدم، مع وقفات طبيعية. لا تستخدم الفصحى الرسمية أو لهجة أخرى. كل رقم مالي يأتي من نتيجة أداة أو من الحقائق؛ عند الشك استدعِ get_finance_answer. استخدم remember أو forget فقط بطلب صريح، ولا تحفظ عملية دون تأكيدها."
-            : "You are Ghaf, a warm \(voiceCharacter == "Mariam" ? "female" : "male") Emirati assistant. Speak naturally in the user's language, with short conversational sentences and natural pauses. Use Gulf Arabic when addressed in Arabic, never formal newsreader Arabic. Every money figure must come from a tool result or the facts; when unsure, call get_finance_answer. Use remember or forget only when explicitly asked. Never save a transaction without confirmation."
+            ? "أنت غاف، \(voiceCharacter == "Mariam" ? "امرأة" : "رجل") إماراتي ودود. أجب دائماً بلغة آخر رسالة للمستخدم: العربية بلهجة خليجية إماراتية طبيعية، أو الإنجليزية. لا تخلط اللغتين إلا إذا خلط المستخدم بينهما، ولا تقدّم نفسك أو تمزج تحية إنجليزية بجملة عربية. عند السؤال عن الرصيد أو المصروفات أو الحسابات أو الاشتراكات، استدعِ get_finance_answer دائماً ولا تقل إنك لا تملك معلومات المستخدم. استخدم نتائج الأداة كما هي ولا تخمّن. استخدم remember أو forget فقط بطلب صريح. عند ذكر عملية، استدعِ log_transaction لعرض بطاقة تأكيد ولا تحفظها بنفسك."
+            : "You are Ghaf, a warm \(voiceCharacter == "Mariam" ? "female" : "male") Emirati assistant. Always reply in the language of the user's latest turn: English, or natural Gulf Emirati Arabic. Do not mix languages unless the user does, and do not introduce yourself or combine an English greeting with Arabic. For any question about balances, spending, accounts, or subscriptions, always call get_finance_answer; never claim you lack access to the user's data. Use the tool result exactly and never guess. For a transaction, call log_transaction to show a confirmation card; never save it yourself. Use remember or forget only when explicitly asked. Speak English with a soft, educated American delivery and light Emirati warmth; avoid rolled or tapped r sounds."
         let nameLine = firstName.isEmpty ? "" : (ar ? "اسم المستخدم: \(firstName)." : "User's name: \(firstName).")
         let instruction = String("\(persona)\n\(nameLine)\nToday's date: \(date).\n\nFACTS:\n\(liveFacts)".prefix(5_900))
         configureLiveCallbacks()
         do {
             try await liveCall.start(language: ar ? "ar" : "en", character: voiceCharacter, tier: GhafAITier.current, systemInstruction: instruction, tools: liveToolDeclarations)
             liveCallActive = true
+            liveCall.beginUserTurn()
             tabRouter.isListening = true
         } catch GhafCloudAI.Failure.dailyLimit {
             appendCallNote(ar ? "وصلت إلى حد الرسائل الصوتية اليوم. يمكنك متابعة الكتابة." : "You've reached today's voice limit. You can keep chatting by text.")
@@ -1099,19 +1103,17 @@ struct GhafAIView: View {
         }
         let string: LiveJSON = .object(["type": .string("STRING")])
         return [
-            LiveFunctionDeclaration(name: "get_finance_answer", description: "Answer a financial question from deterministic ledger records.", parameters: schema(["question": string], required: ["question"])),
-            LiveFunctionDeclaration(name: "show_chart", description: "Ghaf draws inline charts from the user's transactions, including petal charts. Use this tool; do not claim charts cannot be made.", parameters: schema(["question": string, "style": .object(["type": .string("STRING"), "enum": .array(["bar", "donut", "line", "rose"].map(LiveJSON.string))])], required: ["question"])),
-            LiveFunctionDeclaration(name: "log_transaction", description: "Parse a transaction and show an editable confirmation card. Never save it.", parameters: schema(["text": string], required: ["text"])),
-            LiveFunctionDeclaration(name: "remember", description: "Save a short user fact or preference they explicitly asked Ghaf to remember.", parameters: schema(["fact": string], required: ["fact"])),
-            LiveFunctionDeclaration(name: "forget", description: "Forget a user fact they explicitly asked Ghaf to forget.", parameters: schema(["fact": string], required: ["fact"]))
+            LiveFunctionDeclaration(name: "get_finance_answer", description: "Required for every question about balances, spending, income, accounts, budgets, subscriptions, or financial comparisons. Return the deterministic answer from Ghaf ledger records.", parameters: schema(["question": string], required: ["question"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "show_chart", description: "Ghaf draws inline charts from the user's ledger transactions. Use this tool when asked for a chart; never claim charts cannot be made.", parameters: schema(["question": string, "style": .object(["type": .string("STRING"), "enum": .array(["bar", "donut", "line", "rose"].map(LiveJSON.string))])], required: ["question"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "log_transaction", description: "Parse the user's transaction and show an editable confirmation card. Never save it.", parameters: schema(["text": string], required: ["text"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "remember", description: "Save a short user fact or preference they explicitly asked Ghaf to remember.", parameters: schema(["fact": string], required: ["fact"]), behavior: "NON_BLOCKING"),
+            LiveFunctionDeclaration(name: "forget", description: "Forget a user fact they explicitly asked Ghaf to forget.", parameters: schema(["fact": string], required: ["fact"]), behavior: "NON_BLOCKING")
         ]
     }
 
     private func configureLiveCallbacks() {
         liveCall.onTurnFinished = {
             guard liveCallActive else { return }
-            liveCall.end(reason: "turn_complete")
-            liveCallActive = false
             tabRouter.isListening = false
             persistChat()
         }
