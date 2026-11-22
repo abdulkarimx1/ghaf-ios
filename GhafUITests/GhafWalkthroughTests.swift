@@ -1247,6 +1247,44 @@ extension GhafWalkthroughTests {
     }
 }
 
+extension GhafWalkthroughTests {
+    func testSessionXMotionAndLocalizationProof() {
+        launch(["-GhafScreen", "new-transaction"], appearance: "Light")
+        XCTAssertTrue(app.buttons["Amount"].waitForExistence(timeout: 8))
+        app.buttons["Amount"].tap()
+        app.buttons["3"].tap(); app.buttons["5"].tap(); app.buttons["Done"].tap()
+        let merchant = app.textFields["Store name"]
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5))
+        merchant.tap(); merchant.typeText("Coffee"); app.keyboards.buttons["Done"].tap()
+        app.buttons["Save transaction"].tap()
+        XCTAssertTrue(app.staticTexts["Saving…"].waitForExistence(timeout: 8))
+        snap("x-success-splash-light-mid")
+        XCTAssertTrue(app.staticTexts["Transaction added"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2.0)
+
+        let hide = app.buttons["Hide balances"]
+        let show = app.buttons["Show balances"]
+        XCTAssertTrue(hide.waitForExistence(timeout: 8) || show.exists)
+        if hide.exists { hide.tap() }
+        XCTAssertTrue(show.waitForExistence(timeout: 3))
+        Thread.sleep(forTimeInterval: 0.08)
+        snap("x-eye-roll-mid")
+
+        app.terminate()
+        app = XCUIApplication()
+        let backup = (ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
+            ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]).map { ["-GhafRestoreBackup", $0] } ?? []
+        app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite",
+                               "-GhafAppearance", "Dark", "-GhafLanguage", "ar"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+        let reveal = app.buttons["إظهار الأرصدة"]
+        if reveal.waitForExistence(timeout: 5) { reveal.tap() }
+        Thread.sleep(forTimeInterval: 0.25)
+        snap("x-home-ar")
+    }
+}
+
 extension XCUIElement {
     func tapIfExists() { if exists { tap() } }
 }

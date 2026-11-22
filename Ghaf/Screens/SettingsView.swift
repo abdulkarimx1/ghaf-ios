@@ -717,8 +717,8 @@ struct GhafSettingsView: View {
                 .font(.system(size: 36)).foregroundStyle(theme.accent)
             Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            Text(ar ? "هذا الإنجاز لمن سجّل \(GhafLocalization.arabicDays(days)) متتالية. تسلسلك الحالي \(GhafLocalization.arabicDays(streak))، وهو للمتعة فقط."
-                    : "This milestone marks \(days) consecutive days. Your current streak is \(streak) days; just for fun.")
+            Text(ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)) أيام. أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak)) يوماً."
+                    : "You tracked your money for \(days) days in a row. Your streak is now \(streak) days.")
                 .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
