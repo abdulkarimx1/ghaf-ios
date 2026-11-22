@@ -39,6 +39,9 @@ struct GhafApp: App {
                 "Failed to initialize Ghaf database: \(error)"
             )
         }
+#if DEBUG
+        GhafSounds.shared.playSimulatorCheckIfRequested()
+#endif
     }
 
     var body: some Scene {

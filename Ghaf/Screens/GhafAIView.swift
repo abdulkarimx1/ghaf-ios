@@ -760,9 +760,11 @@ struct GhafAIView: View {
                 beginLiveUserTurn()
             }
         } else if recorder.isRecording {
+            GhafSounds.shared.play(.orbOff)
             recorder.stop()
             finishVoice()
         } else {
+            GhafSounds.shared.play(.orbOn)
             startVoice()
         }
     }
@@ -1380,6 +1382,7 @@ struct GhafAIView: View {
     }
 
     private func stopSpeaking() {
+        if speechDone.speaking { GhafSounds.shared.play(.orbOff) }
         synthesizer.stopSpeaking(at: .immediate)
         GhafCloudVoice.shared.stop()
         speechDone.speaking = false

@@ -470,6 +470,7 @@ struct GhafHomeView: View {
         .ghafGlassHero(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
+            GhafSounds.shared.play(.tick)
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
         }
         .accessibilityElement(children: .contain)
@@ -1152,9 +1153,24 @@ struct GhafQuickAddView: View {
             try modelContext.save()
             Task { await GhafPlaces.rememberCurrentLocation(transactionID: transaction.id) }
             showingSuccess = true
+            playMilestoneSoundIfReached(on: date)
         } catch {
             errorMessage = settings.languageCode == "ar" ? "تعذر حفظ العملية." : "Could not save transaction."
         }
+    }
+
+    private func playMilestoneSoundIfReached(on loggedDate: Date) {
+        guard Calendar.current.isDateInToday(loggedDate),
+              let all = try? modelContext.fetch(FetchDescriptor<GhafTransaction>()) else { return }
+        let dates = all.filter { !$0.needsReview }.map(\.date)
+        let todayKey = Calendar.current.startOfDay(for: loggedDate)
+        guard dates.filter({ Calendar.current.isDate($0, inSameDayAs: todayKey) }).count == 1 else { return }
+        let current = GhafLoggingStreak.count(dates, through: loggedDate, calendar: .current)
+        let calendar = Calendar.current
+        let previousDate = calendar.date(byAdding: .day, value: -1, to: loggedDate) ?? loggedDate
+        let prior = GhafLoggingStreak.count(dates.filter { !Calendar.current.isDate($0, inSameDayAs: todayKey) },
+                                           through: previousDate, calendar: calendar)
+        if [7, 30, 90].contains(where: { current >= $0 && prior < $0 }) { GhafSounds.shared.play(.streak) }
     }
 }
 

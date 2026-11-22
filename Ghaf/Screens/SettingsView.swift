@@ -51,6 +51,7 @@ struct GhafSettingsView: View {
     @AppStorage("ghaf.glass.grain") private var glassGrain = true
     @AppStorage("ghaf.glass.glow") private var glassGlow = true
     @AppStorage("ghaf.glass.tilt") private var glassTilt = true
+    @AppStorage("ghaf.inAppSounds") private var inAppSounds = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
@@ -153,7 +154,7 @@ struct GhafSettingsView: View {
                     menuGroup(ar ? "التطبيق" : "App") {
                         menuRow(ar ? "الأدوات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -817,6 +818,19 @@ struct GhafSettingsView: View {
             })) {
                 Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+            .frame(minHeight: 56)
+        }
+    }
+
+    private var soundCard: some View {
+        settingsCard(ar ? "الأصوات" : "Sounds",
+                     subtitle: ar ? "أصوات هادئة لتأكيد بعض الإجراءات داخل التطبيق." : "Quiet cues for a few in-app actions.") {
+            Toggle(isOn: $inAppSounds) {
+                Text(ar ? "أصوات التطبيق" : "In-app sounds")
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(theme.primaryText)
             }
             .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
             .frame(minHeight: 56)
