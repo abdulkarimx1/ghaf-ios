@@ -4,6 +4,41 @@ import Foundation
 /// Plain arithmetic on the user's own history, so every figure can be explained.
 public enum SpendingInsights {
 
+    public enum ChartPeriod: Sendable { case week, month, quarter, year }
+
+    public struct Window: Equatable, Sendable {
+        public let start: Date
+        public let end: Date
+
+        public init(start: Date, end: Date) { self.start = start; self.end = end }
+    }
+
+    /// Calendar-aligned, evenly spaced buckets for the Statistics chart.
+    /// Weeks are daily, months are daily, quarters are 13 weeks, and years are monthly.
+    public static func chartWindows(period: ChartPeriod, start: Date, end: Date, calendar: Calendar) -> [Window] {
+        guard start < end else { return [] }
+        let count: Int
+        switch period {
+        case .week: count = 7
+        case .month: count = max(1, calendar.dateComponents([.day], from: start, to: end).day ?? 1)
+        case .quarter: count = 13
+        case .year: count = 12
+        }
+        var boundaries = [start]
+        for index in 1..<count {
+            let boundary: Date?
+            switch period {
+            case .week, .month: boundary = calendar.date(byAdding: .day, value: index, to: start)
+            case .quarter: boundary = calendar.date(byAdding: .day, value: index * 7, to: start)
+            case .year: boundary = calendar.date(byAdding: .month, value: index, to: start)
+            }
+            if let boundary, boundary > boundaries.last!, boundary < end { boundaries.append(boundary) }
+        }
+        return boundaries.enumerated().map { index, boundary in
+            Window(start: boundary, end: index + 1 < boundaries.count ? boundaries[index + 1] : end)
+        }
+    }
+
     public struct Forecast: Equatable {
         public let projected: Decimal
         public let spentSoFar: Decimal

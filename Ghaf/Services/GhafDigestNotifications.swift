@@ -97,7 +97,9 @@ enum GhafDigestNotifications {
     static func transactionAdded(_ transaction: GhafTransaction, needsReview: Bool, languageCode: String) {
         guard needsReview else { return }
         let ar = languageCode == "ar"
-        let amount = GhafFormat.balancesHidden ? GhafMoneyLabel.mask : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
+        let amount = GhafFormat.balancesHidden
+            ? GhafFormat.hiddenMoney(transaction.amount, currency: transaction.currency, languageCode: languageCode)
+            : GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
         let merchant = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
             ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
         GhafEventNotifications.record(
@@ -154,7 +156,7 @@ enum GhafDigestNotifications {
                 let isLatest = latest.map { $0.category == category && Date.now.timeIntervalSince($0.createdAt) < 120 } ?? false
                 let previous = UserDefaults.standard.string(forKey: key).flatMap { Decimal(string: $0) }
                     ?? (isLatest ? max(Decimal.zero, total - latest!.spendingAmount) : total)
-                notifyThresholds(name: category, eventKey: "category-\(category)", total: total, limit: limit, previous: previous)
+                notifyThresholds(name: GhafLocalization.category(category, languageCode: settings.languageCode), eventKey: "category-\(category)", total: total, limit: limit, previous: previous)
                 UserDefaults.standard.set(NSDecimalNumber(decimal: total).stringValue, forKey: key)
             }
         }

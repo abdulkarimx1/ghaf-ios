@@ -34,13 +34,39 @@ enum GhafLocalization {
     }
 
     static func category(_ value: String, languageCode: String) -> String {
-        guard languageCode == "ar" else { return value }
+        let isArabic = languageCode.lowercased().hasPrefix("ar")
+        if value.caseInsensitiveCompare("Income") == .orderedSame { return isArabic ? "الدخل" : "Income" }
+        let englishLabels: [String: String] = [
+            "Food & Dining": "Food", "Car & Transport": "Car", "Bills & Utilities": "Bills",
+            "Health & Wellness": "Health", "Sports & Fitness": "Fitness", "Housing": "Home",
+            "Government & Documents": "Government", "Other Income": "Other income",
+            "Freelance & Business": "Freelance", "Rental income": "Rent received", "Profits & Dividends": "Investment returns",
+            "Remittance & Exchange": "Remittance", "Furniture & Home": "Furniture",
+            "Clinic & Checkups": "Clinic", "Pharmacy & Meds": "Pharmacy",
+            "Cafés & Karak": "Cafés", "Bakery & Sweets": "Bakery & sweets"
+        ]
+        if !isArabic {
+            if let category = CategoryTaxonomy.category(named: value) { return englishLabels[category.name] ?? category.name }
+            if let subcategory = CategoryTaxonomy.all.lazy.compactMap({ category in
+                category.subcategories.first(where: { $0.name == value }).map { (category, $0) }
+            }).first { return englishLabels[subcategory.1.name] ?? subcategory.1.name }
+            if let transfer = CategoryTaxonomy.transferSubcategories.first(where: { $0.name == value }) { return transfer.name }
+            return englishLabels[value] ?? value
+        }
         let translations: [String: String] = [
+            "Freelance & Business": "عمل حر",
+            "Rental income": "دخل إيجار",
             "Groceries": "البقالة",
-            "Dining": "المطاعم",
-            "Transport": "المواصلات",
+            "Dining": "الطعام",
+            "Food & Dining": "الطعام",
+            "Transport": "السيارة",
+            "Car & Transport": "السيارة",
+            "Housing": "المنزل",
+            "Bills & Utilities": "الفواتير",
+            "Health & Wellness": "الصحة",
+            "Sports & Fitness": "اللياقة",
+            "Government & Documents": "الحكومة",
             "Fuel": "الوقود",
-            "Bills & Utilities": "الفواتير والخدمات",
             "Shopping": "التسوق",
             "Health": "الصحة",
             "Entertainment": "الترفيه",
@@ -57,6 +83,12 @@ enum GhafLocalization {
             "Lent Money": "أموال مُقرضة",
             "Interest": "الفوائد"
         ]
-        return translations[value] ?? CategoryTaxonomy.arabicName(for: value) ?? value
+        if let direct = translations[value] { return direct }
+        if let category = CategoryTaxonomy.category(named: value) { return translations[category.name] ?? category.arabic }
+        if let subcategory = CategoryTaxonomy.all.lazy.compactMap({ category in
+            category.subcategories.first(where: { $0.name == value }).map { $0.arabic }
+        }).first { return subcategory }
+        if let transfer = CategoryTaxonomy.transferSubcategories.first(where: { $0.name == value }) { return transfer.arabic }
+        return CategoryTaxonomy.arabicName(for: value) ?? value
     }
 }

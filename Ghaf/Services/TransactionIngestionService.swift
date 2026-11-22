@@ -165,6 +165,7 @@ final class TransactionIngestionService {
             isReversal: isReversal,
             accountID: resolvedAccount?.id
         )
+        transaction.isUnread = true
         transaction.rawMerchant = rawParsed.merchant
         if let fx {
             transaction.originalAmount = rawParsed.amount

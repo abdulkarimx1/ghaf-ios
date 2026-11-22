@@ -6,6 +6,7 @@ import SwiftUI
 import UIKit
 import AppIntents
 import StoreKit
+import OSLog
 
 enum GhafLiveActivityBalance: String, CaseIterable {
     case total = "total"
@@ -16,6 +17,7 @@ enum GhafLiveActivityBalance: String, CaseIterable {
 /// Keeps the widgets and the purchase Live Activity in step with the ledger.
 @MainActor
 enum GhafWidgetSync {
+    private static let activityProofLogger = Logger(subsystem: "com.ghaf.app", category: "ActivityProof")
     static let liveActivityKey = "ghaf.liveActivity"
     static let liveActivityBalanceKey = "ghaf.liveActivity.balance"
     static let liveActivityEnabledKey = "ghaf.liveActivity.enabled"
@@ -203,6 +205,7 @@ enum GhafWidgetSync {
                 remainingBalance = account?.currency == transaction.currency ? balance : nil
             }
         }
+        let expires = Date.now.addingTimeInterval(TimeInterval(liveActivityDuration))
         let state = GhafPurchaseAttributes.ContentState(
             merchant: GhafFormat.balancesHidden ? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en") : (GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en")),
             amount: transaction.amount, currency: transaction.currency, isCredit: transaction.direction == "credit",
@@ -210,11 +213,10 @@ enum GhafWidgetSync {
             balance: GhafFormat.balancesHidden ? nil : remainingBalance, needsReview: needsReview,
             symbol: GhafCategoryIcon.builtIn(transaction.category)?.symbol ?? (transaction.direction == "credit" ? "arrow.down" : "bag.fill"),
             category: GhafLocalization.category(transaction.category, languageCode: arabic ? "ar" : "en"),
-            recordedAt: .now, hidden: GhafFormat.balancesHidden, transactionID: transaction.id)
+            recordedAt: .now, expiresAt: expires, hidden: GhafFormat.balancesHidden, transactionID: transaction.id)
         // The Dynamic Island is always dark, so it takes the theme's dark-mode colours.
         let settings = try? GhafPersistence.settings(in: GhafPersistence.shared().mainContext)
         let theme = GhafTheme.resolve(name: settings?.themeName ?? "Abu Dhabi", appearanceMode: "Dark", systemIsDark: true)
-        let expires = Date.now.addingTimeInterval(TimeInterval(liveActivityDuration))
         guard let activity = try? Activity.request(
             attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
             content: .init(state: state, staleDate: expires)
@@ -262,8 +264,36 @@ enum GhafWidgetSync {
 
     static func endStale() async {
         for activity in Activity<GhafPurchaseAttributes>.activities where activity.content.staleDate.map({ $0 <= .now }) ?? false {
-            await activity.end(ActivityContent(state: activity.content.state, staleDate: nil),
-                               dismissalPolicy: .after(activity.content.staleDate ?? .now))
+            await activity.end(ActivityContent(state: activity.content.state, staleDate: nil), dismissalPolicy: .immediate)
         }
     }
+
+#if DEBUG
+    /// Simulator proof hook: request a two-second activity, end it on completion, then record the system's activity inventory.
+    static func runLifecycleProof() async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            activityProofLogger.notice("GHAF_ACTIVITY_PROOF unavailable: Live Activities disabled")
+            return
+        }
+        await endAll()
+        let started = Date.now
+        let expires = started.addingTimeInterval(2)
+        let state = GhafPurchaseAttributes.ContentState(
+            merchant: "Lifecycle proof", amount: 1, currency: "AED", isCredit: false,
+            accountName: nil, balance: nil, needsReview: false, symbol: "checkmark",
+            category: "Proof", recordedAt: started, expiresAt: expires)
+        do {
+            let activity = try Activity.request(
+                attributes: GhafPurchaseAttributes(arabic: false, accent: 0x1B6B66, glow: 0x6FD0CC),
+                content: ActivityContent(state: state, staleDate: expires))
+            await activity.end(ActivityContent(state: state, staleDate: expires), dismissalPolicy: .after(expires))
+            try? await Task.sleep(for: .seconds(3))
+            await endStale()
+            let count = Activity<GhafPurchaseAttributes>.activities.count
+            activityProofLogger.notice("GHAF_ACTIVITY_PROOF ended=\(String(describing: activity.activityState), privacy: .public) active_count=\(count, privacy: .public)")
+        } catch {
+            activityProofLogger.error("GHAF_ACTIVITY_PROOF request_failed")
+        }
+    }
+#endif
 }

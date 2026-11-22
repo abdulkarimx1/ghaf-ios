@@ -16,6 +16,21 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
 
     var isPlaying: Bool { player?.isPlaying ?? false }
 
+    @discardableResult
+    func playBundledGoodbye(character: String, arabic: Bool, onFinish: @escaping () -> Void) -> Bool {
+        let name = "goodbye_\(character == "Mariam" ? "Mariam" : "Hamad")_\(arabic ? "ar" : "en")"
+        guard let url = Bundle.main.url(forResource: name, withExtension: "wav"),
+              let player = try? AVAudioPlayer(contentsOf: url) else { return false }
+        stop()
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? session.setActive(true)
+        player.delegate = self
+        self.player = player
+        self.onFinish = onFinish
+        return player.play()
+    }
+
     func speak(_ text: String, arabic: Bool, character: String, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> Bool {
         var request = URLRequest(url: Self.endpoint, timeoutInterval: 12)
         request.httpMethod = "POST"

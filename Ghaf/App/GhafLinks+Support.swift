@@ -1,5 +1,6 @@
 import Foundation
 
 extension GhafLinks {
-    static let supportEmail = "support@example.com" // TODO: replace with the developer's support address.
+    // shortcut: placeholder address (owner 2026-11-22); replace with the real support address before the App Store build.
+    static let supportEmail = "support@example.com"
 }

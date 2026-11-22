@@ -41,7 +41,10 @@ struct GhafTransactionsView: View {
     /// Filtered once per render; search reads account names from a dictionary, not a scan per row.
     private func filtered() -> [GhafTransaction] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accountNames = Dictionary(accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        if filter == "All", query.isEmpty { return transactions }
+        let accountNames: [UUID: String] = query.isEmpty
+            ? [:]
+            : Dictionary(accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
         return transactions.filter { transaction in
             switch filter {
             case "Expenses": guard transaction.direction == "debit" else { return false }
@@ -138,6 +141,12 @@ struct GhafTransactionsView: View {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
+                                        .overlay(alignment: ar ? .topLeading : .topTrailing) {
+                                            if transaction.isUnread {
+                                                Circle().fill(theme.accent).frame(width: 7, height: 7)
+                                                    .accessibilityHidden(true)
+                                            }
+                                        }
                                 }
                                 .buttonStyle(.ghafPress)
                                 .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
@@ -174,6 +183,12 @@ struct GhafTransactionsView: View {
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                let unread = transactions.filter(\.isUnread)
+                guard !unread.isEmpty else { return }
+                for transaction in unread { transaction.isUnread = false }
+                try? modelContext.save()
+            }
 #if DEBUG
             .onAppear {
                 if GhafScreenshotFixture.enabled, GhafScreenshotFixture.tab == "transactions",
@@ -195,11 +210,11 @@ struct GhafTransactionsView: View {
                                             ? [.height(transactionDetailHeight), .large] : [.height(transactionDetailHeight)],
                                          selection: $transactionDetailDetent)
                     .presentationCornerRadius(32)
-                    .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+                    .presentationDragIndicator(.visible).ghafSheetFrame(theme: theme).ghafDirection(settings.languageCode)
             }
             .sheet(item: $categoryTransaction) { transaction in
                 GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
-                    .presentationDetents([.height(360)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+                    .presentationDetents([.height(360)]).presentationDragIndicator(.visible).ghafSheetFrame(theme: theme)
             }
             .confirmationDialog(
                 ar ? "حذف هذه العملية؟" : "Delete this transaction?",
@@ -316,6 +331,7 @@ struct GhafTransactionsView: View {
         modelContext.delete(transaction)
         do {
             try modelContext.save()
+            GhafSounds.shared.play(.deleted)
         } catch {
             modelContext.rollback()
         }
@@ -470,7 +486,8 @@ struct GhafTransactionEditor: View {
                                     theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "المتجر" : "MERCHANT")
-                    editorField("Merchant", text: $merchant).lineLimit(1).submitLabel(.done)
+                    GhafTextField(text: $merchant, placeholder: languageCode == "ar" ? "المتجر" : "Merchant", theme: theme, languageCode: languageCode, autocorrection: false, capitalization: .words)
+                        .accessibilityIdentifier("transaction-editor-merchant").lineLimit(1).submitLabel(.done)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
                     GhafSegmented(options: [("debit", languageCode == "ar" ? "مصروف" : "Expense"), ("credit", languageCode == "ar" ? "دخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
@@ -596,13 +613,13 @@ struct GhafTransactionEditor: View {
                         editQuickDate(languageCode == "ar" ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
                     }
                     DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
-                }.padding(20).background(theme.background).presentationDetents([.height(430)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+                }.padding(20).presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingTimePicker) {
                 VStack(spacing: 8) {
                     DatePicker(languageCode == "ar" ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().tint(theme.accent)
                     Button(languageCode == "ar" ? "تم" : "Done") { showingTimePicker = false }.buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .primary))
-                }.padding(20).background(theme.background).presentationDetents([.height(300)]).presentationCornerRadius(32).presentationDragIndicator(.visible)
+                }.padding(20).presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)
             }
             .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
             .navigationBarTitleDisplayMode(.inline)

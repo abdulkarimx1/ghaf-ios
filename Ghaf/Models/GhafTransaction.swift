@@ -27,6 +27,8 @@ final class GhafTransaction {
     var isReversal: Bool
     var note: String?
     var createdAt: Date
+    /// New automated transactions stay marked until the Transactions screen is opened.
+    var isUnread: Bool = false
 
     /// Moves between the user's own wallets and balance adjustments change balances,
     /// but are never spending or income.
@@ -65,5 +67,6 @@ final class GhafTransaction {
         self.note = nil
         self.createdAt = .now
         self.accountID = accountID
+        self.isUnread = TransactionUnreadPolicy.isUnreadForNewTransaction(fingerprint: fingerprint)
     }
 }

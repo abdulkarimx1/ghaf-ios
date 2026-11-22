@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.29 (43)
+
+### English
+- Ghaf AI answers money questions from your own records in voice too, and replies in the language you spoke. A counter shows how many voice replies are left today; at the limit, your chosen voice says goodbye.
+- Say a purchase to Ghaf AI ("I spent 35 dirhams on lunch") and confirm it on a card. Hold the orb, then release, to type instead.
+- Pro plans are now Essentials and Complete, with a 7-day free trial on Complete. Locked widgets show one clear Ghaf Pro mask.
+- Statistics: equal period buttons, daily bars for the month, your top 3 merchants with "See all", and a new budget chart where each slice fills as you spend. Transfers no longer count as spending.
+- Categories: a complete starter list in English and Arabic, short names, Insurance and new subcategories. Categories you delete stay deleted, and the category updates as you type.
+- Places for manual entries: Ghaf saves the area unless one shop is clearly nearest, with "Change place". Choose Apple Maps, Google Maps or Waze for directions.
+- New auto-added transactions get a dot on the Transactions tab until you open it.
+- Quiet in-app sounds (Settings › Customization), a calmer save animation, and hidden balances that turn into stars digit by digit.
+- Profile: optional Arabic name, photo menu. Backups include it. "Send file to developer" on the import page.
+- Fixes: merchant names keep their spaces when edited, faster Statistics and Settings, popups no longer show text under their rounded corners, and Live Activities end on time.
+
+### العربية
+- يجيب ذكاء غاف عن أسئلتك المالية من سجلاتك أنت حتى بالصوت، ويرد باللغة التي تكلمت بها. ويعرض عدّاد ما تبقى لك من ردود صوتية اليوم، وعند الوصول إلى الحد يودّعك الصوت الذي اخترته.
+- قل عمليتك لذكاء غاف («صرفت ٣٥ درهم غداء») وأكّدها في بطاقة. واضغط مطولاً على الكرة ثم اتركها لتكتب بدل الكلام.
+- أصبحت خطط Pro باسم الأساسية والكاملة، مع تجربة مجانية لمدة ٧ أيام في الكاملة. وتظهر الأدوات المقفلة بقناع Ghaf Pro واضح.
+- الإحصاءات: أزرار فترات متساوية، وأعمدة يومية للشهر، وأكثر ٣ متاجر مع «عرض الكل»، ورسم جديد للميزانية يمتلئ فيه كل جزء كلما صرفت. ولم تعد التحويلات تُحسب ضمن المصروف.
+- الفئات: قائمة كاملة بالعربية والإنجليزية بأسماء قصيرة، مع فئة التأمين وفئات فرعية جديدة. والفئة التي تحذفها لا تعود، وتتغير الفئة المقترحة أثناء الكتابة.
+- أماكن العمليات اليدوية: يحفظ غاف المنطقة فقط إلا إذا كان متجر واحد هو الأقرب بوضوح، مع زر «تغيير المكان». واختر خرائط Apple أو Google أو Waze للاتجاهات.
+- تظهر نقطة على تبويب العمليات عند إضافة عملية تلقائياً، وتختفي عند فتحه.
+- أصوات هادئة داخل التطبيق (الإعدادات › التخصيص)، وحركة حفظ أهدأ، وإخفاء الأرصدة يحوّل كل رقم إلى نجمة.
+- الملف الشخصي: اسم عربي اختياري وقائمة للصورة، ويُحفظ في النسخ الاحتياطية. وزر «أرسل الملف للمطوّر» في صفحة الاستيراد.
+- إصلاحات: تحتفظ أسماء المتاجر بمسافاتها عند تعديلها، والإحصاءات والإعدادات أسرع، ولم يعد النص يظهر تحت الحواف الدائرية للنوافذ المنبثقة، وتنتهي الأنشطة المباشرة في وقتها.
+
 ## 1.28 (42)
 
 ### English

@@ -53,6 +53,14 @@ public enum SubscriptionDetector {
         return nil
     }
 
+    /// Suggests the most specific built-in category for a subscription name or merchant description.
+    /// It reuses the shared bilingual taxonomy, so gym, clinic, insurance and home services keep
+    /// their expense category instead of being filed under the generic Subscriptions bucket.
+    public static func suggestedCategory(for merchant: String) -> CategoryMatcher.Match? {
+        let catalog = Dictionary(uniqueKeysWithValues: CategoryTaxonomy.all.map { ($0.name, $0.subcategories.map(\.name)) })
+        return CategoryMatcher.match(merchant, catalog: catalog, learned: [:])
+    }
+
     /// Keeps service punctuation and removes trailing reference digits.
     public static func normalize(_ merchant: String) -> String {
         let withoutReference = merchant.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)

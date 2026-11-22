@@ -9,12 +9,13 @@ struct GhafCategoryPicker: View {
     @Binding var subcategory: String?
     let languageCode: String
     var tint: Color = .accentColor
+    var onManualSelection: (() -> Void)? = nil
 
     @State private var creating = false
     @State private var newName = ""
     @State private var newSub = ""
 
-    private var ar: Bool { languageCode == "ar" }
+    private var ar: Bool { languageCode.lowercased().hasPrefix("ar") }
     private var settings: GhafSettings? { settingsList.first }
 
     var body: some View {
@@ -26,7 +27,7 @@ struct GhafCategoryPicker: View {
                 } else {
                     Menu(label(name)) {
                         Button(ar ? "عام" : "General") { select(name, nil) }
-                        ForEach(subs, id: \.self) { sub in Button(sub) { select(name, sub) } }
+                        ForEach(subs, id: \.self) { sub in Button(label(sub)) { select(name, sub) } }
                     }
                 }
             }
@@ -40,7 +41,7 @@ struct GhafCategoryPicker: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(subcategory.map { "\(label(category)) · \($0)" } ?? label(category))
+                Text(subcategory.map { "\(label(category)) · \(label($0))" } ?? label(category))
                     .lineLimit(1)
                 Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold))
             }
@@ -61,6 +62,7 @@ struct GhafCategoryPicker: View {
     private func select(_ name: String, _ sub: String?) {
         category = name
         subcategory = sub
+        onManualSelection?()
     }
 
     private func create() {

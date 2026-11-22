@@ -11,6 +11,18 @@ final class SubscriptionDetectorTests: XCTestCase {
         XCTAssertEqual(SubscriptionDetector.detect(merchant: "claude.ai", amount: 20, date: now, history: []), .monthly)
     }
 
+    func testSubscriptionCategorySuggestionsInEnglishAndArabic() {
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "monthly gym membership")?.category, "Sports & Fitness")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "اشتراك نادي رياضي")?.subcategory, "Gym")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "clinic plan")?.category, "Health & Wellness")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "خطة المستشفى")?.category, "Health & Wellness")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "gardening service")?.subcategory, "Gardening")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "خدمة تنسيق حدائق")?.subcategory, "Gardening")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "monthly insurance")?.category, "Insurance")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "خدمة إنترنت شهرية")?.subcategory, "Internet & TV")
+        XCTAssertEqual(SubscriptionDetector.suggestedCategory(for: "Netflix")?.category, "Subscriptions")
+    }
+
     func testRepeatMonthlyChargeDetected() {
         let history = [SubscriptionDetector.PastCharge(merchant: "Local Gym LLC", amount: 250, date: daysAgo(30))]
         XCTAssertEqual(SubscriptionDetector.detect(merchant: "LOCAL GYM LLC", amount: 255, date: now, history: history), .monthly)
