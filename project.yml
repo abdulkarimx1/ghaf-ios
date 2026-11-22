@@ -42,8 +42,8 @@ targets:
       path: BuildConfig/Generated-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.28"
-        CFBundleVersion: "42"
+        CFBundleShortVersionString: "1.29"
+        CFBundleVersion: "43"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
@@ -101,8 +101,8 @@ targets:
       path: BuildConfig/GhafWidgets-Info.plist
       properties:
         CFBundleDisplayName: Ghaf
-        CFBundleShortVersionString: "1.28"
-        CFBundleVersion: "42"
+        CFBundleShortVersionString: "1.29"
+        CFBundleVersion: "43"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
