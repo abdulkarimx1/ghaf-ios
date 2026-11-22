@@ -54,8 +54,8 @@ struct GhafApp: App {
                     if hidden { Task { await GhafWidgetSync.endAll() } }
                 }
                 .onAppear {
-                    runUnreadUITestHookIfRequested()
 #if DEBUG
+                    runUnreadUITestHookIfRequested()
                     if ProcessInfo.processInfo.arguments.contains("-GhafActivityLifecycleProof") {
                         Task { await GhafWidgetSync.runLifecycleProof() }
                     }
