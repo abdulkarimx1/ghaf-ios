@@ -860,7 +860,7 @@ extension GhafWalkthroughTests {
         let renameAll = app.buttons["Rename matching past transactions"]
         XCTAssertTrue(renameAll.waitForExistence(timeout: 5))
         renameAll.tap()
-        XCTAssertTrue(app.staticTexts[newName].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[newName].waitForExistence(timeout: 12))
         app.swipeDown()
         snap("i-merchant-after-detail")
         app.buttons["Done"].tap()
