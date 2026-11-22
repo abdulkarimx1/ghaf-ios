@@ -293,7 +293,7 @@ struct GhafStatsView: View {
             Text(heading)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
-            GhafMoneyLabel(amount: Decimal(selected.map { $0.total + ($0.forecast ?? 0) } ?? spent), currency: currency, languageCode: lang, size: 40)
+            GhafRollingNumber(amount: Decimal(selected.map { $0.total + ($0.forecast ?? 0) } ?? spent), currency: currency, languageCode: lang, size: 40)
                 .foregroundStyle(theme.primaryText)
                 .environment(\.layoutDirection, .leftToRight)
             if let change, comparisonVisible, selected == nil, selectedCategory == nil {
@@ -367,11 +367,7 @@ struct GhafStatsView: View {
                 }
             }
             .environment(\.layoutDirection, .leftToRight)
-            .mask(alignment: .leading) {
-                GeometryReader { geometry in
-                    Rectangle().frame(width: geometry.size.width * chartDrawProgress)
-                }
-            }
+            .animation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28), value: period)
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -420,6 +416,8 @@ struct GhafStatsView: View {
                     AxisValueLabel {
                         if let key = value.as(String.self), let bucket = plotted.first(where: { chartKey($0.start) == key }) {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).fixedSize(horizontal: true, vertical: false)
+                                .contentTransition(.opacity)
+                                .animation(.easeInOut(duration: 0.15), value: period)
                                 .foregroundStyle(theme.secondaryText.opacity(bucket.start > .now ? 0.75 : 1))
                         }
                     }
@@ -448,12 +446,13 @@ struct GhafStatsView: View {
                 .scaleEffect(x: 1, y: 52.0 / 56.0)
                 .frame(height: 52)
                 .padding(.top, 8)
+                .transaction { $0.animation = nil }
             .onChange(of: period) { _, _ in
                 selectedLabel = nil
                 selectedCategory = nil
                 guard chartReady else { return }
                 chartDrawProgress = 0
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.6)) { chartDrawProgress = 1 }
+                withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28)) { chartDrawProgress = 1 }
             }
         }
         .frame(maxWidth: .infinity)
@@ -617,7 +616,7 @@ struct GhafStatsView: View {
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else {
                 HStack(alignment: .bottom, spacing: 10) {
-                    ForEach(top) { slice in
+                    ForEach(Array(top.enumerated()), id: \.offset) { index, slice in
                         let on = selectedCategory == slice.category
                         Button { toggle(slice.category) } label: {
                             VStack(spacing: 12) {
@@ -629,6 +628,7 @@ struct GhafStatsView: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(theme.accent.opacity(on ? 1 : selectedCategory == nil ? 0.85 : 0.3))
                                     .frame(height: max(10, 92 * slice.total / most) * chartDrawProgress)
+                                    .animation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28).delay(min(Double(index) * 0.015, 0.2)), value: chartDrawProgress)
                                 Text(GhafLocalization.category(slice.category, languageCode: lang))
                                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                                     .foregroundStyle(theme.primaryText)
