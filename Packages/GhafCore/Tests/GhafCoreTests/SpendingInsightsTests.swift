@@ -2,6 +2,30 @@ import XCTest
 @testable import GhafCore
 
 final class SpendingInsightsTests: XCTestCase {
+    func testChartWindowCountsAndCalendarBoundaries() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let week = ISO8601DateFormatter().date(from: "2024-02-04T00:00:00Z")!
+        let month = ISO8601DateFormatter().date(from: "2024-02-01T00:00:00Z")!
+        let quarter = ISO8601DateFormatter().date(from: "2024-02-01T00:00:00Z")!
+        let year = ISO8601DateFormatter().date(from: "2024-01-01T00:00:00Z")!
+        let weekEnd = calendar.date(byAdding: .day, value: 7, to: week)!
+        let monthEnd = calendar.date(byAdding: .month, value: 1, to: month)!
+        let quarterEnd = calendar.date(byAdding: .month, value: 3, to: quarter)!
+        let yearEnd = calendar.date(byAdding: .year, value: 1, to: year)!
+        let windows: [(SpendingInsights.ChartPeriod, Date, Date, Int)] = [
+            (.week, week, weekEnd, 7), (.month, month, monthEnd, 29),
+            (.quarter, quarter, quarterEnd, 13), (.year, year, yearEnd, 12)
+        ]
+        for (period, start, end, expected) in windows {
+            let buckets = SpendingInsights.chartWindows(period: period, start: start, end: end, calendar: calendar)
+            XCTAssertEqual(buckets.count, expected)
+            XCTAssertEqual(buckets.first?.start, start)
+            XCTAssertEqual(buckets.last?.end, end)
+            XCTAssertTrue(zip(buckets, buckets.dropFirst()).allSatisfy { $0.end == $1.start })
+        }
+    }
+
     func testForecastWithoutHistoryFollowsCurrentPace() {
         let f = SpendingInsights.forecast(spentSoFar: 1000, day: 10, daysInMonth: 30, pastMonthTotals: [])
         XCTAssertEqual(f.projected, 3000)

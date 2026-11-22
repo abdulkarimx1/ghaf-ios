@@ -123,29 +123,14 @@ struct GhafStatsView: View {
     }
 
     private func bucketWindows() -> [SpendingForecast.Window] {
-        var starts: [Date] = []
-        switch period {
-        case .week:
-            starts = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: interval.start) }
-        case .month:
-            starts = [0, 7, 14, 21].compactMap { calendar.date(byAdding: .day, value: $0, to: interval.start) }
-        case .quarter:
-            var start = interval.start
-            while start < interval.end {
-                starts.append(start)
-                start = calendar.date(byAdding: .day, value: 7, to: start)!
-            }
-        case .year:
-            var start = interval.start
-            while start < interval.end {
-                starts.append(start)
-                start = calendar.date(byAdding: .month, value: 1, to: start)!
-            }
+        let corePeriod: SpendingInsights.ChartPeriod = switch period {
+        case .week: .week
+        case .month: .month
+        case .quarter: .quarter
+        case .year: .year
         }
-        return starts.enumerated().compactMap { index, start in
-            let end = index + 1 < starts.count ? starts[index + 1] : interval.end
-            return start < interval.end ? SpendingForecast.Window(start: start, end: end) : nil
-        }
+        return SpendingInsights.chartWindows(period: corePeriod, start: interval.start, end: interval.end, calendar: calendar)
+            .map { SpendingForecast.Window(start: $0.start, end: $0.end) }
     }
 
     private func buckets(_ items: [GhafTransaction]) -> [Bucket] {
@@ -235,7 +220,7 @@ struct GhafStatsView: View {
                 if GhafScreenshotFixture.destination == "pro-popup" || GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
                 if GhafScreenshotFixture.selection == "point" {
                     let date = calendar.dateInterval(of: .day, for: Date.now.addingTimeInterval(-9 * 86_400))?.start ?? .now
-                    selectedLabel = chartKey(period == .month ? calendar.date(byAdding: .day, value: (((calendar.component(.day, from: date) - 1) / 7) * 7) + 1 - calendar.component(.day, from: date), to: date)! : date)
+                    selectedLabel = chartKey(calendar.startOfDay(for: date))
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
                 if GhafScreenshotFixture.autoSelect && !fixtureBudget { runAutoSelection(scrollProxy: scrollProxy) }
@@ -258,14 +243,16 @@ struct GhafStatsView: View {
         switch period {
         case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
         case .month:
-            let lastDate = calendar.date(byAdding: .day, value: -1, to: bucketWindows().first(where: { $0.start == date })?.end ?? interval.end)!
-            return "\(date.formatted(.dateTime.day().locale(locale)))–\(lastDate.formatted(.dateTime.day().locale(locale)))"
+            return date.formatted(.dateTime.day().locale(locale))
         case .quarter, .year:
             return date.formatted(.dateTime.month(ar ? .wide : .abbreviated).locale(locale))
         }
     }
 
-    private func chartKey(_ date: Date) -> String { String(Int(date.timeIntervalSince1970)) }
+    private func chartKey(_ date: Date) -> String {
+        bucketWindows().firstIndex(where: { $0.start == date }).map(String.init)
+            ?? String(Int(date.timeIntervalSince1970))
+    }
 
     private func bucketLabel(_ date: Date) -> String {
         let locale = Locale(identifier: lang)
@@ -409,8 +396,7 @@ struct GhafStatsView: View {
                     }
                 }
             }
-            // A new chart per period avoids invalid geometry when the label set changes.
-            .id(period)
+            .chartPlotStyle { plot in plot.padding(.horizontal, 8) }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
@@ -418,7 +404,11 @@ struct GhafStatsView: View {
             }
             .chartXAxis {
                 let labels: [String] = switch period {
-                case .week, .month: plotted.map { chartKey($0.start) }
+                case .week: plotted.map { chartKey($0.start) }
+                case .month:
+                    plotted.enumerated().compactMap { index, bucket in
+                        index.isMultiple(of: 7) || index == plotted.count - 1 ? chartKey(bucket.start) : nil
+                    }
                 case .quarter:
                     plotted.enumerated().compactMap { index, bucket in
                         index == 0 || calendar.component(.month, from: bucket.start) != calendar.component(.month, from: plotted[index - 1].start)
