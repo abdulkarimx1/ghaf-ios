@@ -246,6 +246,7 @@ struct GhafRootView: View {
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
+            case "milestone-proof": GhafSettingsView(settings: currentSettings)
             case "salary-settings": GhafSalarySettingsView(settings: currentSettings)
             case "budget-salary-currency": GhafBudgetView(settings: currentSettings)
             case "account-editor": NavigationStack { GhafAccountEditorView(account: nil, settings: currentSettings) }

@@ -209,6 +209,11 @@ struct GhafSettingsView: View {
             }
 #endif
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
+            .overlay {
+                if selectedMilestone != nil {
+                    theme.background.ignoresSafeArea().allowsHitTesting(false)
+                }
+            }
             .onAppear {
                 loadSettings()
                 proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
@@ -722,6 +727,8 @@ struct GhafSettingsView: View {
           .padding(24).frame(maxWidth: .infinity)
         }
         .background(theme.background.ignoresSafeArea())
+        .safeAreaPadding(.bottom, 12)
+        .presentationBackground { theme.background.ignoresSafeArea() }
         .presentationDetents([.medium, .large])
         .presentationCornerRadius(32)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
@@ -1098,6 +1105,7 @@ HStack(spacing: 8) {
         .sheet(item: Binding(get: { editingCategory.map(GhafEditingCategory.init) }, set: { editingCategory = $0?.name })) { item in
             categoryEditor(item.name)
                 .presentationDetents([.medium])
+                .ghafSheetFrame(theme: theme)
                 .presentationDragIndicator(.visible)
         }
         .confirmationDialog(ar ? "حذف هذه الفئة؟" : "Remove this category?",

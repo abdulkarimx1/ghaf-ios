@@ -319,7 +319,7 @@ struct GhafAIView: View {
                 dictate: { showHistory = false; startVoice() },
                 turnOnCloud: engine == .cloud ? nil : { showHistory = false; offerCloud = true },
                 delete: { deleteChats($0) }
-            ))
+            )).ghafSheetFrame(theme: theme)
         }
         .confirmationDialog(ar ? "الذكاء السحابي" : "Cloud AI", isPresented: $offerCloud, titleVisibility: .visible) {
             Button(ar ? "تفعيل" : "Turn On") {
@@ -338,6 +338,7 @@ struct GhafAIView: View {
         .sheet(isPresented: $showVoicePicker) {
             GhafAIVoiceSettingsView(settings: settings, firstChoiceRequired: voiceCharacter.isEmpty)
                 .presentationDetents([.medium, .large])
+                .ghafSheetFrame(theme: theme)
         }
     }
 

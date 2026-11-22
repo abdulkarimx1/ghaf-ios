@@ -928,8 +928,8 @@ struct GhafQuickAddView: View {
         .animation(.easeOut(duration: 0.3), value: showingSuccess)
         .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
         .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تم تسجيل العملية" : "Transaction logged", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { dismiss() } } }
-        .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).presentationCornerRadius(32).presentationDragIndicator(.visible) }
-        .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).presentationCornerRadius(32).presentationDragIndicator(.visible) }
+        .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
+        .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .onAppear {
             selectedAccountID = presetAccountID
                 ?? accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id

@@ -85,9 +85,9 @@ struct GhafBudgetView: View {
         .sensoryFeedback(.selection, trigger: bucket)
         .sensoryFeedback(.selection, trigger: bucketSelected)
         .sensoryFeedback(.selection, trigger: selectedMonth)
-        .sheet(isPresented: $showPresetSheet) { presetSheet.presentationDetents([.height(430)]).presentationCornerRadius(32) }
+        .sheet(isPresented: $showPresetSheet) { presetSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme) }
         .sheet(item: Binding(get: { editingCategory.map(EditCategory.init) }, set: { editingCategory = $0?.name })) { item in
-            budgetEditor(item.name).presentationDetents([.height(320)]).presentationCornerRadius(32)
+            budgetEditor(item.name).presentationDetents([.height(320)]).ghafSheetFrame(theme: theme)
         }
         .onAppear {
 #if DEBUG
