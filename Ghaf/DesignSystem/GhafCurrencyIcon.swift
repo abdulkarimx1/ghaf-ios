@@ -186,7 +186,7 @@ private struct GhafMoneyGlyph: View {
                     .font(GhafTypography.number(size * 0.72, weight: weight))
                     .frame(width: digitWidth)
                     .offset(y: !hidden && !reduceMotion ? columnHeight : 0)
-                    .opacity(hidden ? 1 : 0)
+                    .opacity(hidden && !isFraction ? 1 : 0)
             }
             .frame(width: digitWidth, height: columnHeight)
             .clipped()
