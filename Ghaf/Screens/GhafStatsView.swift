@@ -694,38 +694,45 @@ struct GhafStatsView: View {
     }
 
     private func merchants(_ items: [GhafTransaction]) -> some View {
-        let top = Dictionary(grouping: items.filter { GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) != nil }, by: { GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant)! })
-            .map { (name: $0.key, total: total($0.value), count: $0.value.count, category: $0.value.first?.category ?? "Other") }
-            .sorted { $0.total > $1.total }
-            .prefix(5)
-        let most = top.first?.total ?? 1
+        let ranked = Dictionary(grouping: items.compactMap { item -> (String, GhafTransaction)? in
+            guard let name = GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) else { return nil }
+            return (name, item)
+        }, by: \.0)
+        .map { name, rows in
+            GhafMerchantSummary(name: name,
+                                total: rows.reduce(Decimal.zero) { $0 + $1.1.spendingAmount },
+                                count: rows.count,
+                                category: rows.first?.1.category ?? "Other")
+        }
+        .sorted { $0.total > $1.total }
+        let top = Array(ranked.prefix(3))
         return VStack(alignment: .leading, spacing: 12) {
-            Text(ar ? "أكثر المتاجر" : "Top merchants")
-                .font(GhafTypography.heading(18, languageCode: lang))
-                .foregroundStyle(theme.primaryText)
-            if top.isEmpty {
+            HStack {
+                Text(ar ? "أكثر المتاجر" : "Top merchants")
+                    .font(GhafTypography.heading(18, languageCode: lang))
+                    .foregroundStyle(theme.primaryText)
+                Spacer()
+                if ranked.count > 3 {
+                    NavigationLink {
+                        GhafTopMerchantsView(merchants: ranked, currency: currency, languageCode: lang, theme: theme)
+                    } label: {
+                        Text(ar ? "عرض الكل" : "See all")
+                            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            if ranked.isEmpty {
                 Text(ar ? "لا توجد متاجر في هذه الفترة." : "No merchants in this period.")
                     .font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
             }
-            ForEach(Array(top), id: \.name) { row in
-                HStack(spacing: 12) {
-                    GhafCategoryIcon(category: row.category, tint: theme.accent, theme: theme)
-                        .frame(width: 36, height: 36)
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text(row.name).font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                                .foregroundStyle(theme.primaryText).lineLimit(1)
-                            Spacer()
-                            GhafMoneyLabel(amount: Decimal(row.total), currency: currency, languageCode: lang, size: 14)
-                                .foregroundStyle(theme.primaryText)
-                        }
-                        GeometryReader { proxy in
-                            Capsule().fill(theme.accent.opacity(0.85)).frame(width: max(6, proxy.size.width * row.total / most))
-                        }
-                        .frame(height: 5)
-                        Text(ar ? "\(row.count) عملية" : "\(row.count) purchases")
-                            .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                    }
+            VStack(spacing: 0) {
+                ForEach(top) { row in
+                    GhafMerchantRankingRow(merchant: row, currency: currency, languageCode: lang,
+                                           theme: theme, maximum: top.first?.total ?? 1)
                 }
             }
         }
