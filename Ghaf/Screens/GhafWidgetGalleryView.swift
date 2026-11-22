@@ -103,12 +103,7 @@ struct GhafWidgetGalleryView: View {
         .blur(radius: proLocked ? 7 : 0)
         .overlay {
             if proLocked {
-                Button { showPro = true } label: {
-                    VStack(spacing: 4) {
-                        Text("Pro").font(.system(size: 13, weight: .bold, design: .rounded)).padding(.horizontal, 12).padding(.vertical, 6).background(ink, in: Capsule())
-                        Text(ar ? "افتح غاف Pro" : "Unlock with Ghaf Pro").font(.system(size: 10, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                    }.foregroundStyle(paper).padding(7).background(ink.opacity(0.96), in: Capsule())
-                }.buttonStyle(.plain)
+                Button { showPro = true } label: { GhafWidgetProMask() }.buttonStyle(.plain)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
