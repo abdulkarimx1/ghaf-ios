@@ -116,9 +116,12 @@ struct GhafStatsView: View {
 
     private func outgoingTransferAmount(_ transaction: GhafTransaction) -> Decimal {
         let isAdjustment = transaction.category == "Adjustment"
+        let transferCategory = CategoryTaxonomy.category(named: transaction.category)?.kind == .transfer
+        let hasTransferEvidence = TransactionEffect.isKnownExternalTransferSubcategory(transaction.subcategory)
+            || (transferCategory && transaction.subcategory == nil)
         let isTransfer = !isAdjustment
             && CategoryTaxonomy.isTransferOrAdjustment(category: transaction.category, subcategory: transaction.subcategory)
-            && TransactionEffect.isKnownExternalTransferSubcategory(transaction.subcategory)
+            && hasTransferEvidence
         let ownAccountCategory = CategoryTaxonomy.transferSubcategories.first { $0.name == "Between my accounts" }
         let ownAccountNames = Set(([ownAccountCategory?.name, ownAccountCategory?.arabic].compactMap { $0 } + (ownAccountCategory?.words ?? []))
             .map(CategoryMatcher.normalize))

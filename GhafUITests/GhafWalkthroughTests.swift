@@ -662,7 +662,7 @@ extension GhafWalkthroughTests {
     func testBFollowupChartAndAllocationProof() {
         launch(["-GhafScreen", "budget", "-GhafSelection", "savings"])
         snap("budget-followup-top")
-        let savingsDetails = app.staticTexts["Left after spending"]
+        let savingsDetails = app.staticTexts["Remaining"]
         for _ in 0..<7 where !savingsDetails.isHittable { app.swipeUp(velocity: .fast) }
         XCTAssertTrue(savingsDetails.isHittable, "Missing Savings explanation")
         snap("budget-followup-savings")
