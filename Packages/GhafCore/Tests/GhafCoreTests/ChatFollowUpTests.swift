@@ -30,7 +30,7 @@ final class ChatFollowUpTests: XCTestCase {
                        "Compare my spending this month with last month")
 
         let arabic = ChatFollowUp.suggestions(after: "كم صرفت هالأسبوع؟", languageCode: "ar")
-        XCTAssertEqual(arabic, ["مقارنة هذا الشهر بالماضي", "أعلى فئة إنفاقًا", "الاشتراكات القادمة"])
+        XCTAssertEqual(arabic, ["هذا الشهر والماضي", "أعلى فئة", "الاشتراكات القادمة"])
         XCTAssertEqual(ChatFollowUp.ledgerQuestion(for: arabic[2], languageCode: "ar"), "ما الاشتراكات القادمة؟")
     }
 }

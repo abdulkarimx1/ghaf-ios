@@ -28,8 +28,8 @@ struct GhafOrbPressGesture: ViewModifier {
                     let duration = pressedAt.map { Date.now.timeIntervalSince($0) } ?? 0
                     pressedAt = nil
                     defer { didHaptic = false }
-                    if duration < 0.35 { onTap() }
-                    else if duration >= 0.45 { onHold() }
+                    if duration < 0.45 { onTap() }
+                    else { onHold() }
                 }
         )
     }
