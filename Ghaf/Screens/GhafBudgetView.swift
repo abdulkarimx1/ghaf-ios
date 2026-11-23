@@ -265,7 +265,9 @@ struct GhafBudgetView: View {
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(ar ? "ميزانية الشهر" : "Monthly category budgets")
-            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: ", ")). Selected: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? (ar ? "لا شيء" : "none"))")
+            .accessibilityValue(ar
+                ? "\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) من \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). ترتيب الفئات باتجاه عقارب الساعة بدءًا من الساعة ١٢: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: "، ")). الفئة المحددة: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? "لا شيء")."
+                : "\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: ", ")). Selected: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? "none")")
             Text(ar ? "اضغط على فئة لعرض مصروفاتها" : "Tap a category to see its spending")
                 .font(GhafTypography.body(13, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)

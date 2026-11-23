@@ -519,7 +519,7 @@ struct GhafTabView: View {
             }
         }
         .sheet(isPresented: $showWidgetQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
-        .sheet(isPresented: $showWidgetPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الأدوات")).ghafDirection(settings.languageCode) }
+        .sheet(isPresented: $showWidgetPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الودجات")).ghafDirection(settings.languageCode) }
         .sheet(item: $linkedTransaction) { transaction in
             NavigationStack { GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: linkAccounts.filter { !$0.isArchived }) }
                 .ghafDirection(settings.languageCode)
