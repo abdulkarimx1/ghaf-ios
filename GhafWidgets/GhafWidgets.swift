@@ -461,10 +461,13 @@ private struct GhafActivityStatus: View {
             }
         }
         if let recordedAt = s.recordedAt, let expiresAt = s.expiresAt, expiresAt > recordedAt {
-            ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
-                .progressViewStyle(.linear)
-                .tint(context.attributes.glowColor)
-                .scaleEffect(x: 1, y: 0.55, anchor: .center)
+            VStack(alignment: .leading, spacing: 3) {
+                ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
+                    .progressViewStyle(.linear).labelsHidden().tint(context.attributes.glowColor)
+                    .frame(maxWidth: .infinity)
+                Text(timerInterval: recordedAt...expiresAt, countsDown: true)
+                    .font(.caption2.monospacedDigit()).foregroundStyle(paper.opacity(0.62))
+            }
                 .accessibilityLabel(ar ? "ينتهي النشاط قريبًا" : "Activity time remaining")
         }
     }
@@ -484,7 +487,9 @@ struct GhafPurchaseLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 10) {
                         GhafCategoryBadge(state: s, attributes: a, size: 42)
-                        Text(s.merchant).font(.headline).foregroundStyle(paper).lineLimit(1).privacySensitive()
+                        Text(s.merchant).font(.subheadline.weight(.semibold)).foregroundStyle(paper)
+                            .lineLimit(2).minimumScaleFactor(0.82).fixedSize(horizontal: false, vertical: true)
+                            .layoutPriority(1).privacySensitive()
                     }
                     .dynamicIsland(verticalPlacement: .belowIfTooWide)
                     .padding(.leading, 4)
@@ -544,14 +549,16 @@ struct GhafPurchaseLockView: View {
             HStack(spacing: 12) {
                 GhafCategoryBadge(state: s, attributes: a, size: 46)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(s.merchant).font(.system(size: 17, weight: .bold)).foregroundStyle(paper).lineLimit(1).privacySensitive()
+                    Text(s.merchant).font(.system(size: 16, weight: .semibold)).foregroundStyle(paper)
+                        .lineLimit(2).minimumScaleFactor(0.82).fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1).privacySensitive()
                     Text(s.category)
                         .font(.subheadline.weight(.semibold)).foregroundStyle(paper.opacity(0.6)).lineLimit(1).privacySensitive()
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(s.signedAmount)
-                        .font(.system(size: 30, weight: .heavy, design: .rounded)).tracking(-0.6)
+                        .font(.system(size: 26, weight: .heavy, design: .rounded)).tracking(-0.6)
                         .monospacedDigit()
                         .foregroundStyle(s.isCredit ? Color.green : paper)
                         .minimumScaleFactor(0.6).lineLimit(1)
@@ -574,10 +581,13 @@ struct GhafPurchaseLockView: View {
                 if let url = s.transactionURL { Link(a.arabic ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(a.glowColor) }
             }
             if let recordedAt = s.recordedAt, let expiresAt = s.expiresAt, expiresAt > recordedAt {
-                ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
-                    .progressViewStyle(.linear)
-                    .tint(a.glowColor)
-                    .scaleEffect(x: 1, y: 0.55, anchor: .center)
+                VStack(alignment: .leading, spacing: 3) {
+                    ProgressView(timerInterval: recordedAt...expiresAt, countsDown: true)
+                        .progressViewStyle(.linear).labelsHidden().tint(a.glowColor)
+                        .frame(maxWidth: .infinity)
+                    Text(timerInterval: recordedAt...expiresAt, countsDown: true)
+                        .font(.caption2.monospacedDigit()).foregroundStyle(paper.opacity(0.62))
+                }
                     .accessibilityLabel(a.arabic ? "ينتهي النشاط قريبًا" : "Activity time remaining")
             }
         }
