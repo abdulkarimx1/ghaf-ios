@@ -76,6 +76,7 @@ struct GhafSettingsView: View {
     @State private var showCategories = false
     @State private var proUnlocked = GhafProAccess.hasAccess
     @State private var selectedMilestone: Int?
+    @State private var showPendingMilestoneProfile = false
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
@@ -217,6 +218,9 @@ struct GhafSettingsView: View {
                 subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard }
             }
 #endif
+            .navigationDestination(isPresented: $showPendingMilestoneProfile) {
+                subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
+            }
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .overlay {
                 if selectedMilestone != nil {
@@ -231,6 +235,11 @@ struct GhafSettingsView: View {
                     proUnlocked = GhafProAccess.hasAccess
                 }
                 refreshProfileStreakIfNeeded()
+                if let days = router.pendingMilestone {
+                    router.pendingMilestone = nil
+                    selectedMilestone = days
+                    showPendingMilestoneProfile = true
+                }
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
                     switch GhafScreenshotFixture.destination {
@@ -675,7 +684,7 @@ struct GhafSettingsView: View {
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
                 HStack(spacing: 8) {
-                    ForEach([7, 30, 100, 365], id: \.self) { days in
+                    ForEach(GhafLoggingStreak.milestones, id: \.self) { days in
                         Button { selectedMilestone = days } label: {
                           VStack(spacing: 6) {
                             Text("\(days)")

@@ -32,6 +32,7 @@ enum GhafEventNotifications {
     private static let delegate = InboxNotificationDelegate()
 #if DEBUG
     private static var fixtureEvents: [GhafInboxEvent]?
+    private static var debugRequestKey: String { "ghaf.notify.debug" }
 #endif
 
     static var events: [GhafInboxEvent] {
@@ -83,9 +84,8 @@ enum GhafEventNotifications {
         store(key: key, kind: kind, title: title, message: message, itemID: itemID)
         guard notifies else { return }
 
-        var sent = Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? [])
-        guard sent.insert(key).inserted else { return }
-        UserDefaults.standard.set(Array(sent), forKey: notifiedKeys)
+        let sent = Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? [])
+        guard !sent.contains(key) else { return }
 
         let content = UNMutableNotificationContent()
         content.title = title
@@ -93,7 +93,45 @@ enum GhafEventNotifications {
         content.sound = .default
         content.userInfo = ["inboxTarget": itemID ?? key, "eventKey": key, "eventKind": kind.rawValue]
         let trigger = delay.map { UNTimeIntervalNotificationTrigger(timeInterval: max(1, $0), repeats: false) }
-        center.add(UNNotificationRequest(identifier: key, content: content, trigger: trigger))
+        Task { @MainActor in
+            guard !Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? []).contains(key) else { return }
+            do {
+                try await center.add(UNNotificationRequest(identifier: key, content: content, trigger: trigger))
+                var updated = Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? [])
+                updated.insert(key)
+                UserDefaults.standard.set(Array(updated), forKey: notifiedKeys)
+            } catch {
+                // A later event or settings change can retry; a failed request never consumes its key.
+            }
+        }
+    }
+
+    static func recordCaptureBanner(_ transaction: GhafTransaction, languageCode: String, unusual: Bool = false) {
+        guard isEnabled(GhafDigestNotifications.autoTransactionKey) else { return }
+        let ar = languageCode == "ar"
+        let amount = GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: languageCode)
+        let signed = transaction.direction == "credit" ? "+\(amount)" : "−\(amount)"
+        let merchant = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
+            ?? GhafLocalization.category(transaction.category, languageCode: languageCode)
+        let category = GhafLocalization.category(transaction.category, languageCode: languageCode)
+        let content = UNMutableNotificationContent()
+        content.title = ar ? "تم تسجيل العملية" : "Transaction saved"
+        content.body = "\(signed) · \(merchant) · \(category)"
+        if unusual { content.subtitle = ar ? "عملية أعلى من المعتاد" : "Higher than usual" }
+        content.sound = .default
+        content.userInfo = ["transactionID": transaction.id.uuidString]
+        let key = "capture-result-\(transaction.id.uuidString)"
+        let sent = Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? [])
+        guard !sent.contains(key) else { return }
+        Task { @MainActor in
+            guard !Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? []).contains(key) else { return }
+            do {
+                try await center.add(UNNotificationRequest(identifier: key, content: content, trigger: nil))
+                var updated = Set(UserDefaults.standard.stringArray(forKey: notifiedKeys) ?? [])
+                updated.insert(key)
+                UserDefaults.standard.set(Array(updated), forKey: notifiedKeys)
+            } catch { /* Keep the key retryable when notification delivery is unavailable. */ }
+        }
     }
 
     static func removeFutureSubscriptionEvents() {
@@ -126,10 +164,26 @@ enum GhafEventNotifications {
         NotificationCenter.default.post(name: inboxUpdated, object: nil)
     }
 
-    static func scheduleDebugEvent() {
-        record(key: "debug-inbox-event-\(UUID().uuidString)", kind: .transactionReview,
-               title: "Check a transaction", message: "A transaction needs your review.",
-               itemID: nil, notifies: true, delay: 5)
+    static func scheduleDebugEvent(_ kind: String) {
+        let localized: (String, String)
+        switch kind {
+        case "capture": localized = ("Transaction saved", "−AED 3.00 · Kookh Al Shay · Food")
+        case "review": localized = ("Check a transaction", "A transaction needs your review.")
+        case "subscription": localized = ("Payment coming up", "Netflix is due soon · 39.99 AED.")
+        case "budget": localized = ("Food reached 80% of its budget", "Food spending reached 80% of its monthly budget.")
+        case "salary": localized = ("Salary day", "Has your salary arrived? Open Ghaf to confirm it.")
+        default: localized = ("Today in Ghaf", "You spent AED 23.00 across 2 transactions today.")
+        }
+        let content = UNMutableNotificationContent()
+        content.title = localized.0
+        content.body = localized.1
+        content.sound = .default
+        content.userInfo = ["debugKind": kind]
+        Task { @MainActor in
+            _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
+            try? await center.add(UNNotificationRequest(identifier: "ghaf.debug.\(kind).\(UUID().uuidString)", content: content,
+                                                         trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)))
+        }
     }
     #endif
 

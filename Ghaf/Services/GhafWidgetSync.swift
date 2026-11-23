@@ -258,6 +258,27 @@ enum GhafWidgetSync {
     }
 
 #if DEBUG
+    /// Starts a fictional purchase so lock screen and Dynamic Island layouts can be captured safely.
+    static func runVisualProof() async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        await endAll()
+        let start = Date.now
+        let expires = start.addingTimeInterval(300)
+        let state = GhafPurchaseAttributes.ContentState(
+            merchant: "Kookh Al Shay", amount: 3, currency: "AED", isCredit: false,
+            accountName: "Mashreq Current", balance: 8_497, needsReview: false,
+            symbol: "fork.knife", category: "Food", recordedAt: start, expiresAt: expires)
+        do {
+            let activity = try Activity.request(
+                attributes: GhafPurchaseAttributes(arabic: false, accent: 0x1B6B66, glow: 0x6FD0CC),
+                content: ActivityContent(state: state, staleDate: expires))
+            await activity.end(ActivityContent(state: state, staleDate: expires), dismissalPolicy: .after(expires))
+            activityProofLogger.notice("GHAF_ACTIVITY_VISUAL_PROOF started id=\(activity.id, privacy: .public)")
+        } catch {
+            activityProofLogger.error("GHAF_ACTIVITY_VISUAL_PROOF request_failed")
+        }
+    }
+
     /// Simulator proof hook: request a two-second activity, end it on completion, then record the system's activity inventory.
     static func runLifecycleProof() async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {

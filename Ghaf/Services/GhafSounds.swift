@@ -32,6 +32,8 @@ final class GhafSounds {
         }
         let name = cue == .tick ? ["tick", "tick_2", "tick_3"].randomElement()! : cue.rawValue
         guard let player = players[name] else { return }
+        // The shared player stays alive for its full sample; a repeated cue cannot restart and cut it off.
+        guard !player.isPlaying else { return }
         player.currentTime = 0
         player.play()
     }
