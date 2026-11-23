@@ -17,6 +17,12 @@ is built into `GhafCloudAI.endpoint`).
   `FREE_DAILY_LIMIT` defaults to 0. The existing text quotas still apply to paid tiers.
 - **Developer bypass:** requests with the `APP_TOKEN` secret in `X-Ghaf-Token` skip the limits
   (for testing from a Mac; never put it in the app).
+- **Access codes:** `POST /redeem` accepts a code and returns `pro_yearly` only when its SHA-256
+  digest matches a hash in the `ACCESS_CODE_HASHES` secret (comma-separated lowercase hex). The
+  app stores a redeemed code in Keychain and sends it in `X-Ghaf-Code`; the Worker rechecks it for
+  each AI request and treats a match as Complete (10 voice replies/day), regardless of the body
+  tier. Removing a hash revokes that code. Redemption attempts are limited to five per device/day.
+  Neither the code nor its hash is written to usage events.
 - **Received:** the question, totals-only facts (including saved memories when enabled), the ledger's own answer and the last few chat
   lines. **Not received:** the transaction list, notes, card or account numbers. **Stored:** only
   the daily counters. Google's Gemini API terms apply to requests it handles.
@@ -30,6 +36,7 @@ app's setup through the field mask. Hamad uses `Orus`, Mariam uses `Kore`; these
 
 The app checks a verified StoreKit entitlement locally, then sends the corresponding tier string.
 The Worker cannot verify that client-claimed tier until App Store server verification is added.
+Access-code tiers are checked by the Worker using `ACCESS_CODE_HASHES`.
 
 ## Deploy or update
 

@@ -4,7 +4,7 @@
 // GLOBAL_DAILY_LIMIT across all devices, counted in KV. Questions, replies and audio are never stored;
 // only counters and anonymous usage metadata are kept. APP_TOKEN skips the limits.
 //
-// Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, ESSENTIALS_DAILY_VOICE_LIMIT, COMPLETE_DAILY_VOICE_LIMIT, GLOBAL_DAILY_LIMIT,
+// Secrets: GEMINI_API_KEY, APP_TOKEN (optional), ACCESS_CODE_HASHES (comma-separated SHA-256 hex hashes). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, ESSENTIALS_DAILY_VOICE_LIMIT, COMPLETE_DAILY_VOICE_LIMIT, GLOBAL_DAILY_LIMIT,
 // LIVE_DAILY_CALLS, LIVE_GLOBAL_DAILY_CALLS, LIVE_VOICE_AR, LIVE_VOICE_EN.
 
 const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary, never full history
@@ -12,7 +12,7 @@ const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary,
 export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
-    const endpoint = ({ "/chat": "chat", "/speak": "speak", "/live-token": "live-token", "/voice-usage": "voice-usage", "/voice-turn": "voice-turn", "/health": "health", "/tips": "tips" })[path] || "other";
+    const endpoint = ({ "/chat": "chat", "/speak": "speak", "/live-token": "live-token", "/voice-usage": "voice-usage", "/voice-turn": "voice-turn", "/redeem": "redeem", "/health": "health", "/tips": "tips" })[path] || "other";
     const usage = { endpoint, model: "", outcome: "error", lang: "other", device: request.headers.get("X-Ghaf-Device") || "", developer: Boolean(env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN), errorKind: "", input: 0, output: 0 };
     const started = Date.now();
     let response;
@@ -50,11 +50,13 @@ async function handle(request, env, usage) {
     if (request.method === "GET" && path === "/voice-usage") {
       const auth = authorize(request, env);
       if (!auth) return json({ error: "unauthorized" }, 401);
-      const tier = normalizeTier(request.headers.get("X-Ghaf-Tier"));
+      const codeTier = await accessCodeTier(request, env);
+      if (codeTier === false) return json({ error: "invalid_access_code" }, 401);
+      const tier = codeTier || normalizeTier(request.headers.get("X-Ghaf-Tier"));
       if (usage) { usage.tier = tier; usage.model = "voice-usage-v1"; }
       return json(await voiceUsage(env, auth.device, tier));
     }
-    if (request.method !== "POST" || !["/chat", "/speak", "/live-token", "/voice-turn"].includes(path)) {
+    if (request.method !== "POST" || !["/chat", "/speak", "/live-token", "/voice-turn", "/redeem"].includes(path)) {
       return json({ error: "not_found" }, 404);
     }
     const auth = authorize(request, env);
@@ -66,6 +68,10 @@ async function handle(request, env, usage) {
 
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
+    if (path === "/redeem") return redeemAccessCode(body, env, device, usage);
+    const codeTier = await accessCodeTier(request, env);
+    if (codeTier === false) return json({ error: "invalid_access_code" }, 401);
+    if (codeTier) body.tier = codeTier;
     usage.tier = normalizeTier(body.tier);
     if (!developer && usage.tier === "free" && ["/chat", "/speak", "/live-token", "/voice-turn"].includes(path)) {
       if (usage) usage.outcome = "limited_device";
@@ -280,6 +286,46 @@ async function liveToken(body, env, developer, device, usage) {
   if (usage) { usage.model = env.LIVE_MODEL || "models/gemini-3.8-live"; usage.outcome = "ok"; }
   return json({ token: data.name, model: env.LIVE_MODEL || "models/gemini-3.8-live", expiresAt: expires,
     voice: character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus" });
+}
+
+async function redeemAccessCode(body, env, device, usage) {
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `redeem:${day}:${device}`;
+  const attempts = Number(await env.USAGE.get(key) || 0);
+  if (attempts >= 5) {
+    if (usage) usage.outcome = "limited_device";
+    return json({ error: "rate_limited" }, 429);
+  }
+  await env.USAGE.put(key, String(attempts + 1), { expirationTtl: 172800 });
+  const code = typeof body.code === "string" ? body.code : "";
+  if (!code || code.length > 256 || !await matchesAccessCode(code, env.ACCESS_CODE_HASHES)) {
+    return json({ error: "invalid_code" }, 401);
+  }
+  if (usage) { usage.tier = "pro_yearly"; usage.model = "access-code-v1"; }
+  return json({ tier: "pro_yearly" });
+}
+
+async function accessCodeTier(request, env) {
+  const code = request.headers.get("X-Ghaf-Code");
+  if (!code) return null;
+  if (!await matchesAccessCode(code, env.ACCESS_CODE_HASHES)) return false;
+  return "pro_yearly";
+}
+
+async function matchesAccessCode(code, configuredHashes) {
+  const expectedHashes = String(configuredHashes || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(code)));
+  const actual = [...digest].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  let matched = 0;
+  for (const expected of expectedHashes) matched |= constantTimeHexEqual(actual, expected) ? 1 : 0;
+  return matched === 1;
+}
+
+function constantTimeHexEqual(left, right) {
+  if (!/^[0-9a-f]{64}$/.test(right)) return false;
+  let difference = 0;
+  for (let index = 0; index < 64; index++) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return difference === 0;
 }
 
 function authorize(request, env) {
