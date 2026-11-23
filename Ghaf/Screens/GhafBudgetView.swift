@@ -175,7 +175,7 @@ struct GhafBudgetView: View {
     }
 
     private var petalBudgetCard: some View {
-        let rows = monthlySpendByCategory
+        let rows = monthlySpendByCategory.filter { $0.spent > 0 }
         let all = rows.filter { $0.budget > 0 }
         let grouped = all.count > 8
         let shown = Array(all.prefix(grouped ? 7 : 8)) + (grouped ? [(name: ar ? "أخرى" : "Other", spent: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.spent }, budget: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.budget })] : [])
@@ -192,9 +192,9 @@ struct GhafBudgetView: View {
                 Text(ar ? (hasSalary ? "دورة الراتب · المصروف من الميزانية" : "هذا الشهر · المصروف من الميزانية") : (hasSalary ? "This salary cycle · spent of budget" : "This month · spent of budget"))
                     .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
                 HStack(spacing: 4) {
-                    GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 20, weight: .semibold)
+                    GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 18, weight: .semibold)
                     Text(ar ? "من" : "of").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                    GhafMoneyLabel(amount: totalBudget, currency: currency, languageCode: lang, size: 14)
+                    GhafMoneyLabel(amount: totalBudget, currency: currency, languageCode: lang, size: 18, weight: .semibold)
                 }.foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.75)
             }
             ZStack {
@@ -206,13 +206,13 @@ struct GhafBudgetView: View {
                     let radii = BudgetAllocation.petalRadii(budget: item.budget, spent: item.spent, innerRadius: Double(innerRatio))
                     let fillRadius = CGFloat(radii.fill)
                     GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: 1)
-                        .fill(item.spent > item.budget ? theme.over.opacity(theme.isDark ? 0.22 : 0.16) : theme.primaryText.opacity(theme.isDark ? 0.19 : 0.16))
+                        .fill(theme.accent.opacity(theme.isDark ? 0.25 : 0.18))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
                             // A sliver under ~6% of the radius reads as a rendering glitch, not data.
                             if item.spent > 0, fillRadius - innerRatio >= 0.06 {
                                 GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: fillRadius)
-                                    .fill(theme.primaryText.opacity(0.88))
+                                    .fill(theme.accent)
                                     .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1), value: fillRadius)
                             }
                         }
@@ -243,6 +243,13 @@ struct GhafBudgetView: View {
                         .opacity(selectedCategory == nil || selectedCategory == item.name ? 1 : 0.45)
                         .contentShape(GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: 1))
                 }
+                if shown.isEmpty {
+                    Text(ar ? "لا يوجد إنفاق في هذه الدورة." : "No spending in this cycle.")
+                        .font(GhafTypography.body(13, languageCode: lang, weight: .medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(width: diameter * 0.72, height: diameter * 0.72)
+                }
             }
             .frame(width: diameter, height: diameter)
             .contentShape(Rectangle())
@@ -251,7 +258,7 @@ struct GhafBudgetView: View {
                 let radius = hypot(point.x, point.y) / outerRadius
                 guard radius >= innerRatio, radius <= 1, !shown.isEmpty else { withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1)) { selectedCategory = nil }; return }
                 let degrees = (atan2(point.y, point.x) * 180 / .pi + 450).truncatingRemainder(dividingBy: 360)
-                let index = min(shown.count - 1, Int(degrees / 360 * Double(shown.count)))
+                guard let index = CategoryTaxonomy.petalIndex(angleDegrees: degrees, count: shown.count, isRightToLeft: ar) else { return }
                 withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1)) { selectedCategory = selectedCategory == shown[index].name ? nil : shown[index].name }
             })
             .frame(maxWidth: .infinity)
