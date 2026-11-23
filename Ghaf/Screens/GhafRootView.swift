@@ -577,10 +577,10 @@ struct GhafTabView: View {
     }
 
     private func handleAITabOrbTap() {
-        let hasVoice = UserDefaults.standard.string(forKey: "ghaf.ai.voiceCharacter").map { !$0.isEmpty } ?? false
-        let canStartImmediately = GhafProAccess.hasAccess && hasVoice
-            && (!GhafCloudAI.isEnabled || UserDefaults.standard.bool(forKey: "ghaf.ai.liveConsentAccepted"))
-        if canStartImmediately { router.isListening = true }
+        guard router.selectedTab == 1 else {
+            router.selectedTab = 1
+            return
+        }
         router.selectedTab = 1
         Task { @MainActor in
             for _ in 0..<15 {
