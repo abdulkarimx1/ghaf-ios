@@ -21,6 +21,7 @@ struct GhafHomeView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(GhafTabRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Query(sort: \GhafTransaction.date, order: .reverse)
@@ -246,6 +247,7 @@ struct GhafHomeView: View {
             .sheet(isPresented: $showImportSheet) { GhafImportSheet(settings: settings) }
             .onAppear {
                 GhafEventNotifications.configure()
+                rescheduleLocalNotifications()
                 if let target = GhafEventNotifications.consumePendingTarget(), !target.isEmpty {
                     inboxTargetID = target
                     router.selectedTab = 0
@@ -260,7 +262,7 @@ struct GhafHomeView: View {
                 default: break
                 }
                 if ProcessInfo.processInfo.arguments.contains("-ghafDebugEvent") {
-                    GhafEventNotifications.scheduleDebugEvent()
+                    GhafEventNotifications.scheduleDebugEvent("review")
                 }
 #endif
             }
@@ -268,6 +270,9 @@ struct GhafHomeView: View {
                 inboxTargetID = note.object as? String
                 router.selectedTab = 0
                 showInbox = true
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { rescheduleLocalNotifications() }
             }
             .sheet(isPresented: $showAutomationGuide) {
                 NavigationStack {
@@ -298,6 +303,13 @@ struct GhafHomeView: View {
     private var lang: String { settings.languageCode }
     private var messageRunHistory: [Double] { UserDefaults.standard.array(forKey: GhafAutomationStatus.messageHistoryKey) as? [Double] ?? [] }
     private var walletRunHistory: [Double] { UserDefaults.standard.array(forKey: GhafAutomationStatus.walletHistoryKey) as? [Double] ?? [] }
+
+    private func rescheduleLocalNotifications() {
+        GhafDigestNotifications.reschedule(context: modelContext)
+        for subscription in subscriptions where subscription.isActive {
+            GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
+        }
+    }
 
     private var emptyAccountsState: some View {
         VStack(spacing: 14) {
@@ -823,6 +835,7 @@ struct GhafTransactionRow: View {
 
 struct GhafQuickAddView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(GhafTabRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -973,7 +986,7 @@ struct GhafQuickAddView: View {
         .blur(radius: showingSuccess ? 18 : 0)
         .animation(.easeOut(duration: 0.3), value: showingSuccess)
         .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
-        .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تمت إضافة العملية" : "Transaction added", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { dismiss() } } }
+        .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تمت إضافة العملية" : "Transaction added", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { router.isSaveSplashPresented = false; dismiss() } } }
         .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .onAppear {
@@ -1196,27 +1209,15 @@ struct GhafQuickAddView: View {
         do {
             if let merchant = transaction.merchant { try MerchantCategorizer.learn(merchant: merchant, category: finalCategory, subcategory: transaction.subcategory, context: modelContext) }
             try modelContext.save()
+            GhafDigestNotifications.reschedule(context: modelContext)
             Task { await GhafPlaces.rememberCurrentLocation(transactionID: transaction.id) }
+            router.isSaveSplashPresented = true
             showingSuccess = true
-            playMilestoneSoundIfReached(on: date)
         } catch {
             errorMessage = settings.languageCode == "ar" ? "تعذر حفظ العملية." : "Could not save transaction."
         }
     }
 
-    private func playMilestoneSoundIfReached(on loggedDate: Date) {
-        guard Calendar.current.isDateInToday(loggedDate),
-              let all = try? modelContext.fetch(FetchDescriptor<GhafTransaction>()) else { return }
-        let dates = all.filter { !$0.needsReview }.map(\.date)
-        let todayKey = Calendar.current.startOfDay(for: loggedDate)
-        guard dates.filter({ Calendar.current.isDate($0, inSameDayAs: todayKey) }).count == 1 else { return }
-        let current = GhafLoggingStreak.count(dates, through: loggedDate, calendar: .current)
-        let calendar = Calendar.current
-        let previousDate = calendar.date(byAdding: .day, value: -1, to: loggedDate) ?? loggedDate
-        let prior = GhafLoggingStreak.count(dates.filter { !Calendar.current.isDate($0, inSameDayAs: todayKey) },
-                                           through: previousDate, calendar: calendar)
-        if [7, 30, 90].contains(where: { current >= $0 && prior < $0 }) { GhafSounds.shared.play(.streak) }
-    }
 }
 
 private struct GhafQuickAddDismissObserver: UIViewControllerRepresentable {

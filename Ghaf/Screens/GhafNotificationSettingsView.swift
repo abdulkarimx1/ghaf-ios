@@ -17,6 +17,7 @@ struct GhafNotificationSettingsView: View {
     @AppStorage(GhafEventNotifications.detectedSubscriptionKey) private var detectedSubscription = true
     @AppStorage(GhafEventNotifications.budgetThresholdKey) private var budgetThreshold = true
     @AppStorage(GhafEventNotifications.subscriptionDueKey) private var subscriptionDue = true
+    @AppStorage(GhafDigestNotifications.autoTransactionKey) private var autoTransaction = true
     @AppStorage(GhafDigestNotifications.morningKey) private var morning = false
     @AppStorage(GhafDigestNotifications.eveningKey) private var evening = false
     @AppStorage(GhafDigestNotifications.weeklyKey) private var weekly = false
@@ -69,6 +70,10 @@ struct GhafNotificationSettingsView: View {
                         ar ? "عندما تُحفظ عملية آلية لتراجع تفاصيلها." : "When an automatic transaction is saved for review.",
                         icon: "tray.full.fill", isOn: $transactionReview)
                     Divider().overlay(theme.outline)
+                    row(ar ? "تأكيد تسجيل العملية" : "Capture result",
+                        ar ? "يعرض المبلغ والمتجر والفئة عند تسجيل عملية مؤكدة." : "Shows the amount, merchant and category when a captured transaction is saved.",
+                        icon: "checkmark.circle.fill", isOn: $autoTransaction)
+                    Divider().overlay(theme.outline)
                     row(ar ? "اشتراك متكرر مرصود" : "Recurring charge detected",
                         ar ? "عندما تبدو عملية بنكية اشتراكاً متكرراً." : "When a bank charge looks like a recurring subscription.",
                         icon: "repeat", isOn: $detectedSubscription)
@@ -120,14 +125,14 @@ struct GhafNotificationSettingsView: View {
         .task { GhafEventNotifications.configure(); await refreshPermission() }
         .sheet(item: $proFeature) { GhafProSheet(settings: settings, feature: ($0.en, $0.ar)).ghafDirection(settings.languageCode) }
         .onChange(of: liveActivity) { _, on in if on { proFeature = ProFeature(en: "Live Activities", ar: "النشاط المباشر") } }
-        .onChange(of: [transactionReview, detectedSubscription, budgetThreshold, subscriptionDue, morning, evening, weekly]) { oldValues, values in
+        .onChange(of: [transactionReview, autoTransaction, detectedSubscription, budgetThreshold, subscriptionDue, morning, evening, weekly]) { oldValues, values in
             Task {
                 if zip(oldValues, values).contains(where: { !$0.0 && $0.1 }) {
                     _ = await GhafDigestNotifications.requestPermission()
                 }
                 await refreshPermission()
-                if oldValues[3] != values[3] {
-                    if values[3] {
+                if oldValues[4] != values[4] {
+                    if values[4] {
                         subscriptions.filter(\.isActive).forEach { GhafSubscriptionReminderService.schedule($0, language: lang) }
                     } else {
                         await GhafSubscriptionReminderService.cancelAll()
