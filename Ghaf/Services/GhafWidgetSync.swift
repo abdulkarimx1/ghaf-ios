@@ -145,19 +145,8 @@ enum GhafWidgetSync {
     }
 
     private static func refreshWidgetProAccess() async {
-        var unlocked = false
-        if GhafFeatureFlags.appStoreAccount {
-            for await result in StoreKit.Transaction.currentEntitlements {
-                if case .verified(let transaction) = result,
-                   ["com.ghaf.app.pro.monthly", "com.ghaf.app.pro.yearly"].contains(transaction.productID) {
-                    unlocked = true
-                    break
-                }
-            }
-        }
-        for group in GhafWidgetSnapshot.groupIDs {
-            UserDefaults(suiteName: group)?.set(unlocked, forKey: GhafWidgetProAccess.key)
-        }
+        _ = await GhafAITier.refreshVerifiedEntitlement()
+        GhafProAccess.syncWidgetFlag()
     }
 
     /// Call from a LiveActivityIntent's perform() to start while automation runs in the background.

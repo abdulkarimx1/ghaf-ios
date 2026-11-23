@@ -48,24 +48,19 @@ struct GhafProView: View {
     private let monthlyID = "com.ghaf.app.pro.monthly"
     private let yearlyID = "com.ghaf.app.pro.yearly"
     @State private var products: [Product] = []
-    @State private var entitled = false
     @State private var busy = false
     @State private var redeeming = false
     @AppStorage("ghaf.pro.offerHighlight") private var offerHighlight = false
     @State private var notice: String?
+    @State private var codeEntryVisible = false
+    @State private var accessCode = ""
+    @State private var redeemingAccessCode = false
+    @State private var accessRevision = 0
     private enum VoiceAllowance {
         // Keep aligned with backend/ghaf-ai-worker/worker.js voiceLimit().
         static let monthlyDailyReplies = 3
         static let yearlyDailyReplies = 10
     }
-    private var testUnlocked: Bool {
-        #if DEBUG
-        UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
-        #else
-        false
-        #endif
-    }
-
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var theme: GhafTheme {
@@ -165,7 +160,7 @@ struct GhafProView: View {
 
     @ViewBuilder private var purchaseControls: some View {
         let selected = products.first { $0.id == (yearly ? yearlyID : monthlyID) }
-        let active = entitled || testUnlocked
+        let active = GhafProAccess.hasAccess
         Button {
             busy = true
             Task {
@@ -183,9 +178,10 @@ struct GhafProView: View {
                 } catch { notice = error.localizedDescription }
             }
         } label: {
-            Text(testUnlocked ? (ar ? "اشتراك تجريبي فعّال" : "Pro is active (debug)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+            Text(GhafProAccess.hasAccessCode ? (ar ? "Pro فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
             .disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
+        accessCodeControls
         do {
             Button(ar ? "استعادة المشتريات" : "Restore purchases") {
                 busy = true
@@ -194,7 +190,7 @@ struct GhafProView: View {
                     do {
                         try await AppStore.sync()
                         await refreshEntitlements()
-                        notice = entitled ? nil : (ar ? "لا يوجد اشتراك فعّال" : "No active subscription found")
+                        notice = GhafProAccess.hasAccess ? nil : (ar ? "لا يوجد اشتراك فعّال" : "No active subscription found")
                     } catch { notice = error.localizedDescription }
                 }
             }
@@ -212,15 +208,66 @@ struct GhafProView: View {
     }
 
     private func refreshEntitlements() async {
-        var active = false
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result,
-               [monthlyID, yearlyID].contains(transaction.productID),
-               transaction.revocationDate == nil, !transaction.isUpgraded {
-                active = true
+        _ = await GhafAITier.refreshVerifiedEntitlement()
+        accessRevision += 1
+    }
+
+    @ViewBuilder private var accessCodeControls: some View {
+        if GhafProAccess.hasAccessCode {
+            HStack {
+                Text(ar ? "Pro فعّال (رمز)" : "Pro active (code)")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.accent)
+                Spacer()
+                Button(ar ? "إزالة الرمز" : "Remove code") {
+                    GhafProAccess.removeAccessCode()
+                    accessRevision += 1
+                    notice = nil
+                }
+                .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
             }
+            .id(accessRevision)
+        } else if codeEntryVisible {
+            VStack(spacing: 10) {
+                TextField(ar ? "أدخل الرمز" : "Enter your code", text: $accessCode)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(GhafTypography.body(16, languageCode: lang))
+                    .padding(14)
+                    .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.outline, lineWidth: 1))
+                    .accessibilityIdentifier("ghaf.pro.access-code")
+                Button {
+                    let code = accessCode.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !code.isEmpty, !redeemingAccessCode else { return }
+                    redeemingAccessCode = true
+                    Task {
+                        defer { redeemingAccessCode = false }
+                        switch await GhafCloudAI.redeemAccessCode(code) {
+                        case .success:
+                            GhafProAccess.saveAccessCode(code)
+                            accessCode = ""
+                            codeEntryVisible = false
+                            accessRevision += 1
+                            notice = ar ? "تم تفعيل Pro باستخدام الرمز" : "Pro active (code)"
+                        case .invalid:
+                            notice = ar ? "الرمز غير صالح أو انتهت محاولات اليوم" : "That code is invalid, or today's attempts are used"
+                        case .unavailable:
+                            notice = ar ? "تعذّر الاتصال. حاول مرة أخرى." : "Couldn't connect. Try again."
+                        }
+                    }
+                } label: {
+                    Text(redeemingAccessCode ? (ar ? "جارٍ التحقق…" : "Checking…") : (ar ? "تفعيل الرمز" : "Activate code"))
+                        .frame(maxWidth: .infinity)
+                }
+                .ghafProminentButton(theme: theme, languageCode: lang)
+                .disabled(redeemingAccessCode || accessCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        } else {
+            Button(ar ? "لديك رمز؟" : "Have a code?") { codeEntryVisible = true }
+                .font(GhafTypography.body(14, languageCode: lang, weight: .medium))
+                .foregroundStyle(theme.accent)
+                .accessibilityIdentifier("ghaf.pro.have-code")
         }
-        entitled = active
     }
 
     private func planRow(annual: Bool) -> some View {

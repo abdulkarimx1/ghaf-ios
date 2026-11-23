@@ -219,10 +219,12 @@ final class GhafLiveCall: ObservableObject {
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        if let code = Keychain.read(GhafCloudAI.accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         request.httpBody = try JSONSerialization.data(withJSONObject: ["language": language, "character": character, "tier": tier])
         let (data, response) = try await session.data(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw URLError(.badServerResponse) }
         if status == 429 { throw GhafCloudAI.Failure.dailyLimit }
+        if status == 401, Keychain.read(GhafCloudAI.accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
         guard status == 200, let token = try? JSONDecoder().decode(Token.self, from: data) else { throw GhafCloudAI.Failure.unavailable }
         return token
     }

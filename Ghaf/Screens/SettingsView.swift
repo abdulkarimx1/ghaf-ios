@@ -67,7 +67,7 @@ struct GhafSettingsView: View {
     @State private var editingCategory: String?
     @State private var categoryDraftName = ""
     @State private var showCategories = false
-    @State private var proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
+    @State private var proUnlocked = GhafProAccess.hasAccess
     @State private var selectedMilestone: Int?
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
@@ -217,8 +217,11 @@ struct GhafSettingsView: View {
             }
             .onAppear {
                 loadSettings()
-                proUnlocked = UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked")
-                    || GhafWidgetSnapshot.groupIDs.contains { UserDefaults(suiteName: $0)?.bool(forKey: "ghaf.pro.unlocked") == true }
+                proUnlocked = GhafProAccess.hasAccess
+                Task {
+                    _ = await GhafAITier.refreshVerifiedEntitlement()
+                    proUnlocked = GhafProAccess.hasAccess
+                }
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
                     switch GhafScreenshotFixture.destination {
