@@ -48,8 +48,10 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     }
 
     func speak(_ text: String, arabic: Bool, character: String, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> SpeechResult {
+        if GhafCloudAI.fixtureNetworkIsDisabledForRequests { return .unavailable }
         var request = URLRequest(url: Self.endpoint, timeoutInterval: 12)
         request.httpMethod = "POST"
+        GhafCloudAI.setBuildHeader(on: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         if let code = Keychain.read(GhafCloudAI.accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }

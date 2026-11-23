@@ -215,9 +215,11 @@ final class GhafLiveCall: ObservableObject {
     private struct Token: Decodable { let token: String; let model: String; let voice: String }
 
     private func fetchToken() async throws -> Token {
+        if GhafCloudAI.fixtureNetworkIsDisabledForRequests { throw GhafCloudAI.Failure.unavailable }
         guard let url = URL(string: "/live-token", relativeTo: GhafCloudAI.endpoint.deletingLastPathComponent()) else { throw URLError(.badURL) }
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        GhafCloudAI.setBuildHeader(on: &request)
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         if let code = Keychain.read(GhafCloudAI.accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         request.httpBody = try JSONSerialization.data(withJSONObject: ["language": language, "character": character, "tier": tier])

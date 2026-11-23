@@ -21,7 +21,7 @@ async function invoke(path, body, state) {
 }
 function assertShape(point, endpoint) {
   assert.deepEqual(point.indexes, ['ghaf']);
-  assert.equal(point.blobs.length, 6);
+  assert.equal(point.blobs.length, 7);
   assert.equal(point.blobs[0], endpoint);
   assert.equal(point.doubles.length, 4);
   assert.ok(point.doubles.every(Number.isFinite));
@@ -43,6 +43,18 @@ test('chat error emits one anonymous event with no prompt or raw device', async 
   assert.deepEqual(state.points[0].doubles.slice(1), [0, 0, 0]);
   assert.equal(JSON.stringify(state.points).includes(prompt), false);
   assert.equal(JSON.stringify(state.points).includes(device), false);
+});
+
+test('build classification is the final analytics blob and unknown is the default', async () => {
+  for (const [header, expected] of [[undefined, 'unknown'], ['release', 'release'], ['debug', 'debug'], ['simulator', 'simulator'], ['other', 'unknown']]) {
+    const state = setup();
+    const headers = { 'X-Ghaf-Device': device };
+    if (header) headers['X-Ghaf-Build'] = header;
+    await worker.fetch(request('/voice-turn', { language: 'en' }, headers), state.env, state.ctx);
+    await Promise.all(state.pending);
+    assert.equal(state.points[0].blobs[6], expected);
+    assert.equal(state.points[0].blobs.length, 7);
+  }
 });
 
 test('limited request logs once and missing analytics binding does not change response', async () => {
