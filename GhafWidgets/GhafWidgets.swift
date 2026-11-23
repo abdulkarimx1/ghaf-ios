@@ -47,14 +47,20 @@ struct GhafWidgetProLock: ViewModifier {
 
 /// Shared, legible lock treatment used by the in-app gallery and Home Screen widgets.
 struct GhafWidgetProMask: View {
+    @Environment(\.locale) private var locale
+    private var isArabic: Bool { locale.language.languageCode?.identifier == "ar" }
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "lock.fill").font(.system(size: 20, weight: .semibold))
             Text("Ghaf Pro").font(.system(size: 18, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.8)
+            Text(isArabic ? "افتحها من التطبيق" : "Unlock in the app")
+                .font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.black.opacity(0.48))
+        .background(.ultraThinMaterial)
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.16), lineWidth: 1))
         .contentShape(Rectangle())
     }
 }
