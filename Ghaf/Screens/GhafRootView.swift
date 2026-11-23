@@ -507,9 +507,20 @@ struct GhafTabView: View {
                         .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 + 12, y: geometry.size.height - 36)
                         .allowsHitTesting(false)
                 }
-                GhafAIOrb(theme: theme, mood: router.isListening ? .listening : .idle, level: 0)
-                    .frame(width: showOrbOverlay ? 112 : 56, height: showOrbOverlay ? 112 : 56)
-                    .scaleEffect(showOrbOverlay && !expandedOrb ? 26 / 112 : 1)
+                Group {
+                    if router.isListening || showOrbOverlay {
+                        GhafAIOrb(theme: theme, mood: .listening, level: 0)
+                            .frame(width: 112, height: 112)
+                            .scaleEffect(expandedOrb ? 1 : 26 / 112)
+                    } else {
+                        Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1))
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
+                    }
+                }
+                    .frame(width: 56, height: 56)
                     .contentShape(Circle())
                     .modifier(GhafOrbPressGesture(onTap: handleAITabOrbTap, onHold: handleAITabOrbHold))
                     .accessibilityElement(children: .ignore)
