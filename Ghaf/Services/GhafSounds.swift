@@ -7,6 +7,7 @@ final class GhafSounds {
     enum Cue: String { case orbOn = "orb_on", orbOff = "orb_off", added, deleted, streak, tick }
 
     static let shared = GhafSounds()
+    static let addedDelay: TimeInterval = 2.0
     private var players: [String: AVAudioPlayer] = [:]
 
     private init() {
@@ -33,6 +34,7 @@ final class GhafSounds {
         let name = cue == .tick ? ["tick", "tick_2", "tick_3"].randomElement()! : cue.rawValue
         guard let player = players[name] else { return }
         player.currentTime = 0
+        if cue == .added { player.volume = 0.2 }
         player.play()
     }
 
