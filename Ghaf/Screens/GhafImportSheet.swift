@@ -10,6 +10,7 @@ struct GhafImportSheet: View {
     @Environment(\.colorScheme) private var scheme
     let settings: GhafSettings
     @State private var selectedKind: Kind?
+    @State private var isFileImporterPresented = false
     @State private var pendingRestore: Kind?
     @State private var preview: GhafFileImportPreview?
     @State private var fileURL: URL?
@@ -51,7 +52,10 @@ struct GhafImportSheet: View {
             .navigationTitle(ar ? "استيراد" : "Import")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(ar ? "إغلاق" : "Close") { dismiss() }.foregroundStyle(theme.primaryText) } }
-            .fileImporter(isPresented: Binding(get: { selectedKind != nil }, set: { if !$0 { selectedKind = nil } }),
+            // Keep picker visibility separate from its route. SwiftUI dismisses
+            // the picker before calling `onCompletion`, so clearing the route
+            // through the presentation binding can silently skip the import.
+            .fileImporter(isPresented: $isFileImporterPresented,
                           allowedContentTypes: [.json, .commaSeparatedText, .plainText], allowsMultipleSelection: false, onCompletion: handlePick)
             .sheet(isPresented: $showMail) { if let fileURL { GhafMailComposer(file: fileURL, arabic: ar) { showMail = false } } }
             .alert(ar ? "تعذّر الاستيراد" : "Couldn’t import this file", isPresented: Binding(get: { message != nil && isFailure && preview == nil }, set: { if !$0 { message = nil } })) {
@@ -59,14 +63,38 @@ struct GhafImportSheet: View {
             } message: { Text(message ?? "") }
             .alert(ar ? "استبدال البيانات الحالية؟" : "Replace current data?", isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } })) {
                 Button(ar ? "إلغاء" : "Cancel", role: .cancel) { pendingRestore = nil }
-                Button(ar ? "متابعة" : "Continue", role: .destructive) { selectedKind = pendingRestore; pendingRestore = nil }
+                Button(ar ? "متابعة" : "Continue", role: .destructive) {
+                    selectedKind = pendingRestore
+                    pendingRestore = nil
+                    isFileImporterPresented = true
+                }
             } message: { Text(ar ? "سيؤدي الاستيراد إلى استبدال السجلات والحسابات الحالية." : "This restore replaces your current records and accounts. Make sure you have a backup before continuing.") }
         }
         .ghafDirection(settings.languageCode)
+        .onAppear { runDebugImportFixtureIfRequested() }
+    }
+
+    private func runDebugImportFixtureIfRequested() {
+#if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard GhafScreenshotFixture.importSheetRoute,
+              let kindIndex = args.firstIndex(of: "-GhafImportKind"), args.indices.contains(kindIndex + 1),
+              let pathIndex = args.firstIndex(of: "-GhafImportFile"), args.indices.contains(pathIndex + 1),
+              let kind = Kind(rawValue: args[kindIndex + 1]) else { return }
+        selectedKind = kind
+        handlePick(.success([URL(fileURLWithPath: args[pathIndex + 1])]))
+#endif
     }
 
     private func choice(_ title: String, subtitle: String, icon: String, kind: Kind) -> some View {
-        Button { if kind == .other { selectedKind = kind } else { pendingRestore = kind } } label: {
+        Button {
+            if kind == .other {
+                selectedKind = kind
+                isFileImporterPresented = true
+            } else {
+                pendingRestore = kind
+            }
+        } label: {
             HStack(spacing: 14) {
                 Image(systemName: icon).font(.system(size: 20, weight: .medium)).foregroundStyle(theme.accent).frame(width: 28)
                 VStack(alignment: .leading, spacing: 4) { Text(title).font(.system(size: 17, weight: .semibold)).foregroundStyle(theme.primaryText); Text(subtitle).font(.system(size: 14)).foregroundStyle(theme.secondaryText) }
@@ -130,13 +158,57 @@ struct GhafImportSheet: View {
             fileURL = localFile; isFailure = false; message = nil
             switch kind {
             case .ghaf:
-                let unassigned = try GhafBackupService.restore(from: localFile, context: context)
+                let result = try GhafBackupService.restore(from: localFile, context: context)
                 markSetUp()
-                message = ar ? "تمت استعادة نسخة غاف. سجلات بلا حساب: \(unassigned)." : "Ghaf backup restored. Records left without an account: \(unassigned)."
+                message = ar
+                    ? "اكتمل الاستيراد · الحسابات: \(result.accountsImported) · المعاملات: \(result.transactionsImported) · الاشتراكات: \(result.subscriptionsImported) · بلا حساب: \(result.recordsWithoutAccounts)"
+                    : "Import complete · Accounts: \(result.accountsImported) · Transactions: \(result.transactionsImported) · Subscriptions: \(result.subscriptionsImported) · Unassigned: \(result.recordsWithoutAccounts)"
             case .expend: let result = try GhafExpendImportService.importFile(from: localFile, context: context); message = ar ? "تم استيراد \(result.transactionsImported) عملية من Expend." : "Imported \(result.transactionsImported) transactions from Expend."
             case .other: preview = try GhafFileImport.preview(localFile, context: context)
             }
-        } catch { isFailure = true; message = ar ? "تعذّر استيراد الملف. تحقّق من نوعه ومحتواه، ثم حاول مجددًا." : error.localizedDescription }
+        } catch {
+            if isPickerCancellation(error) { return }
+            isFailure = true
+            message = importErrorMessage(error)
+        }
+    }
+
+    private func isPickerCancellation(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
+    }
+
+    private func importErrorMessage(_ error: Error) -> String {
+        switch error {
+        case GhafBackupError.unsupportedVersion:
+            return ar ? "إصدار نسخة غاف هذه غير مدعوم." : "This Ghaf backup version is not supported."
+        case GhafBackupError.invalidBackup:
+            return ar ? "ملف نسخة غاف تالف أو غير مكتمل." : "This Ghaf backup is damaged or incomplete."
+        case GhafExpendImportError.unreadableFile:
+            return ar ? "تعذرت قراءة الملف المحدد." : "The selected file could not be read."
+        case GhafExpendImportError.unsupportedFormat:
+            return ar ? "ملف JSON هذا ليس نسخة مدعومة من Expend." : "This JSON file is not a supported Expend export."
+        case GhafExpendImportError.noValidWallets:
+            return ar ? "لم نعثر على محافظ صالحة في ملف Expend." : "No valid wallets were found in the Expend export."
+        case GhafExpendImportError.invalidTransactionData:
+            return ar ? "بيانات المعاملات في ملف Expend غير مكتملة." : "The Expend transaction data is incomplete."
+        case GhafExpendImportError.walletBalanceMismatch:
+            return ar ? "أرصدة المحافظ في الملف لا تتطابق مع سجل المعاملات. لم يتم الاستيراد."
+                : "The wallet balances do not match the file's transactions. Nothing was imported."
+        case GhafFileImportError.unsupported:
+            return ar ? "صيغة الملف غير مدعومة. اختر ملف CSV أو JSON للمعاملات."
+                : "This file format isn't supported. Choose a CSV or transaction JSON file."
+        case GhafFileImportError.noTransactions:
+            return ar ? "لم نعثر على معاملات بتاريخ ومبلغ ووصف صالح."
+                : "No transactions with a valid date, amount, and description were found."
+        case GhafCore.DelimitedImportError.unclosedQuote:
+            return ar ? "أحد الحقول المحاطة بعلامتي اقتباس غير مكتمل." : "A quoted field is missing its closing quotation mark."
+        case GhafCore.DelimitedImportError.noRows:
+            return ar ? "لا يحتوي الملف على صفوف بيانات." : "The file contains no data rows."
+        default:
+            return ar ? "تعذر استيراد الملف. تحقق من نوعه ومحتواه، ثم حاول مجددًا."
+                : "The file couldn't be imported. Check its type and contents, then try again."
+        }
     }
 
     private func commit(_ preview: GhafFileImportPreview) {

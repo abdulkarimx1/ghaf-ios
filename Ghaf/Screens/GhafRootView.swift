@@ -244,6 +244,7 @@ struct GhafRootView: View {
 #if DEBUG
         if GhafScreenshotFixture.enabled, !GhafScreenshotFixture.launchNewUser, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
+            case "importSheet": GhafImportSheet(settings: currentSettings)
             case "automation": GhafAutomationGuideView(settings: currentSettings)
             case "insights": GhafStatsView(settings: currentSettings).environment(fixtureRouter)
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)

@@ -159,6 +159,13 @@ enum GhafBackupError: LocalizedError {
     }
 }
 
+struct GhafBackupImportResult {
+    let accountsImported: Int
+    let transactionsImported: Int
+    let subscriptionsImported: Int
+    let recordsWithoutAccounts: Int
+}
+
 @MainActor
 enum GhafBackupService {
     static func export(context: ModelContext) throws -> URL {
@@ -293,16 +300,17 @@ enum GhafBackupService {
 
     /// Replaces current Ghaf data with a supported v1–v5 backup. Chats remain local and are not in the backup format.
     @discardableResult
-    static func restore(from url: URL, context: ModelContext) throws -> Int {
+    static func restore(from url: URL, context: ModelContext) throws -> GhafBackupImportResult {
         let accessGranted = url.startAccessingSecurityScopedResource()
         defer {
             if accessGranted { url.stopAccessingSecurityScopedResource() }
         }
 
         let data = try Data(contentsOf: url)
+        let migratedData = try migrateLegacyPayload(data)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let payload = try decoder.decode(GhafBackupPayload.self, from: data)
+        let payload = try decoder.decode(GhafBackupPayload.self, from: migratedData)
 
         guard (1...5).contains(payload.version) else {
             throw GhafBackupError.unsupportedVersion
@@ -330,10 +338,10 @@ enum GhafBackupService {
             throw GhafBackupError.invalidBackup("\(blockingProblems.count) integrity issue(s) found")
         }
         let availableAccountIDs = payload.accounts.map { Set($0.map(\.id)) }
-        let unassignedCount = BackupIntegrity.missingAccountReferences(
-            accountIDs: payload.accounts?.map(\.id),
-            references: payload.transactions.map(\.accountID) + (payload.subscriptions ?? []).map(\.accountID) + [payload.settings.salaryAccountID]
-        ).count
+        let references = payload.transactions.map(\.accountID) + (payload.subscriptions ?? []).map(\.accountID) + [payload.settings.salaryAccountID]
+        let unassignedCount = payload.accounts == nil
+            ? references.compactMap { $0 }.count
+            : BackupIntegrity.missingAccountReferences(accountIDs: payload.accounts?.map(\.id), references: references).count
 
         try context.fetch(FetchDescriptor<GhafTransaction>()).forEach { context.delete($0) }
         try context.fetch(FetchDescriptor<GhafAccount>()).forEach { context.delete($0) }
@@ -368,7 +376,7 @@ enum GhafBackupService {
             salaryAccountID: availableAccountIDs.map { ids in
                 guard let id = source.salaryAccountID, !ids.contains(id) else { return source.salaryAccountID }
                 return nil
-            } ?? source.salaryAccountID,
+            } ?? nil,
             lastSalaryDecisionKey: source.lastSalaryDecisionKey,
             salaryReminderEnabled: source.salaryReminderEnabled ?? false,
             biometricLockEnabled: source.biometricLockEnabled ?? false
@@ -422,7 +430,7 @@ enum GhafBackupService {
                 needsReview: item.needsReview,
                 isReversal: item.isReversal,
                 accountID: {
-                    guard let ids = availableAccountIDs, let id = item.accountID, !ids.contains(id) else { return item.accountID }
+                    guard let ids = availableAccountIDs, let id = item.accountID, !ids.contains(id) else { return availableAccountIDs == nil ? nil : item.accountID }
                     return nil
                 }()
             )
@@ -454,7 +462,7 @@ enum GhafBackupService {
                 id: item.id, name: item.name, amount: item.amount, currency: item.currency,
                 billingCycle: GhafBillingCycle(rawValue: item.billingCycle) ?? .monthly,
                 nextPaymentDate: item.nextPaymentDate, category: item.category, accountID: {
-                    guard let ids = availableAccountIDs, let id = item.accountID, !ids.contains(id) else { return item.accountID }
+                    guard let ids = availableAccountIDs, let id = item.accountID, !ids.contains(id) else { return availableAccountIDs == nil ? nil : item.accountID }
                     return nil
                 }(),
                 reminderDays: item.reminderDays, isActive: item.isActive, notes: item.notes
@@ -471,14 +479,13 @@ enum GhafBackupService {
             context.insert(memory)
         }
 
-        #if DEBUG
-        let restoredTransactions = try context.fetch(FetchDescriptor<GhafTransaction>())
-        assert(restoredTransactions.allSatisfy { transaction in
-            transaction.accountID.map { availableAccountIDs?.contains($0) ?? true } ?? true
-        }, "Restored records still contain a dangling account reference")
-        #endif
-
         do {
+#if DEBUG
+            let restoredTransactions = try context.fetch(FetchDescriptor<GhafTransaction>())
+            assert(restoredTransactions.allSatisfy { transaction in
+                transaction.accountID.map { availableAccountIDs?.contains($0) ?? false } ?? true
+            }, "Restored records still contain a dangling account reference")
+#endif
             try context.save()
         } catch {
             context.rollback()
@@ -496,7 +503,52 @@ enum GhafBackupService {
         for subscription in try context.fetch(FetchDescriptor<GhafSubscription>()) where subscription.isActive {
             GhafSubscriptionReminderService.schedule(subscription, language: settings.languageCode)
         }
-        return unassignedCount
+        return GhafBackupImportResult(
+            accountsImported: payload.accounts?.count ?? 0,
+            transactionsImported: payload.transactions.count,
+            subscriptionsImported: payload.subscriptions?.count ?? 0,
+            recordsWithoutAccounts: unassignedCount
+        )
+    }
+
+    /// Fill fields that became required after v1–v4 were published. Keep the
+    /// migration JSON-only so malformed records are rejected before the live
+    /// ModelContext is changed.
+    private static func migrateLegacyPayload(_ data: Data) throws -> Data {
+        guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let version = root["version"] as? Int else {
+            throw GhafBackupError.invalidBackup("JSON structure")
+        }
+        guard (1...5).contains(version) else { throw GhafBackupError.unsupportedVersion }
+        guard var settings = root["settings"] as? [String: Any] else {
+            throw GhafBackupError.invalidBackup("settings")
+        }
+
+        if version < 5 {
+            let defaults: [String: Any] = [
+                "userName": "",
+                "currency": "AED",
+                "monthlyIncome": 0,
+                "fixedCommitments": 0,
+                "themeName": "Graphite",
+                "appearanceMode": "System",
+                "budgetMode": "Monthly",
+                "categories": ["Other"],
+                "categoryBudgets": [:],
+                "hasCompletedOnboarding": true
+            ]
+            for (key, value) in defaults where settings[key] == nil { settings[key] = value }
+            if (settings["categories"] as? [String])?.isEmpty == true { settings["categories"] = ["Other"] }
+            root["settings"] = settings
+            if root["transactions"] == nil { root["transactions"] = [] }
+            if root["merchantRules"] == nil { root["merchantRules"] = [] }
+            if root["exportedAt"] == nil { root["exportedAt"] = ISO8601DateFormatter().string(from: .now) }
+        }
+
+        guard root["transactions"] is [[String: Any]], root["merchantRules"] is [[String: Any]] else {
+            throw GhafBackupError.invalidBackup("transaction or merchant data")
+        }
+        return try JSONSerialization.data(withJSONObject: root, options: [.fragmentsAllowed, .sortedKeys])
     }
 
     #if DEBUG
