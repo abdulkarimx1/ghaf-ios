@@ -57,7 +57,18 @@ struct GhafSnapshotTests {
         GhafClock.snapshotNow = fixedNow
         GhafScreenshotFixture.snapshotTestingEnabled = true
         GhafScreenshotFixture.snapshotScreenOverride = sample.screen == .profile ? "profile-proof" : nil
+        let defaults = UserDefaults.standard
+        let savedAutomationDefaults = sample.screen == .bankAutomation
+            ? defaults.dictionaryRepresentation().filter { $0.key.hasPrefix("ghaf.automation.") }
+            : [:]
+        if sample.screen == .bankAutomation { GhafScreenshotFixture.applyAutomation(state: "working") }
         defer {
+            if sample.screen == .bankAutomation {
+                for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("ghaf.automation.") {
+                    defaults.removeObject(forKey: key)
+                }
+                for (key, value) in savedAutomationDefaults { defaults.set(value, forKey: key) }
+            }
             GhafClock.snapshotNow = nil
             GhafScreenshotFixture.snapshotTestingEnabled = false
             GhafScreenshotFixture.snapshotScreenOverride = nil
