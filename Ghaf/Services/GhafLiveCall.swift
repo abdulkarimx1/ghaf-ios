@@ -141,12 +141,21 @@ final class GhafLiveCall: ObservableObject {
         userRequestedTurn = true
         turnCompleteReceived = false
         capturingUserTurn = true
+        audioGateOpen = true
         phase = .listening
-        guard let message = try? LiveEncoder.activityStart() else { return }
-        Task {
-            try? await send(message)
-            if capturingUserTurn { audioGateOpen = true }
-        }
+        startTurnLimitIfNeeded()
+    }
+
+    /// Stops queued model audio immediately so a new user utterance cannot be answered over.
+    func interruptPlayback() {
+        guard !stopping else { return }
+        player.stop()
+        player.reset()
+        queuedOutputBuffers = 0
+        outputLevel = 0
+        turnCompleteReceived = false
+        pendingEndReason = nil
+        phase = .listening
     }
 
     func endUserTurn() {
@@ -239,6 +248,9 @@ final class GhafLiveCall: ObservableObject {
             setupWaiter?.resume(); setupWaiter = nil
         case .audio(let pcm):
             finishTurnLimit()
+            capturingUserTurn = false
+            audioGateOpen = false
+            inputLevel = 0
             phase = .speaking; play(pcm)
         case .inputTranscript(let text): onInputTranscript?(text, false)
         case .outputTranscript(let text): finishTurnLimit(); onOutputTranscript?(text, false)

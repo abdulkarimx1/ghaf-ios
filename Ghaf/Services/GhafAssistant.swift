@@ -179,9 +179,7 @@ final class GhafAssistant: ObservableObject {
                         await Self.reveal(Self.groundedReply(reply, question: question, facts: facts, direct: direct,
                                                              history: history, languageCode: languageCode), into: continuation)
                     } catch GhafCloudAI.Failure.dailyLimit {
-                        await Self.reveal(fallback + (languageCode == "ar"
-                            ? "\n\n(وصل غاف AI إلى الحد المجاني اليوم. أكملت الإجابة من جهازك.)"
-                            : "\n\n(Ghaf AI has reached today's free limit. I finished this answer on your iPhone.)"), into: continuation)
+                        continuation.finish(throwing: GhafCloudAI.Failure.dailyLimit)
                     } catch {
                         // Offline or the server failed: the ledger's answer still comes from the device.
                         Logger(subsystem: "com.ghaf.app", category: "ai").error("Cloud AI failed: \(String(describing: error), privacy: .public)")

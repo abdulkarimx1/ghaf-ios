@@ -453,7 +453,7 @@ struct GhafTabView: View {
                 .tabItem {
                     tabIcon(Image(uiImage: showOrbOverlay ? UIImage() : GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1)),
                             router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
-                        .onLongPressGesture(minimumDuration: 0.45) { router.typeQuestion?() }
+                        .modifier(GhafOrbPressGesture(onTap: handleAITabOrbTap, onHold: handleAITabOrbHold))
                         .accessibilityAction(named: Text("Type a question")) { router.typeQuestion?() }
                 }
                 .tag(1)
@@ -561,6 +561,26 @@ struct GhafTabView: View {
             settings.appearanceMode == "Dark" || router.selectedTab == 1 ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+
+    private func handleAITabOrbTap() {
+        router.selectedTab = 1
+        Task { @MainActor in
+            for _ in 0..<15 {
+                if let action = router.startVoice { action(); return }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+
+    private func handleAITabOrbHold() {
+        router.selectedTab = 1
+        Task { @MainActor in
+            for _ in 0..<15 {
+                if let action = router.typeQuestion { action(); return }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
     }
 }
 

@@ -1,10 +1,17 @@
 import Foundation
 import Observation
+import StoreKit
 
 struct GhafVoiceUsage: Decodable, Equatable {
     let used: Int
     let limit: Int
     let resetsAt: Date
+
+    init(used: Int, limit: Int, resetsAt: Date) {
+        self.used = used
+        self.limit = limit
+        self.resetsAt = resetsAt
+    }
 
     private enum CodingKeys: String, CodingKey { case used, limit, resetsAt }
     init(from decoder: Decoder) throws {
@@ -144,11 +151,28 @@ enum GhafCloudAI {
 }
 
 enum GhafAITier {
+    /// Refreshes the local tier from verified StoreKit entitlements. The Worker currently
+    /// receives only the resulting tier string and must treat it as client-claimed.
+    @MainActor static func refreshVerifiedEntitlement() async -> String? {
+        var tier: String?
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.revocationDate == nil,
+                  !transaction.isUpgraded else { continue }
+            if transaction.productID == "com.ghaf.app.pro.monthly" { tier = "pro_monthly" }
+            if transaction.productID == "com.ghaf.app.pro.yearly" { tier = "pro_yearly" }
+        }
+        if let tier { UserDefaults.standard.set(tier, forKey: "ghaf.pro.activeTier") }
+        else { UserDefaults.standard.removeObject(forKey: "ghaf.pro.activeTier") }
+        return tier
+    }
+
     static var current: String {
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked") {
             return UserDefaults.standard.string(forKey: "ghaf.pro.testTier") == "pro_monthly" ? "pro_monthly" : "pro_yearly"
         }
+        if ProcessInfo.processInfo.arguments.contains("-GhafAIProTestAccess") { return "pro_monthly" }
         #endif
         return UserDefaults.standard.string(forKey: "ghaf.pro.activeTier") ?? "free"
     }

@@ -55,8 +55,8 @@ struct GhafProView: View {
     @State private var notice: String?
     private enum VoiceAllowance {
         // Keep aligned with backend/ghaf-ai-worker/worker.js voiceLimit().
-        static let monthlyDailyReplies = 60
-        static let yearlyDailyReplies = 200
+        static let monthlyDailyReplies = 3
+        static let yearlyDailyReplies = 10
     }
     private var testUnlocked: Bool {
         #if DEBUG
@@ -159,7 +159,8 @@ struct GhafProView: View {
 
     private func allowance(annual: Bool) -> String {
         let count = annual ? VoiceAllowance.yearlyDailyReplies : VoiceAllowance.monthlyDailyReplies
-        return ar ? "حتى \(count) ردًا صوتيًا يوميًا" : "Up to \(count) voice replies daily"
+        let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
+        return ar ? "\(localizedCount) ردود صوتية يوميًا" : "\(count) voice replies a day"
     }
 
     @ViewBuilder private var purchaseControls: some View {
@@ -234,10 +235,8 @@ struct GhafProView: View {
                         .font(GhafTypography.body(10, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
                     Text(allowance(annual: annual))
                         .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
-                    if annual {
-                        Text(ar ? "تجربة مجانية لمدة ٧ أيام" : "7-day free trial")
-                            .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
-                    }
+                    Text(ar ? "تجربة مجانية ٣ أيام" : "3-day free trial")
+                        .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
                 }
                 Spacer(minLength: 2)
                 VStack(alignment: .trailing, spacing: 3) {
@@ -246,7 +245,7 @@ struct GhafProView: View {
                 }
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
             }
-            .padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: annual ? 90 : 76)
+            .padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 96)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(yearly == annual ? theme.accent : theme.outline, lineWidth: yearly == annual ? 1.5 : 1))

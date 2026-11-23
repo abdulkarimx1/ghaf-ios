@@ -5,6 +5,7 @@ import AVFoundation
 /// Only used when the user has turned on Cloud AI; only reply text and the selected voice are sent.
 @MainActor
 final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
+    enum SpeechResult { case played, limitReached, unavailable }
     static let shared = GhafCloudVoice()
     private static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/speak")!
 
@@ -18,7 +19,22 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
 
     @discardableResult
     func playBundledGoodbye(character: String, arabic: Bool, onFinish: @escaping () -> Void) -> Bool {
-        let name = "goodbye_\(character == "Mariam" ? "Mariam" : "Hamad")_\(arabic ? "ar" : "en")"
+        playBundledClip(prefix: "goodbye", character: character, arabic: arabic, onFinish: onFinish)
+    }
+
+    @discardableResult
+    func playBundledError(character: String, arabic: Bool, onFinish: @escaping () -> Void = {}) -> Bool {
+        playBundledClip(prefix: "error", character: character, arabic: arabic, onFinish: onFinish)
+    }
+
+    @discardableResult
+    func playBundledSample(character: String, arabic: Bool, onFinish: @escaping () -> Void = {}) -> Bool {
+        playBundledClip(prefix: "sample", character: character, arabic: arabic, onFinish: onFinish)
+    }
+
+    @discardableResult
+    private func playBundledClip(prefix: String, character: String, arabic: Bool, onFinish: @escaping () -> Void) -> Bool {
+        let name = "\(prefix)_\(character == "Mariam" ? "Mariam" : "Hamad")_\(arabic ? "ar" : "en")"
         guard let url = Bundle.main.url(forResource: name, withExtension: "wav"),
               let player = try? AVAudioPlayer(contentsOf: url) else { return false }
         stop()
@@ -31,15 +47,16 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
         return player.play()
     }
 
-    func speak(_ text: String, arabic: Bool, character: String, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> Bool {
+    func speak(_ text: String, arabic: Bool, character: String, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> SpeechResult {
         var request = URLRequest(url: Self.endpoint, timeoutInterval: 12)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "language": arabic ? "ar" : "en", "character": character, "tier": GhafAITier.current])
         guard let (data, response) = try? await URLSession.shared.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200,
-              let player = try? AVAudioPlayer(data: data) else { return false }
+              let status = (response as? HTTPURLResponse)?.statusCode else { return .unavailable }
+        if status == 429 { return .limitReached }
+        guard status == 200, let player = try? AVAudioPlayer(data: data) else { return .unavailable }
         stop()
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
@@ -48,7 +65,7 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
         player.isMeteringEnabled = true
         self.player = player
         self.onFinish = onFinish
-        guard player.play() else { return false }
+        guard player.play() else { return .unavailable }
         onStart()
         meter = Timer.scheduledTimer(withTimeInterval: 1 / 20, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -58,7 +75,7 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
                 self.onLevel?(max(0, min(1, (player.averagePower(forChannel: 0) + 50) / 50)))
             }
         }
-        return true
+        return .played
     }
 
     func stop() {
