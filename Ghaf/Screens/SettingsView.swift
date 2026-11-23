@@ -23,6 +23,7 @@ struct GhafSettingsView: View {
     private struct SavedPlace: Decodable { let name: String; let latitude: Double; let longitude: Double; let address: String?; let phone: String? }
     private struct PlaceSummary: Identifiable { let name: String; let count: Int; let totals: [String: Decimal]; var id: String { name } }
     @Environment(\.modelContext) private var modelContext
+    @Environment(GhafTabRouter.self) private var router
     @Environment(\.colorScheme) private var systemColorScheme
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     @Query(sort: \GhafTransaction.date, order: .reverse) private var transactions: [GhafTransaction]
@@ -62,6 +63,9 @@ struct GhafSettingsView: View {
     @State private var prompt: GhafSettingsPrompt?
     @State private var showDeleteConfirmation = false
     @State private var hasLoadedSettings = false
+    @State private var profileStreak = 0
+    @State private var profileStreakKey: String?
+    @State private var cachedPlaceSummaries: [PlaceSummary] = []
     @State private var categoryToRemove: String?
     @State private var subcategoryToRemove: String?
     @State private var editingCategory: String?
@@ -93,7 +97,7 @@ struct GhafSettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: GhafMetrics.sectionSpacing) {
+                LazyVStack(spacing: GhafMetrics.sectionSpacing) {
                     profileHeader
 
                     if proUnlocked {
@@ -222,6 +226,7 @@ struct GhafSettingsView: View {
                     _ = await GhafAITier.refreshVerifiedEntitlement()
                     proUnlocked = GhafProAccess.hasAccess
                 }
+                refreshProfileStreakIfNeeded()
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
                     switch GhafScreenshotFixture.destination {
@@ -236,6 +241,7 @@ struct GhafSettingsView: View {
                 }
 #endif
             }
+            .onChange(of: "\(transactions.count)-\(router.ledgerRevision)") { _, _ in refreshProfileStreakIfNeeded() }
             .onChange(of: glassEnabled) { _, _ in GhafWidgetSync.refresh(context: modelContext) }
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }
@@ -499,7 +505,7 @@ struct GhafSettingsView: View {
 
     private var profileCard: some View {
         let activeAccountCount = accounts.filter { !$0.isArchived }.count
-        let streak = GhafLoggingStreak.count(transactions.filter { !$0.needsReview }.map(\.date), through: .now, calendar: Calendar.current)
+        let streak = profileStreak
         return VStack(spacing: 18) {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
@@ -623,10 +629,29 @@ struct GhafSettingsView: View {
         }
     }
 
-    private var placeSummaries: [PlaceSummary] {
+    private func refreshProfileStreakIfNeeded() {
+        let key = "\(transactions.count)-\(router.ledgerRevision)"
+        guard key != profileStreakKey else { return }
+#if DEBUG
+        (profileStreak, cachedPlaceSummaries) = GhafPerformanceProbe.measure("more-summary") {
+            (
+                GhafLoggingStreak.count(transactions.filter { !$0.needsReview }.map(\.date),
+                                        through: GhafClock.now, calendar: Calendar.current),
+                buildPlaceSummaries()
+            )
+        }
+#else
+        profileStreak = GhafLoggingStreak.count(transactions.filter { !$0.needsReview }.map(\.date),
+                                               through: GhafClock.now, calendar: Calendar.current)
+        cachedPlaceSummaries = buildPlaceSummaries()
+#endif
+        profileStreakKey = key
+    }
+
+    private func buildPlaceSummaries() -> [PlaceSummary] {
         guard let data = UserDefaults.standard.data(forKey: "ghaf.places.byTransaction"),
               let places = try? JSONDecoder().decode([String: SavedPlace].self, from: data),
-              let month = Calendar.current.dateInterval(of: .month, for: .now) else { return [] }
+              let month = Calendar.current.dateInterval(of: .month, for: GhafClock.now) else { return [] }
         let purchases = transactions.filter { $0.direction == "debit" && !$0.isReversal && month.contains($0.date) }
         let grouped = Dictionary(grouping: purchases.compactMap { transaction -> (String, GhafTransaction)? in
             guard let place = places[transaction.id.uuidString] else { return nil }
@@ -642,7 +667,7 @@ struct GhafSettingsView: View {
     }
 
     private var placesCard: some View {
-        let summaries = placeSummaries
+        let summaries = cachedPlaceSummaries
         return GhafProFeatureMask(isUnlocked: proUnlocked, theme: theme, languageCode: languageCode, action: { showProSheet = true }) {
           VStack(alignment: .leading, spacing: 12) {
             Label(ar ? "أماكن إنفاقك" : "Places you spent", systemImage: "mappin.and.ellipse")
@@ -681,7 +706,7 @@ struct GhafSettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             HStack(spacing: 6) {
                 ForEach(0..<7, id: \.self) { offset in
-                    let date = Calendar.current.date(byAdding: .day, value: offset - 6, to: .now) ?? .now
+                    let date = Calendar.current.date(byAdding: .day, value: offset - 6, to: GhafClock.now) ?? GhafClock.now
                     let logged = transactions.contains { Calendar.current.isDate($0.date, inSameDayAs: date) && !$0.needsReview }
                     VStack(spacing: 5) {
                         Text(date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: languageCode))))
@@ -1248,7 +1273,7 @@ HStack(spacing: 8) {
 
     /// Spending per category this calendar month, in the main currency only.
     private var categorySpendThisMonth: [String: Decimal] {
-        guard let month = Calendar.current.dateInterval(of: .month, for: .now) else { return [:] }
+        guard let month = Calendar.current.dateInterval(of: .month, for: GhafClock.now) else { return [:] }
         var totals: [String: Decimal] = [:]
         for transaction in transactions where month.contains(transaction.date)
             && transaction.currency == currency && transaction.isSpendingOrIncome && transaction.isExpense {

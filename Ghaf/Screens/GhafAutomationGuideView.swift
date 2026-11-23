@@ -37,7 +37,7 @@ struct GhafAutomationGuideView: View {
             }
         }
 #endif
-        if realRuns.contains(where: { $0 > Date.now.addingTimeInterval(-14 * 24 * 60 * 60).timeIntervalSince1970 }) { return .working }
+        if realRuns.contains(where: { $0 > GhafClock.now.addingTimeInterval(-14 * 24 * 60 * 60).timeIntervalSince1970 }) { return .working }
         return chosenBanks.isEmpty ? .notSetUp : .waiting
     }
 
@@ -703,8 +703,14 @@ struct GhafAutomationGuideView: View {
         if !enabled { return text("Off: Ghaf ignores this bank’s alerts · \(skipped) skipped", "متوقف: يتجاهل غاف تنبيهات هذا البنك · تم تجاهل \(skipped)") }
         guard lastSeen > 0 else { return text("Waiting for first alert", "بانتظار أول تنبيه") }
         let date = Date(timeIntervalSince1970: lastSeen)
-        return text("Working · last alert \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))",
-                    "يعمل · آخر تنبيه \(date.formatted(.relative(presentation: .named).locale(Locale(identifier: settings.languageCode))))")
+        let locale = Locale(identifier: settings.languageCode)
+        let relativeDate: String
+        if #available(iOS 18, *) {
+            relativeDate = Date.AnchoredRelativeFormatStyle(anchor: date, presentation: .named, locale: locale).format(GhafClock.now)
+        } else {
+            relativeDate = date.formatted(.relative(presentation: .named).locale(locale))
+        }
+        return text("Working · last alert \(relativeDate)", "يعمل · آخر تنبيه \(relativeDate)")
     }
 
     private func refreshBanks() {
