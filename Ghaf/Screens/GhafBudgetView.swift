@@ -250,6 +250,7 @@ struct GhafBudgetView: View {
                         .foregroundStyle(theme.secondaryText)
                         .multilineTextAlignment(.center)
                         .frame(width: diameter * 0.72, height: diameter * 0.72)
+                        .ghafEntrance(1)
                 }
             }
             .frame(width: diameter, height: diameter)

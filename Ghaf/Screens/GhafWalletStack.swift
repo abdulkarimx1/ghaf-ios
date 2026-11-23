@@ -134,6 +134,7 @@ struct GhafWalletStack: View {
                     .font(GhafTypography.body(14, languageCode: languageCode))
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, minHeight: 174)
+                    .ghafEntrance(1)
             }
         }
         .frame(height: 186)
