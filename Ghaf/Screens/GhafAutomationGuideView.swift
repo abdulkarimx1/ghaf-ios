@@ -139,15 +139,14 @@ struct GhafAutomationGuideView: View {
             }
             .frame(minHeight: 44).contentShape(Rectangle())
           }.buttonStyle(.plain)
-          Text(text(
+          if privacyExpanded { Text(text(
                 "Ghaf can’t read your bank login or other apps. Shortcuts passes the alert text you choose and, if mapped, its sender app name. Ghaf parses the alert on this iPhone and doesn’t send it to Ghaf’s server. Currency conversion or optional location lookup may use online services.",
                 "لا يستطيع غاف قراءة بيانات دخولك إلى البنك أو الاطلاع على التطبيقات الأخرى. يمرر تطبيق الاختصارات نص التنبيه الذي تختاره، واسم التطبيق المُرسِل إن ربطته. يحلل غاف التنبيه على هذا iPhone ولا يرسله إلى خوادم غاف. وقد تستخدم خدمة تحويل العملة أو البحث الاختياري عن الموقع خدمات عبر الإنترنت."
             ))
             .font(GhafTypography.body(13, languageCode: settings.languageCode))
             .foregroundStyle(theme.secondaryText)
             .multilineTextAlignment(ar ? .trailing : .leading)
-            .lineLimit(privacyExpanded ? nil : 2)
-            .fixedSize(horizontal: false, vertical: privacyExpanded)
+            .fixedSize(horizontal: false, vertical: true) }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -280,10 +279,11 @@ struct GhafAutomationGuideView: View {
         let stamp = defaults.double(forKey: automation == .wallet ? GhafAutomationStatus.walletRunKey : GhafAutomationStatus.messageRunKey)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Text(title).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(2).minimumScaleFactor(0.82)
+                Text(title).font(GhafTypography.body(15, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.72)
                 Spacer(minLength: 0)
                 automationMark(rowStatus(stamp))
             }
+            .frame(height: 24, alignment: .leading)
             if let link = URL(string: url), !url.isEmpty {
                 // The card title names the template, so the button stays short and on one line.
                 Link(destination: link) {
@@ -298,7 +298,7 @@ struct GhafAutomationGuideView: View {
                     .multilineTextAlignment(.center)
             }.buttonStyle(.plain)
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14).frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
         .ghafCard(theme: theme, radius: 24)
     }
 

@@ -5,16 +5,21 @@ enum GhafLocalization {
     /// "n days" in Arabic: the counted noun follows the number (٧ أيام، ٣٠ يومًا، ١٠٠ يوم).
     static func arabicDays(_ n: Int) -> String {
         let r = n % 100
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "ar_EG")
+        formatter.numberStyle = .decimal
+        let count = formatter.string(from: NSNumber(value: n)) ?? String(n)
         if n == 1 { return "يوم واحد" }
         if n == 2 { return "يومان" }
-        if (3...10).contains(r) { return "\(n) أيام" }
-        if r == 0 { return "\(n) يوم" }
-        return "\(n) يومًا"
+        if (3...10).contains(r) { return "\(count) أيام" }
+        if (11...99).contains(r) { return "\(count) يومًا" }
+        return "\(count) يوم"
     }
 
 #if DEBUG
     static func assertArabicDays() {
-        assert(arabicDays(7) == "7 أيام" && arabicDays(30) == "30 يومًا" && arabicDays(100) == "100 يوم" && arabicDays(365) == "365 يومًا")
+        assert(arabicDays(1) == "يوم واحد" && arabicDays(2) == "يومان" && arabicDays(7) == "٧ أيام"
+               && arabicDays(11) == "١١ يومًا" && arabicDays(30) == "٣٠ يومًا" && arabicDays(100) == "١٠٠ يوم")
     }
 #endif
 

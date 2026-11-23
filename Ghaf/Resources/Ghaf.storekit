@@ -15,6 +15,13 @@
           "displayPrice": "9.99",
           "familyShareable": false,
           "groupNumber": 1,
+          "introductoryOffer": {
+            "displayPrice": "0.00",
+            "internalID": "3DA7B001",
+            "numberOfPeriods": 1,
+            "paymentMode": "free",
+            "subscriptionPeriod": "P3D"
+          },
           "internalID": "d7130060-913d-4b18-a962-e16eda5d9633",
           "localizations": [
             {
@@ -35,6 +42,13 @@
           "displayPrice": "79.99",
           "familyShareable": false,
           "groupNumber": 1,
+          "introductoryOffer": {
+            "displayPrice": "0.00",
+            "internalID": "3DA7B002",
+            "numberOfPeriods": 1,
+            "paymentMode": "free",
+            "subscriptionPeriod": "P3D"
+          },
           "internalID": "dd0cf1a4-b678-49ed-8c7a-4cf2a1b6aa54",
           "localizations": [
             {
