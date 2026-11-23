@@ -314,6 +314,7 @@ struct GhafSalarySettingsView: View {
                                 .environment(\.layoutDirection, .leftToRight)
                                 .frame(width: 132)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
+                                .environment(\.layoutDirection, .leftToRight)
                         }
                         GhafFormDivider(theme: theme)
                         GhafFormMenuRow(icon: "wallet.pass", tint: theme.accent,
