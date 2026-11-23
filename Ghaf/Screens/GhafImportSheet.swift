@@ -33,7 +33,7 @@ struct GhafImportSheet: View {
                     Text(ar ? "اختر نوع النسخة التي تريد استيرادها." : "Choose the kind of file you want to restore.").font(GhafTypography.body(17, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
                     VStack(spacing: 12) {
                         choice(ar ? "نسخة غاف الاحتياطية" : "Ghaf backup", subtitle: ar ? "استعادة نسخة غاف بصيغة JSON" : "Restore a Ghaf JSON backup", icon: "externaldrive.fill", kind: .ghaf)
-                        choice(ar ? "نسخة Expend" : "Expend backup", subtitle: ar ? "استيراد ملف مُصدَّر من Expend" : "Import an Expend export", icon: "wallet.pass.fill", kind: .expend)
+                        choice(ar ? "نسخة من تطبيق ميزانية آخر" : "Other budgeting app backup", subtitle: ar ? "استيراد نسخة مدعومة من تطبيق آخر" : "Import a supported backup from another app", icon: "wallet.pass.fill", kind: .expend)
                         VStack(alignment: .leading, spacing: 12) {
                             Text(ar ? "قد لا تُستورد ملفات التطبيقات الأخرى بشكل كامل. إذا لم يعمل ملفك، أرسله إلينا لنضيف دعمه في تحديث قادم." : "Other apps' files may not import perfectly. If yours doesn't work, send it to us and we'll add support in an update.")
                                 .font(GhafTypography.body(14, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)
@@ -133,10 +133,10 @@ struct GhafImportSheet: View {
                 let unassigned = try GhafBackupService.restore(from: localFile, context: context)
                 markSetUp()
                 message = ar ? "تمت استعادة نسخة غاف. سجلات بلا حساب: \(unassigned)." : "Ghaf backup restored. Records left without an account: \(unassigned)."
-            case .expend: let result = try GhafExpendImportService.importFile(from: localFile, context: context); message = ar ? "تم استيراد \(result.transactionsImported) عملية من Expend." : "Imported \(result.transactionsImported) transactions from Expend."
+            case .expend: let result = try GhafExpendImportService.importFile(from: localFile, context: context); message = ar ? "تم استيراد \(result.transactionsImported) عملية من تطبيق ميزانية آخر." : "Imported \(result.transactionsImported) transactions from another budgeting app."
             case .other: preview = try GhafFileImport.preview(localFile, context: context)
             }
-        } catch { isFailure = true; message = ar ? "تعذّر استيراد الملف. تحقّق من نوعه ومحتواه، ثم حاول مجددًا." : error.localizedDescription }
+        } catch { isFailure = true; message = ar ? "تعذّر استيراد الملف. تحقّق من نوعه ومحتواه، ثم حاول مجددًا." : error.localizedDescription.replacingOccurrences(of: "Expend", with: "another budgeting app") }
     }
 
     private func commit(_ preview: GhafFileImportPreview) {
