@@ -85,6 +85,8 @@ enum GhafScreenshotFixture {
             if let s = try container.mainContext.fetch(FetchDescriptor<GhafSettings>()).first {
                 s.themeName = theme; s.appearanceMode = appearance; s.languageCode = language
             }
+        } else if arguments.contains("-GhafStreakUITestFixture") {
+            seedStreak(container.mainContext)
         } else {
             seed(container.mainContext)
         }
@@ -134,6 +136,25 @@ enum GhafScreenshotFixture {
             context.insert(GhafSubscription(name: name, amount: amount, billingCycle: cycle,
                                             nextPaymentDate: Calendar.current.date(byAdding: .day, value: days, to: GhafClock.now) ?? GhafClock.now,
                                             accountID: mashreq.id))
+        }
+        try? context.save()
+    }
+
+    private static func seedStreak(_ context: ModelContext) {
+        let settings = GhafSettings(languageCode: language, currency: "AED", monthlyIncome: 12_000,
+                                    themeName: theme, appearanceMode: appearance, hasCompletedOnboarding: true)
+        settings.userName = "Amina"
+        let account = GhafAccount(name: "Mashreq Current", institution: "Mashreq", accountType: .current,
+                                  currency: "AED", openingBalance: 8_500, isPrimary: true, sortOrder: 0)
+        context.insert(settings)
+        context.insert(account)
+        for daysAgo in 1...6 {
+            let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: GhafClock.now) ?? GhafClock.now
+            let parsed = ParsedTransaction(amount: 10, currency: "AED", merchant: "Streak fixture \(daysAgo)", date: date,
+                                           direction: .debit, confidence: 1, bank: "Mashreq")
+            context.insert(GhafTransaction(fingerprint: "streak-fixture-\(daysAgo)", parsed: parsed,
+                                           category: "Food & Dining", needsReview: false, isReversal: false,
+                                           accountID: account.id))
         }
         try? context.save()
     }
