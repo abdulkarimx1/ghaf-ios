@@ -21,8 +21,6 @@ struct GhafAmountField: View {
     @State private var replaceOnNextKey = true
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
-    private var separator: String { GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency ?? "AED").decimalSeparator ?? "." }
-
     var body: some View {
         Button { openPad() } label: {
             Group {
@@ -63,11 +61,6 @@ struct GhafAmountField: View {
                     Group {
                         if languageCode == "ar" {
                             Text(display)
-                        } else if fontSize >= 28, let split = display.range(of: separator, options: .backwards) {
-                            HStack(spacing: 0) {
-                                Text(String(display[..<split.lowerBound]))
-                                Text(String(display[split.lowerBound...])).opacity(0.45)
-                            }
                         } else { Text(display) }
                     }
                     .font(languageCode == "ar"
