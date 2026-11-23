@@ -1657,9 +1657,11 @@ HStack(spacing: 8) {
                 }
                 prompt = .message(message)
             } else {
-                try GhafBackupService.restore(from: url, context: modelContext)
+                let result = try GhafBackupService.restore(from: url, context: modelContext)
                 pendingImportURL = nil
-                prompt = .message(languageCode == "ar" ? "تمت استعادة نسخة غاف الاحتياطية بنجاح." : "Ghaf backup restored successfully.")
+                prompt = .message(languageCode == "ar"
+                    ? "اكتمل الاستيراد · الحسابات: \(result.accountsImported) · المعاملات: \(result.transactionsImported) · الاشتراكات: \(result.subscriptionsImported)"
+                    : "Import complete · Accounts: \(result.accountsImported) · Transactions: \(result.transactionsImported) · Subscriptions: \(result.subscriptionsImported)")
             }
         } catch {
             prompt = .message(languageCode == "ar"
