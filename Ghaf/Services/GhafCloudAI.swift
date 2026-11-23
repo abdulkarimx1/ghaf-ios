@@ -1,10 +1,17 @@
 import Foundation
 import Observation
+import StoreKit
 
 struct GhafVoiceUsage: Decodable, Equatable {
     let used: Int
     let limit: Int
     let resetsAt: Date
+
+    init(used: Int, limit: Int, resetsAt: Date) {
+        self.used = used
+        self.limit = limit
+        self.resetsAt = resetsAt
+    }
 
     private enum CodingKeys: String, CodingKey { case used, limit, resetsAt }
     init(from decoder: Decoder) throws {
@@ -55,9 +62,11 @@ final class GhafAIProgress {
 enum GhafCloudAI {
     static let enabledKey = "ghaf.ai.cloudEnabled"
     private static let deviceKey = "ghaf.ai.deviceID"   // Keychain
+    static let accessCodeKey = "ghaf.pro.accessCode"
     static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/chat")!
 
     enum Failure: Error { case dailyLimit, unavailable }
+    static let accessRevoked = Notification.Name("GhafProAccessCodeRevoked")
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
     /// Set while Ghaf AI's voice mode is open: replies come back short and conversational.
@@ -68,8 +77,11 @@ enum GhafCloudAI {
         var request = URLRequest(url: url, timeoutInterval: 8)
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         request.setValue(GhafAITier.current, forHTTPHeaderField: "X-Ghaf-Tier")
+        if let code = Keychain.read(accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         guard let (data, response) = try? await URLSession.shared.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+              let status = (response as? HTTPURLResponse)?.statusCode else { return nil }
+        if status == 401, Keychain.read(accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
+        guard status == 200 else { return nil }
         return try? JSONDecoder().decode(GhafVoiceUsage.self, from: data)
     }
 
@@ -79,11 +91,28 @@ enum GhafCloudAI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        if let code = Keychain.read(accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["tier": GhafAITier.current, "language": languageCode])
         guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let status = (response as? HTTPURLResponse)?.statusCode,
-              let usage = try? JSONDecoder().decode(GhafVoiceUsage.self, from: data) else { return nil }
+              let status = (response as? HTTPURLResponse)?.statusCode else { return nil }
+        if status == 401, Keychain.read(accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
+        guard let usage = try? JSONDecoder().decode(GhafVoiceUsage.self, from: data) else { return nil }
         return (usage, status == 200)
+    }
+
+    enum RedeemResult { case success, invalid, unavailable }
+
+    static func redeemAccessCode(_ code: String) async -> RedeemResult {
+        guard let url = URL(string: "/redeem", relativeTo: endpoint.deletingLastPathComponent()) else { return .unavailable }
+        var request = URLRequest(url: url, timeoutInterval: 12)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["code": code])
+        guard let (_, response) = try? await URLSession.shared.data(for: request),
+              let status = (response as? HTTPURLResponse)?.statusCode else { return .unavailable }
+        if status == 200 { return .success }
+        return status == 401 || status == 429 ? .invalid : .unavailable
     }
 
     /// What turning it on means, shown wherever it can be switched on.
@@ -121,6 +150,7 @@ enum GhafCloudAI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        if let code = Keychain.read(accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         let body: [String: Any] = [
             "question": question,
             "facts": minimized(facts),
@@ -135,6 +165,7 @@ enum GhafCloudAI {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 429 { throw Failure.dailyLimit }
+        if status == 401, Keychain.read(accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
         guard status == 200,
               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let reply = (json["reply"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !reply.isEmpty
@@ -144,12 +175,78 @@ enum GhafCloudAI {
 }
 
 enum GhafAITier {
+    /// Refreshes the local tier from verified StoreKit entitlements. The Worker currently
+    /// receives only the resulting tier string and must treat it as client-claimed.
+    @MainActor static func refreshVerifiedEntitlement() async -> String? {
+        var tier: String?
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.revocationDate == nil,
+                  !transaction.isUpgraded else { continue }
+            if transaction.productID == "com.ghaf.app.pro.monthly" { tier = "pro_monthly" }
+            if transaction.productID == "com.ghaf.app.pro.yearly" { tier = "pro_yearly" }
+        }
+        GhafProAccess.storeVerifiedStoreKitTier(tier)
+        return GhafProAccess.currentTier
+    }
+
     static var current: String {
+        GhafProAccess.currentTier
+    }
+}
+
+/// Single cached Pro decision shared by Ghaf AI, Settings, and widget synchronization.
+enum GhafProAccess {
+    private static let storeKitTierKey = "ghaf.pro.activeTier"
+    private static let debugUnlockKey = "ghaf.pro.testUnlocked"
+
+    static var currentTier: String {
         #if DEBUG
-        if UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked") {
+        if ProcessInfo.processInfo.arguments.contains("-GhafAINonProTestAccess") { return "free" }
+        if UserDefaults.standard.bool(forKey: debugUnlockKey) || ProcessInfo.processInfo.arguments.contains("-GhafAIProTestAccess") {
             return UserDefaults.standard.string(forKey: "ghaf.pro.testTier") == "pro_monthly" ? "pro_monthly" : "pro_yearly"
         }
         #endif
-        return UserDefaults.standard.string(forKey: "ghaf.pro.activeTier") ?? "free"
+        if Keychain.read(GhafCloudAI.accessCodeKey) != nil { return "pro_yearly" }
+        return UserDefaults.standard.string(forKey: storeKitTierKey) ?? "free"
+    }
+
+    static var hasAccess: Bool { currentTier != "free" }
+    static var hasAccessCode: Bool { Keychain.read(GhafCloudAI.accessCodeKey) != nil }
+    static var isKnown: Bool {
+        let cached = hasAccessCode || UserDefaults.standard.bool(forKey: "ghaf.pro.entitlementKnown")
+            || UserDefaults.standard.string(forKey: storeKitTierKey) != nil
+        #if DEBUG
+        return cached || UserDefaults.standard.bool(forKey: debugUnlockKey)
+            || ProcessInfo.processInfo.arguments.contains("-GhafAIProTestAccess")
+            || ProcessInfo.processInfo.arguments.contains("-GhafAINonProTestAccess")
+        #else
+        return cached
+        #endif
+    }
+
+    static func storeVerifiedStoreKitTier(_ tier: String?) {
+        if let tier { UserDefaults.standard.set(tier, forKey: storeKitTierKey) }
+        else { UserDefaults.standard.removeObject(forKey: storeKitTierKey) }
+        UserDefaults.standard.set(true, forKey: "ghaf.pro.entitlementKnown")
+        syncWidgetFlag()
+    }
+
+    static func saveAccessCode(_ code: String) {
+        Keychain.save(code, for: GhafCloudAI.accessCodeKey)
+        syncWidgetFlag()
+    }
+
+    static func removeAccessCode() {
+        Keychain.delete(GhafCloudAI.accessCodeKey)
+        syncWidgetFlag()
+        NotificationCenter.default.post(name: GhafCloudAI.accessRevoked, object: nil)
+    }
+
+    static func syncWidgetFlag() {
+        let unlocked = hasAccess
+        for group in GhafWidgetSnapshot.groupIDs {
+            UserDefaults(suiteName: group)?.set(unlocked, forKey: GhafWidgetProAccess.key)
+        }
     }
 }

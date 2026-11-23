@@ -1,4 +1,39 @@
 import SwiftUI
+import UIKit
+
+/// One recognizer owns the entire orb interaction: quick release speaks, a held press
+/// produces one haptic at 450 ms and opens text on release.
+struct GhafOrbPressGesture: ViewModifier {
+    var onTap: () -> Void
+    var onHold: () -> Void
+    @State private var pressedAt: Date?
+    @State private var didHaptic = false
+
+    func body(content: Content) -> some View {
+        content.simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                .onChanged { _ in
+                    if pressedAt == nil {
+                        let start = Date.now
+                        pressedAt = start
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(450))
+                            guard pressedAt == start, !didHaptic else { return }
+                            didHaptic = true
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    let duration = pressedAt.map { Date.now.timeIntervalSince($0) } ?? 0
+                    pressedAt = nil
+                    defer { didHaptic = false }
+                    if duration < 0.45 { onTap() }
+                    else { onHold() }
+                }
+        )
+    }
+}
 
 /// Ghaf AI's orb: a glass sphere holding a slow "liquid light" of three soft colour blobs from the city
 /// theme. Each state moves differently so it reads without words: idle drifts, listening gathers and swells

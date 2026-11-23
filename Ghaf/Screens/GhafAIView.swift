@@ -70,8 +70,8 @@ struct GhafAIView: View {
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
     @AppStorage(GhafMemoryStore.enabledKey) private var memoryEnabled = GhafMemoryStore.defaultEnabled
     @AppStorage("ghaf.ai.liveConsentAccepted") private var liveConsentAccepted = false
-    @State private var synthesizer = AVSpeechSynthesizer()
-    @State private var speechDone = GhafSpeechDone()
+    @State private var cloudSpeaking = false
+    @State private var cloudSpeechLevel: Float = 0
     /// Set when Ghaf asked something out loud: it listens for the answer once it stops speaking.
     @State private var listenAfterSpeaking = false
     /// Hands-free conversation: listen, answer aloud, listen again, until the user ends it.
@@ -94,6 +94,10 @@ struct GhafAIView: View {
     @State private var voiceUsage: GhafVoiceUsage?
     @State private var voiceLimitReached = false
     @State private var voiceGoodbyePlaying = false
+    @State private var hasProAccess = GhafProAccess.hasAccess
+    @State private var proAccessKnown = GhafProAccess.isKnown
+    @State private var showProSheet = false
+    @State private var limitResetAt: Date?
     @State private var liveTurnHasTransactionDrafts = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glassStyle
@@ -174,15 +178,34 @@ struct GhafAIView: View {
             }
             .onAppear {
                 engine = assistant.engine
-                Task { await GhafCloudAI.prewarm() }
-                if GhafCloudAI.isEnabled { Task { voiceUsage = await GhafCloudAI.voiceUsage() } }
-                tabRouter.startVoice = {
-                    if liveCallActive {
-                        if liveCall.isCapturingUserTurn { liveCall.endUserTurn(); tabRouter.isListening = false }
-                        else if liveCall.phase != .thinking { beginLiveUserTurn() }
-                    } else if recorder.isRecording { recorder.stop(); finishVoice() }
-                    else { startVoice() }
+#if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-GhafAIProTestAccess") {
+                    hasProAccess = GhafProAccess.hasAccess
+                    proAccessKnown = true
+                    if ProcessInfo.processInfo.arguments.contains("-GhafAIUsageFixture") {
+                        voiceUsage = GhafVoiceUsage(used: 1, limit: 3, resetsAt: Calendar.current.startOfDay(for: .now).addingTimeInterval(86_400))
+                    }
                 }
+#endif
+                Task {
+#if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("-GhafAIProTestAccess") {
+                        if !ProcessInfo.processInfo.arguments.contains("-GhafAIUsageFixture") {
+                            voiceUsage = GhafVoiceUsage(used: 0, limit: 3, resetsAt: Calendar.current.startOfDay(for: .now).addingTimeInterval(86_400))
+                        }
+                        return
+                    }
+#endif
+                    hasProAccess = GhafProAccess.hasAccess
+                    proAccessKnown = GhafProAccess.isKnown
+                    _ = await GhafAITier.refreshVerifiedEntitlement()
+                    hasProAccess = GhafProAccess.hasAccess
+                    proAccessKnown = true
+                    guard hasProAccess else { return }
+                    await GhafCloudAI.prewarm()
+                    voiceUsage = await GhafCloudAI.voiceUsage()
+                }
+                tabRouter.startVoice = { toggleVoiceInput() }
                 tabRouter.typeQuestion = { openTyping() }
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
@@ -202,7 +225,19 @@ struct GhafAIView: View {
                     }
                     if GhafScreenshotFixture.destination == "ai-typing" { openTyping() }
                     if GhafScreenshotFixture.destination == "ai-conversation", messages.isEmpty {
-                        send("How much did I spend this week?")
+                        // A stable local fixture lets UI proof cover answer chips without
+                        // making a live model request or relying on network availability.
+                        let question = settings.languageCode == "ar" ? "كم صرفت هذا الأسبوع؟" : "How much did I spend this week?"
+                        let answer = GhafLedgerAnswers.answer(to: question, accounts: accounts,
+                                                              transactions: transactions, subscriptions: subscriptions,
+                                                              currency: settings.currency, languageCode: settings.languageCode)
+                            ?? "The ledger doesn't have enough information to answer that yet."
+                        messages = [
+                            GhafChatMessage(isUser: true, text: question),
+                            GhafChatMessage(isUser: false, text: answer,
+                                            suggestions: ChatFollowUp.suggestions(after: question,
+                                                                                 languageCode: settings.languageCode))
+                        ]
                     }
                 }
 #endif
@@ -224,11 +259,71 @@ struct GhafAIView: View {
                 if case .ended(let reason) = phase, liveCallActive {
                     liveCallActive = false
                     tabRouter.isListening = false
-                    if reason == "connection_lost" { appendCallNote(ar ? "انقطع الاتصال. جرّب مرة أخرى أو اكتب سؤالك." : "Voice unavailable, reply shown as text") }
-                    if reason == "turn_limit" { appendCallNote(ar ? "انتهى وقت هذه الرسالة الصوتية. اضغط غاف للتحدث مجدداً." : "That voice turn reached its 60-second limit. Tap Ghaf to try again.") }
+                    if reason == "connection_lost" {
+                        appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+                        playVoiceError()
+                    }
+                    if reason == "turn_limit" {
+                        appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+                        playVoiceError()
+                    }
                 }
             }
+            .overlay {
+                if !proAccessKnown {
+                    ProgressView().tint(theme.accent).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(theme.background.ignoresSafeArea())
+                } else if !hasProAccess { aiProPaywall.ignoresSafeArea() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: GhafCloudAI.accessRevoked)) { _ in
+                hasProAccess = false
+                proAccessKnown = true
+                voiceUsage = nil
+                tabRouter.isListening = false
+            }
+            .sheet(isPresented: $showProSheet, onDismiss: {
+                Task {
+                    _ = await GhafAITier.refreshVerifiedEntitlement()
+                    hasProAccess = GhafProAccess.hasAccess
+                    proAccessKnown = true
+                    if hasProAccess { voiceUsage = await GhafCloudAI.voiceUsage() }
+                }
+            }) {
+                GhafProSheet(settings: settings, feature: ("Ghaf AI", "غاف AI"))
+                    .ghafDirection(settings.languageCode)
+            }
         }
+    }
+
+    private var aiProPaywall: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 38, weight: .medium))
+                .foregroundStyle(theme.accent)
+            Text(ar ? "غاف AI لأعضاء Pro" : "Ghaf AI is for Pro members")
+                .font(GhafTypography.display(30, languageCode: settings.languageCode))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(theme.primaryText)
+            Text(ar ? "اسأل عن إنفاقك وحساباتك، وتحدث مع مساعدك الصوتي." : "Ask about your spending and accounts, and talk with your financial assistant.")
+                .font(GhafTypography.body(16, languageCode: settings.languageCode))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(theme.secondaryText)
+            VStack(spacing: 12) {
+                Button { showProSheet = true } label: {
+                    Text(ar ? "الأساسية · ٣ ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
+                        .frame(maxWidth: .infinity)
+                }.ghafProminentButton(theme: theme, languageCode: settings.languageCode)
+                Button { showProSheet = true } label: {
+                    Text(ar ? "الكاملة · ١٠ ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
+                        .frame(maxWidth: .infinity)
+                }.ghafGlassButton(theme: theme, languageCode: settings.languageCode)
+            }
+            .frame(maxWidth: 360)
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(GhafAIView.night)
+        .accessibilityIdentifier("ghaf.ai.pro-paywall")
     }
 
     private var progressLine: some View {
@@ -447,21 +542,18 @@ struct GhafAIView: View {
             GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
                 .frame(width: 72, height: 72)
                 .contentShape(Circle())
-                .gesture(ExclusiveGesture(
-                    LongPressGesture(minimumDuration: 0.45, maximumDistance: 28),
-                    TapGesture()
-                ).onEnded { result in
-                    switch result {
-                    case .first: openTyping()
-                    case .second: toggleVoiceInput()
-                    }
-                })
+                .modifier(GhafOrbPressGesture(
+                    onTap: { guard hasProAccess else { return }; toggleVoiceInput() },
+                    onHold: { guard hasProAccess else { return }; openTyping() }
+                ))
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
+                .accessibilityIdentifier("ghaf.ai.orb")
                 .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
                 .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
-            if GhafCloudAI.isEnabled, let voiceUsage { voiceLimitCounter(voiceUsage) }
+            if hasProAccess, let voiceUsage { voiceLimitCounter(voiceUsage) }
         }
+        .frame(maxWidth: 220)
         .frame(maxWidth: .infinity)
         .padding(.top, 2)
         .padding(.bottom, 4)
@@ -473,6 +565,10 @@ struct GhafAIView: View {
     private func bubble(_ message: Binding<GhafChatMessage>) -> some View {
         let item = message.wrappedValue
         let inlineBars = item.chart.map { $0.kind == .categories && $0.style == .bar } ?? false
+        let priorQuestion = messages[..<max(0, messages.firstIndex(where: { $0.id == item.id }) ?? 0)].last(where: \.isUser)?.text ?? item.text
+        let followUps = item.suggestions.isEmpty
+            ? ChatFollowUp.suggestions(after: priorQuestion, languageCode: settings.languageCode)
+            : item.suggestions
         VStack(alignment: item.isUser ? .trailing : .leading, spacing: 8) {
             if !item.isUser && (item.source != nil || inlineBars || item.isVoice) && !item.text.isEmpty {
                 answerCard(item, bars: inlineBars ? item.chart : nil)
@@ -507,11 +603,18 @@ struct GhafAIView: View {
                 GhafChatChartView(chart: chart, theme: theme, languageCode: settings.languageCode)
                     .transition(.scale(scale: 0.92, anchor: .topLeading).combined(with: .opacity))
             }
-            if !item.suggestions.isEmpty && item.id == messages.last?.id && !isThinking {
+            if !item.isUser && !item.isStreaming && item.drafts.isEmpty && !isThinking
+                && item.id == messages.last(where: { !$0.isUser && !$0.isStreaming })?.id && !followUps.isEmpty {
                 ScrollView {
                     GhafFlowLayout(spacing: 10) {
-                        ForEach(item.suggestions, id: \.self) { suggestion in
-                            GhafSecondaryButton(title: suggestion, theme: theme, languageCode: settings.languageCode) { send(suggestion) }
+                        ForEach(followUps, id: \.self) { suggestion in
+                            GhafSecondaryButton(title: suggestion, theme: theme, languageCode: settings.languageCode, compact: true) {
+                                if ChatFollowUp.ledgerQuestion(for: suggestion, languageCode: settings.languageCode) != nil {
+                                    answerFollowUpLocally(suggestion)
+                                } else {
+                                    send(suggestion)
+                                }
+                            }
                         }
                     }
                 }
@@ -660,6 +763,7 @@ struct GhafAIView: View {
             TextField("Type your question", text: $prompt,
                       prompt: Text("Type your question").foregroundStyle(theme.secondaryText))
                 .focused($inputFocused)
+                .accessibilityIdentifier("ghaf.ai.question")
                 .font(GhafTypography.userContent(prompt.isEmpty ? "Type your question" : prompt, size: 17, languageCode: "en"))
                 .foregroundStyle(theme.primaryText)
                 .tint(theme.accent)
@@ -703,7 +807,7 @@ struct GhafAIView: View {
     }
 
     private func openTyping() {
-        guard !isThinking else { return }
+        guard hasProAccess, !isThinking else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.snappy) { isTyping = true }
     }
@@ -723,6 +827,7 @@ struct GhafAIView: View {
     // MARK: Actions
 
     private func startVoice() {
+        guard hasProAccess else { return }
         guard !voiceCharacter.isEmpty else { showVoicePicker = true; return }
         if GhafCloudAI.isEnabled {
             guard !liveCallActive else {
@@ -743,17 +848,23 @@ struct GhafAIView: View {
         // Bias recognition towards this user's own merchants and categories.
         let hints = rules.prefix(60).map(\.normalizedMerchant)
             + settings.categories + settings.categories.flatMap(settings.subcategories(of:))
+        tabRouter.isListening = true
         Task {
             await recorder.start(languageCode: settings.languageCode, hints: hints)
             let speechDenied = SFSpeechRecognizer.authorizationStatus() == .denied
             let microphoneDenied = AVAudioApplication.shared.recordPermission == .denied
             microphoneOff = speechDenied || microphoneDenied
+            if microphoneOff { tabRouter.isListening = false }
         }
     }
 
     private func toggleVoiceInput() {
+        guard hasProAccess else { return }
         if liveCallActive {
-            if liveCall.isCapturingUserTurn {
+            if liveCall.phase == .speaking {
+                liveCall.interruptPlayback()
+                beginLiveUserTurn()
+            } else if liveCall.isCapturingUserTurn {
                 liveCall.endUserTurn()
                 tabRouter.isListening = false
             } else if liveCall.phase != .thinking {
@@ -782,19 +893,24 @@ struct GhafAIView: View {
             GeometryReader { geometry in
                 ZStack(alignment: ar ? .trailing : .leading) {
                     Capsule().fill(theme.outline.opacity(0.45))
-                    Capsule().fill(theme.accent)
+                    Capsule().fill(LinearGradient(colors: [theme.accent, theme.glow], startPoint: .leading, endPoint: .trailing))
                         .frame(width: geometry.size.width * CGFloat(usage.limit == 0 ? 0 : remaining) / CGFloat(max(usage.limit, 1)))
                 }
             }
-            .frame(height: 2)
+            .frame(height: 5)
             .accessibilityLabel(ar ? "الردود الصوتية المتبقية اليوم" : "Voice replies remaining today")
             .accessibilityValue("\(remaining) of \(usage.limit)")
         }
+        .frame(maxWidth: 220)
         .frame(maxWidth: .infinity)
     }
 
     private func beginLiveUserTurn() {
-        guard liveCallActive, !voiceLimitReached else { return }
+        guard hasProAccess, liveCallActive, !voiceLimitReached else { return }
+        if let usage = voiceUsage, usage.used >= usage.limit {
+            handleDailyLimit(resetAt: usage.resetsAt)
+            return
+        }
         // Open the turn at once (the orb must feel instant); the reservation runs alongside it.
         liveCall.beginUserTurn()
         liveTurnHasTransactionDrafts = false
@@ -804,21 +920,31 @@ struct GhafAIView: View {
             guard let reservation = await GhafCloudAI.reserveVoiceTurn(languageCode: ar ? "ar" : "en") else { return }
             voiceUsage = reservation.usage
             guard !reservation.allowed else { return }
-            voiceLimitReached = true
             liveCall.endUserTurn()
             tabRouter.isListening = false
-            let finish = {
-                voiceGoodbyePlaying = false
-                liveCall.end(reason: "daily_limit")
-                liveCallActive = false
-            }
-            if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, onFinish: finish) {
-                voiceGoodbyePlaying = true
-            } else {
-                finish()
-                appendCallNote(ar ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر." : "That's all I can do for today. Come back tomorrow.")
-            }
+            handleDailyLimit(resetAt: reservation.usage.resetsAt)
         }
+    }
+
+    private func handleDailyLimit(resetAt: Date? = nil) {
+        voiceLimitReached = true
+        limitResetAt = resetAt ?? voiceUsage?.resetsAt
+        liveCall.end(reason: "daily_limit")
+        liveCallActive = false
+        tabRouter.isListening = false
+        let time = limitResetAt?.formatted(date: .omitted, time: .shortened)
+        let text = ar
+            ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر. يتجدد الحد عند \(time ?? "منتصف الليل")."
+            : "That's all I can do for today. Come back tomorrow. Your limit resets at \(time ?? "midnight")."
+        appendCallNote(text)
+        let finished = { voiceGoodbyePlaying = false }
+        if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, onFinish: finished) {
+            voiceGoodbyePlaying = true
+        }
+    }
+
+    private func playVoiceError() {
+        _ = GhafCloudVoice.shared.playBundledError(character: voiceCharacter, arabic: ar)
     }
 
     /// Called by the stop button, or automatically after a pause. Clear speech is sent;
@@ -954,7 +1080,7 @@ struct GhafAIView: View {
 
     private func send(_ raw: String, isVoice: Bool = false) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isThinking else { return }
+        guard hasProAccess, !text.isEmpty, !isThinking else { return }
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
         if liveCallActive { liveGroundingSources.append(text); liveCall.sendText(text); return }
@@ -1060,8 +1186,12 @@ struct GhafAIView: View {
                         index = messages.count - 1
                     }
                 }
+            } catch GhafCloudAI.Failure.dailyLimit {
+                handleDailyLimit()
             } catch {
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر الرد الآن. حاول مرة أخرى." : "I couldn't answer just now. Try again."))
+                let note = ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment."
+                messages.append(GhafChatMessage(isUser: false, text: note))
+                if isVoice || speakReplies { playVoiceError() }
             }
             if let index {
                 messages[index].isStreaming = false
@@ -1094,6 +1224,22 @@ struct GhafAIView: View {
         }
     }
 
+    /// Follow-up chips answer from the on-device ledger and never call Gemini.
+    private func answerFollowUpLocally(_ suggestion: String) {
+        guard hasProAccess, !isThinking,
+              let question = ChatFollowUp.ledgerQuestion(for: suggestion, languageCode: settings.languageCode) else { return }
+        withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: suggestion)) }
+        let answer = GhafLedgerAnswers.answer(to: question, accounts: accounts, transactions: transactions,
+                                              subscriptions: subscriptions, currency: settings.currency,
+                                              languageCode: settings.languageCode)
+            ?? (ar ? "لا توجد بيانات كافية للإجابة." : "The ledger doesn't have enough information to answer that yet.")
+        var reply = GhafChatMessage(isUser: false, text: answer,
+                                    suggestions: ChatFollowUp.suggestions(after: question, languageCode: settings.languageCode))
+        reply.source = GhafChatChartBuilder.source(for: question, transactions: transactions, languageCode: settings.languageCode)
+        withAnimation(.snappy) { messages.append(reply) }
+        persistChat()
+    }
+
     private func handleMemoryIntent(_ intent: MemoryIntent, source: String) {
         switch intent {
         case .remember(let text), .name(let text):
@@ -1121,24 +1267,9 @@ struct GhafAIView: View {
         }
     }
 
-    /// Three useful next questions, chosen from what was just asked, never repeating it.
+    /// Follow-ups are deterministic and use short copy from the core mappings.
     private func suggestions(after question: String) -> [String] {
-        let q = question.lowercased()
-        func lastMonth(_ code: String) -> String {
-            (GhafCalendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now)
-                .formatted(.dateTime.month(.wide).locale(Locale(identifier: code)))
-        }
-        let pool: [(match: [String], en: String, ar: String)] = [
-            (["compare", "قارن"], "Compare to \(lastMonth("en"))", "قارن بشهر \(lastMonth("ar"))"),
-            (["donut", "دائري"], "Show as a donut", "اعرضها كرسم دائري"),
-            (["petal", "بتلات"], "Show as a petal chart", "اعرضها كرسم بتلات"),
-            (["trend", "اتجاه"], "This month's trend", "اتجاه هذا الشهر"),
-            (["biggest", "أكبر"], "My biggest purchase", "أكبر عملية"),
-            (["forecast", "توقع"], "Forecast to month end", "توقع نهاية الشهر"),
-            (["tip", "نصيحة"], "A saving tip", "نصيحة للتوفير"),
-            (["subscri", "اشتراك"], "Subscriptions due soon", "الاشتراكات القادمة")
-        ]
-        return pool.filter { !$0.match.contains(where: q.contains) }.shuffled().prefix(3).map { ar ? $0.ar : $0.en }
+        ChatFollowUp.suggestions(after: question, languageCode: settings.languageCode)
     }
 
     /// "zumba class" → "Zumba Class". Arabic and already-capitalised words are left as spoken.
@@ -1199,6 +1330,7 @@ struct GhafAIView: View {
     // MARK: Voice mode
 
     private func beginVoiceCall() async {
+        guard hasProAccess else { return }
         guard GhafCloudAI.isEnabled else {
             appendCallNote(ar ? "المحادثة الصوتية تحتاج الذكاء السحابي — أكمل بالصوت العادي." : "Voice chat needs Cloud AI — using standard voice.")
             startVoice()
@@ -1217,14 +1349,17 @@ struct GhafAIView: View {
         let nameLine = firstName.isEmpty ? "" : (ar ? "اسم المستخدم: \(firstName)." : "User's name: \(firstName).")
         let instruction = String("\(persona)\n\(nameLine)\nToday's date: \(date).\n\nFACTS:\n\(liveFacts)".prefix(5_900))
         configureLiveCallbacks()
+        tabRouter.isListening = true
         do {
             try await liveCall.start(language: ar ? "ar" : "en", character: voiceCharacter, tier: GhafAITier.current, systemInstruction: instruction, tools: liveToolDeclarations)
             liveCallActive = true
             beginLiveUserTurn()
         } catch GhafCloudAI.Failure.dailyLimit {
-            appendCallNote(ar ? "وصلت إلى حد الرسائل الصوتية اليوم. يمكنك متابعة الكتابة." : "You've reached today's voice limit. You can keep chatting by text.")
+            handleDailyLimit(resetAt: voiceUsage?.resetsAt)
         } catch {
-            appendCallNote(ar ? "تعذر بدء الصوت. جرّب مرة أخرى أو اكتب سؤالك." : "Voice unavailable, reply shown as text. Try again or type your question.")
+            tabRouter.isListening = false
+            appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+            playVoiceError()
         }
     }
 
@@ -1354,10 +1489,10 @@ struct GhafAIView: View {
         liveCallActive = false
         GhafCloudAI.conversational = false
         GhafCloudVoice.shared.stop()
-        speechDone.speaking = false
+        cloudSpeaking = false
+        cloudSpeechLevel = 0
         listenAfterSpeaking = false
         recorder.reset()
-        synthesizer.stopSpeaking(at: .immediate)
     }
 
     private var orbMood: GhafAIOrb.Mood {
@@ -1372,71 +1507,46 @@ struct GhafAIView: View {
         }
         if recorder.isRecording { return .listening }
         if isThinking { return .thinking }
-        if speechDone.speaking { return .speaking }
+        if cloudSpeaking { return .speaking }
         return .idle
     }
 
     private var orbLevel: Float {
         if liveCallActive { return liveCall.phase == .speaking ? liveCall.outputLevel : liveCall.inputLevel }
-        return recorder.isRecording ? recorder.level : speechDone.level
+        return recorder.isRecording ? recorder.level : cloudSpeechLevel
     }
 
     private func stopSpeaking() {
-        if speechDone.speaking { GhafSounds.shared.play(.orbOff) }
-        synthesizer.stopSpeaking(at: .immediate)
+        if cloudSpeaking { GhafSounds.shared.play(.orbOff) }
         GhafCloudVoice.shared.stop()
-        speechDone.speaking = false
+        cloudSpeaking = false
+        cloudSpeechLevel = 0
     }
 
-    /// Cloud-on sessions stay on the selected Gemini voice; device speech is used only with Cloud AI off.
+    /// Replies use the selected Hamad/Mariam cloud voice or a bundled clip. Device speech is never used.
     private func speak(_ text: String, force: Bool = false) {
         guard speakReplies || force || voiceMode, !text.isEmpty else { return }
-        if GhafCloudAI.isEnabled {
-            GhafCloudVoice.shared.onLevel = { level in speechDone.level = level }
-            let spoken = SpokenMoney.speakable(text, arabic: ar)
-            Task {
-                let played = await GhafCloudVoice.shared.speak(spoken, arabic: ar, character: voiceCharacter,
-                    onStart: { speechDone.speaking = true },
-                    onFinish: {
-                        speechDone.speaking = false
-                        guard listenAfterSpeaking || voiceMode else { return }
-                        listenAfterSpeaking = false
-                        startVoice()
-                    })
-                if !played {
-                    voiceUnavailable = true
-                    appendCallNote(ar ? "تعذر الصوت. يظهر الرد كنص." : "Voice unavailable, reply shown as text")
-                }
+        guard hasProAccess else { return }
+        guard GhafCloudAI.isEnabled else { playVoiceError(); return }
+        GhafCloudVoice.shared.onLevel = { level in cloudSpeechLevel = level }
+        let spoken = SpokenMoney.speakable(text, arabic: ar)
+        Task {
+            let result = await GhafCloudVoice.shared.speak(spoken, arabic: ar, character: voiceCharacter,
+                onStart: { cloudSpeaking = true },
+                onFinish: {
+                    cloudSpeaking = false
+                    guard listenAfterSpeaking || voiceMode else { return }
+                    listenAfterSpeaking = false
+                    startVoice()
+                })
+            switch result {
+            case .played: break
+            case .limitReached: handleDailyLimit(resetAt: voiceUsage?.resetsAt)
+            case .unavailable:
+                voiceUnavailable = true
+                playVoiceError()
             }
-            return
         }
-        speakOnDevice(text)
-    }
-
-    /// The iPhone's own voice: used outside voice mode, without Cloud AI, or when the server is unreachable.
-    private func speakOnDevice(_ text: String) {
-        // The microphone leaves the session in .record, where speech is silent.
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-        try? session.setActive(true)
-        let language = ar ? "ar" : "en"
-        let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(language) }
-        let utterance = AVSpeechUtterance(string: SpokenMoney.speakable(text, arabic: ar))
-        // A touch slower with a small lead-in reads as conversation rather than a readout.
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.96
-        utterance.preUtteranceDelay = 0.05
-        utterance.postUtteranceDelay = 0.1
-        // Best installed voice (premium/enhanced when the user downloaded one), Gulf Arabic first.
-        utterance.voice = voices.max { ($0.quality.rawValue, $0.language == "ar-AE" ? 1 : 0) < ($1.quality.rawValue, $1.language == "ar-AE" ? 1 : 0) }
-            ?? AVSpeechSynthesisVoice(language: ar ? "ar-SA" : "en-US")
-        synthesizer.stopSpeaking(at: .immediate)
-        synthesizer.delegate = speechDone
-        speechDone.onFinish = {
-            guard listenAfterSpeaking || voiceMode else { return }
-            listenAfterSpeaking = false
-            startVoice()
-        }
-        synthesizer.speak(utterance)
     }
 
 }
@@ -1508,28 +1618,6 @@ private struct GhafLevelBars: View {
         .frame(height: 20)
         .animation(.easeOut(duration: 0.12), value: level)
         .accessibilityHidden(true)
-    }
-}
-
-/// Tells the chat when Ghaf has finished speaking, so it can listen for the answer.
-@Observable
-final class GhafSpeechDone: NSObject, AVSpeechSynthesizerDelegate {
-    var onFinish: (@MainActor () -> Void)?
-    /// Whether Ghaf is talking right now, for the voice mode's status line.
-    var speaking = false
-    /// Loudness of Ghaf's own voice (cloud voice only), so the orb moves with it.
-    var level: Float = 0
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.speaking = true }
-    }
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            self.speaking = false
-            self.onFinish?()
-        }
-    }
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.speaking = false }
     }
 }
 

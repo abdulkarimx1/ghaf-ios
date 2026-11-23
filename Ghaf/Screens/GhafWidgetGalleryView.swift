@@ -78,7 +78,7 @@ struct GhafWidgetGalleryView: View {
     @ViewBuilder private func widgetPreview(_ name: String, family: WidgetFamily) -> some View {
         let snapshot = GhafWidgetSnapshot.sample
         let config = GhafConfigEntry<GhafBalanceConfig>(date: GhafClock.now, snapshot: snapshot, config: GhafBalanceConfig())
-        let proLocked = !["Balance", "Spending", "Upcoming payments"].contains(name) && !GhafWidgetProAccess.unlocked
+        let proLocked = !["Balance", "Spending", "Upcoming payments"].contains(name) && !GhafProAccess.hasAccess
         let height: CGFloat = 158
         Group {
             switch name {

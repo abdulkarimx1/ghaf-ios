@@ -41,9 +41,7 @@ struct GhafStatsView: View {
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var currency: String { settings.currency }
-    private var proUnlocked: Bool {
-        UserDefaults.standard.bool(forKey: "ghaf.pro.testUnlocked") || GhafWidgetProAccess.unlocked
-    }
+    private var proUnlocked: Bool { GhafProAccess.hasAccess }
     private var calendar: Calendar { GhafCalendar.current }
     private var theme: GhafTheme {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)

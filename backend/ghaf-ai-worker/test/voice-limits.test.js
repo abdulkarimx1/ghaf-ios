@@ -12,37 +12,35 @@ function harness(initial = []) {
   } } };
 }
 
-test('voice usage reports the per-device daily count and UTC reset', async () => {
+test('free tier has zero voice replies and reports the UTC reset', async () => {
   const day = new Date().toISOString().slice(0, 10);
-  const { env } = harness([[`v:free:${day}:${device}`, '4']]);
+  const { env } = harness([[`v:free:${day}:${device}`, '0']]);
   const response = await worker.fetch(new Request('https://worker.test/voice-usage', {
     headers: { 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'free' }
   }), env);
   const result = await response.json();
   assert.equal(response.status, 200);
   assert.deepEqual(Object.keys(result).sort(), ['limit', 'resetsAt', 'used']);
-  assert.equal(result.used, 4);
-  assert.equal(result.limit, 15);
+  assert.equal(result.used, 0);
+  assert.equal(result.limit, 0);
   assert.equal(new Date(result.resetsAt).toISOString().slice(0, 10), new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
 });
 
-test('voice turn reserves one turn and refuses additional turns at the limit', async () => {
+test('free voice turn is refused before recording any usage', async () => {
   const day = new Date().toISOString().slice(0, 10);
-  const { env, values } = harness([[`v:free:${day}:${device}`, '14']]);
+  const { env, values } = harness();
   const makeRequest = () => worker.fetch(new Request('https://worker.test/voice-turn', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device },
     body: JSON.stringify({ tier: 'free', language: 'en' })
   }), env);
-  const allowed = await makeRequest();
-  assert.equal(allowed.status, 200);
-  assert.equal((await allowed.json()).used, 15);
   const limited = await makeRequest();
   assert.equal(limited.status, 429);
-  assert.deepEqual(await limited.json(), {
-    error: 'daily_limit', used: 15, limit: 15,
-    resetsAt: new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)) + 1)).toISOString()
-  });
-  assert.equal(values.get(`v:free:${day}:${device}`), '15');
+  const payload = await limited.json();
+  assert.equal(payload.error, 'pro_required');
+  assert.equal(payload.code, 'pro_required');
+  assert.equal(payload.limit, 0);
+  assert.equal(payload.used, 0);
+  assert.equal(values.get(`v:free:${day}:${device}`), undefined);
 });
 
 test('voice turns are counted separately from text questions and plan tiers', async () => {
@@ -53,7 +51,27 @@ test('voice turns are counted separately from text questions and plan tiers', as
     body: JSON.stringify({ tier: 'pro_monthly', language: 'ar' })
   }), env);
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).limit, 60);
+  assert.equal((await response.json()).limit, 3);
   assert.equal(values.get(`v:pro_monthly:${day}:${device}`), '1');
   assert.equal(values.get(`d:${day}:${device}`), undefined);
+});
+
+test('Essentials and Complete use defaults, env overrides, and a shared per-tier voice counter', async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  for (const [tier, expected] of [['pro_monthly', 3], ['pro_yearly', 10]]) {
+    const { env } = harness();
+    const response = await worker.fetch(new Request('https://worker.test/voice-usage', {
+      headers: { 'X-Ghaf-Device': device, 'X-Ghaf-Tier': tier }
+    }), env);
+    assert.equal((await response.json()).limit, expected);
+  }
+
+  const { env, values } = harness();
+  env.ESSENTIALS_DAILY_VOICE_LIMIT = '4';
+  const response = await worker.fetch(new Request('https://worker.test/voice-turn', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device },
+    body: JSON.stringify({ tier: 'pro_monthly', language: 'en' })
+  }), env);
+  assert.equal((await response.json()).limit, 4);
+  assert.equal(values.get(`v:pro_monthly:${day}:${device}`), '1');
 });

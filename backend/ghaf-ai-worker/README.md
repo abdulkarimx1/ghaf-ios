@@ -11,27 +11,32 @@ is built into `GhafCloudAI.endpoint`).
   are not supported by the Gemini API, quota, overload), it answers with Cloudflare Workers AI
   (`FALLBACK_MODEL`, default Gemma 4 26B) — free daily allowance, no key.
 - **No secret in the app:** each install sends a random device ID (`X-Ghaf-Device`, kept in the
-  iPhone's Keychain). The Worker allows `FREE_DAILY_LIMIT` questions per device per day and
-  `GLOBAL_DAILY_LIMIT` in total, counted in the `USAGE` KV namespace (keys expire after two days).
-  Over the limit it returns 429 and Ghaf answers on the device. On the free tiers the worst case
-  is reaching a limit, not a bill.
+  iPhone's Keychain). The Worker returns `429 {code: "pro_required"}` for free-tier chat, speech,
+  voice-turn, and Live token requests. Voice replies are counted in the `USAGE` KV namespace:
+  `ESSENTIALS_DAILY_VOICE_LIMIT` defaults to 3 and `COMPLETE_DAILY_VOICE_LIMIT` defaults to 10.
+  `FREE_DAILY_LIMIT` defaults to 0. The existing text quotas still apply to paid tiers.
 - **Developer bypass:** requests with the `APP_TOKEN` secret in `X-Ghaf-Token` skip the limits
   (for testing from a Mac; never put it in the app).
+- **Access codes:** `POST /redeem` accepts a code and returns `pro_yearly` only when its SHA-256
+  digest matches a hash in the `ACCESS_CODE_HASHES` secret (comma-separated lowercase hex). The
+  app stores a redeemed code in Keychain and sends it in `X-Ghaf-Code`; the Worker rechecks it for
+  each AI request and treats a match as Complete (10 voice replies/day), regardless of the body
+  tier. Removing a hash revokes that code. Redemption attempts are limited to five per device/day.
+  Neither the code nor its hash is written to usage events.
 - **Received:** the question, totals-only facts (including saved memories when enabled), the ledger's own answer and the last few chat
   lines. **Not received:** the transaction list, notes, card or account numbers. **Stored:** only
   the daily counters. Google's Gemini API terms apply to requests it handles.
 
-`POST /live-token` mints a short-lived, single-use Gemini Live token. Calls are limited by
-`LIVE_DAILY_CALLS` (10 per device) and `LIVE_GLOBAL_DAILY_CALLS` (300 overall). The Arabic
-speaker is `LIVE_VOICE_AR` (default `Orus`) and English is `LIVE_VOICE_EN` (default `Puck`).
-`/speak` uses `TTS_VOICE_AR` (default `Orus`); its English voice remains `Aoede`. Its Aura
-fallback is English-only. These are Worker vars; `GEMINI_API_KEY` remains a Worker secret.
+`POST /live-token` mints a short-lived, single-use Gemini Live token and refuses free-tier callers.
+`POST /voice-turn` and `/speak` share the tier's daily voice-reply counter. Live tokens retain the
+app's setup through the field mask. Hamad uses `Orus`, Mariam uses `Kore`; these are Worker vars.
+`GEMINI_API_KEY` remains a Worker secret.
 
-## Later: paid plan
+## StoreKit verification status
 
-When Ghaf adds in-app purchases, Pro installs will send their StoreKit 2 signed transaction; the
-Worker verifies Apple's signature and applies a higher daily limit. App Attest (needs a signed
-build) can then confirm requests come from the genuine app.
+The app checks a verified StoreKit entitlement locally, then sends the corresponding tier string.
+The Worker cannot verify that client-claimed tier until App Store server verification is added.
+Access-code tiers are checked by the Worker using `ACCESS_CODE_HASHES`.
 
 ## Deploy or update
 

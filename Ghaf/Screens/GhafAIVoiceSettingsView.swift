@@ -88,12 +88,10 @@ struct GhafAIVoiceSettingsView: View {
                 return
             }
             playingSample = sampleID
-            let text = language == "ar" ? "هلا، أنا \(name). كيف أقدر أساعدك اليوم؟" : "Hi, I'm \(name). How can I help you today?"
-            Task {
-                let started = await GhafCloudVoice.shared.speak(text, arabic: language == "ar", character: name,
-                    onStart: {}, onFinish: { playingSample = nil })
-                if !started { playingSample = nil }
+            let started = GhafCloudVoice.shared.playBundledSample(character: name, arabic: language == "ar") {
+                playingSample = nil
             }
+            if !started { playingSample = nil }
         } label: {
             Label(isPlaying ? (ar ? "إيقاف" : "Stop") : title, systemImage: isPlaying ? "stop.fill" : "play.fill")
                 .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))
@@ -103,7 +101,6 @@ struct GhafAIVoiceSettingsView: View {
                 .background(theme.surface, in: Capsule())
         }
         .buttonStyle(.plain)
-        .disabled(!GhafCloudAI.isEnabled || (playingSample != nil && !isPlaying))
-        .opacity(GhafCloudAI.isEnabled ? 1 : 0.4)
+        .disabled(playingSample != nil && !isPlaying)
     }
 }

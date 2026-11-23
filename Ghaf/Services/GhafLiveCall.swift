@@ -141,12 +141,21 @@ final class GhafLiveCall: ObservableObject {
         userRequestedTurn = true
         turnCompleteReceived = false
         capturingUserTurn = true
+        audioGateOpen = true
         phase = .listening
-        guard let message = try? LiveEncoder.activityStart() else { return }
-        Task {
-            try? await send(message)
-            if capturingUserTurn { audioGateOpen = true }
-        }
+        startTurnLimitIfNeeded()
+    }
+
+    /// Stops queued model audio immediately so a new user utterance cannot be answered over.
+    func interruptPlayback() {
+        guard !stopping else { return }
+        player.stop()
+        player.reset()
+        queuedOutputBuffers = 0
+        outputLevel = 0
+        turnCompleteReceived = false
+        pendingEndReason = nil
+        phase = .listening
     }
 
     func endUserTurn() {
@@ -210,10 +219,12 @@ final class GhafLiveCall: ObservableObject {
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        if let code = Keychain.read(GhafCloudAI.accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         request.httpBody = try JSONSerialization.data(withJSONObject: ["language": language, "character": character, "tier": tier])
         let (data, response) = try await session.data(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw URLError(.badServerResponse) }
         if status == 429 { throw GhafCloudAI.Failure.dailyLimit }
+        if status == 401, Keychain.read(GhafCloudAI.accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
         guard status == 200, let token = try? JSONDecoder().decode(Token.self, from: data) else { throw GhafCloudAI.Failure.unavailable }
         return token
     }
@@ -239,6 +250,9 @@ final class GhafLiveCall: ObservableObject {
             setupWaiter?.resume(); setupWaiter = nil
         case .audio(let pcm):
             finishTurnLimit()
+            capturingUserTurn = false
+            audioGateOpen = false
+            inputLevel = 0
             phase = .speaking; play(pcm)
         case .inputTranscript(let text): onInputTranscript?(text, false)
         case .outputTranscript(let text): finishTurnLimit(); onOutputTranscript?(text, false)

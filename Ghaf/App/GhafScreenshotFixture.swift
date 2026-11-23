@@ -30,9 +30,10 @@ enum GhafScreenshotFixture {
     static var automationButtonProof: Bool { value("GhafAutomationButtonProof") == "1" }
     static var automationState: String { ["none", "waiting", "working"].contains(value("GhafAutomationState") ?? "none") ? (value("GhafAutomationState") ?? "none") : "none" }
 
-    static func applyAutomation() {
+    static func applyAutomation(state overrideState: String? = nil) {
         let defaults = UserDefaults.standard
-        let banks = automationState == "none" ? [] : ["Mashreq", "iVestor", "ruya"]
+        let state = overrideState ?? automationState
+        let banks = state == "none" ? [] : ["Mashreq", "iVestor", "ruya"]
         GhafAutomationBanks.save(banks, defaults: defaults)
         for name in ["Mashreq", "iVestor", "ruya"] where !banks.contains(name) {
             defaults.removeObject(forKey: "ghaf.automation.bankEnabled.\(name)")
@@ -49,9 +50,10 @@ enum GhafScreenshotFixture {
         defaults.set(true, forKey: "ghaf.automation.bankEnabled.Mashreq")
         defaults.set(false, forKey: "ghaf.automation.bankEnabled.iVestor")
         defaults.set(3, forKey: "ghaf.automation.skipped.iVestor")
-        defaults.set(Date.now.addingTimeInterval(-2 * 60 * 60).timeIntervalSince1970, forKey: "ghaf.automation.lastSeen.Mashreq")
+        // Keep the snapshot's reference copy of the latest Mashreq alert (15 hours old).
+        defaults.set(GhafClock.now.addingTimeInterval(-15 * 60 * 60).timeIntervalSince1970, forKey: "ghaf.automation.lastSeen.Mashreq")
         defaults.removeObject(forKey: "ghaf.automation.lastSeen.ruya")
-        let run = automationState == "working" ? Date.now.timeIntervalSince1970 : 0
+        let run = state == "working" ? GhafClock.now.timeIntervalSince1970 : 0
         for key in [GhafAutomationStatus.messageRunKey, GhafAutomationStatus.walletRunKey, GhafAutomationStatus.testRunKey, GhafAutomationStatus.lastRunKey] {
             defaults.set(run, forKey: key)
         }

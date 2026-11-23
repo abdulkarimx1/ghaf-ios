@@ -461,10 +461,8 @@ struct GhafTabView: View {
                 // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
                 // exactly where the tab is on every iPhone and tab bar layout.
                 .tabItem {
-                    tabIcon(Image(uiImage: showOrbOverlay ? UIImage() : GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1)),
+                    tabIcon(Image(uiImage: UIImage()),
                             router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
-                        .onLongPressGesture(minimumDuration: 0.45) { router.typeQuestion?() }
-                        .accessibilityAction(named: Text("Type a question")) { router.typeQuestion?() }
                 }
                 .tag(1)
 
@@ -528,21 +526,36 @@ struct GhafTabView: View {
                 if subscriptionReviewCount > 0 {
                     GhafTabAttentionMark(accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
                         .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 * 2 + 12, y: geometry.size.height - 36)
+                        .allowsHitTesting(false)
                 }
                 if hasUnreadTransactions {
                     GhafTabAttentionMark(accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
                         .accessibilityIdentifier("transactions-unread-dot")
                         .accessibilityLabel(settings.languageCode == "ar" ? "عملية جديدة" : "New transaction")
                         .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 + 12, y: geometry.size.height - 36)
-                }
-                if showOrbOverlay {
-                    GhafAIOrb(theme: theme, mood: router.isListening ? .listening : .idle, level: 0)
-                        .frame(width: 112, height: 112)
-                        .scaleEffect(expandedOrb ? 1 : 26 / 112)
-                        .position(x: geometry.size.width / 2, y: geometry.size.height - 32)
                         .allowsHitTesting(false)
-                        .accessibilityHidden(true)
                 }
+                Group {
+                    if router.isListening || showOrbOverlay {
+                        GhafAIOrb(theme: theme, mood: .listening, level: 0)
+                            .frame(width: 112, height: 112)
+                            .scaleEffect(expandedOrb ? 1 : 26 / 112)
+                    } else {
+                        Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1))
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
+                    }
+                }
+                    .frame(width: 56, height: 56)
+                    .contentShape(Circle())
+                    .modifier(GhafOrbPressGesture(onTap: handleAITabOrbTap, onHold: handleAITabOrbHold))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
+                    .accessibilityIdentifier("ghaf.ai.tab-orb")
+                    .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
+                    .position(x: geometry.size.width / 2, y: geometry.size.height - 32)
             }
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
@@ -594,6 +607,29 @@ struct GhafTabView: View {
             settings.appearanceMode == "Dark" || router.selectedTab == 1 ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+
+    private func handleAITabOrbTap() {
+        guard router.selectedTab == 1 else {
+            router.selectedTab = 1
+            return
+        }
+        Task { @MainActor in
+            for _ in 0..<15 {
+                if let action = router.startVoice { action(); return }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+
+    private func handleAITabOrbHold() {
+        router.selectedTab = 1
+        Task { @MainActor in
+            for _ in 0..<15 {
+                if let action = router.typeQuestion { action(); return }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
     }
 }
 
