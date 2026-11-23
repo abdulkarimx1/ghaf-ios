@@ -734,6 +734,9 @@ struct GhafOnboardingView: View {
     @State private var viewedGuide = false
     @State private var preset = BudgetAllocation.Preset.balanced
     @GestureState private var drag: CGFloat = 0
+    @GestureState private var introPressed = false
+    @State private var introCardsShown = false
+    @State private var pageDirection = 1
 
     private var introCards: [GhafCardDesign] {
         let preferred = ["mashreq", "adcb", "enbd"].compactMap { bankID in
@@ -779,7 +782,11 @@ struct GhafOnboardingView: View {
                 }
                 .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 28)
                 .frame(maxWidth: .infinity)
-                .id(step).transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 12)))
+                .id(step)
+                .transition(reduceMotion ? .identity : .asymmetric(
+                    insertion: .move(edge: pageDirection > 0 ? .trailing : .leading).combined(with: .opacity),
+                    removal: .move(edge: pageDirection > 0 ? .leading : .trailing).combined(with: .opacity)
+                ))
             }
             .overlay(alignment: .top) {
                 LinearGradient(stops: [.init(color: theme.background, location: 0), .init(color: theme.background, location: 0.45),
@@ -866,7 +873,22 @@ struct GhafOnboardingView: View {
             introHero
                 .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 260)
                 .offset(x: reduceMotion ? 0 : drag * 0.08)
-                .simultaneousGesture(DragGesture().updating($drag) { value, state, _ in state = value.translation.width })
+                .scaleEffect(introPressed && !reduceMotion ? 0.985 : 1)
+                .animation(.spring(duration: 0.24, bounce: 0.08), value: introPressed)
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .updating($drag) { value, state, _ in state = value.translation.width }
+                        .updating($introPressed) { value, state, _ in
+                            state = abs(value.translation.width) < 10 && abs(value.translation.height) < 10
+                        }
+                        .onEnded { value in
+                            guard abs(value.translation.width) > 56,
+                                  abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
+                            let forward = languageCode == "ar" ? value.translation.width > 0 : value.translation.width < 0
+                            move(to: min(max(step + (forward ? 1 : -1), 0), 4))
+                        }
+                )
                 .accessibilityHidden(true)
             Text(page.1).font(GhafTypography.display(34, languageCode: languageCode))
             Text(page.2).font(GhafTypography.body(16, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
@@ -881,13 +903,36 @@ struct GhafOnboardingView: View {
                 ZStack {
                     ForEach(introCards.indices, id: \.self) { index in
                         let card = introCards[index]
-                        card.image.resizable().scaledToFill()
-                            .frame(width: width, height: width / 1.586).clipShape(RoundedRectangle(cornerRadius: 16))
-                            .scaleEffect(index == 1 ? 1 : 0.9)
-                            .offset(x: CGFloat(index - 1) * width * 0.48, y: index == 1 ? 0 : 13)
+                        let focused = index == 1
+                        Group {
+                            if reduceMotion {
+                                card.image.resizable().scaledToFill()
+                            } else {
+                                card.image.resizable().scaledToFill()
+                                    .phaseAnimator([false, true]) { content, phase in
+                                        content.offset(y: phase ? -1.5 : 1.5)
+                                    } animation: { _ in .smooth(duration: 2.4) }
+                            }
+                        }
+                            .frame(width: width, height: width / 1.586)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .scaleEffect(introCardsShown || reduceMotion ? (focused ? 1 : 0.9) : 0.84)
+                            .opacity(introCardsShown || reduceMotion ? 1 : 0)
+                            .offset(x: CGFloat(index - 1) * width * 0.48
+                                    + (reduceMotion ? 0 : drag * CGFloat(index - 1) * 0.035),
+                                    y: (index == 1 ? 0 : 13) + (introCardsShown || reduceMotion ? 0 : 18))
+                            .shadow(color: theme.glow.opacity(focused ? 0.18 : 0.08), radius: focused ? 16 : 9, y: 8)
+                            .animation(.spring(duration: 0.56, bounce: 0.13).delay(Double(index) * 0.075), value: introCardsShown)
                             .zIndex(Double(3 - abs(index - 1)))
                     }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    guard !introCardsShown else { return }
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(duration: 0.5, bounce: 0.1)) {
+                        introCardsShown = true
+                    }
+                }
             }
         case 1:
             VStack(spacing: 8) {
@@ -966,7 +1011,9 @@ struct GhafOnboardingView: View {
     }
 
     private func move(to page: Int) {
-        withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.35)) { step = page }
+        guard (0..<stepCount).contains(page), page != step else { return }
+        pageDirection = page > step ? 1 : -1
+        withAnimation(reduceMotion ? .none : .spring(duration: 0.48, bounce: 0.15)) { step = page }
     }
 
     private func restart() {
