@@ -44,10 +44,10 @@ struct GhafBudgetView: View {
     /// The salary cycle when a salary day is set, else this calendar month (same rule as BudgetCalculator).
     private var cycle: DateInterval {
         if hasSalary, let day = settings.salaryDay {
-            let start = GhafSalaryCycle.startDate(for: .now, salaryDay: day)
-            return DateInterval(start: start, end: GhafSalaryCycle.nextSalaryDate(after: .now, salaryDay: day))
+            let start = GhafSalaryCycle.startDate(for: GhafClock.now, salaryDay: day)
+            return DateInterval(start: start, end: GhafSalaryCycle.nextSalaryDate(after: GhafClock.now, salaryDay: day))
         }
-        return calendar.dateInterval(of: .month, for: .now)!
+        return calendar.dateInterval(of: .month, for: GhafClock.now)!
     }
 
     private func expenses(in range: DateInterval) -> [GhafTransaction] {
@@ -110,7 +110,7 @@ struct GhafBudgetView: View {
                 editingCategory = category; budgetEntry = NSDecimalNumber(decimal: monthlySpendByCategory.first?.budget ?? 0).stringValue
             }
             if GhafScreenshotFixture.selection == "month" {
-                selectedMonth = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)
+                selectedMonth = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: GhafClock.now)!.start)
             }
             if GhafScreenshotFixture.autoSelect { runAutoSelection(scrollProxy: scrollProxy) }
             if GhafScreenshotFixture.selection == "month" {
@@ -313,8 +313,8 @@ struct GhafBudgetView: View {
     }
 
     private func hasRecentSpending(_ category: String) -> Bool {
-        let start = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!
-        return expenses(in: DateInterval(start: start, end: .now)).contains { $0.category == category }
+        let start = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: GhafClock.now)!.start)!
+        return expenses(in: DateInterval(start: start, end: GhafClock.now)).contains { $0.category == category }
     }
 
     @ViewBuilder private func spentOf(_ item: (name: String, spent: Decimal, budget: Decimal)) -> some View {
@@ -402,7 +402,7 @@ struct GhafBudgetView: View {
 
 #if DEBUG
     private func runAutoSelection(scrollProxy: ScrollViewProxy) {
-        let month = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: .now)!.start)!
+        let month = calendar.date(byAdding: .month, value: -3, to: calendar.dateInterval(of: .month, for: GhafClock.now)!.start)!
         let actions: [(TimeInterval, () -> Void)] = [
             (2.0, { toggleBucket(.wants) }), (3.0, { toggleBucket(.savings) }),
             (4.0, { toggleBucket(.savings) }),
@@ -416,7 +416,7 @@ struct GhafBudgetView: View {
     // MARK: Header
 
     private var header: some View {
-        let days = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: .now), to: cycle.end).day ?? 0)
+        let days = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: GhafClock.now), to: cycle.end).day ?? 0)
         let started = cycle.start.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
         let detail = hasSalary
             ? (ar ? "بدأت الدورة \(started) · \(days) يوم للراتب القادم" : "Cycle started \(started) · \(days) days to next salary")
@@ -556,12 +556,12 @@ struct GhafBudgetView: View {
 
     /// Spending so far in needs and wants against the 80% plan, prorated to today.
     private func paceRow(needs: Decimal, wants: Decimal) -> some View {
-        let elapsed = min(max(Date.now.timeIntervalSince(cycle.start) / cycle.duration, 0.03), 1)
+        let elapsed = min(max(GhafClock.now.timeIntervalSince(cycle.start) / cycle.duration, 0.03), 1)
         let expected = NSDecimalNumber(decimal: allocationIncome * 0.8).doubleValue * elapsed
         let actual = NSDecimalNumber(decimal: needs + wants).doubleValue
         let pace = expected > 0 ? (actual - expected) / expected : 0
         let percent = Int((abs(pace) * 100).rounded())
-        let day = (calendar.dateComponents([.day], from: cycle.start, to: .now).day ?? 0) + 1
+        let day = (calendar.dateComponents([.day], from: cycle.start, to: GhafClock.now).day ?? 0) + 1
         let length = max(1, calendar.dateComponents([.day], from: cycle.start, to: cycle.end).day ?? 30)
         let under = pace <= 0
         return NavigationLink { GhafSalarySettingsView(settings: settings) } label: {
@@ -595,7 +595,7 @@ struct GhafBudgetView: View {
     // MARK: Six-month trend
 
     private var trendCard: some View {
-        let thisMonth = calendar.dateInterval(of: .month, for: .now)!
+        let thisMonth = calendar.dateInterval(of: .month, for: GhafClock.now)!
         let months: [(start: Date, total: Double)] = (0..<6).reversed().map { back in
             let start = calendar.date(byAdding: .month, value: -back, to: thisMonth.start)!
             let range = calendar.dateInterval(of: .month, for: start)!

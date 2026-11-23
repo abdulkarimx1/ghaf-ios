@@ -553,7 +553,7 @@ struct GhafAccountEditorView: View {
                 let difference = balance - current
                 if difference != 0 {
                     let parsed = ParsedTransaction(amount: abs(difference), currency: currency,
-                                                   merchant: ar ? "تعديل الرصيد" : "Balance adjustment", date: .now,
+                                                   merchant: ar ? "تعديل الرصيد" : "Balance adjustment", date: GhafClock.now,
                                                    direction: difference > 0 ? .credit : .debit, confidence: 1, bank: nil)
                     modelContext.insert(GhafTransaction(fingerprint: "manual-adjust-\(UUID().uuidString)", parsed: parsed,
                                                         category: "Adjustment", needsReview: false, isReversal: false,
@@ -563,7 +563,7 @@ struct GhafAccountEditorView: View {
                 // Another currency: earlier activity no longer counts, so the entered amount starts afresh.
                 target.currency = currency
                 target.openingBalance = balance
-                target.openingDate = .now
+                target.openingDate = GhafClock.now
             }
             target.creditLimit = Decimal(string: creditLimitText)
             target.cardLast4 = lastFourDigits.isEmpty || isCash ? nil : lastFourDigits
@@ -577,7 +577,7 @@ struct GhafAccountEditorView: View {
                 accountType: accountType,
                 currency: currency,
                 openingBalance: balance,
-                openingDate: .now,
+                openingDate: GhafClock.now,
                 creditLimit: Decimal(string: creditLimitText),
                 lastFourDigits: lastFourDigits.isEmpty || isCash ? nil : lastFourDigits,
                 isPrimary: isPrimary,
