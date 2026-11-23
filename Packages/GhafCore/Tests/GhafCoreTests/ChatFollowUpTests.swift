@@ -22,4 +22,15 @@ final class ChatFollowUpTests: XCTestCase {
         XCTAssertEqual(ChatFollowUp.resolve("hello", previous: "How much did I spend?"), "hello")
         XCTAssertEqual(ChatFollowUp.resolve("and last month?", previous: nil), "and last month?")
     }
+
+    func testDeterministicFollowUpSuggestionsAndLedgerMappings() {
+        let english = ChatFollowUp.suggestions(after: "How much did I spend this week?", languageCode: "en")
+        XCTAssertEqual(english, ["This month vs last", "Top category", "Due subscriptions"])
+        XCTAssertEqual(ChatFollowUp.ledgerQuestion(for: english[0], languageCode: "en"),
+                       "Compare my spending this month with last month")
+
+        let arabic = ChatFollowUp.suggestions(after: "كم صرفت هالأسبوع؟", languageCode: "ar")
+        XCTAssertEqual(arabic, ["مقارنة هذا الشهر بالماضي", "أعلى فئة إنفاقًا", "الاشتراكات القادمة"])
+        XCTAssertEqual(ChatFollowUp.ledgerQuestion(for: arabic[2], languageCode: "ar"), "ما الاشتراكات القادمة؟")
+    }
 }

@@ -5,6 +5,36 @@ import Foundation
 /// is returned unchanged.
 public enum ChatFollowUp {
 
+    /// Short, useful next questions selected from the answer topic. These are phrased as
+    /// local ledger queries so the UI can answer them without another model request.
+    public static func suggestions(after question: String, languageCode: String) -> [String] {
+        let text = question.lowercased()
+        let ar = languageCode == "ar"
+        if ["subscription", "اشتراك"].contains(where: text.contains) {
+            return ar ? ["ما موعد الدفع القادم؟", "كم تكلف سنويًا؟", "أعلى فئة إنفاقًا"]
+                      : ["Due subscriptions", "Annual subscription cost", "Top category"]
+        }
+        if ["balance", "account", "رصيد", "حساب"].contains(where: text.contains) {
+            return ar ? ["كم صرفت هذا الشهر؟", "أعلى فئة إنفاقًا", "الاشتراكات القادمة"]
+                      : ["This month vs last", "Top category", "Due subscriptions"]
+        }
+        return ar ? ["مقارنة هذا الشهر بالماضي", "أعلى فئة إنفاقًا", "الاشتراكات القادمة"]
+                  : ["This month vs last", "Top category", "Due subscriptions"]
+    }
+
+    /// Maps a displayed chip to a deterministic ledger question.
+    public static func ledgerQuestion(for suggestion: String, languageCode: String) -> String? {
+        let ar = languageCode == "ar"
+        switch suggestion {
+        case "This month vs last", "مقارنة هذا الشهر بالماضي": return ar ? "قارن إنفاقي هذا الشهر بالشهر الماضي" : "Compare my spending this month with last month"
+        case "Top category", "أعلى فئة إنفاقًا": return ar ? "ما أكثر فئة صرفت فيها هذا الشهر؟" : "What was my top spending category this month?"
+        case "Due subscriptions", "الاشتراكات القادمة", "ما موعد الدفع القادم؟": return ar ? "ما الاشتراكات القادمة؟" : "Which subscriptions are due soon?"
+        case "Annual subscription cost", "كم تكلف سنويًا؟": return ar ? "كم تبلغ تكلفة اشتراكاتي سنويًا؟" : "What is my annual subscription cost?"
+        case "كم صرفت هذا الشهر؟": return "كم صرفت هذا الشهر؟"
+        default: return nil
+        }
+    }
+
     private static let periodPhrases = [
         "last month", "this month", "last week", "this week", "today", "yesterday", "this year",
         "الشهر الماضي", "هذا الشهر", "هالشهر", "الأسبوع الماضي", "الاسبوع الماضي", "هذا الأسبوع", "هالأسبوع",

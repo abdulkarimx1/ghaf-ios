@@ -65,7 +65,17 @@ public struct LiveSetup {
             "systemInstruction": ["parts": [["text": systemInstruction]]],
             "tools": [["functionDeclarations": try JSONSerialization.jsonObject(with: JSONEncoder().encode(tools))]],
             "inputAudioTranscription": [:], "outputAudioTranscription": [:],
-            "realtimeInputConfig": ["automaticActivityDetection": ["disabled": true]],
+            "realtimeInputConfig": [
+                "automaticActivityDetection": [
+                    "disabled": false,
+                    "startOfSpeechSensitivity": "START_SENSITIVITY_LOW",
+                    "endOfSpeechSensitivity": "END_SENSITIVITY_HIGH",
+                    "prefixPaddingMs": 100,
+                    "silenceDurationMs": 800
+                ],
+                "activityHandling": "START_OF_ACTIVITY_INTERRUPTS",
+                "turnCoverage": "TURN_INCLUDES_ONLY_ACTIVITY"
+            ],
             "contextWindowCompression": ["slidingWindow": [:]], "sessionResumption": [:]
         ]
         if !responseModalitiesInGenerationConfig { setup["responseModalities"] = ["AUDIO"] }
