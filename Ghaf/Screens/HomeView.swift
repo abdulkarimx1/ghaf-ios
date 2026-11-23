@@ -415,7 +415,7 @@ struct GhafHomeView: View {
     }
 
     private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
+        let hour = Calendar.current.component(.hour, from: GhafClock.now)
         if ar { return hour < 12 ? "صباح الخير" : "مساء الخير" }
         if hour < 12 { return "Good morning" }
         if hour < 17 { return "Good afternoon" }

@@ -51,7 +51,9 @@ struct GhafSnapshotTests {
 
     @MainActor
     private func assertScreen(_ sample: SnapshotCase) async throws {
-        let fixedNow = fixedSnapshotDate()
+        // The automation reference's Mashreq sample is 15 hours old; freeze that view's anchor
+        // to the capture time used for that reference instead of reading wall-clock time.
+        let fixedNow = fixedSnapshotDate().addingTimeInterval(sample.screen == .bankAutomation ? 60 * 60 : 0)
         GhafClock.snapshotNow = fixedNow
         GhafScreenshotFixture.snapshotTestingEnabled = true
         GhafScreenshotFixture.snapshotScreenOverride = sample.screen == .profile ? "profile-proof" : nil
