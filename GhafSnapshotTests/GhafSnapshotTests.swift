@@ -39,7 +39,7 @@ struct SnapshotCase: Sendable, CustomTestStringConvertible {
     }
 }
 
-@Suite(.serialized)
+@Suite(.serialized, .snapshots(record: .missing))
 struct GhafSnapshotTests {
     @Test
     @MainActor
