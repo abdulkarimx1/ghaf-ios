@@ -13,7 +13,8 @@ export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
     const endpoint = ({ "/chat": "chat", "/speak": "speak", "/live-token": "live-token", "/voice-usage": "voice-usage", "/voice-turn": "voice-turn", "/redeem": "redeem", "/health": "health", "/tips": "tips" })[path] || "other";
-    const usage = { endpoint, model: "", outcome: "error", lang: "other", device: request.headers.get("X-Ghaf-Device") || "", developer: Boolean(env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN), errorKind: "", input: 0, output: 0 };
+    const buildHeader = request.headers.get("X-Ghaf-Build");
+    const usage = { endpoint, model: "", outcome: "error", lang: "other", device: request.headers.get("X-Ghaf-Device") || "", developer: Boolean(env.APP_TOKEN && request.headers.get("X-Ghaf-Token") === env.APP_TOKEN), errorKind: "", build: ["release", "debug", "simulator"].includes(buildHeader) ? buildHeader : "unknown", input: 0, output: 0 };
     const started = Date.now();
     let response;
     try {
@@ -497,7 +498,7 @@ function writeUsage(env, ctx, usage, latency) {
     }
     env.USAGE_EVENTS.writeDataPoint({
       indexes: ["ghaf"],
-      blobs: [usage.endpoint, usage.model, usage.outcome, usage.lang, deviceHash, usage.errorKind],
+      blobs: [usage.endpoint, usage.model, usage.outcome, usage.lang, deviceHash, usage.errorKind, usage.build],
       doubles: [latency, usage.input, usage.output, usage.developer ? 1 : 0]
     });
   }).catch(() => {});

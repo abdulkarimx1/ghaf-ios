@@ -65,6 +65,22 @@ enum GhafCloudAI {
     static let accessCodeKey = "ghaf.pro.accessCode"
     static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/chat")!
 
+    #if DEBUG
+    @MainActor static var fixtureNetworkIsDisabledForRequests: Bool { GhafScreenshotFixture.enabled }
+    #else
+    @MainActor static var fixtureNetworkIsDisabledForRequests: Bool { false }
+    #endif
+
+    static func setBuildHeader(on request: inout URLRequest) {
+        #if targetEnvironment(simulator)
+        request.setValue("simulator", forHTTPHeaderField: "X-Ghaf-Build")
+        #elseif DEBUG
+        request.setValue("debug", forHTTPHeaderField: "X-Ghaf-Build")
+        #else
+        request.setValue("release", forHTTPHeaderField: "X-Ghaf-Build")
+        #endif
+    }
+
     enum Failure: Error { case dailyLimit, unavailable }
     static let accessRevoked = Notification.Name("GhafProAccessCodeRevoked")
 
@@ -73,8 +89,10 @@ enum GhafCloudAI {
     @MainActor static var conversational = false
 
     static func voiceUsage() async -> GhafVoiceUsage? {
+        if await fixtureNetworkIsDisabledForRequests { return nil }
         guard let url = URL(string: "/voice-usage", relativeTo: endpoint.deletingLastPathComponent()) else { return nil }
         var request = URLRequest(url: url, timeoutInterval: 8)
+        setBuildHeader(on: &request)
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         request.setValue(GhafAITier.current, forHTTPHeaderField: "X-Ghaf-Tier")
         if let code = Keychain.read(accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
@@ -86,8 +104,10 @@ enum GhafCloudAI {
     }
 
     static func reserveVoiceTurn(languageCode: String) async -> (usage: GhafVoiceUsage, allowed: Bool)? {
+        if await fixtureNetworkIsDisabledForRequests { return nil }
         guard let url = URL(string: "/voice-turn", relativeTo: endpoint.deletingLastPathComponent()) else { return nil }
         var request = URLRequest(url: url, timeoutInterval: 8)
+        setBuildHeader(on: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
@@ -103,8 +123,10 @@ enum GhafCloudAI {
     enum RedeemResult { case success, invalid, unavailable }
 
     static func redeemAccessCode(_ code: String) async -> RedeemResult {
+        if await fixtureNetworkIsDisabledForRequests { return .unavailable }
         guard let url = URL(string: "/redeem", relativeTo: endpoint.deletingLastPathComponent()) else { return .unavailable }
         var request = URLRequest(url: url, timeoutInterval: 12)
+        setBuildHeader(on: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
@@ -140,14 +162,19 @@ enum GhafCloudAI {
     }
 
     static func prewarm() async {
+        if await fixtureNetworkIsDisabledForRequests { return }
         guard let url = URL(string: "/health", relativeTo: endpoint.deletingLastPathComponent()) else { return }
-        _ = try? await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        setBuildHeader(on: &request)
+        _ = try? await URLSession.shared.data(for: request)
     }
 
     static func reply(question: String, facts: String, direct: String?, history: [(isUser: Bool, text: String)],
                       languageCode: String) async throws -> String {
+        if await fixtureNetworkIsDisabledForRequests { throw Failure.unavailable }
         var request = URLRequest(url: endpoint, timeoutInterval: 25)
         request.httpMethod = "POST"
+        setBuildHeader(on: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         if let code = Keychain.read(accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }

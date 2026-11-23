@@ -32,6 +32,11 @@ is built into `GhafCloudAI.endpoint`).
 app's setup through the field mask. Hamad uses `Orus`, Mariam uses `Kore`; these are Worker vars.
 `GEMINI_API_KEY` remains a Worker secret.
 
+## Analytics dashboard filter
+
+Count users only where the Analytics Engine `build` blob is `release` and the `is_developer` double
+is `0`. Exclude `debug`, `simulator`, and `unknown` builds from user counts.
+
 ## StoreKit verification status
 
 The app checks a verified StoreKit entitlement locally, then sends the corresponding tier string.
