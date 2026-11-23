@@ -181,7 +181,7 @@ struct GhafHomeView: View {
                                 .accessibilityLabel(settings.languageCode == "ar" ? "جارٍ تحميل الملخص" : "Loading summary")
                         }
                     } else {
-                        emptyAccountsState
+                        emptyAccountsState.ghafEntrance(1)
                     }
                 }
                 .ghafScreenPadding()

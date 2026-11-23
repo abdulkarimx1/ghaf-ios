@@ -160,7 +160,7 @@ struct GhafTransactionsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 } else if cachedSections.isEmpty {
-                    emptyState
+                    emptyState.ghafEntrance(1)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 } else {

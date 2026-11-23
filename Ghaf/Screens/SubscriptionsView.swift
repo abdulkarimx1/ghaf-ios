@@ -123,6 +123,7 @@ struct GhafSubscriptionsView: View {
                             }
                             .multilineTextAlignment(.center)
                             .padding(22).frame(maxWidth: .infinity).ghafCard(theme: theme)
+                            .ghafEntrance(1)
                         } else {
                             ForEach(groups, id: \.title) { group in
                                 VStack(alignment: .leading, spacing: 8) {

@@ -1661,6 +1661,7 @@ private struct GhafChatHistorySheet: View {
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                             .padding(.vertical, 12)
+                            .ghafEntrance(1)
                     }
                     ForEach(chats) { chat in
                         Button { open(chat) } label: {

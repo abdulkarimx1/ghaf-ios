@@ -668,6 +668,7 @@ struct GhafStatsView: View {
                     .font(GhafTypography.body(14, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, minHeight: 80)
+                    .ghafEntrance(1)
             } else {
                 HStack(alignment: .bottom, spacing: 10) {
                     ForEach(Array(top.enumerated()), id: \.offset) { index, slice in
