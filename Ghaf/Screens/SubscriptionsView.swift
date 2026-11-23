@@ -6,7 +6,6 @@ import os
 private let subscriptionDetailLog = OSLog(subsystem: "com.ghaf.app", category: "SubscriptionDetail")
 
 struct GhafSubscriptionsView: View {
-    @Environment(GhafTabRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
@@ -82,7 +81,6 @@ struct GhafSubscriptionsView: View {
         item.nextPaymentDate = item.cycle.nextDate(after: max(item.nextPaymentDate, transaction.date))
         do {
             try context.save()
-            router.ledgerRevision += 1
             GhafSubscriptionReminderService.schedule(item, language: lang)
         } catch { context.rollback() }
     }
@@ -372,7 +370,6 @@ struct GhafSubscriptionsView: View {
         confirmedCount += 1
         do {
             try context.save()
-            router.ledgerRevision += 1
             if accept && item.isActive { GhafSubscriptionReminderService.schedule(item, language: lang) }
         } catch { context.rollback() }
     }
@@ -404,7 +401,6 @@ struct GhafSubscriptionsView: View {
         confirmedCount += 1
         do {
             try context.save()
-            router.ledgerRevision += 1
             Task {
                 _ = await GhafSubscriptionReminderService.requestPermission()
                 GhafSubscriptionReminderService.schedule(item, language: settings.languageCode)
@@ -450,14 +446,13 @@ struct GhafSubscriptionsView: View {
         confirmedCount += 1
         do {
             try context.save()
-            router.ledgerRevision += 1
             GhafSubscriptionReminderService.schedule(item, language: lang)
         } catch { context.rollback() }
     }
 
     private func dismissSuggestion(_ item: GhafSubscription) {
         context.delete(item)
-        do { try context.save(); router.ledgerRevision += 1 } catch { context.rollback() }
+        do { try context.save() } catch { context.rollback() }
     }
 
     private func subscriptionRow(_ item: GhafSubscription) -> some View {
@@ -761,7 +756,6 @@ private struct GhafSubscriptionDetailView: View {
                 }
             }
             .sheet(isPresented: $editing, onDismiss: {
-                router.ledgerRevision += 1
                 // Deleted from the editor: close this page instead of showing a removed record.
                 if subscription.isDeleted || subscription.modelContext == nil { dismiss() } else { load() }
             }) {

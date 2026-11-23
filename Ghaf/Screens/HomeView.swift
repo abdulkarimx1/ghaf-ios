@@ -148,9 +148,9 @@ struct GhafHomeView: View {
         "\(activityPeriodIndex)-\(transactions.count)-\(accounts.count)-\(subscriptions.count)-\(settings.currency)-\(weekStart)-\(router.ledgerRevision)"
     }
 
-    private func refreshSummaryIfNeeded(force: Bool = false) {
+    private func refreshSummaryIfNeeded() {
         let currentID = summaryTaskID
-        guard force || currentID != cachedSummaryID else { return }
+        guard currentID != cachedSummaryID else { return }
 #if DEBUG
         summary = GhafPerformanceProbe.measure("home-summary") { makeSummary() }
 #else
@@ -212,7 +212,7 @@ struct GhafHomeView: View {
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace) }
-            .sheet(isPresented: $showQuickAdd, onDismiss: { refreshSummaryIfNeeded(force: true) }) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
+            .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }.ghafDirection(settings.languageCode)
             }
@@ -231,7 +231,7 @@ struct GhafHomeView: View {
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
 #endif
-            .sheet(item: $selectedTransaction, onDismiss: { refreshSummaryIfNeeded(force: true) }) { transaction in
+            .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
@@ -493,6 +493,7 @@ struct GhafHomeView: View {
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
                     .contentTransition(.numericText())
+                    .accessibilityIdentifier("home.period.count")
             }
 
             if activityPeriodIndex == 1 && !seenRollingWeekNote { rollingWeekNote }
@@ -518,6 +519,7 @@ struct GhafHomeView: View {
         HStack(spacing: 4) {
             Image(systemName: icon).font(.system(size: 11, weight: .heavy))
             GhafRollingNumber(amount: value, currency: currency, languageCode: lang, size: 14, hidden: hideBalances)
+                .accessibilityIdentifier(label == (ar ? "المصروف" : "spent") ? "home.period.spent" : "home.period.income")
             Text(label).font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
         }
         .foregroundStyle(color)

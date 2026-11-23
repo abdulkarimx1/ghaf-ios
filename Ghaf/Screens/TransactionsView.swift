@@ -224,7 +224,7 @@ struct GhafTransactionsView: View {
                 }
             }
 #endif
-            .sheet(item: $selectedTransaction, onDismiss: { router.ledgerRevision += 1 }) { transaction in
+            .sheet(item: $selectedTransaction) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings,
                                           accounts: accounts.filter { !$0.isArchived }) {
                     transactionDetailHeight = $0
@@ -237,7 +237,7 @@ struct GhafTransactionsView: View {
                     .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible).ghafSheetFrame(theme: theme).ghafDirection(settings.languageCode)
             }
-            .sheet(item: $categoryTransaction, onDismiss: { router.ledgerRevision += 1 }) { transaction in
+            .sheet(item: $categoryTransaction) { transaction in
                 GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
                     .presentationDetents([.height(360)]).presentationDragIndicator(.visible).ghafSheetFrame(theme: theme)
             }
@@ -260,15 +260,17 @@ struct GhafTransactionsView: View {
 
     private func monthSummary(_ totals: (spent: Decimal, income: Decimal)) -> some View {
         HStack(spacing: 0) {
-            summaryCell(ar ? "صرفت هذا الشهر" : "Spent this month", totals.spent, theme.debit)
+            summaryCell(ar ? "صرفت هذا الشهر" : "Spent this month", totals.spent, theme.debit,
+                        identifier: "transactions.month.spent")
             Rectangle().fill(theme.outline).frame(width: 1, height: 40)
-            summaryCell(ar ? "الدخل هذا الشهر" : "Income this month", totals.income, theme.credit)
+            summaryCell(ar ? "الدخل هذا الشهر" : "Income this month", totals.income, theme.credit,
+                        identifier: "transactions.month.income")
         }
         .frame(minHeight: 116)
         .ghafCard(theme: theme)
     }
 
-    private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color) -> some View {
+    private func summaryCell(_ title: String, _ amount: Decimal, _ color: Color, identifier: String) -> some View {
         VStack(spacing: 6) {
             Text(title)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
@@ -279,6 +281,7 @@ struct GhafTransactionsView: View {
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
+                .accessibilityIdentifier(identifier)
         }
         .padding(16)
         .frame(maxWidth: .infinity)
@@ -356,7 +359,6 @@ struct GhafTransactionsView: View {
         modelContext.delete(transaction)
         do {
             try modelContext.save()
-                    router.ledgerRevision += 1
             GhafSounds.shared.play(.deleted)
         } catch {
             modelContext.rollback()

@@ -409,10 +409,15 @@ struct GhafTabView: View {
     @State private var speedReport = ""
 #endif
     @Query private var linkAccounts: [GhafAccount]
+    @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     /// Decoded once, not on every tab switch, so category icons are not invalidated needlessly.
     @State private var categoryMeta: [String: GhafCategoryMeta] = [:]
 
     let settings: GhafSettings
+
+    private var summarySettingsKey: String {
+        "\(settings.currency)|\(settings.categoriesJSON)|\(weekStart)|\(settings.languageCode)"
+    }
 
     var body: some View {
         let theme = GhafTheme.resolve(
@@ -562,6 +567,13 @@ struct GhafTabView: View {
         }
 #endif
         .sensoryFeedback(.selection, trigger: router.selectedTab)
+        // Every SwiftData context in this process posts didSave, including contexts created by
+        // App Intents. One revision invalidates all ledger-derived tab caches after any persisted
+        // ledger or summary-setting change, regardless of which screen initiated the write.
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+            Task { @MainActor in router.ledgerRevision += 1 }
+        }
+        .onChange(of: summarySettingsKey) { _, _ in router.ledgerRevision += 1 }
         .onChange(of: router.isListening) { _, listening in
             if listening {
                 showOrbOverlay = true

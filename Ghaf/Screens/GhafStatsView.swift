@@ -359,6 +359,7 @@ struct GhafStatsView: View {
             GhafRollingNumber(amount: Decimal(selected.map { $0.total + ($0.forecast ?? 0) } ?? spent), currency: currency, languageCode: lang, size: 40)
                 .foregroundStyle(theme.primaryText)
                 .environment(\.layoutDirection, .leftToRight)
+                .accessibilityIdentifier("stats.period.spent")
             if let change, comparisonVisible, selected == nil, selectedCategory == nil {
                 Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
                       + (ar ? " عن الفترة السابقة" : " vs previous"),
