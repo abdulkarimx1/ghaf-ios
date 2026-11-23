@@ -56,6 +56,7 @@ struct GhafHomeView: View {
     @State private var activityPeriodIndex = 0
     @State private var summary = Summary()
     @State private var cachedSummaryID: String?
+    @State private var summaryPrepared = false
 
     let settings: GhafSettings
 
@@ -157,6 +158,7 @@ struct GhafHomeView: View {
         summary = makeSummary()
 #endif
         cachedSummaryID = currentID
+        summaryPrepared = true
     }
 
     var body: some View {
@@ -167,10 +169,16 @@ struct GhafHomeView: View {
                         automationWarningCard
                     }
                     if accounts.contains(where: { !$0.isArchived }) {
-                        balanceCard(summary).ghafEntrance(1)
-                        actionRow().ghafEntrance(2)
-                        insightCard(summary).ghafEntrance(3)
-                        recentActivity.ghafEntrance(4)
+                        if summaryPrepared {
+                            balanceCard(summary).ghafEntrance(1)
+                            actionRow().ghafEntrance(2)
+                            insightCard(summary).ghafEntrance(3)
+                            recentActivity.ghafEntrance(4)
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 260)
+                                .accessibilityLabel(settings.languageCode == "ar" ? "جارٍ تحميل الملخص" : "Loading summary")
+                        }
                     } else {
                         emptyAccountsState
                     }

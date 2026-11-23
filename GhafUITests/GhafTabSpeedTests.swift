@@ -21,6 +21,7 @@ final class GhafTabSpeedTests: XCTestCase {
         app.launchArguments = ["-GhafFixture", "1", "-GhafExportSpeedSignposts"] + backup + ["-GhafTheme", "Graphite", "-GhafAppearance", appearance, "-GhafLanguage", language]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 30))
+        capture("\(appearance)-\(language)-cold-Home", index: 0)
 
         let tabs: [(index: Int, name: String)] = [(1, "Transactions"), (3, "Stats"), (4, "More"), (0, "Home")]
         var shot = 0
@@ -89,7 +90,15 @@ final class GhafTabSpeedTests: XCTestCase {
 
     private func capture(_ name: String, index: Int) {
         let image = XCUIScreen.main.screenshot().pngRepresentation
-        let path = FileManager.default.temporaryDirectory.appendingPathComponent(String(format: "%03d-%@.png", index, name))
+        let directory = ProcessInfo.processInfo.environment["GHAF_UI_OUT"] ?? FileManager.default.temporaryDirectory.path
+        try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let path = URL(fileURLWithPath: directory).appendingPathComponent(String(format: "%03d-%@.png", index, name))
         try? image.write(to: path)
+        XCTContext.runActivity(named: "Screen capture: \(name)") { activity in
+            let attachment = XCTAttachment(data: image, uniformTypeIdentifier: "public.png")
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            activity.add(attachment)
+        }
     }
 }

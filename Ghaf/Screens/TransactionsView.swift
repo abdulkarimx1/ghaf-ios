@@ -26,6 +26,7 @@ struct GhafTransactionsView: View {
     @State private var cachedSections: [(title: String, items: [GhafTransaction])] = []
     @State private var cachedMonthTotals: (spent: Decimal, income: Decimal) = (.zero, .zero)
     @State private var cachedPreparationID: String?
+    @State private var hasPreparedTransactions = false
 #if DEBUG
     @State private var fixtureDetailOpened = false
 #endif
@@ -99,6 +100,7 @@ struct GhafTransactionsView: View {
         cachedMonthTotals = prepared.totals
         cachedSections = prepared.sections
         cachedPreparationID = preparationID
+        hasPreparedTransactions = true
     }
 
     private func prepareTransactionData() -> (totals: (spent: Decimal, income: Decimal), sections: [(title: String, items: [GhafTransaction])]) {
@@ -137,7 +139,13 @@ struct GhafTransactionsView: View {
                         GhafScreenTitle(title: ar ? "العمليات" : "Transactions",
                                         subtitle: ar ? "كل حركة مالية في مكان واحد" : "Every movement, in one place",
                                         languageCode: lang, theme: theme)
-                        monthSummary(cachedMonthTotals)
+                        if hasPreparedTransactions {
+                            monthSummary(cachedMonthTotals)
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                                .accessibilityLabel(ar ? "جارٍ تحميل العمليات" : "Loading transactions")
+                        }
                         searchField
                         filterBar
                     }
@@ -146,7 +154,12 @@ struct GhafTransactionsView: View {
                     .listRowSeparator(.hidden)
                 }
 
-                if cachedSections.isEmpty {
+                if !hasPreparedTransactions {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 180)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                } else if cachedSections.isEmpty {
                     emptyState
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
