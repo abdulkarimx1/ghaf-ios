@@ -37,7 +37,7 @@ struct GhafAutomationGuideView: View {
             }
         }
 #endif
-        if realRuns.contains(where: { $0 > Date.now.addingTimeInterval(-14 * 24 * 60 * 60).timeIntervalSince1970 }) { return .working }
+        if realRuns.contains(where: { $0 > GhafClock.now.addingTimeInterval(-14 * 24 * 60 * 60).timeIntervalSince1970 }) { return .working }
         return chosenBanks.isEmpty ? .notSetUp : .waiting
     }
 

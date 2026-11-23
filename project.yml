@@ -11,6 +11,21 @@ options:
 packages:
   GhafCore:
     path: Packages/GhafCore
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing.git
+    version: 1.19.7
+
+schemes:
+  Ghaf:
+    build:
+      targets:
+        Ghaf: all
+        GhafUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - target: GhafUITests
+        - target: GhafSnapshotTests
 
 targets:
   GhafUITests:
@@ -23,9 +38,26 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app.uitests
+  GhafSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [GhafSnapshotTests]
+    dependencies:
+      - target: Ghaf
+      - package: SnapshotTesting
+        product: SnapshotTesting
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app.snapshottests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Ghaf.app/Ghaf"
+        BUNDLE_LOADER: "$(TEST_HOST)"
   Ghaf:
     scheme:
       storeKitConfiguration: Ghaf/Resources/Ghaf.storekit
+      testTargets:
+        - GhafUITests
+        - GhafSnapshotTests
     type: application
     platform: iOS
     sources:

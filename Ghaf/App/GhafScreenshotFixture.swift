@@ -6,7 +6,10 @@ import GhafCore
 @MainActor
 enum GhafScreenshotFixture {
     private static let arguments = ProcessInfo.processInfo.arguments
-    static var enabled: Bool { value("GhafFixture") == "1" }
+    static var snapshotTestingEnabled = false
+    static var snapshotScreenOverride: String?
+    static var snapshotPeriodOverride: String?
+    static var enabled: Bool { snapshotTestingEnabled || value("GhafFixture") == "1" }
     static var launchProof: Bool { enabled && value("GhafLaunchProof") == "1" }
     static var launchNewUser: Bool { launchProof && value("GhafLaunchNewUser") == "1" }
     static var autoSelect: Bool { enabled && value("GhafAutoSelect") == "1" }
@@ -15,11 +18,12 @@ enum GhafScreenshotFixture {
     static var language: String { value("GhafLanguage") ?? "en" }
     static var tab: String { value("GhafTab") ?? (["ai-typing", "ai-conversation"].contains(value("GhafScreen") ?? "") ? "ai" : "home") }
     static var selection: String? { value("GhafSelection") }
-    static var period: String? { value("GhafPeriod") }
+    static var period: String? { snapshotPeriodOverride ?? value("GhafPeriod") }
+    private static var rawScreen: String? { snapshotScreenOverride ?? value("GhafScreen") }
     static var screen: String? {
-        ["budget", "pro-popup", "pro-sheet"].contains(value("GhafScreen") ?? "") ? "insights" : value("GhafScreen")
+        ["budget", "pro-popup", "pro-sheet"].contains(rawScreen ?? "") ? "insights" : rawScreen
     }
-    static var destination: String? { value("GhafScreen") }
+    static var destination: String? { rawScreen }
     static var importSheetRoute: Bool { enabled && destination == "importSheet" }
     static var automationExpanded: String { value("GhafAutomationExpanded") ?? "bank" }
     static var automationPage: Int? { value("GhafAutomationPage").flatMap(Int.init) }
@@ -113,7 +117,7 @@ enum GhafScreenshotFixture {
             ("Transfer from Cash", 150, "Transfers", "credit", 25)
         ]
         for (merchant, amount, category, direction, daysAgo) in samples {
-            let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now) ?? .now
+            let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: GhafClock.now) ?? GhafClock.now
             let parsed = ParsedTransaction(amount: amount, currency: "AED", merchant: merchant, date: date,
                                            direction: direction == "credit" ? .credit : .debit,
                                            confidence: 1, bank: "Mashreq")
@@ -126,7 +130,7 @@ enum GhafScreenshotFixture {
                                              ("Cloud storage", Decimal(299), .yearly, 12),
                                              ("Weekly news", Decimal(8), .weekly, 2)] {
             context.insert(GhafSubscription(name: name, amount: amount, billingCycle: cycle,
-                                            nextPaymentDate: Calendar.current.date(byAdding: .day, value: days, to: .now) ?? .now,
+                                            nextPaymentDate: Calendar.current.date(byAdding: .day, value: days, to: GhafClock.now) ?? GhafClock.now,
                                             accountID: mashreq.id))
         }
         try? context.save()
@@ -153,14 +157,14 @@ extension GhafScreenshotFixture {
         let transactions = (try? context.fetch(FetchDescriptor<GhafTransaction>())) ?? []
         let subscriptions = (try? context.fetch(FetchDescriptor<GhafSubscription>())) ?? []
         for index in 1...3 where !transactions.contains(where: { $0.fingerprint == "fixture-attention-review-\(index)" }) {
-            let parsed = ParsedTransaction(amount: Decimal(index * 12), currency: "AED", merchant: "Review fixture \(index)", date: .now,
+            let parsed = ParsedTransaction(amount: Decimal(index * 12), currency: "AED", merchant: "Review fixture \(index)", date: GhafClock.now,
                                            direction: .debit, confidence: 0.5, bank: "Mashreq")
             context.insert(GhafTransaction(fingerprint: "fixture-attention-review-\(index)", parsed: parsed,
                                            category: "Other", needsReview: true, isReversal: false))
         }
         for index in 1...3 where !subscriptions.contains(where: { $0.name == "Confirmation fixture \(index)" }) {
             let subscription = GhafSubscription(name: "Confirmation fixture \(index)", amount: Decimal(index * 19),
-                                                nextPaymentDate: .now, isActive: false)
+                                                nextPaymentDate: GhafClock.now, isActive: false)
             subscription.needsConfirmation = true
             context.insert(subscription)
         }
@@ -174,19 +178,19 @@ extension GhafScreenshotFixture {
             return
         }
         if (try? context.fetch(FetchDescriptor<GhafTransaction>()).contains(where: { $0.fingerprint == "r3-inbox-fixture" })) != true {
-            let parsed = ParsedTransaction(amount: 84.50, currency: settings.currency, merchant: "Local Cafe", date: .now,
+            let parsed = ParsedTransaction(amount: 84.50, currency: settings.currency, merchant: "Local Cafe", date: GhafClock.now,
                                            direction: .debit, confidence: 0.72, bank: "Mashreq")
             context.insert(GhafTransaction(fingerprint: "r3-inbox-fixture", parsed: parsed, category: "Dining",
                                            needsReview: true, isReversal: false, accountID: nil))
             let subscription = GhafSubscription(name: "Cloud storage", amount: 18.99, currency: settings.currency,
-                                                billingCycle: .monthly, nextPaymentDate: .now, isActive: false)
+                                                billingCycle: .monthly, nextPaymentDate: GhafClock.now, isActive: false)
             subscription.needsConfirmation = true
             context.insert(subscription)
             try? context.save()
         }
         GhafEventNotifications.setFixtureEvents([
             GhafInboxEvent(id: "fixture-budget-80", kind: .budgetThreshold, title: "Dining reached 80% of its budget",
-                           message: "Dining spending reached 80% of its monthly budget.", itemID: nil, date: .now)
+                           message: "Dining spending reached 80% of its monthly budget.", itemID: nil, date: GhafClock.now)
         ])
     }
 }

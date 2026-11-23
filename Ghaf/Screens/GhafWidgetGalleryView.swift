@@ -77,21 +77,21 @@ struct GhafWidgetGalleryView: View {
 
     @ViewBuilder private func widgetPreview(_ name: String, family: WidgetFamily) -> some View {
         let snapshot = GhafWidgetSnapshot.sample
-        let config = GhafConfigEntry<GhafBalanceConfig>(date: .now, snapshot: snapshot, config: GhafBalanceConfig())
+        let config = GhafConfigEntry<GhafBalanceConfig>(date: GhafClock.now, snapshot: snapshot, config: GhafBalanceConfig())
         let proLocked = !["Balance", "Spending", "Upcoming payments"].contains(name) && !GhafWidgetProAccess.unlocked
         let height: CGFloat = 158
         Group {
             switch name {
             case "Balance": GhafBalanceView(galleryFamily: family, entry: config)
-            case "Spending": GhafSpendingView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafSpendingConfig()))
-            case "Upcoming payments": GhafBillsView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafBillsConfig()))
-            case "Today": GhafTodayView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafTodayConfig()))
-            case "Latest transaction": GhafRecentView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafRecentConfig()))
-            case "Budget": GhafBudgetWidgetView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafBudgetConfig()))
-            case "Where it went": GhafCategoriesView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafCategoriesConfig()))
-            case "Trends": GhafTrendsView(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot, config: GhafTrendsConfig()))
+            case "Spending": GhafSpendingView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafSpendingConfig()))
+            case "Upcoming payments": GhafBillsView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafBillsConfig()))
+            case "Today": GhafTodayView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafTodayConfig()))
+            case "Latest transaction": GhafRecentView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafRecentConfig()))
+            case "Budget": GhafBudgetWidgetView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafBudgetConfig()))
+            case "Where it went": GhafCategoriesView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafCategoriesConfig()))
+            case "Trends": GhafTrendsView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafTrendsConfig()))
             default:
-                PremiumTile(galleryFamily: family, entry: .init(date: .now, snapshot: snapshot,
+                PremiumTile(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot,
                                          tip: .init(id: 0, en: "Plan a small weekly savings goal and track it.", ar: "حدّد هدفًا أسبوعيًا صغيرًا للادخار وتابعه.", source: "CFPB", url: "https://www.consumerfinance.gov/")),
                             title: name, symbol: name == "Quick add" ? "plus" : name == "Ask Ghaf" ? "mic.fill" : "lightbulb.fill",
                             url: URL(string: name == "Money tip" ? "ghaf://money-tip?source=https%3A%2F%2Fwww.consumerfinance.gov%2F" : name == "Quick add" ? "ghaf://add-transaction" : "ghaf://ai/type")!)
