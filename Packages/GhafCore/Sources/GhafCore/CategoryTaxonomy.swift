@@ -279,6 +279,25 @@ public enum CategoryTaxonomy {
         return all.first { CategoryMatcher.normalize($0.name) == key || $0.aliases.map(CategoryMatcher.normalize).contains(key) }
     }
 
+    /// Localized category label for display. `name` and all matching rules remain stable storage keys.
+    public static func displayName(for name: String, languageCode: String) -> String? {
+        guard let category = category(named: name) else { return nil }
+        let isArabic = languageCode.lowercased().hasPrefix("ar")
+        switch category.name {
+        case "Subscriptions": return isArabic ? "اشتراكات" : "Recurring"
+        case "Entertainment": return isArabic ? "ترفيه" : "Fun"
+        default: return nil
+        }
+    }
+
+    /// Resolves a petal selection from its clockwise angle, with coordinate mirroring for RTL layouts.
+    public static func petalIndex(angleDegrees: Double, count: Int, isRightToLeft: Bool) -> Int? {
+        guard count > 0, angleDegrees.isFinite else { return nil }
+        let angle = (angleDegrees.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+        let mapped = isRightToLeft ? (360 - angle).truncatingRemainder(dividingBy: 360) : angle
+        return min(count - 1, Int(mapped / 360 * Double(count)))
+    }
+
     public static func arabicName(for name: String) -> String? {
         if name == "Freelance & Business" { return "عمل حر" }
         if name == "Rental income" { return "دخل إيجار" }

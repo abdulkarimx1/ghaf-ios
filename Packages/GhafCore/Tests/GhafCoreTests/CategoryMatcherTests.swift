@@ -191,4 +191,20 @@ final class CategoryMatcherTests: XCTestCase {
         XCTAssertFalse(CategoryTaxonomy.isTransferOrAdjustment(category: "Transfer Fee", subcategory: nil))
         XCTAssertFalse(CategoryTaxonomy.isTransferOrAdjustment(category: "Dining", subcategory: nil))
     }
+
+    func testShortDisplayNamesDoNotChangeLegacyCategoryKeys() {
+        XCTAssertEqual(CategoryTaxonomy.displayName(for: "Subscriptions", languageCode: "en"), "Recurring")
+        XCTAssertEqual(CategoryTaxonomy.displayName(for: "Subscriptions", languageCode: "ar"), "اشتراكات")
+        XCTAssertEqual(CategoryTaxonomy.displayName(for: "Entertainment", languageCode: "en"), "Fun")
+        XCTAssertEqual(CategoryTaxonomy.displayName(for: "Entertainment", languageCode: "ar"), "ترفيه")
+        XCTAssertEqual(CategoryTaxonomy.category(named: "Subscriptions")?.name, "Subscriptions")
+        XCTAssertEqual(CategoryTaxonomy.category(named: "Entertainment")?.name, "Entertainment")
+    }
+
+    func testPetalHitTestMirrorsOnlyInRTL() {
+        XCTAssertEqual(CategoryTaxonomy.petalIndex(angleDegrees: 90, count: 4, isRightToLeft: false), 1)
+        XCTAssertEqual(CategoryTaxonomy.petalIndex(angleDegrees: 90, count: 4, isRightToLeft: true), 3)
+        XCTAssertEqual(CategoryTaxonomy.petalIndex(angleDegrees: 0, count: 3, isRightToLeft: true), 0)
+        XCTAssertNil(CategoryTaxonomy.petalIndex(angleDegrees: .infinity, count: 3, isRightToLeft: false))
+    }
 }

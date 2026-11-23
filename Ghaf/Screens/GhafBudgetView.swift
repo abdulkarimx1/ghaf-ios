@@ -175,7 +175,7 @@ struct GhafBudgetView: View {
     }
 
     private var petalBudgetCard: some View {
-        let rows = monthlySpendByCategory
+        let rows = monthlySpendByCategory.filter { $0.spent > 0 }
         let all = rows.filter { $0.budget > 0 }
         let grouped = all.count > 8
         let shown = Array(all.prefix(grouped ? 7 : 8)) + (grouped ? [(name: ar ? "أخرى" : "Other", spent: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.spent }, budget: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.budget })] : [])
@@ -192,9 +192,9 @@ struct GhafBudgetView: View {
                 Text(ar ? (hasSalary ? "دورة الراتب · المصروف من الميزانية" : "هذا الشهر · المصروف من الميزانية") : (hasSalary ? "This salary cycle · spent of budget" : "This month · spent of budget"))
                     .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
                 HStack(spacing: 4) {
-                    GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 20, weight: .semibold)
+                    GhafMoneyLabel(amount: totalSpent, currency: currency, languageCode: lang, size: 18, weight: .semibold)
                     Text(ar ? "من" : "of").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                    GhafMoneyLabel(amount: totalBudget, currency: currency, languageCode: lang, size: 14)
+                    GhafMoneyLabel(amount: totalBudget, currency: currency, languageCode: lang, size: 18, weight: .semibold)
                 }.foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.75)
             }
             ZStack {
@@ -205,14 +205,15 @@ struct GhafBudgetView: View {
                     let end = -90 + Double(index + 1) * step - gap / 2
                     let radii = BudgetAllocation.petalRadii(budget: item.budget, spent: item.spent, innerRadius: Double(innerRatio))
                     let fillRadius = CGFloat(radii.fill)
+                    let petalColor = item.spent > item.budget ? theme.over : theme.accent
                     GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: 1)
-                        .fill(item.spent > item.budget ? theme.over.opacity(theme.isDark ? 0.22 : 0.16) : theme.primaryText.opacity(theme.isDark ? 0.19 : 0.16))
+                        .fill(petalColor.opacity(theme.isDark ? 0.25 : 0.18))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
                             // A sliver under ~6% of the radius reads as a rendering glitch, not data.
                             if item.spent > 0, fillRadius - innerRatio >= 0.06 {
                                 GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: fillRadius)
-                                    .fill(theme.primaryText.opacity(0.88))
+                                    .fill(petalColor)
                                     .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1), value: fillRadius)
                             }
                         }
@@ -243,6 +244,13 @@ struct GhafBudgetView: View {
                         .opacity(selectedCategory == nil || selectedCategory == item.name ? 1 : 0.45)
                         .contentShape(GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: 1))
                 }
+                if shown.isEmpty {
+                    Text(ar ? "لا يوجد إنفاق في هذه الدورة." : "No spending in this cycle.")
+                        .font(GhafTypography.body(13, languageCode: lang, weight: .medium))
+                        .foregroundStyle(theme.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .frame(width: diameter * 0.72, height: diameter * 0.72)
+                }
             }
             .frame(width: diameter, height: diameter)
             .contentShape(Rectangle())
@@ -251,13 +259,13 @@ struct GhafBudgetView: View {
                 let radius = hypot(point.x, point.y) / outerRadius
                 guard radius >= innerRatio, radius <= 1, !shown.isEmpty else { withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1)) { selectedCategory = nil }; return }
                 let degrees = (atan2(point.y, point.x) * 180 / .pi + 450).truncatingRemainder(dividingBy: 360)
-                let index = min(shown.count - 1, Int(degrees / 360 * Double(shown.count)))
+                guard let index = CategoryTaxonomy.petalIndex(angleDegrees: degrees, count: shown.count, isRightToLeft: ar) else { return }
                 withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1)) { selectedCategory = selectedCategory == shown[index].name ? nil : shown[index].name }
             })
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(ar ? "ميزانية الشهر" : "Monthly category budgets")
-            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: ", "))")
+            .accessibilityValue("\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: ", ")). Selected: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? (ar ? "لا شيء" : "none"))")
             Text(ar ? "اضغط على فئة لعرض مصروفاتها" : "Tap a category to see its spending")
                 .font(GhafTypography.body(13, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
@@ -279,6 +287,13 @@ struct GhafBudgetView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) {
                                     Text(GhafLocalization.category(item.name, languageCode: lang)).font(GhafTypography.body(16, languageCode: lang, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                                    if item.spent > item.budget {
+                                        Text(ar ? "تجاوز الميزانية" : "Over budget")
+                                            .font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
+                                            .foregroundStyle(theme.over)
+                                            .padding(.horizontal, 6).padding(.vertical, 2)
+                                            .background(theme.over.opacity(0.12), in: Capsule())
+                                    }
                                 }
                                 HStack(spacing: 3) { spentOf(item) }
                                     .font(GhafTypography.body(13, languageCode: lang))

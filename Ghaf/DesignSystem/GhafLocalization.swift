@@ -46,7 +46,10 @@ enum GhafLocalization {
             "Cafés & Karak": "Cafés", "Bakery & Sweets": "Bakery & sweets"
         ]
         if !isArabic {
-            if let category = CategoryTaxonomy.category(named: value) { return englishLabels[category.name] ?? category.name }
+            if let category = CategoryTaxonomy.category(named: value) {
+                return CategoryTaxonomy.displayName(for: category.name, languageCode: languageCode)
+                    ?? englishLabels[category.name] ?? category.name
+            }
             if let subcategory = CategoryTaxonomy.all.lazy.compactMap({ category in
                 category.subcategories.first(where: { $0.name == value }).map { (category, $0) }
             }).first { return englishLabels[subcategory.1.name] ?? subcategory.1.name }
@@ -69,14 +72,14 @@ enum GhafLocalization {
             "Fuel": "الوقود",
             "Shopping": "التسوق",
             "Health": "الصحة",
-            "Entertainment": "الترفيه",
+            "Entertainment": "ترفيه",
             "Travel": "السفر",
             "Transfers": "التحويلات",
             "Adjustment": "تعديل رصيد",
             "Salary": "الراتب",
             "Other": "أخرى",
             "Other Income": "دخل آخر",
-            "Subscriptions": "الاشتراكات",
+            "Subscriptions": "اشتراكات",
             "Fees": "الرسوم",
             "Debt Repayment": "سداد الديون",
             "Borrowed Money": "أموال مقترضة",
@@ -84,7 +87,10 @@ enum GhafLocalization {
             "Interest": "الفوائد"
         ]
         if let direct = translations[value] { return direct }
-        if let category = CategoryTaxonomy.category(named: value) { return translations[category.name] ?? category.arabic }
+        if let category = CategoryTaxonomy.category(named: value) {
+            return CategoryTaxonomy.displayName(for: category.name, languageCode: languageCode)
+                ?? translations[category.name] ?? category.arabic
+        }
         if let subcategory = CategoryTaxonomy.all.lazy.compactMap({ category in
             category.subcategories.first(where: { $0.name == value }).map { $0.arabic }
         }).first { return subcategory }

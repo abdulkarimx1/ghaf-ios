@@ -27,6 +27,9 @@ struct GhafRootView: View {
     @State private var isUnlocked = true
     @State private var authenticationMessage: String?
     @State private var authenticationInProgress = false
+    #if DEBUG
+    @State private var fixtureRouter = GhafTabRouter()
+    #endif
 
     private var requiresAuthentication: Bool {
         settings.first?.hasCompletedOnboarding == true &&
@@ -242,7 +245,7 @@ struct GhafRootView: View {
         if GhafScreenshotFixture.enabled, !GhafScreenshotFixture.launchNewUser, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
             case "automation": GhafAutomationGuideView(settings: currentSettings)
-            case "insights": GhafStatsView(settings: currentSettings)
+            case "insights": GhafStatsView(settings: currentSettings).environment(fixtureRouter)
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)
