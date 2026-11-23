@@ -32,7 +32,7 @@ test('chat error emits one anonymous event with no prompt or raw device', async 
   t.after(() => { globalThis.fetch = originalFetch; });
   globalThis.fetch = async () => new Response('{"error":{"message":"provider error"}}', { status: 400 });
   const state = setup();
-  const response = await invoke('/chat', { question: prompt }, state);
+  const response = await invoke('/chat', { question: prompt, tier: 'pro_monthly' }, state);
   assert.equal(response.status, 502);
   assert.equal(state.points.length, 1);
   assertShape(state.points[0], 'chat');
@@ -47,15 +47,15 @@ test('chat error emits one anonymous event with no prompt or raw device', async 
 
 test('limited request logs once and missing analytics binding does not change response', async () => {
   const date = new Date().toISOString().slice(0, 10);
-  const key = `d:free:${date}:${device}`;
-  const state = setup({ [key]: '20' });
-  const response = await invoke('/chat', { question: prompt }, state);
+  const key = `d:pro_monthly:${date}:${device}`;
+  const state = setup({ [key]: '60' });
+  const response = await invoke('/chat', { question: prompt, tier: 'pro_monthly' }, state);
   assert.equal(response.status, 429);
   assert.equal(state.points.length, 1);
   assertShape(state.points[0], 'chat');
   assert.equal(state.points[0].blobs[2], 'limited_device');
   delete state.env.USAGE_EVENTS;
-  assert.equal((await worker.fetch(request('/chat', { question: prompt }), state.env, state.ctx)).status, 429);
+  assert.equal((await worker.fetch(request('/chat', { question: prompt, tier: 'pro_monthly' }), state.env, state.ctx)).status, 429);
 });
 
 test('live-token and speak write their own endpoint and actual model', async t => {
@@ -66,7 +66,7 @@ test('live-token and speak write their own endpoint and actual model', async t =
     ? (tokenRequest = JSON.parse(options.body), Response.json({ name: 'authTokens/test' }))
     : Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }], usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 4 } });
   const state = setup();
-  const live = await invoke('/live-token', { language: 'ar', tier: 'free' }, state);
+  const live = await invoke('/live-token', { language: 'ar', tier: 'pro_monthly' }, state);
   assert.equal(live.status, 200);
   assert.equal(state.points.length, 1);
   assertShape(state.points[0], 'live-token');
@@ -76,7 +76,7 @@ test('live-token and speak write their own endpoint and actual model', async t =
   assert.equal(tokenRequest.fieldMask, 'model,generationConfig.responseModalities,sessionResumption');
   assert.equal(tokenRequest.bidiGenerateContentSetup.lockAdditionalFields, undefined);
 
-  const speak = await invoke('/speak', { text: 'hello voice', language: 'en', tier: 'free' }, state);
+  const speak = await invoke('/speak', { text: 'hello voice', language: 'en', tier: 'pro_monthly' }, state);
   assert.equal(speak.status, 200);
   assert.equal(state.points.length, 2);
   assertShape(state.points[1], 'speak');
@@ -99,7 +99,7 @@ test('health, tips and unmatched routes use fixed endpoint labels', async () => 
 test('live-token refuses a session once the day\'s voice turns are used', async () => {
   const state = setup();
   const day = new Date().toISOString().slice(0, 10);
-  await state.env.USAGE.put(`v:free:${day}:${device}`, '15');
-  const live = await invoke('/live-token', { language: 'en', tier: 'free' }, state);
+  await state.env.USAGE.put(`v:pro_monthly:${day}:${device}`, '3');
+  const live = await invoke('/live-token', { language: 'en', tier: 'pro_monthly' }, state);
   assert.equal(live.status, 429);
 });

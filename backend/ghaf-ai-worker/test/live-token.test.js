@@ -21,25 +21,25 @@ test('live token authorization, quota, response and upstream privacy', async t =
   assert.equal(denied.status, 401);
 
   globalThis.fetch = async () => Response.json({ name: 'authTokens/test' });
-  const key = `v:free:${new Date().toISOString().slice(0, 10)}:${device}`;
-  env.values.set(key, '14'); // A session needs a turn left; opening one does not consume a turn.
-  const success = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
+  const key = `v:pro_monthly:${new Date().toISOString().slice(0, 10)}:${device}`;
+  env.values.set(key, '2'); // A session needs a turn left; opening one does not consume a turn.
+  const success = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'ar', tier: 'pro_monthly' }), env);
   const payload = await success.json();
   assert.equal(success.status, 200);
   assert.equal(payload.token, 'authTokens/test');
   assert.equal(payload.voice, 'Orus');
   assert.equal(payload.model, 'models/gemini-3.8-live');
-  assert.equal(env.values.get(key), '14');
+  assert.equal(env.values.get(key), '2');
 
-  const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'free' }), env);
+  const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'pro_monthly' }), env);
   assert.equal((await mariam.json()).voice, 'Kore');
 
   env.values.clear();
   globalThis.fetch = async () => new Response('secret upstream body', { status: 500 });
-  const failure = await worker.fetch(request({ 'X-Ghaf-Device': device }), env);
+  const failure = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'ar', tier: 'pro_monthly' }), env);
   assert.equal(failure.status, 502);
   assert.deepEqual(await failure.json(), {
-    error: 'upstream', used: 0, limit: 15,
+    error: 'upstream', used: 0, limit: 3,
     resetsAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1)).toISOString()
   });
 });

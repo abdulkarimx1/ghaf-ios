@@ -11,8 +11,10 @@ LIVE_MODEL = "models/gemini-3.8-live"
 TTS_MODEL = "gemini-3.1-flash-tts-preview"
 VOICE_HAMAD = "Orus"
 VOICE_MARIAM = "Kore"
-# Free plan: questions per device per day, and a cap across all devices to protect the free Gemini quota.
-FREE_DAILY_LIMIT = "20"
+# Pro-only AI; zero is also enforced in code if this var is omitted.
+FREE_DAILY_LIMIT = "0"
+ESSENTIALS_DAILY_VOICE_LIMIT = "3"
+COMPLETE_DAILY_VOICE_LIMIT = "10"
 GLOBAL_DAILY_LIMIT = "1000"
 VOICE_GLOBAL_DAILY_LIMIT = "3000"
 SPEAK_DAILY_LIMIT = "10"

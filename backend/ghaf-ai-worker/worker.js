@@ -1,10 +1,10 @@
 // Ghaf AI cloud proxy for Cloudflare Workers (free plan).
 // Holds the Gemini API key server-side so it is never in the app. Every Ghaf install sends a random
-// device ID (X-Ghaf-Device); the Worker allows FREE_DAILY_LIMIT questions per device per day and
+// device ID (X-Ghaf-Device); the Worker enforces tiered daily quotas per device and
 // GLOBAL_DAILY_LIMIT across all devices, counted in KV. Questions, replies and audio are never stored;
 // only counters and anonymous usage metadata are kept. APP_TOKEN skips the limits.
 //
-// Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, GLOBAL_DAILY_LIMIT,
+// Secrets: GEMINI_API_KEY, APP_TOKEN (optional). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, ESSENTIALS_DAILY_VOICE_LIMIT, COMPLETE_DAILY_VOICE_LIMIT, GLOBAL_DAILY_LIMIT,
 // LIVE_DAILY_CALLS, LIVE_GLOBAL_DAILY_CALLS, LIVE_VOICE_AR, LIVE_VOICE_EN.
 
 const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary, never full history
@@ -67,6 +67,10 @@ async function handle(request, env, usage) {
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
     usage.tier = normalizeTier(body.tier);
+    if (!developer && usage.tier === "free" && ["/chat", "/speak", "/live-token", "/voice-turn"].includes(path)) {
+      if (usage) usage.outcome = "limited_device";
+      return json({ error: "pro_required", code: "pro_required" }, 429);
+    }
     if (path === "/voice-turn") {
       const tier = normalizeTier(body.tier);
       if (!developer) {
@@ -80,6 +84,14 @@ async function handle(request, env, usage) {
     }
     if (path === "/speak") {
       if (usage) usage.lang = detectLanguage(String(body.text || ""));
+      if (!developer) {
+        const tier = normalizeTier(body.tier);
+        const reservation = await incrementVoiceUsage(env, device, tier);
+        if (!reservation.allowed) {
+          if (usage) usage.outcome = "limited_device";
+          return json({ error: "daily_limit", ...reservation.usage }, 429);
+        }
+      }
       return speak(body, env, developer, device, usage);
     }
     if (path === "/live-token") return liveToken(body, env, developer, device, usage);
@@ -88,6 +100,8 @@ async function handle(request, env, usage) {
 
     // shortcut: tier is client-reported until App Attest/receipt validation at launch.
     const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
+    const detectedLanguage = detectLanguage(question);
+    const replyLanguage = detectedLanguage === "ar" || detectedLanguage === "en" ? detectedLanguage : language;
     if (!developer && tier === "pro_yearly") {
       const inputTokens = Math.ceil((question.length + String(facts).length + String(direct).length + JSON.stringify(history).length) / 4);
       if (!await reserveYearlyBudget(env, device, inputTokens, 400, 0)) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
@@ -101,7 +115,8 @@ async function handle(request, env, usage) {
       "Ghaf draws inline charts, including petal charts, using show_chart; never claim you cannot create a chart.",
       "When the DIRECT ANSWER contains newline-separated list rows, preserve that readable list format.",
       "If the message is not about money, reply in one light, friendly line, then offer one thing you can do.",
-      `Reply in ${language === "ar" ? "Arabic (Gulf-friendly Modern Standard Arabic)" : "English"}, in 1-4 short sentences.`,
+      `Per-turn language hint: ${replyLanguage === "ar" ? "Arabic (natural Gulf Arabic)" : "English"}. Reply only in this language, including spoken numbers. Do not introduce yourself or mix languages unless the user did so in their latest turn.`,
+      `Reply in ${replyLanguage === "ar" ? "Arabic (Gulf-friendly Modern Standard Arabic)" : "English"}, in 1-4 short sentences.`,
       mode === "voice" ? "This reply is spoken aloud in a live voice conversation: 1-2 short, natural sentences, no lists, symbols or currency codes (say 'dirhams'), and end with a brief follow-up question when it helps the person continue." : "",
       "",
       "FACTS:", String(facts).slice(0, 8000),
@@ -118,7 +133,7 @@ async function handle(request, env, usage) {
     }
 
     if (!developer) {
-      const cap = tier === "pro_yearly" ? 200 : tier === "pro_monthly" ? 60 : Number(env.FREE_DAILY_LIMIT || 20);
+      const cap = tier === "pro_yearly" ? 200 : tier === "pro_monthly" ? 60 : Number(env.FREE_DAILY_LIMIT ?? 0);
       const limited = await overLimit(env, device, `d:${tier}`, cap, Number(env.GLOBAL_DAILY_LIMIT || 1000));
       if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "limit", scope: limited }, 429); }
     }
@@ -229,6 +244,10 @@ async function liveToken(body, env, developer, device, usage) {
   const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
   if (usage) usage.tier = tier;
   if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, 0, 0, 1)) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
+  if (!developer && tier === "free") {
+    if (usage) usage.outcome = "limited_device";
+    return json({ error: "pro_required", code: "pro_required" }, 429);
+  }
   if (!developer) {
     // Turns are counted by /voice-turn, but a session token is the costly thing a client can request,
     // so it is capped here too: no token once the day's turns are used, and sessions per device/global are bounded.
@@ -274,13 +293,17 @@ function normalizeTier(value) {
 }
 
 function voiceLimit(tier, env) {
-  return { free: 15, pro_monthly: 60, pro_yearly: 200 }[tier];
+  return {
+    free: 0,
+    pro_monthly: Number(env.ESSENTIALS_DAILY_VOICE_LIMIT ?? 3),
+    pro_yearly: Number(env.COMPLETE_DAILY_VOICE_LIMIT ?? 10)
+  }[tier] ?? 0;
 }
 
 async function questionUsage(env, device, tier) {
   const day = new Date().toISOString().slice(0, 10);
   const used = Number(await env.USAGE.get(`d:${tier}:${day}:${device}`) || 0);
-  const limit = tier === "pro_yearly" ? 200 : tier === "pro_monthly" ? 60 : Number(env.FREE_DAILY_LIMIT || 20);
+  const limit = tier === "pro_yearly" ? 200 : tier === "pro_monthly" ? 60 : Number(env.FREE_DAILY_LIMIT ?? 0);
   const resetsAt = new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)) + 1)).toISOString();
   return { used, limit, resetsAt };
 }
@@ -308,6 +331,10 @@ async function speak(body, env, developer, device, usage) {
   const character = body.character === "Mariam" ? "Mariam" : "Hamad";
   const voice = character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus";
   const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
+  if (!developer && tier === "free") {
+    if (usage) usage.outcome = "limited_device";
+    return json({ error: "pro_required", code: "pro_required" }, 429);
+  }
   if (!text) return json({ error: "missing_text" }, 400);
   const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${character}\n${text}`));
   const cacheKey = `tts:${Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("")}`;
