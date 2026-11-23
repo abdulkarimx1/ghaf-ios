@@ -12,3 +12,13 @@ enum GhafCalendar {
         return calendar
     }
 }
+
+/// A clock seam used by deterministic debug snapshots. Production always reads the device clock.
+enum GhafClock {
+#if DEBUG
+    static var snapshotNow: Date?
+    static var now: Date { snapshotNow ?? Date.now }
+#else
+    static var now: Date { Date.now }
+#endif
+}

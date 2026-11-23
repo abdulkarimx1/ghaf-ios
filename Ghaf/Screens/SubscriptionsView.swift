@@ -6,6 +6,7 @@ import os
 private let subscriptionDetailLog = OSLog(subsystem: "com.ghaf.app", category: "SubscriptionDetail")
 
 struct GhafSubscriptionsView: View {
+    @Environment(GhafTabRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
@@ -39,7 +40,7 @@ struct GhafSubscriptionsView: View {
     private var lang: String { settings.languageCode }
 
     private var paymentMatches: [(GhafSubscription, GhafTransaction)] {
-        let window = Calendar.current.dateInterval(of: .month, for: .now)
+        let window = Calendar.current.dateInterval(of: .month, for: GhafClock.now)
         return active.compactMap { item in
             guard !item.needsConfirmation else { return nil }
             let match = debits.first { transaction in
@@ -81,6 +82,7 @@ struct GhafSubscriptionsView: View {
         item.nextPaymentDate = item.cycle.nextDate(after: max(item.nextPaymentDate, transaction.date))
         do {
             try context.save()
+            router.ledgerRevision += 1
             GhafSubscriptionReminderService.schedule(item, language: lang)
         } catch { context.rollback() }
     }
@@ -190,7 +192,7 @@ struct GhafSubscriptionsView: View {
     }
 
     private func daysUntil(_ date: Date) -> Int {
-        Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now),
+        Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: GhafClock.now),
                                         to: Calendar.current.startOfDay(for: date)).day ?? 0
     }
 
@@ -299,7 +301,7 @@ struct GhafSubscriptionsView: View {
     /// Paid: real bank charges this month for tracked subscriptions. Still due: renewals left this month.
     /// Both in the preferred currency only; other currencies are never added in.
     private var monthTiles: some View {
-        let month = Calendar.current.dateInterval(of: .month, for: .now)!
+        let month = Calendar.current.dateInterval(of: .month, for: GhafClock.now)!
         let live = active.filter { !$0.needsConfirmation && $0.currency == settings.currency }
         let paid = debits.filter { item in
             item.currency == settings.currency && month.contains(item.date)
@@ -370,6 +372,7 @@ struct GhafSubscriptionsView: View {
         confirmedCount += 1
         do {
             try context.save()
+            router.ledgerRevision += 1
             if accept && item.isActive { GhafSubscriptionReminderService.schedule(item, language: lang) }
         } catch { context.rollback() }
     }
@@ -401,6 +404,7 @@ struct GhafSubscriptionsView: View {
         confirmedCount += 1
         do {
             try context.save()
+            router.ledgerRevision += 1
             Task {
                 _ = await GhafSubscriptionReminderService.requestPermission()
                 GhafSubscriptionReminderService.schedule(item, language: settings.languageCode)
@@ -410,7 +414,7 @@ struct GhafSubscriptionsView: View {
 
     /// Renewals whose date has come. They move on only when the user says the money was deducted.
     private var due: [GhafSubscription] {
-        let today = Calendar.current.startOfDay(for: .now)
+        let today = Calendar.current.startOfDay(for: GhafClock.now)
         return active.filter { !$0.needsConfirmation && Calendar.current.startOfDay(for: $0.nextPaymentDate) <= today }
     }
 
@@ -446,13 +450,14 @@ struct GhafSubscriptionsView: View {
         confirmedCount += 1
         do {
             try context.save()
+            router.ledgerRevision += 1
             GhafSubscriptionReminderService.schedule(item, language: lang)
         } catch { context.rollback() }
     }
 
     private func dismissSuggestion(_ item: GhafSubscription) {
         context.delete(item)
-        do { try context.save() } catch { context.rollback() }
+        do { try context.save(); router.ledgerRevision += 1 } catch { context.rollback() }
     }
 
     private func subscriptionRow(_ item: GhafSubscription) -> some View {
@@ -476,7 +481,7 @@ private struct GhafSubscriptionEditor: View {
     @State private var amount = ""
     @State private var currency = "AED"
     @State private var cycle: GhafBillingCycle = .monthly
-    @State private var nextDate = Calendar.current.date(byAdding: .month, value: 1, to: .now) ?? .now
+    @State private var nextDate = Calendar.current.date(byAdding: .month, value: 1, to: GhafClock.now) ?? GhafClock.now
     @State private var category = "Subscriptions"
     @State private var categoryPickedManually = false
     @State private var accountID: UUID?
@@ -487,7 +492,7 @@ private struct GhafSubscriptionEditor: View {
     @State private var showUpcomingPrompt = false
     @State private var originalAmount: Decimal = 0
     @State private var originalCycle: GhafBillingCycle = .monthly
-    @State private var originalNextDate = Date.now
+    @State private var originalNextDate = GhafClock.now
     @FocusState private var nameFocused: Bool
 
     private var theme: GhafTheme {
@@ -697,6 +702,7 @@ private struct GhafSubscriptionEditor: View {
 
 /// One subscription at a glance: what it is, its billing timeline, what it costs, and its reminder.
 private struct GhafSubscriptionDetailView: View {
+    @Environment(GhafTabRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
@@ -755,6 +761,7 @@ private struct GhafSubscriptionDetailView: View {
                 }
             }
             .sheet(isPresented: $editing, onDismiss: {
+                router.ledgerRevision += 1
                 // Deleted from the editor: close this page instead of showing a removed record.
                 if subscription.isDeleted || subscription.modelContext == nil { dismiss() } else { load() }
             }) {
@@ -805,7 +812,7 @@ private struct GhafSubscriptionDetailView: View {
 
     private var stops: [Stop] {
         let next = subscription.nextPaymentDate
-        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: .now),
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: GhafClock.now),
                                                    to: Calendar.current.startOfDay(for: next)).day ?? 0
         var result = payments.prefix(1).map {
             Stop(title: ar ? "مدفوع" : "Paid", date: $0.date, amount: $0.amount, currency: $0.currency, kind: .paid)

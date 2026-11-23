@@ -3,6 +3,7 @@ import MapKit
 import SwiftData
 
 struct GhafTransactionsView: View {
+    @Environment(GhafTabRouter.self) private var router
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.modelContext) private var modelContext
     @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
@@ -22,6 +23,9 @@ struct GhafTransactionsView: View {
     @State private var transactionDetailDetent: PresentationDetent = .large
     @State private var transactionToDelete: GhafTransaction?
     @State private var showDeleteConfirmation = false
+    @State private var cachedSections: [(title: String, items: [GhafTransaction])] = []
+    @State private var cachedMonthTotals: (spent: Decimal, income: Decimal) = (.zero, .zero)
+    @State private var cachedPreparationID: String?
 #if DEBUG
     @State private var fixtureDetailOpened = false
 #endif
@@ -81,11 +85,32 @@ struct GhafTransactionsView: View {
         return result
     }
 
+    private var preparationID: String {
+        "\(transactions.count)-\(filter)-\(searchText)-\(lang)-\(accounts.count)-\(router.ledgerRevision)"
+    }
+
+    private func prepareVisibleTransactions() {
+        guard cachedPreparationID != preparationID else { return }
+#if DEBUG
+        let prepared = GhafPerformanceProbe.measure("transactions-list") { prepareTransactionData() }
+#else
+        let prepared = prepareTransactionData()
+#endif
+        cachedMonthTotals = prepared.totals
+        cachedSections = prepared.sections
+        cachedPreparationID = preparationID
+    }
+
+    private func prepareTransactionData() -> (totals: (spent: Decimal, income: Decimal), sections: [(title: String, items: [GhafTransaction])]) {
+        let list = filtered()
+        return (monthTotals(list), sections(list))
+    }
+
     private func dayTitle(_ day: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(day) { return ar ? "اليوم" : "Today" }
         if calendar.isDateInYesterday(day) { return ar ? "أمس" : "Yesterday" }
-        let sameYear = calendar.isDate(day, equalTo: .now, toGranularity: .year)
+        let sameYear = calendar.isDate(day, equalTo: GhafClock.now, toGranularity: .year)
         let style: Date.FormatStyle = sameYear
             ? .dateTime.weekday(.wide).day().month(.wide)
             : .dateTime.day().month(.wide).year()
@@ -97,7 +122,7 @@ struct GhafTransactionsView: View {
         let calendar = Calendar.current
         var spent = Decimal.zero, income = Decimal.zero
         for transaction in list where transaction.currency == settings.currency
-            && calendar.isDate(transaction.date, equalTo: .now, toGranularity: .month) {
+            && calendar.isDate(transaction.date, equalTo: GhafClock.now, toGranularity: .month) {
             if transaction.isExpense { spent += transaction.spendingAmount }
             income += transaction.incomeAmount
         }
@@ -105,8 +130,6 @@ struct GhafTransactionsView: View {
     }
 
     var body: some View {
-        let list = filtered()
-        let totals = monthTotals(list)
         NavigationStack {
             List {
                 Section {
@@ -114,7 +137,7 @@ struct GhafTransactionsView: View {
                         GhafScreenTitle(title: ar ? "العمليات" : "Transactions",
                                         subtitle: ar ? "كل حركة مالية في مكان واحد" : "Every movement, in one place",
                                         languageCode: lang, theme: theme)
-                        monthSummary(totals)
+                        monthSummary(cachedMonthTotals)
                         searchField
                         filterBar
                     }
@@ -123,12 +146,12 @@ struct GhafTransactionsView: View {
                     .listRowSeparator(.hidden)
                 }
 
-                if list.isEmpty {
+                if cachedSections.isEmpty {
                     emptyState
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 } else {
-                    ForEach(sections(list), id: \.title) { section in
+                    ForEach(cachedSections, id: \.title) { section in
                         Section {
                             Text(section.title)
                                 .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
@@ -183,6 +206,8 @@ struct GhafTransactionsView: View {
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: preparationID) { _, _ in prepareVisibleTransactions() }
+            .onAppear { prepareVisibleTransactions() }
             .onAppear {
                 let unread = transactions.filter(\.isUnread)
                 guard !unread.isEmpty else { return }
@@ -199,7 +224,7 @@ struct GhafTransactionsView: View {
                 }
             }
 #endif
-            .sheet(item: $selectedTransaction) { transaction in
+            .sheet(item: $selectedTransaction, onDismiss: { router.ledgerRevision += 1 }) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings,
                                           accounts: accounts.filter { !$0.isArchived }) {
                     transactionDetailHeight = $0
@@ -212,7 +237,7 @@ struct GhafTransactionsView: View {
                     .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible).ghafSheetFrame(theme: theme).ghafDirection(settings.languageCode)
             }
-            .sheet(item: $categoryTransaction) { transaction in
+            .sheet(item: $categoryTransaction, onDismiss: { router.ledgerRevision += 1 }) { transaction in
                 GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
                     .presentationDetents([.height(360)]).presentationDragIndicator(.visible).ghafSheetFrame(theme: theme)
             }
@@ -331,6 +356,7 @@ struct GhafTransactionsView: View {
         modelContext.delete(transaction)
         do {
             try modelContext.save()
+                    router.ledgerRevision += 1
             GhafSounds.shared.play(.deleted)
         } catch {
             modelContext.rollback()
@@ -609,8 +635,8 @@ struct GhafTransactionEditor: View {
             .sheet(isPresented: $showingDatePicker) {
                 VStack(spacing: 12) {
                     HStack(spacing: 10) {
-                        editQuickDate(languageCode == "ar" ? "اليوم" : "Today", value: .now)
-                        editQuickDate(languageCode == "ar" ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
+                        editQuickDate(languageCode == "ar" ? "اليوم" : "Today", value: GhafClock.now)
+                        editQuickDate(languageCode == "ar" ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: GhafClock.now) ?? GhafClock.now)
                     }
                     DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
                 }.padding(20).presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)

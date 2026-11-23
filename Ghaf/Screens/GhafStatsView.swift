@@ -6,6 +6,7 @@ import GhafCore
 /// The Stats tab: spending over a chosen period, by time and by category, in the main currency.
 /// Laid out like the approved canvas: trend hero, "Where it went" bars, two tiles, merchants.
 struct GhafStatsView: View {
+    @Environment(GhafTabRouter.self) private var router
     @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -15,7 +16,7 @@ struct GhafStatsView: View {
 
     enum Period: Int, CaseIterable { case week, month, quarter, year }
 
-    @State private var period: Period = {
+    private static var fixturePeriod: Period {
 #if DEBUG
         switch GhafScreenshotFixture.period {
         case "W": .week
@@ -26,14 +27,16 @@ struct GhafStatsView: View {
 #else
         .month
 #endif
-    }()
+    }
+    @State private var period: Period
     @State private var chartDrawProgress = 1.0
     @State private var chartReady = false
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
     @State private var selectedBreakdownDay: Date?
     @State private var showProSheet = false
-    @State private var preparedStats: PreparedStats?
+    @State private var preparedStats = PreparedStats.empty
+    @State private var cachedStatsID: String?
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -53,6 +56,11 @@ struct GhafStatsView: View {
 #endif
     }
 
+    init(settings: GhafSettings, initialPeriod: Period? = nil) {
+        self.settings = settings
+        _period = State(initialValue: initialPeriod ?? Self.fixturePeriod)
+    }
+
     // MARK: Data
 
     private struct Bucket: Identifiable { let start: Date; let end: Date; let total: Double; let forecast: Double?; var id: Date { start } }
@@ -65,34 +73,29 @@ struct GhafStatsView: View {
         let buckets: [Bucket]
         let slices: [Slice]
         let transferTotal: Decimal
+        let hasPreviousCoverage: Bool
+
+        static let empty = PreparedStats(current: [], filtered: [], previousFiltered: [], buckets: [],
+                                         slices: [], transferTotal: .zero, hasPreviousCoverage: false)
     }
 
-    private var statsRevision: Int {
-        var hasher = Hasher()
-        for transaction in transactions {
-            hasher.combine(transaction.fingerprint)
-            hasher.combine(transaction.amount)
-            hasher.combine(transaction.currency)
-            hasher.combine(transaction.date)
-            hasher.combine(transaction.direction)
-            hasher.combine(transaction.category)
-            hasher.combine(transaction.subcategory)
-            hasher.combine(transaction.isReversal)
-            hasher.combine(transaction.merchant)
-        }
-        for subscription in subscriptions {
-            hasher.combine(subscription.id)
-            hasher.combine(subscription.amount)
-            hasher.combine(subscription.nextPaymentDate)
-            hasher.combine(subscription.isActive)
-        }
-        return hasher.finalize()
+    private var statsTaskID: String {
+        "\(transactions.count)-\(subscriptions.count)-\(period.rawValue)-\(selectedCategory ?? "")-\(currency)-\(router.ledgerRevision)"
     }
 
-    private var statsTaskID: String { "\(statsRevision)-\(period.rawValue)-\(selectedCategory ?? "")" }
+    private func refreshStatsIfNeeded() {
+        let currentID = statsTaskID
+        guard currentID != cachedStatsID else { return }
+#if DEBUG
+        preparedStats = GhafPerformanceProbe.measure("stats-summary") { prepareStats() }
+#else
+        preparedStats = prepareStats()
+#endif
+        cachedStatsID = currentID
+    }
 
     private var interval: DateInterval {
-        let now = Date.now
+        let now = GhafClock.now
         switch period {
         case .week: return calendar.dateInterval(of: .weekOfYear, for: now)!
         case .month: return calendar.dateInterval(of: .month, for: now)!
@@ -142,11 +145,6 @@ struct GhafStatsView: View {
 
     private func statisticsAmount(_ transaction: GhafTransaction) -> Decimal {
         transaction.isSpendingOrIncome ? transaction.spendingAmount : outgoingTransferAmount(transaction)
-    }
-
-    private var hasPreviousCoverage: Bool {
-        SpendingForecast.hasPreviousPeriodCoverage(firstTransactionDate: transactions.filter { $0.currency == currency }.map(\.date).min(),
-                                                    start: previousInterval.start, end: previousInterval.end, calendar: calendar)
     }
 
     private func total(_ items: [GhafTransaction]) -> Double {
@@ -207,14 +205,18 @@ struct GhafStatsView: View {
             previousFiltered = selectedCategory.map { category in previous.filter { $0.category == category } } ?? previous
         }
         let transferTotal = currentTransfers.reduce(Decimal.zero) { $0 + outgoingTransferAmount($1) }
+        let firstTransactionDate = transactions.lazy.filter { $0.currency == currency }.map(\.date).min()
+        let hasPreviousCoverage = SpendingForecast.hasPreviousPeriodCoverage(firstTransactionDate: firstTransactionDate,
+                                                                               start: previousInterval.start, end: previousInterval.end, calendar: calendar)
         return PreparedStats(current: current, filtered: filtered, previousFiltered: previousFiltered,
-                             buckets: buckets(filtered), slices: slices(current), transferTotal: transferTotal)
+                             buckets: buckets(filtered), slices: slices(current), transferTotal: transferTotal,
+                             hasPreviousCoverage: hasPreviousCoverage)
     }
 
     // MARK: Body
 
     var body: some View {
-        let stats = preparedStats ?? prepareStats()
+        let stats = preparedStats
         NavigationStack {
             ScrollViewReader { scrollProxy in
                 Group {
@@ -228,7 +230,8 @@ struct GhafStatsView: View {
                                                 languageCode: lang, theme: theme)
                                 // Each section erased: the tab is built at launch, and deep view types overflow the stack on iOS 27.
                                 let trendBuckets = stats.buckets
-                                AnyView(trendHero(trendBuckets, current: stats.filtered, previous: stats.previousFiltered)).id("trend-chart")
+                                AnyView(trendHero(trendBuckets, current: stats.filtered, previous: stats.previousFiltered,
+                                                  hasPreviousCoverage: stats.hasPreviousCoverage)).id("trend-chart")
                                 if period == .month, let selected = selectedLabel.flatMap({ key in trendBuckets.first { chartKey($0.start) == key } }) {
                                     AnyView(weekBreakdown(selected, transactions: stats.filtered))
                                 }
@@ -250,7 +253,8 @@ struct GhafStatsView: View {
                 }
                 .ghafBackground(theme: theme)
                 .toolbar(.hidden, for: .navigationBar)
-                .task(id: statsTaskID) { preparedStats = prepareStats() }
+                .onChange(of: statsTaskID) { _, _ in refreshStatsIfNeeded() }
+                .onAppear { refreshStatsIfNeeded() }
                 .sensoryFeedback(.selection, trigger: period)
                 .sensoryFeedback(.selection, trigger: selectedCategory)
                 .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
@@ -260,7 +264,7 @@ struct GhafStatsView: View {
                 guard GhafScreenshotFixture.enabled else { return }
                 if GhafScreenshotFixture.destination == "pro-popup" || GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
                 if GhafScreenshotFixture.selection == "point" {
-                    let date = calendar.dateInterval(of: .day, for: Date.now.addingTimeInterval(-9 * 86_400))?.start ?? .now
+                    let date = calendar.dateInterval(of: .day, for: GhafClock.now.addingTimeInterval(-9 * 86_400))?.start ?? GhafClock.now
                     selectedLabel = chartKey(calendar.startOfDay(for: date))
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
@@ -330,8 +334,9 @@ struct GhafStatsView: View {
 
     /// One card in the theme's surface, Stocks style: the total (or the scrubbed point), the change against the previous
     /// period, a line you drag across, and the period chips under it. Every value comes from the ledger.
-    private func trendHero(_ all: [Bucket], current: [GhafTransaction], previous: [GhafTransaction]) -> some View {
-        let plotted = all.filter { $0.start <= .now || $0.forecast != nil }
+    private func trendHero(_ all: [Bucket], current: [GhafTransaction], previous: [GhafTransaction],
+                           hasPreviousCoverage: Bool) -> some View {
+        let plotted = all.filter { $0.start <= GhafClock.now || $0.forecast != nil }
         let forecastPoints: [(Bucket, Double)] = {
             guard let first = plotted.firstIndex(where: { $0.forecast != nil }) else { return [] }
             return plotted[max(0, first - 1)...].map { ($0, $0.total + ($0.forecast ?? 0)) }
@@ -373,7 +378,7 @@ struct GhafStatsView: View {
                 ForEach(plotted) { bucket in
                 let isSelected = selected?.id == bucket.id
                 let pointOpacity = isSelected ? 1.0 : 0.0
-                if bucket.start <= .now {
+                if bucket.start <= GhafClock.now {
                     actualTrendMark(bucket)
                     PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                         .symbol { Circle().fill(accent).frame(width: isSelected ? 10 : 0, height: isSelected ? 10 : 0) }
@@ -467,7 +472,7 @@ struct GhafStatsView: View {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).fixedSize(horizontal: true, vertical: false)
                                 .contentTransition(.opacity)
                                 .animation(.easeInOut(duration: 0.15), value: period)
-                                .foregroundStyle(theme.secondaryText.opacity(bucket.start > .now ? 0.75 : 1))
+                                .foregroundStyle(theme.secondaryText.opacity(bucket.start > GhafClock.now ? 0.75 : 1))
                         }
                     }
                 }
@@ -541,7 +546,7 @@ struct GhafStatsView: View {
                 SpendingForecast.Subscription(nextPaymentDate: $0.nextPaymentDate, amount: $0.amount, isActive: $0.isActive)
             }, windows: windows.map(\.1), calendar: calendar)
         let days = windows.map { date, window in
-            let actual = date <= .now ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + statisticsAmount($1) } : 0
+            let actual = date <= GhafClock.now ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + statisticsAmount($1) } : 0
             let forecast = estimates[window.start].map { NSDecimalNumber(decimal: $0).doubleValue }
             return DayBar(date: date, amount: NSDecimalNumber(decimal: actual).doubleValue + (forecast ?? 0), forecast: forecast != nil)
         }
@@ -578,7 +583,7 @@ struct GhafStatsView: View {
                     AxisValueLabel {
                         if let key = value.as(String.self), let day = days.first(where: { chartKey($0.date) == key }) {
                             Text(day.date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: lang))))
-                                .foregroundStyle(theme.secondaryText.opacity(day.date > .now ? 0.4 : 1))
+                                .foregroundStyle(theme.secondaryText.opacity(day.date > GhafClock.now ? 0.4 : 1))
                         }
                     }
                 }
@@ -597,8 +602,8 @@ struct GhafStatsView: View {
 #if DEBUG
     private func runAutoSelection(scrollProxy: ScrollViewProxy) {
         let categories = slices(expenses(in: interval)).map(\.category)
-        let target = Date.now.addingTimeInterval(-2 * 86_400)
-        let point = chartKey(bucketWindows().first(where: { $0.start <= target && target < $0.end })?.start ?? .now)
+        let target = GhafClock.now.addingTimeInterval(-2 * 86_400)
+        let point = chartKey(bucketWindows().first(where: { $0.start <= target && target < $0.end })?.start ?? GhafClock.now)
         // The capture starts 1.5s after launch; the first view appears about 0.5s after launch.
         let actions: [(TimeInterval, () -> Void)] = [
             (2.0, { if categories.indices.contains(1) { toggle(categories[1]) } }),
@@ -735,7 +740,7 @@ struct GhafStatsView: View {
     // MARK: Tiles and merchants
 
     private func tiles(_ items: [GhafTransaction]) -> some View {
-        let days = max(1, calendar.dateComponents([.day], from: interval.start, to: min(Date.now, interval.end)).day ?? 1)
+        let days = max(1, calendar.dateComponents([.day], from: interval.start, to: min(GhafClock.now, interval.end)).day ?? 1)
         let units = ar ? ["هذا الأسبوع", "هذا الشهر", "آخر ٣ أشهر", "هذه السنة"] : ["this week", "this month", "these 3 months", "this year"]
         return HStack(spacing: 10) {
             VStack(spacing: 8) {

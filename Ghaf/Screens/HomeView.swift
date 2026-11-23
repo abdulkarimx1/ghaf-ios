@@ -54,6 +54,8 @@ struct GhafHomeView: View {
     /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
     @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
     @State private var activityPeriodIndex = 0
+    @State private var summary = Summary()
+    @State private var cachedSummaryID: String?
 
     let settings: GhafSettings
 
@@ -66,7 +68,7 @@ struct GhafHomeView: View {
     }
 
     private var inboxCount: Int {
-        transactions.filter(\.needsReview).count
+        summary.reviewCount
             + subscriptions.filter(\.needsConfirmation).count
             + GhafEventNotifications.events.filter { $0.kind == .budgetThreshold || $0.kind == .subscriptionDue }.count
     }
@@ -79,6 +81,7 @@ struct GhafHomeView: View {
         var spent: Decimal = 0
         var income: Decimal = 0
         var count = 0
+        var reviewCount = 0
         var topCategory: (name: String, amount: Decimal)?
         /// Spending by category, largest first.
         var categories: [(name: String, amount: Decimal)] = []
@@ -101,19 +104,20 @@ struct GhafHomeView: View {
         let interval: DateInterval?
         let previous: DateInterval?
         if activityPeriodIndex == 1 {
-            let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: GhafClock.now))!
             let start = calendar.date(byAdding: .day, value: -7, to: tomorrow)!
             interval = DateInterval(start: start, end: tomorrow)
             previous = DateInterval(start: calendar.date(byAdding: .day, value: -7, to: start)!, end: start)
         } else {
             let component: Calendar.Component = activityPeriodIndex == 0 ? .day : .month
-            interval = calendar.dateInterval(of: component, for: .now)
+            interval = calendar.dateInterval(of: component, for: GhafClock.now)
             previous = interval.flatMap { calendar.date(byAdding: component, value: -1, to: $0.start) }
                 .flatMap { calendar.dateInterval(of: component, for: $0) }
         }
         summary.interval = interval
         var byCategory: [String: Decimal] = [:]
         for transaction in transactions {
+            if transaction.needsReview { summary.reviewCount += 1 }
             guard let interval else { continue }
             let date = transaction.date
             if date >= interval.end { continue }
@@ -138,12 +142,28 @@ struct GhafHomeView: View {
         return summary
     }
 
+    /// Rebuild only when summary inputs change, when Home becomes visible, or when a sheet
+    /// that can change ledger data is dismissed. Body re-evaluation during scrolling stays cheap.
+    private var summaryTaskID: String {
+        "\(activityPeriodIndex)-\(transactions.count)-\(accounts.count)-\(subscriptions.count)-\(settings.currency)-\(weekStart)-\(router.ledgerRevision)"
+    }
+
+    private func refreshSummaryIfNeeded(force: Bool = false) {
+        let currentID = summaryTaskID
+        guard force || currentID != cachedSummaryID else { return }
+#if DEBUG
+        summary = GhafPerformanceProbe.measure("home-summary") { makeSummary() }
+#else
+        summary = makeSummary()
+#endif
+        cachedSummaryID = currentID
+    }
+
     var body: some View {
-        let summary = makeSummary()
         NavigationStack {
             ScrollView {
                 VStack(spacing: GhafMetrics.sectionSpacing) {
-                    if automationNeedsAttention && Date.now.timeIntervalSince1970 >= automationWarningDismissedUntil {
+                    if automationNeedsAttention && GhafClock.now.timeIntervalSince1970 >= automationWarningDismissedUntil {
                         automationWarningCard
                     }
                     if accounts.contains(where: { !$0.isArchived }) {
@@ -187,10 +207,12 @@ struct GhafHomeView: View {
             .onChange(of: router.homeReselects) { _, _ in
                 withAnimation(.spring(duration: 0.45, bounce: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
             }
+            .onChange(of: summaryTaskID) { _, _ in refreshSummaryIfNeeded() }
+            .onAppear { refreshSummaryIfNeeded() }
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace) }
-            .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
+            .sheet(isPresented: $showQuickAdd, onDismiss: { refreshSummaryIfNeeded(force: true) }) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }.ghafDirection(settings.languageCode)
             }
@@ -209,7 +231,7 @@ struct GhafHomeView: View {
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
 #endif
-            .sheet(item: $selectedTransaction) { transaction in
+            .sheet(item: $selectedTransaction, onDismiss: { refreshSummaryIfNeeded(force: true) }) { transaction in
                 GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: accounts.filter { !$0.isArchived })
                     .presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
             }
@@ -297,7 +319,7 @@ struct GhafHomeView: View {
     }
 
     private var automationNeedsAttention: Bool {
-        let now = Date.now.timeIntervalSince1970
+        let now = GhafClock.now.timeIntervalSince1970
         guard automationSetupCompleted > 0 else { return false }
         if automationLastRun == 0 { return now - automationSetupCompleted >= 24 * 60 * 60 }
         if walletLastRun > 0, now - walletLastRun >= 14 * 24 * 60 * 60 { return true }
@@ -320,7 +342,7 @@ struct GhafHomeView: View {
                     .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 Spacer()
                 Button(ar ? "إخفاء ٧ أيام" : "Dismiss for 7 days") {
-                    automationWarningDismissedUntil = Date.now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970
+                    automationWarningDismissedUntil = GhafClock.now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970
                 }
                 .font(GhafTypography.body(12, languageCode: lang))
             }
@@ -706,13 +728,13 @@ struct GhafHomeView: View {
     private func checkSalaryDue() {
         guard settings.salaryEnabled == true,
               let salaryDay = settings.salaryDay,
-              let range = Calendar.current.range(of: .day, in: .month, for: .now) else {
+              let range = Calendar.current.range(of: .day, in: .month, for: GhafClock.now) else {
             return
         }
 
         let effectiveDay = min(max(salaryDay, 1), range.count)
-        let currentDay = Calendar.current.component(.day, from: .now)
-        let key = GhafSalaryCycle.periodKey(for: .now, salaryDay: salaryDay)
+        let currentDay = Calendar.current.component(.day, from: GhafClock.now)
+        let key = GhafSalaryCycle.periodKey(for: GhafClock.now, salaryDay: salaryDay)
 
         // Ask once, on salary day only: a missed day is not asked about later.
         if currentDay == effectiveDay && settings.lastSalaryDecisionKey != key {
@@ -1029,8 +1051,8 @@ struct GhafQuickAddView: View {
     private var dateSheet: some View {
         VStack(spacing: 12) {
             HStack(spacing: 10) {
-                quickDate(ar ? "اليوم" : "Today", value: .now)
-                quickDate(ar ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
+                quickDate(ar ? "اليوم" : "Today", value: GhafClock.now)
+                quickDate(ar ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: GhafClock.now) ?? GhafClock.now)
             }
             DatePicker(ar ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
         }.padding(20).background(theme.background)

@@ -380,6 +380,8 @@ private struct GhafFixtureTransactionDetailView: View {
 @Observable
 final class GhafTabRouter {
     var selectedTab = 0
+    /// Bumped after ledger edits so cached tab summaries refresh only when their inputs change.
+    var ledgerRevision = 0
     /// Bumped when Home is tapped while already open; Home cycles Daily, Weekly, Monthly.
     var homeReselects = 0
     var isListening = false
@@ -403,7 +405,9 @@ struct GhafTabView: View {
     @State private var linkedTransaction: GhafTransaction?
     @State private var showWidgetQuickAdd = false
     @State private var showWidgetPro = false
-    @State private var tabOffset: CGFloat = 0
+#if DEBUG
+    @State private var speedReport = ""
+#endif
     @Query private var linkAccounts: [GhafAccount]
     /// Decoded once, not on every tab switch, so category icons are not invalidated needlessly.
     @State private var categoryMeta: [String: GhafCategoryMeta] = [:]
@@ -425,25 +429,26 @@ struct GhafTabView: View {
             if tab == 0 && router.selectedTab == 0 { router.homeReselects += 1 }
             if tab == 1 && router.selectedTab == 1 { router.startVoice?() }
             else if tab != router.selectedTab {
-                let rtl = settings.languageCode == "ar"
-                let order = [0, 3, 1, 2, 4]
-                let forward = (order.firstIndex(of: tab) ?? 0) > (order.firstIndex(of: router.selectedTab) ?? 0)
-                let sign: CGFloat = forward != rtl ? 1 : -1
-                withTransaction(Transaction(animation: nil)) { tabOffset = sign * 8 }
-                DispatchQueue.main.async {
-                    withAnimation(reduceMotion ? .easeOut(duration: 0.12) : .easeOut(duration: 0.2)) {
-                        router.selectedTab = tab
-                        tabOffset = 0
-                    }
-                }
+#if DEBUG
+                GhafPerformanceProbe.beginTransition(to: tab)
+#endif
+                // Let TabView own its native selection transition. Animating offset + opacity
+                // around the entire five-screen tree forced all tab content to redraw per frame.
+                withTransaction(Transaction(animation: nil)) { router.selectedTab = tab }
             }
         })
         TabView(selection: selection) {
             GhafHomeView(settings: settings)
+#if DEBUG
+                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 0) }
+#endif
                 .tabItem { tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home", attentionCount: subscriptionReviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
                 .tag(0)
 
             GhafTransactionsView(settings: settings)
+#if DEBUG
+                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 3) }
+#endif
                 .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, hasUnread: hasUnreadTransactions, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
                 .tag(3)
 
@@ -459,13 +464,31 @@ struct GhafTabView: View {
                 .tag(1)
 
             GhafStatsView(settings: settings)
+#if DEBUG
+                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 2) }
+#endif
                 .tabItem { tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats") }
                 .tag(2)
 
             GhafSettingsView(settings: settings)
+#if DEBUG
+                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 4) }
+#endif
                 .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
                 .tag(4)
         }
+#if DEBUG
+        .overlay(alignment: .topLeading) {
+            if GhafPerformanceProbe.enabled {
+                Text(speedReport)
+                    .accessibilityIdentifier("ghaf.speed.report")
+                    .accessibilityLabel(speedReport)
+                    .opacity(0.01)
+                    .frame(width: 1, height: 1)
+                    .allowsHitTesting(false)
+            }
+        }
+#endif
         .onOpenURL { url in
             guard url.scheme == "ghaf" else { return }
             switch url.host {
@@ -518,8 +541,6 @@ struct GhafTabView: View {
             }
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
-        .offset(x: tabOffset)
-        .opacity(tabOffset == 0 ? 1 : 0.94)
         .tint(theme.accent)
 #if DEBUG
         .onAppear {
