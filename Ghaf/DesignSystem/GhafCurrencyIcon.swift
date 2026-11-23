@@ -126,17 +126,11 @@ struct GhafMoneyLabel: View {
     }
 
     @ViewBuilder private var numberText: some View {
-        let separators = [Self.formatter(languageCode: languageCode, currency: currency).decimalSeparator, ".", "٫"]
-            .compactMap { $0 }
-        let fractionStart = separators.compactMap { number.range(of: $0) }
-            .map { number.distance(from: number.startIndex, to: $0.lowerBound) }.min()
         HStack(spacing: 0) {
             ForEach(Array(number.enumerated()), id: \.offset) { item in
                 let character = item.element
-                let isFraction = fractionStart.map { item.offset >= $0 } ?? false
-                let digitIndex = number.prefix(item.offset).filter(\.isNumber).count
-                GhafMoneyGlyph(character: character, hidden: isHidden, isFraction: isFraction,
-                               digitIndex: digitIndex, size: size, weight: weight,
+                GhafMoneyGlyph(character: character, hidden: isHidden,
+                               size: size, weight: weight,
                                reduceMotion: reduceMotion)
             }
         }
@@ -166,8 +160,6 @@ struct GhafMoneyLabel: View {
 private struct GhafMoneyGlyph: View {
     let character: Character
     let hidden: Bool
-    let isFraction: Bool
-    let digitIndex: Int
     let size: CGFloat
     let weight: Font.Weight
     let reduceMotion: Bool
@@ -182,22 +174,20 @@ private struct GhafMoneyGlyph: View {
                     .contentTransition(.numericText())
                     .offset(y: hidden && !reduceMotion ? -columnHeight : 0)
                     .opacity(hidden ? 0 : 1)
-                Text("★")
-                    .font(GhafTypography.number(size * 0.72, weight: weight))
+                Text("•")
+                    .font(GhafTypography.number(size, weight: weight))
                     .frame(width: digitWidth)
                     .offset(y: !hidden && !reduceMotion ? columnHeight : 0)
-                    .opacity(hidden && !isFraction ? 1 : 0)
+                    .opacity(hidden ? 1 : 0)
             }
             .frame(width: digitWidth, height: columnHeight)
             .clipped()
             .animation(reduceMotion ? .easeInOut(duration: 0.15)
-                : .timingCurve(0.22, 1, 0.36, 1, duration: 0.26)
-                    .delay(min(Double(digitIndex) * 0.03, 0.20)), value: hidden)
+                : .timingCurve(0.22, 1, 0.36, 1, duration: 0.20), value: hidden)
         } else {
             Text(String(character))
-                .opacity(hidden && isFraction ? 0 : (isFraction && size >= 28 ? 0.45 : 1))
                 .animation(reduceMotion ? .easeInOut(duration: 0.15)
-                    : .timingCurve(0.22, 1, 0.36, 1, duration: 0.26), value: hidden)
+                    : .timingCurve(0.22, 1, 0.36, 1, duration: 0.20), value: hidden)
         }
     }
 }
