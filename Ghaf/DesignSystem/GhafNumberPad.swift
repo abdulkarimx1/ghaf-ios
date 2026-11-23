@@ -21,6 +21,7 @@ struct GhafAmountField: View {
     @State private var replaceOnNextKey = true
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
+    private var separator: String { GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency ?? "AED").decimalSeparator ?? "." }
     var body: some View {
         Button { openPad() } label: {
             Group {
