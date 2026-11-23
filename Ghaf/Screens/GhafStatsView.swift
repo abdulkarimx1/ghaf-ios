@@ -459,7 +459,7 @@ struct GhafStatsView: View {
                 let labels: [String] = switch period {
                 case .week: plotted.map { chartKey($0.start) }
                 case .month:
-                    plotted.filter { [1, 8, 15, 22].contains(calendar.component(.day, from: $0.start)) }.map { chartKey($0.start) }
+                    plotted.filter { [1, 8, 15, 22, 29].contains(calendar.component(.day, from: $0.start)) }.map { chartKey($0.start) }
                 case .quarter:
                     plotted.enumerated().compactMap { index, bucket in
                         index == 0 || calendar.component(.month, from: bucket.start) != calendar.component(.month, from: plotted[index - 1].start)
@@ -470,7 +470,8 @@ struct GhafStatsView: View {
                 AxisMarks(values: labels) { value in
                     AxisValueLabel {
                         if let key = value.as(String.self), let bucket = plotted.first(where: { chartKey($0.start) == key }) {
-                            Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).fixedSize(horizontal: true, vertical: false)
+                            Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                                .lineLimit(1).minimumScaleFactor(0.75)
                                 .contentTransition(.opacity)
                                 .animation(.easeInOut(duration: 0.15), value: period)
                                 .foregroundStyle(theme.secondaryText.opacity(bucket.start > GhafClock.now ? 0.75 : 1))
@@ -677,7 +678,7 @@ struct GhafStatsView: View {
                             VStack(spacing: 12) {
                                 Spacer(minLength: 0)
                                 Text(GhafCompactNumber.string(slice.total, languageCode: lang))
-                                    .font(GhafTypography.number(11, weight: .bold))
+                                    .font(GhafTypography.number(12, weight: .bold))
                                     .foregroundStyle(on ? theme.primaryText : theme.secondaryText)
                                     .lineLimit(1).minimumScaleFactor(0.7)
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -685,10 +686,10 @@ struct GhafStatsView: View {
                                     .frame(height: max(10, 92 * slice.total / most) * chartDrawProgress)
                                     .animation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28).delay(min(Double(index) * 0.015, 0.2)), value: chartDrawProgress)
                                 Text(GhafLocalization.category(slice.category, languageCode: lang))
-                                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
                                     .foregroundStyle(theme.primaryText)
-                                    .lineLimit(1).fixedSize(horizontal: false, vertical: true)
-                                    .multilineTextAlignment(.center).minimumScaleFactor(0.62)
+                                    .lineLimit(1).fixedSize(horizontal: false, vertical: false)
+                                    .multilineTextAlignment(.center).minimumScaleFactor(0.82)
                             }
                             .frame(maxWidth: .infinity, minHeight: 140)
                             .contentShape(Rectangle())
