@@ -97,7 +97,6 @@ struct GhafAIView: View {
     @State private var hasProAccess = GhafProAccess.hasAccess
     @State private var proAccessKnown = GhafProAccess.isKnown
     @State private var showProSheet = false
-    @State private var limitResetAt: Date?
     @State private var liveTurnHasTransactionDrafts = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glassStyle
@@ -908,7 +907,7 @@ struct GhafAIView: View {
     private func beginLiveUserTurn() {
         guard hasProAccess, liveCallActive, !voiceLimitReached else { return }
         if let usage = voiceUsage, usage.used >= usage.limit {
-            handleDailyLimit(resetAt: usage.resetsAt)
+            handleDailyLimit()
             return
         }
         // Open the turn at once (the orb must feel instant); the reservation runs alongside it.
@@ -922,20 +921,18 @@ struct GhafAIView: View {
             guard !reservation.allowed else { return }
             liveCall.endUserTurn()
             tabRouter.isListening = false
-            handleDailyLimit(resetAt: reservation.usage.resetsAt)
+            handleDailyLimit()
         }
     }
 
-    private func handleDailyLimit(resetAt: Date? = nil) {
+    private func handleDailyLimit() {
         voiceLimitReached = true
-        limitResetAt = resetAt ?? voiceUsage?.resetsAt
         liveCall.end(reason: "daily_limit")
         liveCallActive = false
         tabRouter.isListening = false
-        let time = limitResetAt?.formatted(date: .omitted, time: .shortened)
         let text = ar
-            ? "هذا كل اللي أقدر أساعدك فيه اليوم. نكمل باچر. يتجدد الحد عند \(time ?? "منتصف الليل")."
-            : "That's all I can do for today. Come back tomorrow. Your limit resets at \(time ?? "midnight")."
+            ? "وصلت إلى الحد اليومي للردود الصوتية. نتحدث غدًا!"
+            : "You've reached today's voice limit. Talk to you tomorrow!"
         appendCallNote(text)
         let finished = { voiceGoodbyePlaying = false }
         if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, onFinish: finished) {
@@ -972,9 +969,9 @@ struct GhafAIView: View {
         } else {
             // Nothing usable: clear it and show a short note that removes itself.
             prompt = ""
-            let note = GhafChatMessage(isUser: false, text: text.isEmpty
-                ? (ar ? "لم أسمع شيئاً. حاول مرة أخرى." : "I didn't hear anything. Try again.")
-                : (ar ? "لم أفهم ذلك. حاول مرة أخرى." : "I didn't catch that. Try again."))
+            let note = GhafChatMessage(isUser: false, text: ar
+                ? "ما فهمت عليك. ممكن تعيدها؟"
+                : "I didn't catch that. Could you say it again?")
             withAnimation(.snappy) { messages.append(note) }
             Task {
                 if voiceMode {
@@ -1355,7 +1352,7 @@ struct GhafAIView: View {
             liveCallActive = true
             beginLiveUserTurn()
         } catch GhafCloudAI.Failure.dailyLimit {
-            handleDailyLimit(resetAt: voiceUsage?.resetsAt)
+            handleDailyLimit()
         } catch {
             tabRouter.isListening = false
             appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
@@ -1541,7 +1538,7 @@ struct GhafAIView: View {
                 })
             switch result {
             case .played: break
-            case .limitReached: handleDailyLimit(resetAt: voiceUsage?.resetsAt)
+            case .limitReached: handleDailyLimit()
             case .unavailable:
                 voiceUnavailable = true
                 playVoiceError()
