@@ -51,3 +51,16 @@ change to `worker.js` or `wrangler.toml`:
 ```bash
 npx wrangler@4 deploy
 ```
+# In-app announcements
+
+Post or replace the current announcement from this directory with one command. The worker reads
+the `ghaf:announcement` value from its existing `USAGE` KV binding; title and body may be plain
+strings or `{ "en": "…", "ar": "…" }` objects. A `code` makes it a voucher; without a code it is
+shown as an update linking to the App Store page.
+
+```sh
+npx wrangler kv key put --binding USAGE "ghaf:announcement" '{"id":"release-1.30","title":{"en":"Ghaf 1.30 is ready","ar":"يتوفر تحديث غاف ١٫٣٠"},"body":{"en":"Update Ghaf for the latest improvements.","ar":"حدّث غاف للاستفادة من أحدث التحسينات."},"minVersion":"1.0","expires":"2026-12-31T20:00:00Z"}' --remote
+```
+
+The app checks at launch and at most once every six hours per language. An expired value is not
+shown. This command changes KV only; it does not deploy the Worker.
