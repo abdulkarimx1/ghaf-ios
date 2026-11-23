@@ -503,6 +503,35 @@ extension GhafWalkthroughTests {
         snap("budget-allocation-scrolled")
     }
 
+    func testBudgetPetalTapMapsThreeOClockInEnglishAndArabic() {
+        for appearance in ["Light", "Dark"] {
+          for language in ["en", "ar"] {
+            launch(["-GhafTab", "insights", "-GhafLanguage", language], appearance: appearance)
+            let budget = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@", "Budget, Salary", "الميزانية", "الراتب")).firstMatch
+            XCTAssertTrue(budget.waitForExistence(timeout: 10))
+            budget.tap()
+            let chart = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", language == "ar" ? "ميزانية الشهر" : "Monthly category budgets")).firstMatch
+            XCTAssertTrue(chart.waitForExistence(timeout: 10))
+            let before = chart.value as? String ?? ""
+            snap("b1-budget-before-\(appearance.lowercased())-\(language)")
+            let prefix = "Petals clockwise from 12 o'clock: "
+            guard let range = before.range(of: prefix), let end = before.range(of: ". Selected:", range: range.upperBound..<before.endIndex) else {
+                XCTFail("Petal accessibility order missing: \(before)")
+                app.terminate()
+                continue
+            }
+            let categories = before[range.upperBound..<end.lowerBound].components(separatedBy: ", ")
+            guard categories.count > 0 else { app.terminate(); continue }
+            let expectedIndex = min(categories.count - 1, (language == "ar" ? 3 * categories.count : categories.count) / 4)
+            chart.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+            let after = chart.value as? String ?? ""
+            XCTAssertTrue(after.hasSuffix("Selected: \(categories[expectedIndex])"), "\(language): expected \(categories[expectedIndex]), got \(after)")
+            snap("b1-budget-after-\(appearance.lowercased())-\(language)")
+            app.terminate()
+          }
+        }
+    }
+
     func testFirstRunPages() throws {
         app = XCUIApplication()
         app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1", "-GhafAppearance", "Dark"]
