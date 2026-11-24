@@ -740,8 +740,7 @@ extension GhafWalkthroughTests {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
         app.tabBars.buttons["More"].tap()
         let activity = app.buttons["Live Activity"].firstMatch
-        for _ in 0..<6 where !activity.isHittable { app.swipeUp() }
-        XCTAssertTrue(activity.isHittable)
+        XCTAssertTrue(activity.waitForExistence(timeout: 8))
         activity.tap()
         XCTAssertTrue(app.staticTexts["Purchase Live Activity"].waitForExistence(timeout: 4))
         snap("e2-live-activity")
@@ -753,11 +752,9 @@ extension GhafWalkthroughTests {
         snap("e2-notifications-scrolled")
         app.navigationBars.buttons.firstMatch.tap()
         let fifteenSeconds = app.buttons["Live Activity"].firstMatch
-        for _ in 0..<6 where !fifteenSeconds.isHittable { app.swipeDown() }
         fifteenSeconds.tap()
         app.buttons["15 s"].tap()
         app.navigationBars.buttons.firstMatch.tap()
-        for _ in 0..<6 where !fifteenSeconds.isHittable { app.swipeUp() }
         fifteenSeconds.tap()
         XCTAssertTrue(app.buttons["15 s"].isSelected, "Duration should persist in the settings store.")
     }
