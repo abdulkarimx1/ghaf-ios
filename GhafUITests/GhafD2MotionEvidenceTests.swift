@@ -4,8 +4,11 @@ import XCTest
 final class GhafD2MotionEvidenceTests: XCTestCase {
     private var app: XCUIApplication!
     private var simulatorBackup: String? {
-        ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
-            ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]
+        let environment = ProcessInfo.processInfo.environment
+        let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.29/backup8.json").path
+        let path = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"] ?? defaultBackup
+        return FileManager.default.fileExists(atPath: path) ? path : nil
     }
     private var outputDirectory: URL {
         URL(fileURLWithPath: ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_UI_OUT"] ?? NSTemporaryDirectory(),

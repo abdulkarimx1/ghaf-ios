@@ -15,7 +15,12 @@ final class GhafWalkthroughTests: XCTestCase {
 
     func launch(_ extra: [String] = [], appearance: String = "Dark", language: String = "en", waitForTabBar: Bool = true) {
         app = XCUIApplication()
-        let backup = (ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"] ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]).map { ["-GhafRestoreBackup", $0] } ?? []
+        let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.29/backup8.json").path
+        let environment = ProcessInfo.processInfo.environment
+        let backupPath = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"]
+            ?? (FileManager.default.fileExists(atPath: defaultBackup) ? defaultBackup : nil)
+        let backup = backupPath.map { ["-GhafRestoreBackup", $0] } ?? []
         app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite",
                                "-GhafAppearance", appearance, "-GhafLanguage", language] + extra
         app.launch()
