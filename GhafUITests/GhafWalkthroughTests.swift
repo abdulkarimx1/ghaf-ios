@@ -558,18 +558,21 @@ extension GhafWalkthroughTests {
             XCTAssertTrue(chart.waitForExistence(timeout: 10))
             let before = chart.value as? String ?? ""
             snap("b1-budget-before-\(appearance.lowercased())-\(language)")
-            let prefix = "Petals clockwise from 12 o'clock: "
-            guard let range = before.range(of: prefix), let end = before.range(of: ". Selected:", range: range.upperBound..<before.endIndex) else {
+            let isArabic = language == "ar"
+            let prefix = isArabic ? "ترتيب الفئات باتجاه عقارب الساعة بدءًا من الساعة ١٢: " : "Petals clockwise from 12 o'clock: "
+            let selectedMarker = isArabic ? ". الفئة المحددة: " : ". Selected: "
+            let separator = isArabic ? "، " : ", "
+            guard let range = before.range(of: prefix), let end = before.range(of: selectedMarker, range: range.upperBound..<before.endIndex) else {
                 XCTFail("Petal accessibility order missing: \(before)")
                 app.terminate()
                 continue
             }
-            let categories = before[range.upperBound..<end.lowerBound].components(separatedBy: ", ")
+            let categories = before[range.upperBound..<end.lowerBound].components(separatedBy: separator)
             guard categories.count > 0 else { app.terminate(); continue }
             let expectedIndex = min(categories.count - 1, (language == "ar" ? 3 * categories.count : categories.count) / 4)
             chart.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
             let after = chart.value as? String ?? ""
-            XCTAssertTrue(after.hasSuffix("Selected: \(categories[expectedIndex])"), "\(language): expected \(categories[expectedIndex]), got \(after)")
+            XCTAssertTrue(after.hasSuffix("\(selectedMarker)\(categories[expectedIndex])"), "\(language): expected \(categories[expectedIndex]), got \(after)")
             snap("b1-budget-after-\(appearance.lowercased())-\(language)")
             app.terminate()
           }
@@ -592,19 +595,20 @@ extension GhafWalkthroughTests {
             let before = chart.value as? String ?? ""
             XCTAssertTrue(before.contains("لا شيء"), "Arabic chart should be unselected before the tap: \(before)")
             snap("b1-budget-direct-ar-before-\(appearance.lowercased())")
-            let prefix = "Petals clockwise from 12 o'clock: "
+            let prefix = "ترتيب الفئات باتجاه عقارب الساعة بدءًا من الساعة ١٢: "
+            let selectedMarker = ". الفئة المحددة: "
             guard let range = before.range(of: prefix),
-                  let end = before.range(of: ". Selected:", range: range.upperBound..<before.endIndex) else {
+                  let end = before.range(of: selectedMarker, range: range.upperBound..<before.endIndex) else {
                 XCTFail("Petal accessibility order missing after Arabic launch: \(before)")
                 app.terminate()
                 continue
             }
-            let categories = before[range.upperBound..<end.lowerBound].components(separatedBy: ", ")
+            let categories = before[range.upperBound..<end.lowerBound].components(separatedBy: "، ")
             XCTAssertFalse(categories.isEmpty)
             let expectedIndex = min(categories.count - 1, 3 * categories.count / 4)
             chart.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
             let after = chart.value as? String ?? ""
-            let selected = after.components(separatedBy: ". Selected:").last ?? ""
+            let selected = after.components(separatedBy: selectedMarker).last ?? ""
             XCTAssertTrue(selected.contains(categories[expectedIndex].trimmingCharacters(in: CharacterSet(charactersIn: "\u{2068}\u{2069}"))),
                           "Arabic \(appearance): expected \(categories[expectedIndex]), got \(after)")
             snap("b1-budget-direct-ar-after-\(appearance.lowercased())")
