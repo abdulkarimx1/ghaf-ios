@@ -1094,8 +1094,10 @@ struct GhafOnboardingView: View {
         ]
         let page = pages[step]
         return VStack(spacing: 20) {
-            introHero
-                .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 260)
+            GhafWelcomeHero(step: step, theme: theme, languageCode: languageCode, cards: introCards, drag: drag)
+                .id(step)
+                .frame(maxWidth: .infinity, minHeight: 280, maxHeight: 320)
+                .background(GhafWelcomeGlow(theme: theme, step: step).padding(-140))
                 .offset(x: reduceMotion ? 0 : drag * 0.08)
                 .scaleEffect(introPressed && !reduceMotion ? 0.985 : 1)
                 .animation(.spring(duration: 0.24, bounce: 0.08), value: introPressed)
@@ -1114,7 +1116,7 @@ struct GhafOnboardingView: View {
                         }
                 )
                 .accessibilityHidden(true)
-            Text(page.1).font(GhafTypography.display(34, languageCode: languageCode))
+            Text(page.1).font(GhafTypography.display(40, languageCode: languageCode))
             Text(page.2).font(GhafTypography.body(16, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
         }.multilineTextAlignment(.center)
     }
