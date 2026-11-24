@@ -537,11 +537,11 @@ extension GhafWalkthroughTests {
         amount.tap()
         app.buttons["2"].tap(); app.buttons["0"].tap()
         app.buttons["."].tap(); app.buttons["5"].tap(); app.buttons["0"].tap()
-        app.buttons["Done"].tap()
+        app.buttons["checkmark"].tap()
         let merchant = app.textFields.firstMatch
         XCTAssertTrue(merchant.waitForExistence(timeout: 5))
         merchant.tap(); merchant.typeText("QA Coffee")
-        app.keyboards.buttons["Done"].tap()
+        app.keyboards.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "Done", "تم")).firstMatch.tap()
         app.buttons["حفظ العملية"].tap()
         XCTAssertTrue(app.staticTexts["جارٍ الحفظ…"].waitForExistence(timeout: 8))
         snap("final-splash-ar-light-saving")
