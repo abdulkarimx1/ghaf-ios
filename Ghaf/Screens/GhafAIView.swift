@@ -238,6 +238,20 @@ struct GhafAIView: View {
                                                                                  languageCode: settings.languageCode))
                         ]
                     }
+                    if GhafScreenshotFixture.destination == "ai-subscription-answer", messages.isEmpty {
+                        // Exercise the real ledger answer for subscription renewal dates in screenshots/tests.
+                        let question = "Which subscriptions are due soon?"
+                        let answer = GhafLedgerAnswers.answer(to: question, accounts: accounts,
+                                                              transactions: transactions, subscriptions: subscriptions,
+                                                              currency: settings.currency, languageCode: settings.languageCode)
+                            ?? "The ledger doesn't have enough information to answer that yet."
+                        messages = [
+                            GhafChatMessage(isUser: true, text: question),
+                            GhafChatMessage(isUser: false, text: answer,
+                                            suggestions: ChatFollowUp.suggestions(after: question,
+                                                                                 languageCode: settings.languageCode))
+                        ]
+                    }
                 }
 #endif
             }

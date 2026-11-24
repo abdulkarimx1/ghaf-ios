@@ -247,6 +247,7 @@ struct GhafRootView: View {
             switch GhafScreenshotFixture.screen {
             case "importSheet": GhafImportSheet(settings: currentSettings)
             case "automation": GhafAutomationGuideView(settings: currentSettings)
+            case "about": GhafAboutView(settings: currentSettings)
             case "insights": GhafStatsView(settings: currentSettings).environment(fixtureRouter)
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
