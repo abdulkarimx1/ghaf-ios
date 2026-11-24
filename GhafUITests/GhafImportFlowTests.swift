@@ -62,6 +62,45 @@ final class GhafImportFlowTests: XCTestCase {
         let opened = picker.waitForExistence(timeout: 8) || browse.exists
         saveScreenshot(app, name: "import-button-picker")
         XCTAssertTrue(opened, "Files picker did not open after Continue")
+        // Pick the real file the way a user does (needs Ghaf-Backup-9.json in the simulator's Files).
+        if browse.exists { browse.tap() }
+        let onMyPhone = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "On My iPhone")).firstMatch
+        if onMyPhone.waitForExistence(timeout: 5) { onMyPhone.tap() }
+        let file = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Ghaf-Backup-9")).firstMatch
+        guard file.waitForExistence(timeout: 10) else { return }
+        app.cells.matching(NSPredicate(format: "identifier BEGINSWITH %@", "Ghaf-Backup-9")).firstMatch.tap()
+        Thread.sleep(forTimeInterval: 5)
+        saveScreenshot(app, name: "import-after-real-pick")
+        let done = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Import complete")).firstMatch
+        XCTAssertTrue(done.exists, "Picking the backup in Files changed nothing")
+    }
+
+    /// Real-device path: fresh onboarding → Import Ghaf backup → Ghaf backup → Continue → pick the file in Files.
+    /// Needs Ghaf-Backup-9.json in the simulator's Files "On My iPhone".
+    func testOnboardingImportPicksFileFromFiles() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1", "-GhafAppearance", "Dark"]
+        app.launch()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let importButton = app.buttons["Import Ghaf backup"].firstMatch
+        XCTAssertTrue(importButton.waitForExistence(timeout: 15))
+        let title = app.staticTexts["Bring your data into Ghaf"]
+        for _ in 0..<3 where !title.exists { importButton.tap(); _ = title.waitForExistence(timeout: 3) }
+        XCTAssertTrue(title.exists, "Import sheet did not open from onboarding")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Ghaf JSON backup")).firstMatch.tap()
+        app.alerts["Replace current data?"].buttons["Continue"].tap()
+        let browse = app.buttons["Browse"].firstMatch
+        XCTAssertTrue(browse.waitForExistence(timeout: 10))
+        browse.tap()
+        let onMyPhone = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "On My iPhone")).firstMatch
+        if onMyPhone.waitForExistence(timeout: 5) { onMyPhone.tap() }
+        let cell = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH %@", "Ghaf-Backup-9")).firstMatch
+        guard cell.waitForExistence(timeout: 10) else { throw XCTSkip("Ghaf-Backup-9.json not in simulator Files") }
+        cell.tap()
+        Thread.sleep(forTimeInterval: 6)
+        saveScreenshot(app, name: "onboarding-import-after-pick")
+        let done = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Import complete")).firstMatch
+        XCTAssertTrue(done.exists || app.tabBars.firstMatch.exists, "Picking the backup from onboarding changed nothing")
     }
 
     private func launchImport(_ url: URL, appearance: String, language: String) -> XCUIApplication {

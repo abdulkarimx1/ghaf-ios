@@ -47,16 +47,20 @@ struct GhafImportSheet: View {
                     }
                     if let preview { previewCard(preview) }
                 }.padding(24)
+                // UIKit picker that copies the file into the app: SwiftUI's `.fileImporter` inside this sheet
+                // ignored taps on files on iOS 26+. Visibility stays separate from `selectedKind`.
+                .sheet(isPresented: $isFileImporterPresented) {
+                    GhafDocumentPicker(types: [.json, .commaSeparatedText, .plainText]) { url in
+                        isFileImporterPresented = false
+                        if let url { handlePick(.success([url])) } else { selectedKind = nil }
+                    }
+                    .ignoresSafeArea()
+                }
             }
             .background(theme.background.ignoresSafeArea())
             .navigationTitle(ar ? "استيراد" : "Import")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(ar ? "إغلاق" : "Close") { dismiss() }.foregroundStyle(theme.primaryText) } }
-            // Keep picker visibility separate from its route. SwiftUI dismisses
-            // the picker before calling `onCompletion`, so clearing the route
-            // through the presentation binding can silently skip the import.
-            .fileImporter(isPresented: $isFileImporterPresented,
-                          allowedContentTypes: [.json, .commaSeparatedText, .plainText], allowsMultipleSelection: false, onCompletion: handlePick)
             .sheet(isPresented: $showMail) { if let fileURL { GhafMailComposer(file: fileURL, arabic: ar) { showMail = false } } }
             .alert(ar ? "تعذّر الاستيراد" : "Couldn’t import this file", isPresented: Binding(get: { message != nil && isFailure && preview == nil }, set: { if !$0 { message = nil } })) {
                 Button(ar ? "حسنًا" : "OK", role: .cancel) { }
@@ -148,9 +152,11 @@ struct GhafImportSheet: View {
     }
 
     private func handlePick(_ result: Result<[URL], Error>) {
-        guard let kind = selectedKind else { return }; selectedKind = nil
+        let chosenKind = selectedKind; selectedKind = nil
         do {
             let url = try result.get().first ?? { throw GhafFileImportError.unsupported }()
+            // Never drop a picked file silently: if the route was lost while Files was open, read the file to decide.
+            let kind = chosenKind ?? Self.detectKind(url)
             let access = url.startAccessingSecurityScopedResource()
             defer { if access { url.stopAccessingSecurityScopedResource() } }
             let localFile = FileManager.default.temporaryDirectory.appendingPathComponent("ghaf-import-\(UUID().uuidString).\(url.pathExtension)")
@@ -171,6 +177,12 @@ struct GhafImportSheet: View {
             isFailure = true
             message = importErrorMessage(error)
         }
+    }
+
+    private static func detectKind(_ url: URL) -> Kind {
+        guard let data = try? Data(contentsOf: url),
+              let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return .other }
+        return object["settings"] != nil && object["transactions"] != nil ? .ghaf : .other
     }
 
     private func isPickerCancellation(_ error: Error) -> Bool {
@@ -238,5 +250,27 @@ private struct GhafMailComposer: UIViewControllerRepresentable {
         let completion: () -> Void
         init(completion: @escaping () -> Void) { self.completion = completion }
         func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) { completion(); controller.dismiss(animated: true) }
+    }
+}
+
+/// Opens Files and hands back a local copy of the chosen file (nil when cancelled).
+struct GhafDocumentPicker: UIViewControllerRepresentable {
+    let types: [UTType]
+    let onPick: (URL?) -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: true)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ controller: UIDocumentPickerViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPick: (URL?) -> Void
+        init(onPick: @escaping (URL?) -> Void) { self.onPick = onPick }
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { onPick(urls.first) }
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { onPick(nil) }
     }
 }
