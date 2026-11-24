@@ -435,7 +435,10 @@ extension GhafWalkthroughTests {
 
     func testProStoreKitPurchase() throws {
         let environment = ProcessInfo.processInfo.environment
-        guard let path = environment["GHAF_STOREKIT_FILE"] else { throw XCTSkip("Run with the store-enabled simulator build and local StoreKit configuration") }
+        let defaultStoreKitPath = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("Ghaf/Resources/Ghaf.storekit").path
+        let path = environment["GHAF_STOREKIT_FILE"] ?? defaultStoreKitPath
+        guard FileManager.default.fileExists(atPath: path) else { throw XCTSkip("StoreKit configuration file is unavailable") }
         let session = try SKTestSession(contentsOf: URL(fileURLWithPath: path))
         session.disableDialogs = true
         session.clearTransactions()
@@ -586,9 +589,11 @@ extension GhafWalkthroughTests {
     }
 
     func testArabicBudgetDirectLaunchAndPetalTap() throws {
-        guard let backup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"] else {
-            throw XCTSkip("Set TEST_RUNNER_GHAF_BACKUP to the owner backup")
-        }
+        let environment = ProcessInfo.processInfo.environment
+        let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.29/backup8.json").path
+        let backup = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"] ?? defaultBackup
+        guard FileManager.default.fileExists(atPath: backup) else { throw XCTSkip("Owner backup is unavailable") }
         for appearance in ["Light", "Dark"] {
             app = XCUIApplication()
             app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", backup,
