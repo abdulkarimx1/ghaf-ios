@@ -435,10 +435,7 @@ extension GhafWalkthroughTests {
 
     func testProStoreKitPurchase() throws {
         let environment = ProcessInfo.processInfo.environment
-        let defaultStoreKitPath = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("Ghaf/Resources/Ghaf.storekit").path
-        let path = environment["GHAF_STOREKIT_FILE"] ?? defaultStoreKitPath
-        guard FileManager.default.fileExists(atPath: path) else { throw XCTSkip("StoreKit configuration file is unavailable") }
+        guard let path = environment["GHAF_STOREKIT_FILE"] else { throw XCTSkip("Run with the store-enabled simulator build and local StoreKit configuration") }
         let session = try SKTestSession(contentsOf: URL(fileURLWithPath: path))
         session.disableDialogs = true
         session.clearTransactions()
