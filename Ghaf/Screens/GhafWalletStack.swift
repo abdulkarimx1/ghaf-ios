@@ -152,83 +152,92 @@ private struct GhafWalletCarousel: View {
     let theme: GhafTheme
     let onEdit: (GhafAccount) -> Void
     let onMove: (GhafAccount, Int) -> Void
-    @State private var dragOffset: CGFloat = 0
-    @State private var dragOriginIndex: Int?
-    @State private var dragStartX: CGFloat?
-    @State private var positionRecorder = GhafWalletOffsetRecorder()
+    @State private var pagePosition: CGFloat = 0
+    @State private var dragStartPosition: CGFloat?
     private var ar: Bool { languageCode == "ar" }
     private var index: Int { accounts.firstIndex { $0.id == selectedID } ?? 0 }
-    private var width: CGFloat { max(240, UIScreen.main.bounds.width) }
-    private var cardHeight: CGFloat { width / 1.586 }
-    private var step: CGFloat { width * 0.6 }
 
     var body: some View {
-        ZStack {
-            Ellipse()
-                .fill(theme.accent.opacity(0.55))
-                .frame(width: width * 0.8, height: 60)
-                .blur(radius: 22)
-                .offset(y: cardHeight / 2 + 6)
-            GeometryReader { geometry in
-                let restingOffset = (geometry.size.width - width) / 2 - CGFloat(index) * step
-                let baseIndex = dragOriginIndex ?? index
-                let baseOffset = (geometry.size.width - width) / 2 - CGFloat(baseIndex) * step
-                HStack(spacing: -width * 0.4) {
-                    ForEach(Array(accounts.enumerated()), id: \.element.id) { itemIndex, account in
-                        walletCard(account, at: itemIndex)
-                    }
+        GeometryReader { geometry in
+            let cardWidth = max(240, geometry.size.width * 0.86)
+            let cardHeight = cardWidth / 1.586
+            let step = cardWidth * 0.82
+            ZStack {
+                Ellipse()
+                    .fill(theme.accent.opacity(0.45))
+                    .frame(width: cardWidth * 0.78, height: 54)
+                    .blur(radius: 22)
+                    .offset(y: cardHeight / 2 + 7)
+
+                ForEach(Array(accounts.enumerated()), id: \.element.id) { itemIndex, account in
+                    let distance = CGFloat(itemIndex) - pagePosition
+                    let sideAmount = min(abs(distance), 1)
+                    walletCard(account, at: itemIndex, width: cardWidth, height: cardHeight)
+                        .scaleEffect(1 - sideAmount * 0.12)
+                        .brightness(-sideAmount * 0.12)
+                        .opacity(1 - sideAmount * 0.14)
+                        .offset(x: distance * step)
+                        .zIndex(100 - Double(abs(distance)))
                 }
-                .modifier(GhafWalletTrackedOffset(value: baseOffset + dragOffset, recorder: positionRecorder))
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 12)
-                    .onChanged { value in
-                        if dragOriginIndex == nil {
-                            dragOriginIndex = index
-                            dragStartX = positionRecorder.value
-                        }
-                        dragOffset = (dragStartX ?? restingOffset) - baseOffset + value.translation.width
-                    }
-                    .onEnded { value in
-                        let origin = dragOriginIndex ?? index
-                        let travel = value.predictedEndTranslation.width
-                        let moved = Int((-travel / step).rounded())
-                        let next = min(max(origin + moved, 0), accounts.count - 1)
-                        let startX = dragStartX ?? ((geometry.size.width - width) / 2 - CGFloat(origin) * step)
-                        let predictedX = startX + travel
-                        let targetOffset = (geometry.size.width - width) / 2 - CGFloat(next) * step
-                        withTransaction(Transaction(animation: nil)) {
-                            selectedID = accounts[next].id
-                            dragOriginIndex = nil
-                            dragStartX = nil
-                            dragOffset = predictedX - targetOffset
-                        }
-                        DispatchQueue.main.async {
-                            withAnimation(deckAnimation) { dragOffset = 0 }
-                        }
-                    })
             }
-            .frame(height: cardHeight + 50)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 8)
+                .onChanged { value in
+                    if dragStartPosition == nil { dragStartPosition = pagePosition }
+                    let direction: CGFloat = ar ? -1 : 1
+                    pagePosition = (dragStartPosition ?? pagePosition)
+                        - value.translation.width * direction / step
+                }
+                .onEnded { value in
+                    let direction: CGFloat = ar ? -1 : 1
+                    let start = dragStartPosition ?? pagePosition
+                    let projected = start - value.predictedEndTranslation.width * direction / step
+                    let target = min(max(projected.rounded(), 0), CGFloat(accounts.count - 1))
+                    dragStartPosition = nil
+                    withAnimation(deckAnimation) {
+                        pagePosition = target
+                    }
+                    // Keep the spring on the card deck. Publishing the selected account inside
+                    // the same animated transaction also cross-fades its balance and rows.
+                    var selectionTransaction = Transaction()
+                    selectionTransaction.disablesAnimations = true
+                    withTransaction(selectionTransaction) {
+                        selectedID = accounts[Int(target)].id
+                    }
+                })
             .clipped()
         }
+        .frame(height: min(UIScreen.main.bounds.width, 620) * 0.86 / 1.586 + 36)
             .accessibilityElement()
             .accessibilityLabel(accounts.indices.contains(index) ? accounts[index].name : "")
             .accessibilityValue(ar ? "بطاقة \(index + 1) من \(accounts.count)" : "Card \(index + 1) of \(accounts.count)")
             .accessibilityAdjustableAction { direction in
                 let next = min(max(index + (direction == .increment ? 1 : -1), 0), accounts.count - 1)
-                withAnimation(deckAnimation) { selectedID = accounts[next].id }
+                withAnimation(deckAnimation) {
+                    selectedID = accounts[next].id
+                    pagePosition = CGFloat(next)
+                }
+            }
+            .onAppear { pagePosition = CGFloat(index) }
+            .onChange(of: selectedID) { _, newValue in
+                guard dragStartPosition == nil,
+                      let newIndex = accounts.firstIndex(where: { $0.id == newValue }) else { return }
+                pagePosition = CGFloat(newIndex)
             }
     }
 
-    private func walletCard(_ account: GhafAccount, at itemIndex: Int) -> some View {
-        let delta = itemIndex - index
+    private func walletCard(_ account: GhafAccount, at itemIndex: Int, width: CGFloat, height: CGFloat) -> some View {
         return GhafCardFace(account: account, name: account.name, institution: account.institution ?? "",
                             lastFour: account.lastFourDigits ?? "", design: GhafCardDesign.forAccount(account), width: width)
-            .scaleEffect(delta == 0 ? 1 : 0.9, anchor: .center)
-            .zIndex(Double(-abs(delta)))
-            .frame(width: width, height: cardHeight)
-            .frame(width: width, height: cardHeight + 50)
+            .frame(width: width, height: height)
             .id(account.id)
-            .onTapGesture { withAnimation(deckAnimation) { selectedID = account.id } }
+            .onTapGesture {
+                withAnimation(deckAnimation) {
+                    selectedID = account.id
+                    pagePosition = CGFloat(itemIndex)
+                }
+            }
             .contextMenu {
                 Button { onEdit(account) } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
                 Button { onMove(account, -1) } label: { Label(ar ? "نقل للأمام" : "Move earlier", systemImage: "arrow.backward") }
@@ -240,28 +249,6 @@ private struct GhafWalletCarousel: View {
     }
 
     private var deckAnimation: Animation {
-        .easeOut(duration: reduceMotion ? 0 : 0.18)
-    }
-}
-
-/// Reads SwiftUI's presentation value during settling without invalidating the carousel every frame.
-private final class GhafWalletOffsetRecorder {
-    var value: CGFloat = 0
-}
-
-private struct GhafWalletTrackedOffset: AnimatableModifier {
-    var value: CGFloat
-    let recorder: GhafWalletOffsetRecorder
-
-    var animatableData: CGFloat {
-        get { value }
-        set {
-            value = newValue
-            recorder.value = newValue
-        }
-    }
-
-    func body(content: Content) -> some View {
-        content.offset(x: value)
+        reduceMotion ? .linear(duration: 0) : .spring(response: 0.35, dampingFraction: 0.85)
     }
 }

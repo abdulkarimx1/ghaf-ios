@@ -858,6 +858,7 @@ struct GhafQuickAddView: View {
     @State private var showingDiscard = false
     @State private var locationPermission: Bool?
     @State private var showingSuccess = false
+    @State private var successCategory = ""
     @State private var suggestedCategory = false
     @State private var categoryWasManuallyPicked = false
     @State private var categorizationTask: Task<Void, Never>?
@@ -983,10 +984,23 @@ struct GhafQuickAddView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .interactiveDismissDisabled(isDirty)
-        .blur(radius: showingSuccess ? 18 : 0)
-        .animation(.easeOut(duration: 0.3), value: showingSuccess)
+        .scaleEffect(showingSuccess ? 0.94 : 1)
+        .saturation(showingSuccess ? 0.7 : 1)
+        .blur(radius: showingSuccess ? 24 : 0)
+        .animation(.easeOut(duration: 0.35), value: showingSuccess)
         .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
-        .overlay { if showingSuccess { GhafSuccessSplash(title: ar ? "تمت إضافة العملية" : "Transaction added", subtitle: [GhafFormat.money(Decimal(string: amount) ?? 0, currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency, languageCode: lang), merchant].filter { !$0.isEmpty }.joined(separator: " · "), theme: theme, languageCode: lang) { router.isSaveSplashPresented = false; dismiss() } } }
+        .overlay {
+            if showingSuccess {
+                GhafSaveSplash(title: ar ? "تمت إضافة المعاملة" : "Transaction added",
+                               amount: GhafFormat.money(Decimal(string: amount) ?? 0,
+                                   currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency,
+                                   languageCode: lang),
+                               detail: [successCategory,
+                                        accounts.first(where: { $0.id == selectedAccountID })?.name ?? ""]
+                                   .filter { !$0.isEmpty }.joined(separator: " · "),
+                               theme: theme, languageCode: lang) { dismiss() }
+            }
+        }
         .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .onAppear {
@@ -996,6 +1010,16 @@ struct GhafQuickAddView: View {
             if startAsTransfer { direction = "transfer" }
             toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
             locationPermission = GhafPlaces.locationPermission
+#if DEBUG
+            // Reproducible visual proof for the save animation; this never runs in Release.
+            if ProcessInfo.processInfo.arguments.contains("-GhafSplashProof") {
+                amount = "20.50"
+                successCategory = GhafLocalization.category("Food", languageCode: lang)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    showingSuccess = true
+                }
+            }
+#endif
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { locationPermission = GhafPlaces.locationPermission }
@@ -1211,6 +1235,7 @@ struct GhafQuickAddView: View {
             try modelContext.save()
             GhafDigestNotifications.reschedule(context: modelContext)
             Task { await GhafPlaces.rememberCurrentLocation(transactionID: transaction.id) }
+            successCategory = GhafLocalization.category(finalCategory, languageCode: lang)
             router.isSaveSplashPresented = true
             showingSuccess = true
         } catch {

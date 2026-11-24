@@ -7,6 +7,7 @@ final class GhafSounds {
     enum Cue: String { case orbOn = "orb_on", orbOff = "orb_off", added, deleted, streak, tick }
 
     static let shared = GhafSounds()
+    static let addedDelay: TimeInterval = 2.0
     private var players: [String: AVAudioPlayer] = [:]
 
     private init() {
@@ -35,6 +36,7 @@ final class GhafSounds {
         // The shared player stays alive for its full sample; a repeated cue cannot restart and cut it off.
         guard !player.isPlaying else { return }
         player.currentTime = 0
+        if cue == .added { player.volume = 0.2 }
         player.play()
     }
 

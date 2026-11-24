@@ -311,6 +311,7 @@ struct GhafSalarySettingsView: View {
                                             currency: salaryCurrency,
                                             label: "", theme: theme, languageCode: settings.languageCode, fontSize: 15,
                                             chromeless: true, trailingAligned: true, groupsDigits: true)
+                                .environment(\.layoutDirection, .leftToRight)
                                 .frame(width: 132)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                         }
