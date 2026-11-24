@@ -55,6 +55,8 @@ struct GhafSnapshotTests {
         // to the capture time used for that reference instead of reading wall-clock time.
         let fixedNow = fixedSnapshotDate().addingTimeInterval(sample.screen == .bankAutomation ? 60 * 60 : 0)
         GhafClock.snapshotNow = fixedNow
+        GhafCalendar.snapshotCalendar = snapshotCalendar()
+        GhafWidgetSnapshot.sampleDateOverride = fixedNow
         GhafScreenshotFixture.snapshotTestingEnabled = true
         GhafScreenshotFixture.snapshotScreenOverride = sample.screen == .profile ? "profile-proof" : nil
         let defaults = UserDefaults.standard
@@ -70,6 +72,8 @@ struct GhafSnapshotTests {
                 for (key, value) in savedAutomationDefaults { defaults.set(value, forKey: key) }
             }
             GhafClock.snapshotNow = nil
+            GhafCalendar.snapshotCalendar = nil
+            GhafWidgetSnapshot.sampleDateOverride = nil
             GhafScreenshotFixture.snapshotTestingEnabled = false
             GhafScreenshotFixture.snapshotScreenOverride = nil
             GhafScreenshotFixture.snapshotPeriodOverride = nil
@@ -155,7 +159,7 @@ struct GhafSnapshotTests {
     private func snapshotCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Dubai")!
-        calendar.firstWeekday = 1
+        calendar.firstWeekday = 2
         return calendar
     }
 }

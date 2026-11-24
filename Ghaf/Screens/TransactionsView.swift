@@ -72,7 +72,7 @@ struct GhafTransactionsView: View {
     }
 
     private func sections(_ list: [GhafTransaction]) -> [(title: String, items: [GhafTransaction])] {
-        let calendar = Calendar.current
+        let calendar = GhafCalendar.current
         var result: [(title: String, items: [GhafTransaction])] = []
         var currentDay: Date?
         for transaction in list {
@@ -109,9 +109,10 @@ struct GhafTransactionsView: View {
     }
 
     private func dayTitle(_ day: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return ar ? "اليوم" : "Today" }
-        if calendar.isDateInYesterday(day) { return ar ? "أمس" : "Yesterday" }
+        let calendar = GhafCalendar.current
+        if calendar.isDate(day, inSameDayAs: GhafClock.now) { return ar ? "اليوم" : "Today" }
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: GhafClock.now) ?? GhafClock.now
+        if calendar.isDate(day, inSameDayAs: yesterday) { return ar ? "أمس" : "Yesterday" }
         let sameYear = calendar.isDate(day, equalTo: GhafClock.now, toGranularity: .year)
         let style: Date.FormatStyle = sameYear
             ? .dateTime.weekday(.wide).day().month(.wide)

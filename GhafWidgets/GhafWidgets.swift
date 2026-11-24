@@ -88,10 +88,19 @@ struct GhafProvider: TimelineProvider {
 
 extension GhafWidgetSnapshot {
     /// Gallery preview only (WidgetKit's isPreview / placeholder); real widgets always read the app's snapshot.
-    static let sample: GhafWidgetSnapshot = {
+    #if DEBUG
+    static var sampleDateOverride: Date?
+    #endif
+    static var sample: GhafWidgetSnapshot {
+        let now: Date
+        #if DEBUG
+        now = sampleDateOverride ?? .now
+        #else
+        now = .now
+        #endif
         var s = GhafWidgetSnapshot(currency: "AED", balance: 12_450, spentToday: 86.5, spentThisMonth: 2_310,
-                                   lastPurchase: .init(merchant: "Carrefour", amount: 45, currency: "AED", date: .now),
-                                   hidden: false, arabic: false, updated: .now,
+                                   lastPurchase: .init(merchant: "Carrefour", amount: 45, currency: "AED", date: now),
+                                   hidden: false, arabic: false, updated: now,
                                    todayCategories: [.init(name: "Groceries", amount: 45), .init(name: "Dining", amount: 28.5), .init(name: "Transport", amount: 13)],
                                    lastSevenDays: [120, 60, 210, 90, 40, 150, 86.5])
         let categories: [CategorySpend] = [.init(name: "Groceries", amount: 420, symbol: "basket.fill"), .init(name: "Dining", amount: 310, symbol: "fork.knife"),
@@ -100,13 +109,13 @@ extension GhafWidgetSnapshot {
         s.day = .init(end: far, spent: 86.5, previous: 150, count: 3, bars: [0, 0, 0, 12, 45, 28.5, 0, 0], categories: Array(categories.prefix(2)))
         s.week = .init(end: far, spent: 756.5, previous: 910, count: 14, bars: [120, 60, 210, 90, 40, 150, 86.5], categories: categories)
         s.month = .init(end: far, spent: 2_310, previous: 2_640, count: 41, bars: [640, 820, 610, 240, 0], categories: categories)
-        s.recent = .init(merchant: "Carrefour", category: "Groceries", symbol: "basket.fill", amount: 45, currency: "AED", date: .now,
+        s.recent = .init(merchant: "Carrefour", category: "Groceries", symbol: "basket.fill", amount: 45, currency: "AED", date: now,
                          isCredit: false, account: "Mashreq", bank: "Mashreq", needsReview: false)
         s.budget = .init(limit: 9_000, spent: 3_150, title: "Monthly budget", end: far)
-        s.upcoming = [.init(name: "Netflix", amount: 39, currency: "AED", date: .now.addingTimeInterval(2 * 86_400), symbol: "play.tv.fill"),
-                      .init(name: "iCloud+", amount: 10.99, currency: "AED", date: .now.addingTimeInterval(5 * 86_400), symbol: "icloud.fill")]
+        s.upcoming = [.init(name: "Netflix", amount: 39, currency: "AED", date: now.addingTimeInterval(2 * 86_400), symbol: "play.tv.fill"),
+                      .init(name: "iCloud+", amount: 10.99, currency: "AED", date: now.addingTimeInterval(5 * 86_400), symbol: "icloud.fill")]
         return s
-    }()
+    }
 }
 
 // Near-black tiles lit by the user's city theme (sent by the app); sand-gold until the app has written one.
@@ -331,7 +340,7 @@ struct GhafTodayView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let s {
-            if family == .systemMedium { medium(s, tile, caption) } else { small(s, tile, caption) }
+            if family == .systemMedium { medium(s, tile, caption, now: entry.date) } else { small(s, tile, caption) }
         } else {
             OpenGhaf(ink: tile.foreground)
         }
@@ -352,7 +361,7 @@ struct GhafTodayView: View {
         .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
     }
 
-    private func medium(_ s: GhafWidgetSnapshot, _ tile: GhafTile, _ caption: String) -> some View {
+    private func medium(_ s: GhafWidgetSnapshot, _ tile: GhafTile, _ caption: String, now: Date) -> some View {
         let categories = s.todayCategories ?? []
         let total = max(categories.reduce(Decimal.zero) { $0 + $1.amount }, 1)
         return HStack(alignment: .top, spacing: 16) {
@@ -363,7 +372,7 @@ struct GhafTodayView: View {
                 Spacer(minLength: 0)
                 if let last = s.lastPurchase {
                     Text(text(s, "Last: ", "آخر عملية: ") + last.merchant).font(.system(size: 11, weight: .bold)).lineLimit(1).privacySensitive()
-                    Text(last.date, style: .relative).font(.system(size: 11)).foregroundStyle(tile.foreground.opacity(0.6))
+                    Text(relativeDateText(last.date, now: now, locale: s.locale)).font(.system(size: 11)).foregroundStyle(tile.foreground.opacity(0.6))
                 }
             }
             .foregroundStyle(tile.foreground)
@@ -397,6 +406,15 @@ struct GhafTodayView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.layoutDirection, s.arabic ? .rightToLeft : .leftToRight)
+    }
+
+    private func relativeDateText(_ date: Date, now: Date, locale: Locale) -> String {
+        if date == now { return locale.language.languageCode?.identifier == "ar" ? "منذ ٠ ث" : "0s ago" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = locale
+        formatter.calendar = Calendar.current
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: now)
     }
 }
 

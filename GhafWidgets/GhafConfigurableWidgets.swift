@@ -235,9 +235,9 @@ private struct SymbolBadge: View {
     }
 }
 
-private func dayText(_ date: Date, _ s: GhafWidgetSnapshot) -> String {
+private func dayText(_ date: Date, now: Date, _ s: GhafWidgetSnapshot) -> String {
     let calendar = Calendar.current
-    if calendar.isDateInToday(date) { return date.formatted(.dateTime.hour().minute().locale(s.locale)) }
+    if calendar.isDate(date, inSameDayAs: now) { return date.formatted(.dateTime.hour().minute().locale(s.locale)) }
     return date.formatted(.dateTime.day().month(.abbreviated).locale(s.locale))
 }
 
@@ -317,7 +317,7 @@ struct GhafRecentView: View {
             return AnyView(HStack(alignment: .top, spacing: 14) {
                 SymbolBadge(symbol: r.symbol, tile: tile, size: 52)
                 VStack(alignment: .leading, spacing: 4) {
-                    Caption(value: text(s, "Latest · ", "آخر عملية · ") + dayText(r.date, s)).foregroundStyle(tile.dim)
+                    Caption(value: text(s, "Latest · ", "آخر عملية · ") + dayText(r.date, now: entry.date, s)).foregroundStyle(tile.dim)
                     Text(r.category).font(.system(size: 24, weight: .heavy)).tracking(-0.6).lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
                     if !detail.isEmpty { Text(detail).font(.system(size: 12, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1).privacySensitive() }
                     Spacer(minLength: 0)
@@ -348,7 +348,7 @@ struct GhafRecentView: View {
                         .contentTransition(.numericText()).privacySensitive()
                     Text(r.currency).font(.system(size: 11, weight: .bold)).foregroundStyle(tile.dim)
                 }
-                Text(([entry.config.showMerchant ? r.merchant : nil, dayText(r.date, s)].compactMap { $0 }).joined(separator: " · "))
+                Text(([entry.config.showMerchant ? r.merchant : nil, dayText(r.date, now: entry.date, s)].compactMap { $0 }).joined(separator: " · "))
                     .font(.system(size: 11, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1).privacySensitive()
             }
             .foregroundStyle(tile.foreground)

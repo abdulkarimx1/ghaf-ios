@@ -4,8 +4,14 @@ import Foundation
 /// (More › Preferences). Without a choice it follows the iPhone's region.
 enum GhafCalendar {
     static let weekStartKey = "ghaf.weekStart"   // 1 = Sunday, 2 = Monday, 7 = Saturday; 0 = region
+#if DEBUG
+    static var snapshotCalendar: Calendar?
+#endif
 
     static var current: Calendar {
+#if DEBUG
+        if let snapshotCalendar { return snapshotCalendar }
+#endif
         var calendar = Calendar.current
         let chosen = UserDefaults.standard.integer(forKey: weekStartKey)
         if (1...7).contains(chosen) { calendar.firstWeekday = chosen }

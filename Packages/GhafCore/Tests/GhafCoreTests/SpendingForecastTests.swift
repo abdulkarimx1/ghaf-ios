@@ -44,4 +44,15 @@ import Testing
         #expect(forecast[windows[0].start] == 235)
         #expect(forecast[windows[1].start] == 375)
     }
+
+    @Test func fixedNowProducesDeterministicForecast() {
+        let history = (-20...0).map { SpendingForecast.Expense(date: date($0), amount: 100) }
+        let window = SpendingForecast.Window(start: now, end: date(4))
+
+        let first = SpendingForecast.amounts(expenses: history, windows: [window], now: now, calendar: calendar)
+        let second = SpendingForecast.amounts(expenses: history, windows: [window], now: now, calendar: calendar)
+
+        #expect(first == second)
+        #expect(first[window.start] == 300)
+    }
 }

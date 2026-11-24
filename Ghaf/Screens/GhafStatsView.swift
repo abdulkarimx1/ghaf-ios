@@ -171,7 +171,7 @@ struct GhafStatsView: View {
             SpendingForecast.Subscription(nextPaymentDate: $0.nextPaymentDate, amount: $0.amount, isActive: $0.isActive)
         }
         let forecasts = SpendingForecast.amounts(expenses: forecastExpenses, subscriptions: forecastSubscriptions,
-                                                 windows: windows, calendar: calendar)
+                                                 windows: windows, now: GhafClock.now, calendar: calendar)
         return windows.map { window in
             let actual = items.filter { window.start <= $0.date && $0.date < window.end }
                 .reduce(Decimal.zero) { $0 + statisticsAmount($1) }
@@ -544,7 +544,7 @@ struct GhafStatsView: View {
                 .map { SpendingForecast.Expense(date: $0.date, amount: $0.spendingAmount, isTransfer: !$0.isSpendingOrIncome) },
             subscriptions: subscriptions.filter { $0.currency == currency && (selectedCategory == nil || selectedCategory == "Subscriptions") }.map {
                 SpendingForecast.Subscription(nextPaymentDate: $0.nextPaymentDate, amount: $0.amount, isActive: $0.isActive)
-            }, windows: windows.map(\.1), calendar: calendar)
+            }, windows: windows.map(\.1), now: GhafClock.now, calendar: calendar)
         let days = windows.map { date, window in
             let actual = date <= GhafClock.now ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + statisticsAmount($1) } : 0
             let forecast = estimates[window.start].map { NSDecimalNumber(decimal: $0).doubleValue }
@@ -559,7 +559,7 @@ struct GhafStatsView: View {
             Chart(days) { day in
                 BarMark(x: .value("Day", chartKey(day.date)),
                         y: .value("Spent", day.amount))
-                    .foregroundStyle(theme.accent.opacity(day.forecast ? (theme.isDark ? 0.34 : 0.22) : calendar.isDateInToday(day.date) ? 1 : 0.35))
+                    .foregroundStyle(theme.accent.opacity(day.forecast ? (theme.isDark ? 0.34 : 0.22) : calendar.isDate(day.date, inSameDayAs: GhafClock.now) ? 1 : 0.35))
                     .cornerRadius(6)
                     .annotation(position: .top, spacing: 3) {
                         if selectedBreakdownDay == day.date {
