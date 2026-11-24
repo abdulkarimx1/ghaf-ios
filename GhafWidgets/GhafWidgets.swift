@@ -409,7 +409,6 @@ struct GhafTodayView: View {
     }
 
     private func relativeDateText(_ date: Date, now: Date, locale: Locale) -> String {
-        if date == now { return locale.language.languageCode?.identifier == "ar" ? "منذ ٠ ث" : "0s ago" }
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = locale
         formatter.calendar = Calendar.current
