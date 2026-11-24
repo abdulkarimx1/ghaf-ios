@@ -13,6 +13,16 @@ final class GhafWalkthroughTests: XCTestCase {
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
     }
 
+    private func localOwnerBackupPath() -> String? {
+        var directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        while directory.path != "/" {
+            let candidate = directory.appendingPathComponent("HANDOFF-1.29/backup8.json")
+            if FileManager.default.fileExists(atPath: candidate.path) { return candidate.path }
+            directory.deleteLastPathComponent()
+        }
+        return nil
+    }
+
     func launch(_ extra: [String] = [], appearance: String = "Dark", language: String = "en", waitForTabBar: Bool = true) {
         app = XCUIApplication()
         let environment = ProcessInfo.processInfo.environment
@@ -196,7 +206,12 @@ extension GhafWalkthroughTests {
 
 extension GhafWalkthroughTests {
     func test6AccountEditorLayoutCapture() {
-        launch()
+        let backup = localOwnerBackupPath()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1"] + (backup.map { ["-GhafRestoreBackup", $0] } ?? [])
+            + ["-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
         timedTap(app.buttons["Accounts"].firstMatch, "open wallet for editor capture")
         let tabbyBalance = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "Tabby balance")).firstMatch
         // A fast flick now moves several cards (owner rule), so step one card at a time with a short, slow drag.
@@ -590,10 +605,9 @@ extension GhafWalkthroughTests {
 
     func testArabicBudgetDirectLaunchAndPetalTap() throws {
         let environment = ProcessInfo.processInfo.environment
-        let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("HANDOFF-1.29/backup8.json").path
-        let backup = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"] ?? defaultBackup
+        guard let backup = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"] ?? localOwnerBackupPath() else {
+            throw XCTSkip("Owner backup is unavailable")
+        }
         guard FileManager.default.fileExists(atPath: backup) else { throw XCTSkip("Owner backup is unavailable") }
         for appearance in ["Light", "Dark"] {
             app = XCUIApplication()
