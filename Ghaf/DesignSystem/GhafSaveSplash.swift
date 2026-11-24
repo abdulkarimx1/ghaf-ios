@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+#if DEBUG
+import os
+#endif
 
 struct GhafSaveSplash: View {
     let title: String
@@ -14,6 +17,9 @@ struct GhafSaveSplash: View {
     @State private var soundStarted = false
     @State private var tickAppeared = false
     @State private var dismissed = false
+#if DEBUG
+    private let debugLogger = Logger(subsystem: "com.ghaf.app", category: "SaveSplash")
+#endif
 
     private let speed = 4.3 / 3.8
     private let endTime = 4.3
@@ -100,6 +106,9 @@ struct GhafSaveSplash: View {
             .onChange(of: realElapsed >= GhafSounds.addedDelay) { _, ready in
                 guard ready, !soundStarted else { return }
                 soundStarted = true
+#if DEBUG
+                debugLogger.debug("added sound play elapsed=\(realElapsed, format: .fixed(precision: 3))s")
+#endif
                 GhafSounds.shared.play(.added)
             }
             .onChange(of: t >= endTime) { _, ended in
@@ -110,7 +119,12 @@ struct GhafSaveSplash: View {
         }
         .ignoresSafeArea()
         .accessibilityIdentifier("Transaction added")
-        .onAppear { startedAt = Date() }
+        .onAppear {
+            startedAt = Date()
+#if DEBUG
+            debugLogger.debug("splash start uptime=\(ProcessInfo.processInfo.systemUptime, format: .fixed(precision: 3))s")
+#endif
+        }
     }
 
     private func glow(t: Double, rise: Double, surge: Double, fade: Double) -> some View {
