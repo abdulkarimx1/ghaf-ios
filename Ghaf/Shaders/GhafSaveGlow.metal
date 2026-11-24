@@ -24,14 +24,15 @@ static float ghafFbm(float2 p) {
 
 [[ stitchable ]]
 half4 ghafSaveGlow(float2 position, half4 sourceColor, float4 bounds,
-                   float flowTime, float rise, float surge, float fade,
+                   float flowTime, float timelineTime, float rise, float surge, float fade,
                    float glowHeight, float energy, float lightMode,
                    float4 c1, float4 c2, float4 c3, float4 c4) {
     float2 uv = float2(position.x / max(bounds.z, 1.0),
                        1.0 - position.y / max(bounds.w, 1.0));
     float aspect = bounds.z / max(bounds.w, 1.0);
     float2 p = float2(uv.x * aspect, uv.y) * 2.4;
-    float t = flowTime;
+    // The reference keeps the animation timeline uniform separate from the boiling flow clock.
+    float t = flowTime + timelineTime * 0.0;
 
     float2 q = float2(ghafFbm(p + float2(0.0, t * 0.35)),
                       ghafFbm(p + float2(5.2, 1.3) - t * 0.3));

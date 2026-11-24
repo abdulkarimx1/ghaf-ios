@@ -31,24 +31,29 @@ struct GhafSaveSplash: View {
             let realElapsed = max(0, context.date.timeIntervalSince(startedAt ?? context.date))
             let elapsed = realElapsed * speed
             let t = min(elapsed, endTime)
-            let dimDepth = smooth(t, 0, blurEnd) * (1 - smooth(t, holdEnd, endTime))
-            let surge = smooth(t, surgeStart, surgeEnd)
-            let done = smooth(t, doneStart, 2.95) * (1 - smooth(t, holdEnd, endTime))
-            let tick = smooth(t, tickStart, 2.95)
-            let rise = reduceMotion ? (t >= blurEnd ? 1.0 : 0.0) : easeOut(smooth(t, blurEnd - 0.05, riseEnd))
+            let returnProgress = easeInOut(segment(t, holdEnd, endTime))
+            let dimDepth = easeOut(segment(t, 0, blurEnd)) * (1 - returnProgress)
+            let surge = segment(t, surgeStart, surgeEnd)
+            let doneProgress = segment(t, doneStart, 2.95)
+            let doneOpacity = min(1, doneProgress * 2.2) * (1 - returnProgress)
+            let ring = easeOut(segment(t, 2.35, 2.8))
+            let tick = easeOut(segment(t, tickStart, 2.95))
+            let savingOpacity = segment(t, 0.15, 0.45) * (1 - segment(t, surgeStart - 0.1, surgeStart + 0.2))
+            let rise = reduceMotion ? (t >= blurEnd ? 1.0 : 0.0) : easeOut(segment(t, blurEnd - 0.05, riseEnd))
             let shaderFade = reduceMotion
-                ? smooth(t, blurEnd, 0.8) * (1 - smooth(t, holdEnd, endTime))
-                : smooth(t, blurEnd - 0.05, blurEnd + 0.25) * (1 - smooth(t, surgeEnd - 0.15, fadeEnd))
+                ? segment(t, blurEnd, 0.8) * (1 - easeInOut(segment(t, holdEnd, endTime)))
+                : segment(t, blurEnd - 0.05, blurEnd + 0.25) * (1 - easeInOut(segment(t, surgeEnd - 0.15, fadeEnd)))
 
             ZStack {
                 Color.clear
                 if t < endTime {
-                    Color(theme.isDark ? UIColor.black : UIColor(red: 0.949, green: 0.953, blue: 0.961, alpha: 1))
+                    Color(theme.isDark ? UIColor(red: 0.031, green: 0.035, blue: 0.043, alpha: 1)
+                                       : UIColor(red: 0.949, green: 0.953, blue: 0.961, alpha: 1))
                         .opacity((theme.isDark ? 0.5 + 0.42 * surge : 0.35 + 0.3 * surge) * dimDepth)
                         .ignoresSafeArea()
                     glow(t: t, rise: rise, surge: reduceMotion ? 0 : easeInOut(surge), fade: shaderFade)
                         .accessibilityHidden(true)
-                    if t < surgeStart {
+                    if t < surgeStart + 0.2 {
                         HStack(spacing: 9) {
                             ProgressView().tint(theme.primaryText)
                             Text(languageCode == "ar" ? "جارٍ الحفظ…" : "Saving…")
@@ -56,11 +61,12 @@ struct GhafSaveSplash: View {
                         }
                         .foregroundStyle(theme.primaryText)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .opacity(savingOpacity)
                         .accessibilityElement(children: .combine)
                     }
                     VStack(spacing: 10) {
                         ZStack {
-                            Circle().trim(from: 0, to: tick).stroke(theme.primaryText,
+                            Circle().trim(from: 0, to: ring).stroke(theme.primaryText,
                                 style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
                                 .rotationEffect(.degrees(-90))
                             Path { path in
@@ -79,9 +85,9 @@ struct GhafSaveSplash: View {
                     }
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .opacity(min(1, done * 2.2))
-                    .offset(y: (1 - easeOut(done)) * 14)
-                    .scaleEffect(0.92 + 0.08 * spring(done))
+                    .opacity(doneOpacity)
+                    .offset(y: (1 - easeOut(doneProgress)) * 14)
+                    .scaleEffect(0.92 + 0.08 * spring(doneProgress))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -112,6 +118,7 @@ struct GhafSaveSplash: View {
         let shader = ShaderLibrary.default.ghafSaveGlow(
             .boundingRect,
             .float(Float(reduceMotion ? 0 : t / speed * 0.30)),
+            .float(Float(t)),
             .float(Float(rise)),
             .float(Float(surge)),
             .float(Float(fade)),
@@ -139,11 +146,7 @@ struct GhafSaveSplash: View {
         return .float4(components.x, components.y, components.z, components.w)
     }
 
-    private func smooth(_ value: Double, _ a: Double, _ b: Double) -> Double {
-        let x = min(1, max(0, (value - a) / (b - a)))
-        return x * x * (3 - 2 * x)
-    }
-
+    private func segment(_ value: Double, _ a: Double, _ b: Double) -> Double { min(1, max(0, (value - a) / (b - a))) }
     private func easeOut(_ x: Double) -> Double { 1 - pow(1 - x, 3) }
     private func easeInOut(_ x: Double) -> Double { x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2 }
     private func spring(_ x: Double) -> Double { x >= 1 ? 1 : 1 - exp(-6 * x) * cos(9 * x) }

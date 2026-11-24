@@ -13,13 +13,13 @@ final class GhafWalkthroughTests: XCTestCase {
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
     }
 
-    func launch(_ extra: [String] = [], appearance: String = "Dark") {
+    func launch(_ extra: [String] = [], appearance: String = "Dark", language: String = "en", waitForTabBar: Bool = true) {
         app = XCUIApplication()
         let backup = (ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"] ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]).map { ["-GhafRestoreBackup", $0] } ?? []
         app.launchArguments = ["-GhafFixture", "1"] + backup + ["-GhafTheme", "Graphite",
-                               "-GhafAppearance", appearance, "-GhafLanguage", "en"] + extra
+                               "-GhafAppearance", appearance, "-GhafLanguage", language] + extra
         app.launch()
-        _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
+        if waitForTabBar { _ = app.tabBars.firstMatch.waitForExistence(timeout: 20) }
     }
 
     func snap(_ name: String) {
@@ -348,6 +348,33 @@ extension GhafWalkthroughTests {
 }
 
 extension GhafWalkthroughTests {
+    func testB2WalletAndSalaryOwnerBackupMatrix() throws {
+        guard ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"] != nil
+                || ProcessInfo.processInfo.environment["GHAF_BACKUP"] != nil else {
+            throw XCTSkip("Set TEST_RUNNER_GHAF_BACKUP to the private owner backup")
+        }
+
+        for appearance in ["Light", "Dark"] {
+            for language in ["en", "ar"] {
+                launch(appearance: appearance, language: language)
+                let accounts = app.buttons[language == "ar" ? "الحسابات" : "Accounts"].firstMatch
+                XCTAssertTrue(accounts.waitForExistence(timeout: 8))
+                accounts.tap()
+                XCTAssertTrue(app.staticTexts[language == "ar" ? "المحفظة" : "Wallet"].waitForExistence(timeout: 8))
+                Thread.sleep(forTimeInterval: 0.6)
+                snap("b2-wallet-\(appearance.lowercased())-\(language)")
+                app.terminate()
+
+                launch(["-GhafScreen", "salary-settings"], appearance: appearance,
+                       language: language, waitForTabBar: false)
+                let expected = app.staticTexts[language == "ar" ? "المبلغ المتوقع" : "Expected"]
+                XCTAssertTrue(expected.waitForExistence(timeout: 8))
+                snap("b2-salary-\(appearance.lowercased())-\(language)")
+                app.terminate()
+            }
+        }
+    }
+
     func testHomeTransactionsLayout() {
         launch()
         XCTAssertTrue(app.buttons["Accounts"].firstMatch.exists)

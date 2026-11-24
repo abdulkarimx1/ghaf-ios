@@ -197,6 +197,12 @@ private struct GhafWalletCarousel: View {
                     dragStartPosition = nil
                     withAnimation(deckAnimation) {
                         pagePosition = target
+                    }
+                    // Keep the spring on the card deck. Publishing the selected account inside
+                    // the same animated transaction also cross-fades its balance and rows.
+                    var selectionTransaction = Transaction()
+                    selectionTransaction.disablesAnimations = true
+                    withTransaction(selectionTransaction) {
                         selectedID = accounts[Int(target)].id
                     }
                 })

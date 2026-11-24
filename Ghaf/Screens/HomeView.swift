@@ -1010,6 +1010,16 @@ struct GhafQuickAddView: View {
             if startAsTransfer { direction = "transfer" }
             toAccountID = activeAccounts.first(where: { $0.id != selectedAccountID })?.id
             locationPermission = GhafPlaces.locationPermission
+#if DEBUG
+            // Reproducible visual proof for the save animation; this never runs in Release.
+            if ProcessInfo.processInfo.arguments.contains("-GhafSplashProof") {
+                amount = "20.50"
+                successCategory = GhafLocalization.category("Food", languageCode: lang)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    showingSuccess = true
+                }
+            }
+#endif
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { locationPermission = GhafPlaces.locationPermission }
