@@ -656,33 +656,28 @@ extension GhafWalkthroughTests {
         XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 25))
         snap("first-run-1-largest-type")
 
-        let proofBackup = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP"]
-            ?? ProcessInfo.processInfo.environment["GHAF_BACKUP"]
-            ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.27/backup3.json").path
-        if FileManager.default.fileExists(atPath: proofBackup) {
-            app.terminate()
-            app = XCUIApplication()
-            app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", proofBackup, "-GhafTheme", "Graphite",
-                                  "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
-            app.launch()
-            XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 20))
-            app.tabBars.buttons["More"].tap()
-            app.buttons["Customization"].tap()
-            let arabicChoice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'العربية'" )).firstMatch
-            XCTAssertTrue(arabicChoice.waitForExistence(timeout: 5))
-            arabicChoice.tap()
-            Thread.sleep(forTimeInterval: 0.25)
-            snap("language-switch-en-ar-overlay-start")
-            Thread.sleep(forTimeInterval: 0.95)
-            snap("language-switch-en-ar-overlay-arabic")
-            XCTAssertTrue(app.tabBars.buttons["الرئيسية"].waitForExistence(timeout: 10))
-            snap("language-switch-ar-home")
-            app.tabBars.buttons["المزيد"].tap()
-            app.buttons["التخصيص"].tap()
-            app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'English'")).firstMatch.tap()
-            XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
-        }
+        // Keep this locale-switch sweep on the lightweight fixture so accessibility
+        // snapshots stay bounded while the app rebuilds its Arabic navigation tree.
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["More"].tap()
+        app.buttons["Customization"].tap()
+        let arabicChoice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'العربية'" )).firstMatch
+        XCTAssertTrue(arabicChoice.waitForExistence(timeout: 5))
+        arabicChoice.tap()
+        Thread.sleep(forTimeInterval: 0.25)
+        snap("language-switch-en-ar-overlay-start")
+        Thread.sleep(forTimeInterval: 0.95)
+        snap("language-switch-en-ar-overlay-arabic")
+        XCTAssertTrue(app.tabBars.buttons["الرئيسية"].waitForExistence(timeout: 10))
+        snap("language-switch-ar-home")
+        app.tabBars.buttons["المزيد"].tap()
+        app.buttons["التخصيص"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'English'" )).firstMatch.tap()
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
     }
 }
 
