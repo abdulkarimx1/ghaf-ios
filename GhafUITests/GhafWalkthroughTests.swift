@@ -734,7 +734,10 @@ extension GhafWalkthroughTests {
 
 extension GhafWalkthroughTests {
     func testSessionE2SettingsProof() throws {
-        launch()
+        app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
         app.tabBars.buttons["More"].tap()
         let activity = app.buttons["Live Activity"].firstMatch
         for _ in 0..<6 where !activity.isHittable { app.swipeUp() }
