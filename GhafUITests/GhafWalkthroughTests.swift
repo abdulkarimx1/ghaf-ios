@@ -541,7 +541,7 @@ extension GhafWalkthroughTests {
         app.buttons["حفظ العملية"].tap()
         XCTAssertTrue(app.staticTexts["جارٍ الحفظ…"].waitForExistence(timeout: 8))
         snap("final-splash-ar-light-saving")
-        let addedCue = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "تمت إضافة المعاملة")).firstMatch
+        let addedCue = app.descendants(matching: .any).matching(identifier: "Transaction added").firstMatch
         XCTAssertTrue(addedCue.waitForExistence(timeout: 8))
         snap("final-splash-ar-light-added")
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 8))
