@@ -166,7 +166,7 @@ extension GhafWalkthroughTests {
     }
 
     func testWidgetDeepLinks() {
-        launch()
+        launch(["-GhafAIProTestAccess"])
         app.open(URL(string: "ghaf://add-transaction")!)
         XCTAssertTrue(app.staticTexts["New transaction"].waitForExistence(timeout: 8))
         snap("widget-link-quick-add")
@@ -530,10 +530,29 @@ extension GhafWalkthroughTests {
         snap("budget-allocation-scrolled")
     }
 
+    func testSaveSplashArabicLightEvidence() {
+        launch(["-GhafScreen", "new-transaction"], appearance: "Light", language: "ar")
+        XCTAssertTrue(app.buttons["Amount"].waitForExistence(timeout: 8))
+        app.buttons["Amount"].tap()
+        app.buttons["2"].tap(); app.buttons["0"].tap()
+        app.buttons["."].tap(); app.buttons["5"].tap(); app.buttons["0"].tap()
+        app.buttons["Done"].tap()
+        let merchant = app.textFields.firstMatch
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5))
+        merchant.tap(); merchant.typeText("QA Coffee")
+        app.keyboards.buttons["Done"].tap()
+        app.buttons["حفظ العملية"].tap()
+        XCTAssertTrue(app.staticTexts["جارٍ الحفظ…"].waitForExistence(timeout: 8))
+        snap("final-splash-ar-light-saving")
+        XCTAssertTrue(app.staticTexts["تمت إضافة المعاملة"].waitForExistence(timeout: 8))
+        snap("final-splash-ar-light-added")
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 8))
+    }
+
     func testBudgetPetalTapMapsThreeOClockInEnglishAndArabic() {
         for appearance in ["Light", "Dark"] {
           for language in ["en", "ar"] {
-            launch(["-GhafTab", "insights", "-GhafLanguage", language], appearance: appearance)
+            launch(["-GhafTab", "insights"], appearance: appearance, language: language)
             let budget = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@", "Budget, Salary", "الميزانية", "الراتب")).firstMatch
             XCTAssertTrue(budget.waitForExistence(timeout: 10))
             budget.tap()
