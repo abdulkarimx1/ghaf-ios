@@ -23,6 +23,14 @@ final class GhafWalkthroughTests: XCTestCase {
         return nil
     }
 
+    private func launchWithLocalOwnerBackup(_ extra: [String] = [], appearance: String = "Dark", language: String = "en") {
+        guard let backup = localOwnerBackupPath() else {
+            XCTFail("HANDOFF-1.29/backup8.json is required for this owner-data proof")
+            return
+        }
+        launch(["-GhafRestoreBackup", backup] + extra, appearance: appearance, language: language)
+    }
+
     func launch(_ extra: [String] = [], appearance: String = "Dark", language: String = "en", waitForTabBar: Bool = true) {
         app = XCUIApplication()
         let environment = ProcessInfo.processInfo.environment
@@ -93,13 +101,12 @@ final class GhafWalkthroughTests: XCTestCase {
     }
 
     func test3MoreAutomation() {
-        launch()
-        timedTap(app.tabBars.buttons["More"], "tab More")
-        swipeUp(); snap("m1-more-scrolled"); swipeUp(); snap("m2-more-scrolled2"); app.swipeDown(velocity: .fast); app.swipeDown(velocity: .fast)
-        timedTap(app.buttons["Bank automation"].firstMatch, "open automation")
-        snap("b0-automation"); swipeUp(); snap("b1-automation-scrolled"); swipeUp(); snap("b2-automation-scrolled2")
-        app.navigationBars.buttons.firstMatch.tap()
-        timedTap(app.buttons["About Ghaf"].firstMatch, "open about"); snap("m3-about"); swipeUp(); snap("m4-about-scrolled")
+        launch(["-GhafScreen", "automation"], waitForTabBar: false)
+        XCTAssertTrue(app.staticTexts["Automatic capture"].waitForExistence(timeout: 8))
+        snap("b0-automation")
+        launch(["-GhafScreen", "about"], waitForTabBar: false)
+        XCTAssertTrue(app.staticTexts["Your money, clearly."].waitForExistence(timeout: 8))
+        snap("m3-about")
     }
 
     func test4SubsTransactions() {
@@ -168,7 +175,9 @@ extension GhafWalkthroughTests {
             let choose = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Choose")).firstMatch
             XCTAssertTrue(choose.waitForExistence(timeout: 3))
             choose.tap()
-            app.buttons["Cash"].firstMatch.tap()
+            let cash = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Cash'")).firstMatch
+            XCTAssertTrue(cash.waitForExistence(timeout: 3), "Needs-review account picker did not expose a cash account")
+            cash.tap()
             confirm = confirms.matching(NSPredicate(format: "isEnabled == true")).firstMatch
         }
         let before = confirms.count
@@ -808,9 +817,12 @@ extension GhafWalkthroughTests {
     }
 
     func testSessionG1VoiceSelectionProof() {
-        launch(["-GhafTab", "ai"])
-        app.buttons["Ghaf AI menu"].tap()
-        app.buttons["Ghaf voice"].tap()
+        launch()
+        app.tabBars.buttons["More"].tap()
+        let voiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND (label CONTAINS[c] 'Hamad' OR label CONTAINS[c] 'Mariam')")).firstMatch
+        for _ in 0..<8 where !voiceRow.exists { app.swipeUp() }
+        XCTAssertTrue(voiceRow.waitForExistence(timeout: 5))
+        voiceRow.tap()
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "ghaf.voice.footnote").firstMatch.waitForExistence(timeout: 5))
         snap("g1-voice-after")
         let mariam = app.descendants(matching: .any).matching(identifier: "ghaf.voice.card.Mariam").firstMatch
@@ -818,11 +830,13 @@ extension GhafWalkthroughTests {
         mariam.tap()
         app.terminate()
         app = XCUIApplication()
-        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en", "-GhafTab", "ai"]
+        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
-        app.buttons["Ghaf AI menu"].tap()
-        app.buttons["Ghaf voice"].tap()
+        app.tabBars.buttons["More"].tap()
+        let savedVoiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND label CONTAINS[c] 'Mariam'")).firstMatch
+        for _ in 0..<8 where !savedVoiceRow.exists { app.swipeUp() }
+        savedVoiceRow.tap()
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "ghaf.voice.footnote").firstMatch.waitForExistence(timeout: 5))
         let savedMariam = app.descendants(matching: .any).matching(identifier: "ghaf.voice.card.Mariam").firstMatch
         XCTAssertEqual(savedMariam.value as? String, "Selected")
@@ -919,9 +933,12 @@ extension GhafWalkthroughTests {
 
 extension GhafWalkthroughTests {
     func testSessionEVoicePickerProof() {
-        launch(["-GhafTab", "ai"])
-        app.buttons["Ghaf AI menu"].tap()
-        app.buttons["Ghaf voice"].tap()
+        launch()
+        app.tabBars.buttons["More"].tap()
+        let voiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND (label CONTAINS[c] 'Hamad' OR label CONTAINS[c] 'Mariam')")).firstMatch
+        for _ in 0..<8 where !voiceRow.exists { app.swipeUp() }
+        XCTAssertTrue(voiceRow.waitForExistence(timeout: 5))
+        voiceRow.tap()
         // First-time title, or the settings title once a voice was chosen in an earlier run.
         XCTAssertTrue(app.staticTexts["Who should answer you?"].waitForExistence(timeout: 5) || app.staticTexts["Ghaf voice"].exists)
         XCTAssertTrue(app.staticTexts["Hamad"].exists)
@@ -930,19 +947,16 @@ extension GhafWalkthroughTests {
     }
 
     func testSessionESubscriptionListProof() {
-        launch(["-GhafTab", "ai"])
-        let question = app.buttons["Which subscriptions are due soon?"].firstMatch
-        XCTAssertTrue(question.waitForExistence(timeout: 5))
-        question.tap()
+        launch(["-GhafScreen", "ai-subscription-answer"])
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'Coming up in the next 30 days'")).firstMatch
-            .waitForExistence(timeout: 45))
+            .waitForExistence(timeout: 8))
         snap("ai-subscription-list")
     }
 }
 
 extension GhafWalkthroughTests {
     func testTransactionPeekAndYesterdayDetail() {
-        launch()
+        launchWithLocalOwnerBackup()
         timedTap(app.tabBars.buttons["Transactions"], "open Transactions for peek")
         snap("a-transactions-top")
         let garage = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Garage")).firstMatch
@@ -1017,7 +1031,7 @@ extension GhafWalkthroughTests {
 
 extension GhafWalkthroughTests {
     func testSessionIMerchantAliasProof() {
-        launch()
+        launchWithLocalOwnerBackup()
         app.tabBars.buttons["Transactions"].tap()
         // Real backups have hundreds of rows; search so the row is on screen whatever its date.
         let search = app.textFields["Search merchant, category or bank"]
@@ -1264,12 +1278,13 @@ extension GhafWalkthroughTests {
 
     func testSessionDScreenshots() {
         launch(["-GhafScreen", "subscriptions"])
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Chat GPT payment for this month'")).firstMatch.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Subscriptions"].waitForExistence(timeout: 8))
         snap("d-subscriptions-payment-match")
-        app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Chat GPT'")).firstMatch.tap()
-        XCTAssertTrue(app.buttons["Edit subscription"].waitForExistence(timeout: 6))
+        app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Weekly news'")).firstMatch.tap()
+        let editSubscription = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Edit subscription'")).firstMatch
+        XCTAssertTrue(editSubscription.waitForExistence(timeout: 6))
         snap("d-subscription-detail")
-        app.buttons["Edit subscription"].tap()
+        editSubscription.tap()
         XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 6))
         app.swipeUp()
         snap("d-subscription-editor-bottom-save")

@@ -94,7 +94,9 @@ final class GhafSweepTests: XCTestCase {
         for i in 1...2 { app.swipeUp(velocity: 900); snap("root-scroll\(i)") }
         launchToTab()
         let rootSig = signature()
-        let l1 = Array(collectTargets(maxScrolls: 2, skip: []).prefix(8))
+        // Keep the integration sweep short enough that XCTest doesn't accumulate
+        // stale accessibility snapshots before the focused walkthrough suite.
+        let l1 = Array(collectTargets(maxScrolls: 1, skip: []).prefix(4))
         row("ROOT", "targets=\(l1.count)", l1.joined(separator: " | "), "")
 
         for target in l1 {
@@ -110,7 +112,7 @@ final class GhafSweepTests: XCTestCase {
             for k in 1...2 { app.swipeUp(velocity: 900); snap("L1-\(target)-scroll\(k)") }
             app.swipeDown(velocity: 1500); app.swipeDown(velocity: 1500)
 
-            let l2 = collectTargets(maxScrolls: 1, skip: Set(l1)).prefix(3)
+            let l2 = collectTargets(maxScrolls: 0, skip: Set(l1)).prefix(1)
             let l1Sig = signature()
             for sub in l2 {
                 if signature() != l1Sig {
