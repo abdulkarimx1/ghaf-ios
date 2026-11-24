@@ -19,7 +19,7 @@ struct GhafPrivacyPolicyView: View {
             VStack(alignment: .leading, spacing: 18) {
                 GhafScreenTitle(
                     title: isArabic ? "سياسة الخصوصية" : "Privacy policy",
-                    subtitle: isArabic ? "تاريخ السريان: ٧ نوفمبر ٢٠٢٦" : "Effective date: 7 November 2026",
+                    subtitle: isArabic ? "تاريخ السريان: ٢٥ نوفمبر ٢٠٢٦" : "Effective date: 25 November 2026",
                     languageCode: settings.languageCode,
                     theme: theme
                 )
@@ -48,8 +48,15 @@ struct GhafPrivacyPolicyView: View {
                 section(
                     isArabic ? "الإضافة بالصوت" : "Voice entry",
                     isArabic
-                    ? "عند بدء التسجيل، يطلب غاف إذن الميكروفون والتعرّف على الكلام. يستخدم iOS لإنشاء نص قابل للمراجعة. قد تستخدم Apple خدمتها السحابية عندما لا تتوفر المعالجة على الجهاز، وفق شروط Apple. لا يرسل غاف الصوت أو النص إلى خادم تابع له."
-                    : "When you start voice entry, Ghaf requests microphone and speech-recognition permission. iOS creates an editable transcript. Apple may use its speech service when on-device recognition is unavailable, subject to Apple's terms. Ghaf does not send audio or transcripts to a Ghaf-operated server."
+                    ? "عند بدء التسجيل، يطلب غاف إذن الميكروفون والتعرّف على الكلام. يستخدم iOS لإنشاء نص قابل للمراجعة. قد تستخدم Apple خدمتها السحابية عندما لا تتوفر المعالجة على الجهاز، وفق شروط Apple. لا ترسل الإضافة بالصوت الصوت أو النص إلى خادم تابع لغاف."
+                    : "When you start voice entry, Ghaf requests microphone and speech-recognition permission. iOS creates an editable transcript. Apple may use its speech service when on-device recognition is unavailable, subject to Apple's terms. Voice entry does not send audio or transcripts to a Ghaf-operated server."
+                )
+
+                section(
+                    isArabic ? "ذكاء غاف" : "Ghaf AI",
+                    isArabic
+                    ? "ذكاء غاف هو الميزة الوحيدة التي ترسل بيانات خارج جهازك، وفقط عندما تسأله بالكتابة أو بالصوت. يُرسَل سؤالك وأقل قدر من التفاصيل المالية اللازمة للإجابة عبر خادم غاف إلى خدمة Gemini من Google لإنشاء الرد، بما في ذلك الردود الصوتية. لا يحفظ غاف هذا المحتوى ولا يطّلع عليه ولا يستخدمه لأي غرض آخر. تعالج Google الطلب وفق شروط واجهتها البرمجية."
+                    : "Ghaf AI is the only feature that sends data off your device, and only when you ask it something by text or voice. Your question and the minimum financial details needed to answer it travel through Ghaf's server to Google's Gemini service to create the reply, including spoken replies. Ghaf never stores, inspects or uses this content for anything else. Google processes the request under its API terms."
                 )
 
                 section(

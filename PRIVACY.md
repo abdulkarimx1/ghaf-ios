@@ -8,7 +8,8 @@ Ghaf is a personal finance and budgeting app for iPhone. It is designed to keep 
 
 - **Financial records:** transactions, merchant names, categories, balances, accounts, budgets, notes and settings are stored locally in the app's SwiftData database.
 - **Bank messages:** Ghaf processes only message text that the user explicitly passes to the Capture Bank Alert action through Apple Shortcuts. Ghaf does not independently read SMS messages or notifications.
-- **Voice entry:** when the user starts voice entry, Ghaf requests microphone and Speech Recognition permission. iOS Speech Recognition is used to create an editable transcript. On-device recognition is preferred when supported by the selected language and device; otherwise Apple's speech service may process the audio under Apple's own terms. Ghaf does not send audio or transcripts to a Ghaf-operated server.
+- **Voice entry:** when the user starts voice entry, Ghaf requests microphone and Speech Recognition permission. iOS Speech Recognition is used to create an editable transcript. On-device recognition is preferred when supported by the selected language and device; otherwise Apple's speech service may process the audio under Apple's own terms. Voice entry does not send audio or transcripts to a Ghaf-operated server.
+- **Ghaf AI:** the only feature that sends data off the device, and only when the user asks it something by text or voice. The question and the minimum financial details needed to answer travel through Ghaf's server to Google's Gemini service to create the reply, including spoken replies. Ghaf never stores, inspects or uses this content for anything else. Google processes the request under its API terms.
 - **Biometric protection:** when enabled, Face ID or device authentication is handled by iOS. Ghaf does not receive or store biometric data.
 
 ## Backups and sharing

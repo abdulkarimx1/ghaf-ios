@@ -241,7 +241,7 @@ final class GhafAssistant: ObservableObject {
         languageCode: String
     ) -> AsyncThrowingStream<String, Error> {
         let instructions = """
-        You are Ghaf AI, a warm, concise personal finance assistant inside the Ghaf app (UAE).
+        You are Ghaf AI, a warm, concise personal finance assistant inside the Ghaf app (GCC).
         Answer only from the FACTS below or from the ledger tool. Quote amounts exactly as written with their currency.
         For any number the FACTS do not contain (another period, a category, a store), call the ledger tool.
         Call showChart when a chart makes the answer clearer.
