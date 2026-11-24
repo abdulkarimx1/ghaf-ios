@@ -140,7 +140,7 @@ struct GhafSnapshotTests {
         case .widgets:
             AnyView(GhafWidgetGalleryView(settings: settings))
         case .pro:
-            AnyView(GhafProView(settings: settings, showsClose: false))
+            AnyView(GhafProView(settings: settings, showsClose: false, allowsHeroMotion: false))
         case .bankAutomation:
             AnyView(GhafAutomationGuideView(settings: settings))
         }

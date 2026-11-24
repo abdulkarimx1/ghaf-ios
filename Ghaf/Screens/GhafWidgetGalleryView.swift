@@ -33,7 +33,7 @@ struct GhafWidgetGalleryView: View {
                         Image(systemName: "sparkles").font(.system(size: 24, weight: .semibold)).foregroundStyle(theme.accent)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(ar ? "انضم إلى غاف Pro" : "Join Ghaf Pro").font(GhafTypography.heading(19, languageCode: lang))
-                            Text(ar ? "افتح الأدوات والخيارات الإضافية" : "Unlock more widgets and customization").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            Text(ar ? "افتح الودجات وخيارات التخصيص" : "Unlock more widgets and customization").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         }
                         Spacer(minLength: 4)
                         Image(systemName: "chevron.forward").font(.system(size: 12, weight: .bold)).foregroundStyle(theme.secondaryText)
@@ -61,7 +61,7 @@ struct GhafWidgetGalleryView: View {
                                 .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
                                 .lineLimit(1).minimumScaleFactor(0.75)
                         }
-                        .padding(10).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .gridCellColumns(family == .systemMedium ? 2 : 1)
                     }
                 }
@@ -69,10 +69,10 @@ struct GhafWidgetGalleryView: View {
             .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 16)
         }
         .background(theme.background)
-        .navigationTitle(ar ? "الأدوات" : "Widgets")
+        .navigationTitle(ar ? "الودجات" : "Widgets")
         .ghafDirection(lang)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الأدوات")).ghafDirection(lang) }
+        .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الودجات")).ghafDirection(lang) }
     }
 
     @ViewBuilder private func widgetPreview(_ name: String, family: WidgetFamily) -> some View {

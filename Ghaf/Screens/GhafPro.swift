@@ -1,6 +1,23 @@
 import SwiftUI
 import StoreKit
 
+private struct GhafProHeroEntrance: ViewModifier {
+    let isActive: Bool
+    let isVisible: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isActive {
+            content
+                .opacity(isVisible ? 1 : 0)
+                .scaleEffect(isVisible ? 1 : 0.94)
+                .offset(y: isVisible ? 0 : 10)
+        } else {
+            content
+        }
+    }
+}
+
 struct GhafProFeatureMask<Content: View>: View {
     let isUnlocked: Bool
     let theme: GhafTheme
@@ -41,8 +58,10 @@ struct GhafProFeatureMask<Content: View>: View {
 struct GhafProView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let settings: GhafSettings
     var showsClose = true
+    var allowsHeroMotion = true
 
     @State private var yearly = true
     private let monthlyID = "com.ghaf.app.pro.monthly"
@@ -56,6 +75,7 @@ struct GhafProView: View {
     @State private var accessCode = ""
     @State private var redeemingAccessCode = false
     @State private var accessRevision = 0
+    @State private var heroAppeared: Bool
     private enum VoiceAllowance {
         // Keep aligned with backend/ghaf-ai-worker/worker.js voiceLimit().
         static let monthlyDailyReplies = 3
@@ -67,13 +87,34 @@ struct GhafProView: View {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
 
+    init(settings: GhafSettings, showsClose: Bool = true, allowsHeroMotion: Bool = true) {
+        self.settings = settings
+        self.showsClose = showsClose
+        self.allowsHeroMotion = allowsHeroMotion
+        _heroAppeared = State(initialValue: !allowsHeroMotion)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
-                Text("Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
-                Text(ar ? "تابع إنفاقك بتفاصيل أكثر" : "See where your money goes.")
-                    .foregroundStyle(theme.secondaryText)
+                VStack(spacing: 16) {
+                    Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
+                    Text("Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
+                    Text(ar ? "تابع إنفاقك بتفاصيل أكثر" : "See where your money goes.")
+                        .foregroundStyle(theme.secondaryText)
+                }
+                .frame(maxWidth: .infinity)
+                .modifier(GhafProHeroEntrance(isActive: allowsHeroMotion && !reduceMotion, isVisible: heroAppeared))
+                .onAppear {
+                    guard !heroAppeared else { return }
+                    guard allowsHeroMotion && !reduceMotion else {
+                        heroAppeared = true
+                        return
+                    }
+                    withAnimation(.spring(duration: 0.58, bounce: 0.12).delay(0.05)) {
+                        heroAppeared = true
+                    }
+                }
                 if offerHighlight {
                     VStack(spacing: 10) {
                         Label(ar ? "هدية قبل الرحيل" : "A gift before you go", systemImage: "gift.fill")
@@ -101,11 +142,14 @@ struct GhafProView: View {
                 }
                 purchaseControls
                 // Apple 3.1.2: renewal terms on the paywall itself, next to the price.
-                VStack(spacing: 2) {
-                    Text(ar ? "يتجدد بالسعر نفسه ما لم تُلغِه قبل ٢٤ ساعة من نهاية الفترة." : "Renews at the same price unless cancelled at least 24 hours before renewal.")
-                    Text(ar ? "ألغِه في أي وقت من إعدادات حساب Apple." : "Cancel anytime in your Apple Account settings.")
+                VStack(spacing: 1) {
+                    Text(ar ? "يتجدد تلقائيًا بالسعر نفسه؛ ألغِ قبل نهاية الفترة بـ٢٤ ساعة على الأقل." : "Auto-renews at the same price; cancel at least 24 hours before the period ends.")
+                    Text(ar ? "يمكنك الإلغاء في أي وقت من إعدادات حساب Apple." : "Cancel anytime in your Apple Account settings.")
                 }
-                .font(.caption).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .frame(maxWidth: .infinity)
+                .font(.system(size: 10)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
                 HStack {
                     // Shown in every build; inactive until the App Store account exists.
                     Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
@@ -282,7 +326,7 @@ struct GhafProView: View {
                         .font(GhafTypography.body(10, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
                     Text(allowance(annual: annual))
                         .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
-                    Text(ar ? "تجربة مجانية ٣ أيام" : "3-day free trial")
+                    Text(ar ? "تجربة مجانية لمدة ٣ أيام" : "3-day free trial")
                         .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
                 }
                 Spacer(minLength: 2)

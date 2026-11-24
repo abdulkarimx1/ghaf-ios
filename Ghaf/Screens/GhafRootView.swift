@@ -244,6 +244,7 @@ struct GhafRootView: View {
 #if DEBUG
         if GhafScreenshotFixture.enabled, !GhafScreenshotFixture.launchNewUser, let currentSettings = settings.first {
             switch GhafScreenshotFixture.screen {
+            case "importSheet": GhafImportSheet(settings: currentSettings)
             case "automation": GhafAutomationGuideView(settings: currentSettings)
             case "insights": GhafStatsView(settings: currentSettings).environment(fixtureRouter)
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
@@ -253,14 +254,14 @@ struct GhafRootView: View {
             case "salary-settings": GhafSalarySettingsView(settings: currentSettings)
             case "budget-salary-currency": GhafBudgetView(settings: currentSettings)
             case "account-editor": NavigationStack { GhafAccountEditorView(account: nil, settings: currentSettings) }
-            case "new-transaction": GhafTabView(settings: currentSettings)
-            case "amount-pad": GhafTabView(settings: currentSettings)
+            case "new-transaction": GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
+            case "amount-pad": GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
             case nil where GhafScreenshotFixture.tab == "subscriptions": GhafSubscriptionsView(settings: currentSettings)
-            default: GhafTabView(settings: currentSettings)
+            default: GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
             }
         } else if let currentSettings = settings.first {
             if currentSettings.hasCompletedOnboarding {
-                GhafTabView(settings: currentSettings)
+                GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
             } else {
                 GhafOnboardingView(settings: currentSettings)
             }
@@ -278,7 +279,7 @@ struct GhafRootView: View {
 #else
         if let currentSettings = settings.first {
             if currentSettings.hasCompletedOnboarding {
-                GhafTabView(settings: currentSettings)
+                GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
             } else {
                 GhafOnboardingView(settings: currentSettings)
             }
@@ -390,10 +391,13 @@ final class GhafTabRouter {
     var isListening = false
     var startVoice: (() -> Void)?
     var typeQuestion: (() -> Void)?
+    var pendingMilestone: Int?
+    var isSaveSplashPresented = false
 }
 
 struct GhafTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.ghafGlass) private var glass
@@ -408,6 +412,12 @@ struct GhafTabView: View {
     @State private var linkedTransaction: GhafTransaction?
     @State private var showWidgetQuickAdd = false
     @State private var showWidgetPro = false
+    @State private var activeInAppCard: GhafInAppCardContent?
+    @State private var queuedStreakMilestone: Int?
+    @State private var queuedAnnouncement: GhafAnnouncement?
+    @State private var streakHapticToken = 0
+    @State private var celebratedCardIDs: Set<String> = []
+    @State private var waitingForModalToClose = false
 #if DEBUG
     @State private var speedReport = ""
 #endif
@@ -417,9 +427,34 @@ struct GhafTabView: View {
     @State private var categoryMeta: [String: GhafCategoryMeta] = [:]
 
     let settings: GhafSettings
+    @Binding var launchIsFinished: Bool
 
     private var summarySettingsKey: String {
         "\(settings.currency)|\(settings.categoriesJSON)|\(weekStart)|\(settings.languageCode)"
+    }
+
+#if DEBUG
+    private var debugProofCard: GhafInAppCardContent? {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-GhafStreakCardProof") { return .streak(days: 7) }
+        if arguments.contains("-GhafAnnouncementCardProof") {
+            let arabic = settings.languageCode == "ar"
+            return .announcement(GhafAnnouncement(
+                id: "proof-announcement", title: arabic ? "يتوفر تحديث غاف" : "A Ghaf update is ready",
+                body: arabic ? "حدّث غاف للاستفادة من التحسينات الجديدة." : "Update Ghaf for the latest improvements.",
+                code: arguments.contains("-GhafVoucherCardProof") ? "GHAF30" : nil,
+                expires: .now.addingTimeInterval(86_400)))
+        }
+        return nil
+    }
+#endif
+
+    private var cardForPresentation: GhafInAppCardContent? {
+#if DEBUG
+        activeInAppCard ?? debugProofCard
+#else
+        activeInAppCard
+#endif
     }
 
     var body: some View {
@@ -519,7 +554,7 @@ struct GhafTabView: View {
             }
         }
         .sheet(isPresented: $showWidgetQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
-        .sheet(isPresented: $showWidgetPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الأدوات")).ghafDirection(settings.languageCode) }
+        .sheet(isPresented: $showWidgetPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الودجات")).ghafDirection(settings.languageCode) }
         .sheet(item: $linkedTransaction) { transaction in
             NavigationStack { GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: linkAccounts.filter { !$0.isArchived }) }
                 .ghafDirection(settings.languageCode)
@@ -589,6 +624,52 @@ struct GhafTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             Task { @MainActor in router.ledgerRevision += 1 }
         }
+        .onChange(of: router.ledgerRevision) { _, _ in checkForStreakMilestone() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            checkForStreakMilestone()
+            checkForAnnouncement()
+        }
+        .onAppear {
+            GhafEventNotifications.configure()
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-GhafStreakLogToday") {
+                logStreakProofTransactionIfNeeded()
+            }
+#endif
+            checkForStreakMilestone()
+            checkForAnnouncement()
+#if DEBUG
+            if let index = ProcessInfo.processInfo.arguments.firstIndex(of: "-GhafNotificationProof"),
+               ProcessInfo.processInfo.arguments.indices.contains(index + 1) {
+                GhafEventNotifications.scheduleDebugEvent(ProcessInfo.processInfo.arguments[index + 1])
+            }
+            if ProcessInfo.processInfo.arguments.contains("-GhafStreakCardProof") {
+                queuedStreakMilestone = 7
+                presentNextCard()
+            }
+            if ProcessInfo.processInfo.arguments.contains("-GhafAnnouncementCardProof") {
+                let ar = settings.languageCode == "ar"
+                queuedAnnouncement = GhafAnnouncement(
+                    id: "proof-announcement", title: ar ? "يتوفر تحديث غاف" : "A Ghaf update is ready",
+                    body: ar ? "حدّث غاف للاستفادة من التحسينات الجديدة." : "Update Ghaf for the latest improvements.",
+                    code: ProcessInfo.processInfo.arguments.contains("-GhafVoucherCardProof") ? "GHAF30" : nil,
+                    expires: .now.addingTimeInterval(86_400))
+                presentNextCard()
+            }
+#endif
+        }
+        .onChange(of: showWidgetQuickAdd) { _, _ in presentNextCard() }
+        .onChange(of: showWidgetPro) { _, _ in presentNextCard() }
+        .onChange(of: linkedTransaction != nil) { _, _ in presentNextCard() }
+        .onChange(of: showOrbOverlay) { _, _ in presentNextCard() }
+        .onChange(of: router.isSaveSplashPresented) { _, _ in presentNextCard() }
+        .onChange(of: launchIsFinished) { _, finished in
+            guard finished else { return }
+            checkForStreakMilestone()
+            checkForAnnouncement()
+            presentNextCard()
+        }
         .onChange(of: summarySettingsKey) { _, _ in router.ledgerRevision += 1 }
         .onChange(of: router.isListening) { _, listening in
             if listening {
@@ -606,10 +687,138 @@ struct GhafTabView: View {
         .onChange(of: settings.categoryMetaJSON, initial: true) { categoryMeta = settings.categoryMeta }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background.ignoresSafeArea())
+        .overlay(alignment: .bottom) {
+            if let card = cardForPresentation,
+               activeInAppCard == nil || (!showOrbOverlay && !router.isSaveSplashPresented && !showWidgetQuickAdd &&
+                                          !showWidgetPro && linkedTransaction == nil && !hasModalPresentation && launchIsFinished) {
+                GhafInAppCard(content: card, theme: theme, languageCode: settings.languageCode,
+                              onAction: { performCardAction(card) },
+                              onDismiss: { dismissCard(card) },
+                              onAppear: { cardDidAppear(card) })
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 88)
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(10)
+            }
+        }
+        .sensoryFeedback(.success, trigger: streakHapticToken)
         .preferredColorScheme(
             settings.appearanceMode == "Dark" || router.selectedTab == 1 ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
+    }
+
+    private func checkForStreakMilestone() {
+        guard queuedStreakMilestone == nil else { return }
+        guard let transactions = try? modelContext.fetch(FetchDescriptor<GhafTransaction>()) else { return }
+        let dates = transactions.map { GhafLoggingStreak.Entry(date: $0.date, needsReview: $0.needsReview) }
+        guard let milestone = GhafLoggingStreak.newlyReachedMilestone(
+            dates: dates, now: .now, calendar: GhafCalendar.current,
+            lastCelebrated: UserDefaults.standard.string(forKey: "ghaf.streak.lastCelebrated")
+        ) else { return }
+        queuedStreakMilestone = milestone
+        presentNextCard()
+    }
+
+#if DEBUG
+    private func logStreakProofTransactionIfNeeded() {
+        let existing = (try? modelContext.fetch(FetchDescriptor<GhafTransaction>())) ?? []
+        guard !existing.contains(where: { !$0.needsReview && Calendar.current.isDateInToday($0.date) }) else { return }
+        let account = (try? modelContext.fetch(FetchDescriptor<GhafAccount>()))?.first
+        let parsed = ParsedTransaction(amount: 35, currency: settings.currency, merchant: "Lunch", date: .now,
+                                       direction: .debit, confidence: 1, bank: nil)
+        modelContext.insert(GhafTransaction(fingerprint: "streak-ui-proof-\(UUID().uuidString)", parsed: parsed,
+                                            category: "Food & Dining", needsReview: false, isReversal: false,
+                                            accountID: account?.id))
+        try? modelContext.save()
+    }
+#endif
+
+    private func checkForAnnouncement() {
+        guard activeInAppCard == nil, queuedAnnouncement == nil else { return }
+        Task { @MainActor in
+            guard let item = await GhafAnnouncementService.check(language: settings.languageCode) else { return }
+            queuedAnnouncement = item
+            presentNextCard()
+        }
+    }
+
+    private func presentNextCard() {
+        guard activeInAppCard == nil else { return }
+        guard !showOrbOverlay, !router.isSaveSplashPresented, !showWidgetQuickAdd, !showWidgetPro,
+              linkedTransaction == nil, !hasModalPresentation, launchIsFinished, scenePhase == .active else {
+            waitForCardPresentationWindow()
+            return
+        }
+        if let days = queuedStreakMilestone {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.45, dampingFraction: 0.86)) {
+                activeInAppCard = .streak(days: days)
+            }
+            queuedStreakMilestone = nil
+        } else if let item = queuedAnnouncement {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.45, dampingFraction: 0.86)) {
+                activeInAppCard = .announcement(item)
+            }
+            queuedAnnouncement = nil
+        }
+    }
+
+    private func cardDidAppear(_ card: GhafInAppCardContent) {
+        guard celebratedCardIDs.insert(card.id).inserted else { return }
+        guard case .streak(let days) = card,
+              let transactions = try? modelContext.fetch(FetchDescriptor<GhafTransaction>()) else { return }
+        let dates = transactions.map { GhafLoggingStreak.Entry(date: $0.date, needsReview: $0.needsReview) }
+        if let key = GhafLoggingStreak.celebrationKey(for: days, dates: dates, now: .now, calendar: GhafCalendar.current) {
+            UserDefaults.standard.set(key, forKey: "ghaf.streak.lastCelebrated")
+        }
+        GhafSounds.shared.play(.streak)
+        streakHapticToken += 1
+    }
+
+    private var hasModalPresentation: Bool {
+        guard let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows).first(where: \.isKeyWindow),
+              var controller = window.rootViewController else { return false }
+        while let presented = controller.presentedViewController {
+            if !presented.isBeingDismissed { return true }
+            controller = presented
+        }
+        return false
+    }
+
+    private func waitForCardPresentationWindow() {
+        guard !waitingForModalToClose else { return }
+        waitingForModalToClose = true
+        Task { @MainActor in
+            while waitingForModalToClose {
+                try? await Task.sleep(for: .milliseconds(350))
+                guard scenePhase == .active else { continue }
+                guard !showOrbOverlay, !router.isSaveSplashPresented, !showWidgetQuickAdd, !showWidgetPro,
+                      linkedTransaction == nil, !hasModalPresentation, launchIsFinished else { continue }
+                waitingForModalToClose = false
+                presentNextCard()
+            }
+        }
+    }
+
+    private func performCardAction(_ card: GhafInAppCardContent) {
+        switch card {
+        case .streak(let days):
+            router.pendingMilestone = days
+            router.selectedTab = 4
+        case .announcement(let item):
+            if let code = item.code { UIPasteboard.general.string = code }
+            else { UIApplication.shared.open(GhafLinks.appStore) }
+        }
+        dismissCard(card)
+    }
+
+    private func dismissCard(_ card: GhafInAppCardContent) {
+        if case .announcement(let item) = card { GhafAnnouncementService.dismiss(item) }
+        withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.45, dampingFraction: 0.86)) {
+            activeInAppCard = nil
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { presentNextCard() }
     }
 
     private func handleAITabOrbTap() {
@@ -734,6 +943,9 @@ struct GhafOnboardingView: View {
     @State private var viewedGuide = false
     @State private var preset = BudgetAllocation.Preset.balanced
     @GestureState private var drag: CGFloat = 0
+    @GestureState private var introPressed = false
+    @State private var introCardsShown = false
+    @State private var pageDirection = 1
 
     private var introCards: [GhafCardDesign] {
         let preferred = ["mashreq", "adcb", "enbd"].compactMap { bankID in
@@ -779,7 +991,11 @@ struct GhafOnboardingView: View {
                 }
                 .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 28)
                 .frame(maxWidth: .infinity)
-                .id(step).transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 12)))
+                .id(step)
+                .transition(reduceMotion ? .identity : .asymmetric(
+                    insertion: .move(edge: pageDirection > 0 ? .trailing : .leading).combined(with: .opacity),
+                    removal: .move(edge: pageDirection > 0 ? .leading : .trailing).combined(with: .opacity)
+                ))
             }
             .overlay(alignment: .top) {
                 LinearGradient(stops: [.init(color: theme.background, location: 0), .init(color: theme.background, location: 0.45),
@@ -866,7 +1082,22 @@ struct GhafOnboardingView: View {
             introHero
                 .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 260)
                 .offset(x: reduceMotion ? 0 : drag * 0.08)
-                .simultaneousGesture(DragGesture().updating($drag) { value, state, _ in state = value.translation.width })
+                .scaleEffect(introPressed && !reduceMotion ? 0.985 : 1)
+                .animation(.spring(duration: 0.24, bounce: 0.08), value: introPressed)
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .updating($drag) { value, state, _ in state = value.translation.width }
+                        .updating($introPressed) { value, state, _ in
+                            state = abs(value.translation.width) < 10 && abs(value.translation.height) < 10
+                        }
+                        .onEnded { value in
+                            guard abs(value.translation.width) > 56,
+                                  abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
+                            let forward = languageCode == "ar" ? value.translation.width > 0 : value.translation.width < 0
+                            move(to: min(max(step + (forward ? 1 : -1), 0), 4))
+                        }
+                )
                 .accessibilityHidden(true)
             Text(page.1).font(GhafTypography.display(34, languageCode: languageCode))
             Text(page.2).font(GhafTypography.body(16, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
@@ -881,13 +1112,36 @@ struct GhafOnboardingView: View {
                 ZStack {
                     ForEach(introCards.indices, id: \.self) { index in
                         let card = introCards[index]
-                        card.image.resizable().scaledToFill()
-                            .frame(width: width, height: width / 1.586).clipShape(RoundedRectangle(cornerRadius: 16))
-                            .scaleEffect(index == 1 ? 1 : 0.9)
-                            .offset(x: CGFloat(index - 1) * width * 0.48, y: index == 1 ? 0 : 13)
+                        let focused = index == 1
+                        Group {
+                            if reduceMotion {
+                                card.image.resizable().scaledToFill()
+                            } else {
+                                card.image.resizable().scaledToFill()
+                                    .phaseAnimator([false, true]) { content, phase in
+                                        content.offset(y: phase ? -1.5 : 1.5)
+                                    } animation: { _ in .smooth(duration: 2.4) }
+                            }
+                        }
+                            .frame(width: width, height: width / 1.586)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .scaleEffect(introCardsShown || reduceMotion ? (focused ? 1 : 0.9) : 0.84)
+                            .opacity(introCardsShown || reduceMotion ? 1 : 0)
+                            .offset(x: CGFloat(index - 1) * width * 0.48
+                                    + (reduceMotion ? 0 : drag * CGFloat(index - 1) * 0.035),
+                                    y: (index == 1 ? 0 : 13) + (introCardsShown || reduceMotion ? 0 : 18))
+                            .shadow(color: theme.glow.opacity(focused ? 0.18 : 0.08), radius: focused ? 16 : 9, y: 8)
+                            .animation(.spring(duration: 0.56, bounce: 0.13).delay(Double(index) * 0.075), value: introCardsShown)
                             .zIndex(Double(3 - abs(index - 1)))
                     }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    guard !introCardsShown else { return }
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(duration: 0.5, bounce: 0.1)) {
+                        introCardsShown = true
+                    }
+                }
             }
         case 1:
             VStack(spacing: 8) {
@@ -966,7 +1220,9 @@ struct GhafOnboardingView: View {
     }
 
     private func move(to page: Int) {
-        withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.35)) { step = page }
+        guard (0..<stepCount).contains(page), page != step else { return }
+        pageDirection = page > step ? 1 : -1
+        withAnimation(reduceMotion ? .none : .spring(duration: 0.48, bounce: 0.15)) { step = page }
     }
 
     private func restart() {

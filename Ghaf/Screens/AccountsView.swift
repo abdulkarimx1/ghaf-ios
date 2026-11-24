@@ -50,7 +50,7 @@ struct GhafAccountsView: View {
     private func walletContent(_ balances: [UUID: Decimal]) -> some View {
         VStack(spacing: GhafMetrics.sectionSpacing) {
             if activeAccounts.isEmpty {
-                emptyState
+                emptyState.ghafEntrance(1)
                 Button { editorTarget = EditorTarget(account: nil) } label: {
                     Label(lang == "ar" ? "إضافة حساب أو محفظة" : "Add account or wallet", systemImage: "plus")
                         .frame(maxWidth: .infinity)

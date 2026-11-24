@@ -47,6 +47,7 @@ export default {
 async function handle(request, env, usage) {
     const path = new URL(request.url).pathname;
     if (request.method === "GET" && path === "/health") return json({ ok: true });
+    if (request.method === "GET" && path === "/announcement") return announcement(request, env);
     if (request.method === "GET" && path === "/tips") return json({ version: 1, tips: MONEY_TIPS });
     if (request.method === "GET" && path === "/voice-usage") {
       const auth = authorize(request, env);
@@ -287,6 +288,26 @@ async function liveToken(body, env, developer, device, usage) {
   if (usage) { usage.model = env.LIVE_MODEL || "models/gemini-3.8-live"; usage.outcome = "ok"; }
   return json({ token: data.name, model: env.LIVE_MODEL || "models/gemini-3.8-live", expiresAt: expires,
     voice: character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus" });
+}
+
+async function announcement(request, env) {
+  const raw = env.ANNOUNCEMENT || await env.USAGE?.get("ghaf:announcement");
+  if (!raw) return json({ error: "no_announcement" }, 404);
+  let value;
+  try { value = typeof raw === "string" ? JSON.parse(raw) : raw; } catch { return json({ error: "invalid_announcement" }, 500); }
+  if (!value || typeof value !== "object" || !value.id || !value.title || !value.body || !value.expires) {
+    return json({ error: "invalid_announcement" }, 500);
+  }
+  const expiresAt = Date.parse(value.expires);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return json({ error: "no_announcement" }, 404);
+  const language = (request.headers.get("Accept-Language") || "en").toLowerCase().startsWith("ar") ? "ar" : "en";
+  const localized = (item) => typeof item === "string" ? item : item?.[language] || item?.en || "";
+  return json({
+    id: String(value.id), title: localized(value.title), body: localized(value.body),
+    ...(typeof value.minVersion === "string" ? { minVersion: value.minVersion } : {}),
+    ...(typeof value.code === "string" ? { code: value.code } : {}),
+    expires: new Date(expiresAt).toISOString()
+  });
 }
 
 async function redeemAccessCode(body, env, device, usage) {

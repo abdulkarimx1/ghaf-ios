@@ -62,6 +62,9 @@ struct GhafApp: App {
                     if ProcessInfo.processInfo.arguments.contains("-GhafActivityLifecycleProof") {
                         Task { await GhafWidgetSync.runLifecycleProof() }
                     }
+                    if ProcessInfo.processInfo.arguments.contains("-GhafActivityVisualProof") {
+                        Task { await GhafWidgetSync.runVisualProof() }
+                    }
                     if ProcessInfo.processInfo.arguments.contains("-GhafBackupArabicNameProof") {
                         do {
                             let result = try GhafBackupService.debugArabicNameRoundTripProof()

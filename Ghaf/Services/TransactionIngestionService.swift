@@ -1,7 +1,6 @@
 import Foundation
 import CryptoKit
 import SwiftData
-import UserNotifications
 import GhafCore
 
 struct TransactionIngestionResult {
@@ -194,13 +193,11 @@ final class TransactionIngestionService {
         try context.save()
         GhafAccountMappings.recordAlert(transactionID: transaction.id, bank: parsed.bank, sender: sender,
                                         accountRef: parsed.accountRef)
-        // One notification per transaction: the unusual-charge note when it applies, else what was added.
-        if let unusual, let merchant = parsed.merchant {
-            notifyUnusual(merchant: merchant, parsed: parsed, typical: unusual.typical)
-        } else {
-            let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
-            GhafDigestNotifications.transactionAdded(transaction, needsReview: needsReview, languageCode: language)
-        }
+        // One notification per capture: a saved record gets the normal transaction banner with
+        // unusual-charge context as a subtitle; records held for review get the review alert.
+        let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
+        GhafDigestNotifications.transactionAdded(transaction, needsReview: needsReview, languageCode: language,
+                                                  unusual: unusual != nil)
         GhafDigestNotifications.reschedule(context: context)
         GhafWidgetSync.refresh(context: context)
         // The Live Activity is started by the calling LiveActivityIntent, which iOS lets run in the background.
@@ -332,20 +329,6 @@ final class TransactionIngestionService {
             predicate: #Predicate { $0.direction == "debit" && !$0.isReversal && $0.currency == currency && $0.merchant != nil }
         )).filter { SubscriptionDetector.normalize($0.merchant ?? "") == key }.map(\.amount)
         return SpendingInsights.unusual(amount: parsed.amount, previous: earlier)
-    }
-
-    /// A heads-up only; nothing about the transaction changes. Silent when notifications are off.
-    private func notifyUnusual(merchant: String, parsed: ParsedTransaction, typical: Decimal) {
-        let language = (try? GhafPersistence.settings(in: context).languageCode) ?? "en"
-        let amount = GhafFormat.money(parsed.amount, currency: parsed.currency, languageCode: language)
-        let usual = GhafFormat.money(typical, currency: parsed.currency, languageCode: language)
-        let content = UNMutableNotificationContent()
-        content.title = language == "ar" ? "عملية أعلى من المعتاد" : "Higher than usual"
-        content.body = language == "ar"
-            ? "\(amount) عند \(merchant). عادةً تدفع هناك حوالي \(usual)."
-            : "\(amount) at \(merchant). You usually spend about \(usual) there."
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "ghaf.unusual.\(UUID().uuidString)",
-                                                                     content: content, trigger: nil))
     }
 
     /// Most recent transaction the reversal offsets: same amount, currency and merchant within 90 days.

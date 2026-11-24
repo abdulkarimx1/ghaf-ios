@@ -7,13 +7,13 @@ import UIKit
 
 private enum GhafSettingsPrompt: Identifiable {
     case importBackup
-    case importExpend
+    case importOtherBudgetApp
     case message(String)
 
     var id: String {
         switch self {
         case .importBackup: return "import"
-        case .importExpend: return "import-expend"
+        case .importOtherBudgetApp: return "import-other-budget-app"
         case .message(let value): return "message-\(value)"
         }
     }
@@ -57,8 +57,11 @@ struct GhafSettingsView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var showPhotoMenu = false
+    @State private var showBudgetCharacterInfo = false
     @State private var showCameraPicker = false
     @State private var isEditingProfileName = false
+    @State private var draftProfileName = ""
+    @State private var draftArabicName = ""
     @FocusState private var profileNameFocused: Bool
     @State private var prompt: GhafSettingsPrompt?
     @State private var showDeleteConfirmation = false
@@ -73,6 +76,7 @@ struct GhafSettingsView: View {
     @State private var showCategories = false
     @State private var proUnlocked = GhafProAccess.hasAccess
     @State private var selectedMilestone: Int?
+    @State private var showPendingMilestoneProfile = false
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
@@ -111,31 +115,32 @@ struct GhafSettingsView: View {
                         .ghafCard(theme: theme)
                     } else {
                         Button { showProSheet = true } label: {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("PRO")
-                                    .font(GhafTypography.body(11, languageCode: languageCode, weight: .bold))
-                                    .padding(.horizontal, 11).padding(.vertical, 5)
-                                    .foregroundStyle(theme.accentContrast).background(theme.accent, in: Capsule())
-                                Text("Ghaf Pro")
-                                    .font(GhafTypography.heading(22, languageCode: languageCode).weight(.bold))
+                            HStack(spacing: 14) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Ghaf Pro")
+                                        .font(GhafTypography.heading(25, languageCode: languageCode).weight(.bold))
+                                        .foregroundStyle(theme.primaryText)
+                                    Text(ar ? "مساحة أوسع للتخطيط وإدارة أموالك." : "More room to plan and manage your money.")
+                                        .font(GhafTypography.body(13, languageCode: languageCode))
+                                        .foregroundStyle(theme.primaryText.opacity(0.78))
+                                        .lineLimit(1).minimumScaleFactor(0.76)
+                                }
+                                Spacer(minLength: 4)
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(theme.primaryText)
-                                Text(ar ? "تقارير أعمق وأدوات إضافية لإدارة أموالك." : "Deeper reports and more tools to manage your money.")
-                                    .font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
-                                Text(ar ? "عرض الخطط" : "See plans")
-                                    .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold))
-                                    .foregroundStyle(theme.background).padding(.horizontal, 20).frame(minHeight: 48)
-                                    .background(theme.primaryText, in: Capsule())
+                                    .frame(width: 34, height: 30)
+                                    .background(theme.primaryText.opacity(0.12), in: Capsule())
                             }
-                            .padding(GhafMetrics.cardPadding)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 18).padding(.vertical, 20)
+                            .frame(maxWidth: .infinity, minHeight: 94, alignment: .leading)
                             .background {
-                                ZStack(alignment: .trailing) {
-                                    RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous)
-                                        .fill(LinearGradient(colors: [theme.accent.opacity(theme.isDark ? 0.34 : 0.22), theme.glow.opacity(0.12), theme.surface], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                ZStack {
                                     GhafProBannerGlow(theme: theme)
+                                    theme.background.opacity(theme.isDark ? 0.25 : 0.16)
                                 }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
                             }
-                            .ghafCard(theme: theme)
+                            .overlay(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).stroke(theme.outline.opacity(0.6), lineWidth: 1))
                         }
                         .buttonStyle(.ghafPress)
                         .ghafProSheet(isPresented: $showProSheet, settings: settings)
@@ -156,7 +161,7 @@ struct GhafSettingsView: View {
                     }
 
                     menuGroup(ar ? "التطبيق" : "App") {
-                        menuRow(ar ? "الأدوات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
+                        menuRow(ar ? "الودجات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
                             subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
                         }
@@ -213,6 +218,9 @@ struct GhafSettingsView: View {
                 subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard }
             }
 #endif
+            .navigationDestination(isPresented: $showPendingMilestoneProfile) {
+                subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
+            }
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
             .overlay {
                 if selectedMilestone != nil {
@@ -227,6 +235,11 @@ struct GhafSettingsView: View {
                     proUnlocked = GhafProAccess.hasAccess
                 }
                 refreshProfileStreakIfNeeded()
+                if let days = router.pendingMilestone {
+                    router.pendingMilestone = nil
+                    selectedMilestone = days
+                    showPendingMilestoneProfile = true
+                }
 #if DEBUG
                 if GhafScreenshotFixture.enabled {
                     switch GhafScreenshotFixture.destination {
@@ -245,8 +258,6 @@ struct GhafSettingsView: View {
             .onChange(of: glassEnabled) { _, _ in GhafWidgetSync.refresh(context: modelContext) }
             .onChange(of: languageCode) { _, _ in persistSettings() }
             .onChange(of: weekStart) { _, _ in GhafDigestNotifications.reschedule(context: modelContext) }
-            .onChange(of: name) { _, _ in persistSettings() }
-            .onChange(of: arabicName) { _, _ in persistSettings() }
             .onChange(of: currency) { _, _ in persistSettings() }
             .onChange(of: income) { _, _ in persistSettings() }
             .onChange(of: commitments) { _, _ in persistSettings() }
@@ -275,12 +286,12 @@ struct GhafSettingsView: View {
                         primaryButton: .destructive(Text(languageCode == "ar" ? "استعادة النسخة" : "Restore backup"), action: restoreBackup),
                         secondaryButton: .cancel()
                     )
-                case .importExpend:
+                case .importOtherBudgetApp:
                     return Alert(
-                        title: Text(languageCode == "ar" ? "استيراد بيانات Expend؟" : "Import Expend data?"),
+                        title: Text(languageCode == "ar" ? "استيراد بيانات تطبيق ميزانية آخر؟" : "Import another budgeting app's data?"),
                         message: Text(languageCode == "ar"
-                            ? "سيتم استبدال بيانات غاف الحالية بمحافظ Expend وعملياته. سيتم التحقق من أرصدة المحافظ قبل اعتماد الاستيراد. تُضاف المدفوعات المتكررة كاشتراكات، ولا تُنقل الميزانيات حالياً."
-                            : "This replaces current Ghaf records with Expend wallets and transactions. Wallet balances are checked before the import is committed. Recurring payments become subscriptions; budgets are not imported yet."),
+                            ? "سيتم استبدال بيانات غاف الحالية بالحسابات والعمليات من الملف. تُضاف المدفوعات المتكررة كاشتراكات، ولا تُنقل الميزانيات حالياً."
+                            : "This replaces current Ghaf records with the accounts and transactions in this file. Recurring payments become subscriptions; budgets are not imported yet."),
                         primaryButton: .destructive(Text(languageCode == "ar" ? "استيراد واستبدال" : "Import and replace"), action: restoreBackup),
                         secondaryButton: .cancel()
                     )
@@ -347,6 +358,85 @@ struct GhafSettingsView: View {
     private var profileDisplayName: String {
         let arabic = settings.arabicName.trimmingCharacters(in: .whitespacesAndNewlines)
         return ar && !arabic.isEmpty ? arabic : name
+    }
+
+    private func saveProfileName() {
+        name = draftProfileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        arabicName = draftArabicName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.userName = name
+        settings.arabicName = arabicName
+        do { try modelContext.save() }
+        catch { prompt = .message(ar ? "تعذر حفظ الاسم." : "Couldn't save the name.") }
+        isEditingProfileName = false
+        profileNameFocused = false
+    }
+
+    private func discardProfileName() {
+        guard isEditingProfileName else { return }
+        draftProfileName = name
+        draftArabicName = arabicName
+        isEditingProfileName = false
+        profileNameFocused = false
+    }
+
+    private var photoActionsSheet: some View {
+        VStack(spacing: 10) {
+            Capsule().fill(theme.secondaryText.opacity(0.35)).frame(width: 36, height: 5).padding(.top, 8)
+            Text(ar ? "صورة الملف الشخصي" : "Profile photo")
+                .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+                .padding(.bottom, 2)
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                Label(ar ? "اختيار صورة" : "Choose photo", systemImage: "photo")
+                    .frame(maxWidth: .infinity, minHeight: 48)
+            }.buttonStyle(.ghafPress).ghafCard(theme: theme)
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button { showPhotoMenu = false; showCameraPicker = true } label: {
+                    Label(ar ? "التقاط صورة" : "Take photo", systemImage: "camera")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }.buttonStyle(.ghafPress).ghafCard(theme: theme)
+            }
+            if hasPhoto {
+                Button(role: .destructive) {
+                    GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil; showPhotoMenu = false
+                } label: {
+                    Label(ar ? "إزالة الصورة" : "Remove photo", systemImage: "trash")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }.buttonStyle(.ghafPress).ghafCard(theme: theme)
+            }
+            Button(ar ? "إلغاء" : "Cancel") { showPhotoMenu = false }
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.accent).frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .padding(.horizontal, 20).padding(.bottom, 20)
+        .background(theme.background.ignoresSafeArea())
+        .presentationDetents([.height(hasPhoto ? 310 : 250)])
+        .presentationDragIndicator(.hidden)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+
+    private var budgetCharacterSheet: some View {
+        let preset = BudgetAllocation.Preset(rawValue: settings.allocationPresetRaw) ?? .balanced
+        let shares = preset.shares
+        let split = "\(NSDecimalNumber(decimal: (shares[.needs] ?? 0) * 100).intValue)/\(NSDecimalNumber(decimal: (shares[.wants] ?? 0) * 100).intValue)/\(NSDecimalNumber(decimal: (shares[.savings] ?? 0) * 100).intValue)"
+        let description: String = switch preset {
+        case .balanced: ar ? "توازن بين الاحتياجات والرغبات والادخار، مع مساحة لكل جانب." : "You balance essentials, everyday wants, and steady saving."
+        case .highRentCity: ar ? "تمنح الاحتياجات الأساسية حصة أكبر، مع استمرار الادخار." : "You prioritize essentials while keeping a steady savings share."
+        case .essentialsFirst: ar ? "تضع الاحتياجات أولاً وتخصص جزءًا واضحًا للادخار." : "You put essentials first and keep a clear portion for savings."
+        case .guardian: ar ? "تحمي الأساسيات والادخار قبل زيادة المصروفات الأخرى." : "You protect essentials and savings before expanding other spending."
+        }
+        return VStack(spacing: 14) {
+            Text(budgetCharacterName).font(GhafTypography.heading(19, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+            Text(description).font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            Text(ar ? "الاحتياجات / الرغبات / الادخار · \(split)٪" : "Needs / wants / savings · \(split)%")
+                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            NavigationLink { GhafBudgetView(settings: settings) } label: {
+                Text(ar ? "تغيير الميزانية" : "Change in Budget").frame(maxWidth: .infinity)
+            }.ghafProminentButton(theme: theme, languageCode: languageCode)
+        }
+        .padding(24).background(theme.background.ignoresSafeArea())
+        .presentationDetents([.height(250)])
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
     private var budgetCharacterName: String {
@@ -522,20 +612,6 @@ struct GhafSettingsView: View {
                         .accessibilityLabel(ar ? "صورة الملف الشخصي" : "Profile photo options")
                     }
                     .frame(width: 104, height: 104)
-                    .confirmationDialog(ar ? "صورة الملف الشخصي" : "Profile photo", isPresented: $showPhotoMenu, titleVisibility: .visible) {
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            Label(ar ? "اختيار صورة" : "Choose photo", systemImage: "photo")
-                        }
-                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                            Button(ar ? "التقاط صورة" : "Take photo") { showCameraPicker = true }
-                        }
-                        if hasPhoto {
-                            Button(ar ? "إزالة الصورة" : "Remove photo", role: .destructive) {
-                                GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil
-                            }
-                        }
-                        Button(ar ? "إلغاء" : "Cancel", role: .cancel) {}
-                    }
                     .accessibilityLabel(ar ? "صورة الملف الشخصي" : "Profile photo options")
                     .onChange(of: photoItem) { _, item in
                         Task {
@@ -546,17 +622,20 @@ struct GhafSettingsView: View {
                     }
                 HStack(spacing: 5) {
                     if isEditingProfileName {
-                        TextField(ar ? "اسمك" : "Your name", text: $name)
+                        TextField(ar ? "اسمك" : "Your name", text: $draftProfileName)
                             .font(GhafTypography.display(23, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                             .multilineTextAlignment(.center).textInputAutocapitalization(.words).submitLabel(.done)
                             .focused($profileNameFocused)
-                        Button(ar ? "تم" : "Done") { isEditingProfileName = false; profileNameFocused = false }
+                            .onChange(of: draftProfileName) { _, value in if value.count > 20 { draftProfileName = String(value.prefix(20)) } }
+                        Button(ar ? "تم" : "Done", action: saveProfileName)
                             .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
                     } else {
                         Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
                             .font(GhafTypography.display(26, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                             .lineLimit(2).minimumScaleFactor(0.8)
                         Button {
+                            draftProfileName = name
+                            draftArabicName = arabicName
                             isEditingProfileName = true
                             profileNameFocused = true
                         } label: { Image(systemName: "pencil").font(.system(size: 13, weight: .semibold)) }
@@ -564,19 +643,30 @@ struct GhafSettingsView: View {
                             .accessibilityLabel(ar ? "تعديل الاسم" : "Edit name")
                     }
                 }
+                .offset(x: isEditingProfileName ? 0 : (ar ? -22 : 22))
                 if isEditingProfileName {
-                    TextField(ar ? "الاسم بالعربية (اختياري)" : "Name in Arabic (optional)", text: $arabicName)
+                    TextField(ar ? "الاسم بالعربية (اختياري)" : "Name in Arabic (optional)", text: $draftArabicName)
                         .font(GhafTypography.body(16, languageCode: "ar")).foregroundStyle(theme.primaryText)
                         .multilineTextAlignment(.center).submitLabel(.done)
                         .accessibilityLabel(ar ? "الاسم بالعربية" : "Name in Arabic")
+                        .onChange(of: draftArabicName) { _, value in if value.count > 20 { draftArabicName = String(value.prefix(20)) } }
+                    Text(ar ? "\(draftProfileName.count)/20 حرفًا" : "\(draftProfileName.count)/20 characters")
+                        .font(GhafTypography.body(11, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                        .opacity(draftProfileName.count >= 16 || draftArabicName.count >= 16 ? 1 : 0)
                 }
-                Text(budgetCharacterName)
-                    .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
+                Button { showBudgetCharacterInfo = true } label: {
+                    Text(budgetCharacterName)
+                        .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
+                        .padding(.vertical, 4)
+                }.buttonStyle(.plain)
                 Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
                     .foregroundStyle(theme.secondaryText)
             }
             .frame(maxWidth: .infinity)
+            .sheet(isPresented: $showPhotoMenu) { photoActionsSheet }
+            .sheet(isPresented: $showBudgetCharacterInfo) { budgetCharacterSheet }
+            .onDisappear(perform: discardProfileName)
 
             HStack(spacing: 8) {
                 profileMetric(value: "\(streak)", title: ar ? "أيام متتالية" : "Logging streak")
@@ -594,7 +684,7 @@ struct GhafSettingsView: View {
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
                 HStack(spacing: 8) {
-                    ForEach([7, 30, 100, 365], id: \.self) { days in
+                    ForEach(GhafLoggingStreak.milestones, id: \.self) { days in
                         Button { selectedMilestone = days } label: {
                           VStack(spacing: 6) {
                             Text("\(days)")
@@ -722,7 +812,7 @@ struct GhafSettingsView: View {
                 HStack(spacing: 10) {
                     Image(systemName: streak >= days ? "checkmark.seal.fill" : "lock.circle")
                         .foregroundStyle(streak >= days ? theme.accent : theme.secondaryText)
-                    Text(ar ? "\(GhafLocalization.arabicDays(days)) يوم · خصم \(percent)٪" : "\(days) days · \(percent)% off")
+                    Text(ar ? "\(GhafLocalization.arabicDays(days)) · خصم \(percent)٪" : "\(days) days · \(percent)% off")
                         .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
                     Spacer()
                     Button(ar ? "استرداد" : "Claim") { redeemingVoucher = true }
@@ -743,9 +833,9 @@ struct GhafSettingsView: View {
           VStack(spacing: 16) {
             Image(systemName: streak >= days ? "checkmark.seal.fill" : "sparkle")
                 .font(.system(size: 36)).foregroundStyle(theme.accent)
-            Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
+                    Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            Text(ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)) أيام. أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak)) يوماً."
+            Text(ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)). أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak))."
                     : "You tracked your money for \(days) days in a row. Your streak is now \(streak) days.")
                 .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
@@ -758,7 +848,7 @@ struct GhafSettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .safeAreaPadding(.bottom, 12)
         .presentationBackground { theme.background.ignoresSafeArea() }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.height(ar ? 330 : 310)])
         .presentationCornerRadius(32)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
@@ -1325,7 +1415,7 @@ HStack(spacing: 8) {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button { showImportSheet = true } label: {
-                settingsActionRow(languageCode == "ar" ? "استيراد بيانات" : "Import data", detail: languageCode == "ar" ? "نسخة غاف أو Expend أو ملف CSV" : "A Ghaf or Expend backup, or a CSV file", icon: "square.and.arrow.down")
+                settingsActionRow(languageCode == "ar" ? "استيراد بيانات" : "Import data", detail: languageCode == "ar" ? "نسخة غاف أو نسخة من تطبيق ميزانية آخر" : "A Ghaf backup or a backup from another budgeting app", icon: "square.and.arrow.down")
             }
             .buttonStyle(.ghafPress)
 
@@ -1556,13 +1646,13 @@ HStack(spacing: 8) {
                 )
 
                 var message = languageCode == "ar"
-                    ? "تم استيراد \(walletCount) و\(entryCount) من Expend. تمت مطابقة الأرصدة مع الملف المصدر."
-                    : "Imported \(result.accountsImported) wallets and \(result.transactionsImported) ledger entries from Expend. Wallet balances match the source export."
+                    ? "تم استيراد \(walletCount) و\(entryCount) من تطبيق ميزانية آخر. تمت مطابقة الأرصدة مع الملف المصدر."
+                    : "Imported \(result.accountsImported) accounts and \(result.transactionsImported) entries from another budgeting app. Balances match the source file."
 
                 if result.budgetsNotImported > 0 {
                     message += languageCode == "ar"
-                        ? " لم يتم نقل \(budgetCount) لأن غاف لا يدعم استيراد ميزانيات Expend حالياً."
-                        : " \(result.budgetsNotImported) budgets were not imported because Ghaf does not yet support Expend budget structures."
+                        ? " لم تُنقل \(budgetCount) لأن غاف لا يدعم استيراد هذه الميزانيات حالياً."
+                        : " \(result.budgetsNotImported) budgets were not imported because Ghaf does not yet support this budget format."
                 }
                 if result.recurringRulesNotImported > 0 {
                     message += languageCode == "ar"
@@ -1576,14 +1666,16 @@ HStack(spacing: 8) {
                 }
                 prompt = .message(message)
             } else {
-                try GhafBackupService.restore(from: url, context: modelContext)
+                let result = try GhafBackupService.restore(from: url, context: modelContext)
                 pendingImportURL = nil
-                prompt = .message(languageCode == "ar" ? "تمت استعادة نسخة غاف الاحتياطية بنجاح." : "Ghaf backup restored successfully.")
+                prompt = .message(languageCode == "ar"
+                    ? "اكتمل الاستيراد · الحسابات: \(result.accountsImported) · المعاملات: \(result.transactionsImported) · الاشتراكات: \(result.subscriptionsImported)"
+                    : "Import complete · Accounts: \(result.accountsImported) · Transactions: \(result.transactionsImported) · Subscriptions: \(result.subscriptionsImported)")
             }
         } catch {
             prompt = .message(languageCode == "ar"
                 ? "تعذر استيراد الملف. لم يتم اعتماد الاستيراد. التفاصيل: \(error.localizedDescription)"
-                : "Could not import the file. Details: \(error.localizedDescription)")
+                : "Could not import the file. Details: \(error.localizedDescription.replacingOccurrences(of: "Expend", with: "another budgeting app"))")
         }
     }
 
@@ -1605,24 +1697,40 @@ HStack(spacing: 8) {
 private struct GhafProBannerGlow: View {
     let theme: GhafTheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var drift = false
+    @State private var isVisible = false
+
+    private var motionIsEnabled: Bool {
+#if DEBUG
+        !reduceMotion && !GhafScreenshotFixture.snapshotTestingEnabled
+#else
+        !reduceMotion
+#endif
+    }
 
     var body: some View {
-        ZStack {
-            Circle().fill(theme.glow.opacity(0.24)).frame(width: 150, height: 150)
-                .blur(radius: 34).offset(x: drift ? -38 : 32, y: drift ? 34 : -26)
-            Circle().fill(theme.accent.opacity(0.2)).frame(width: 112, height: 112)
-                .blur(radius: 30).offset(x: drift ? 42 : -38, y: drift ? -28 : 36)
-        }
-        .frame(width: 260, height: 180)
-        .allowsHitTesting(false).accessibilityHidden(true)
-        .task {
-            guard !reduceMotion else { return }
-            while !Task.isCancelled {
-                withAnimation(.easeInOut(duration: 5)) { drift.toggle() }
-                try? await Task.sleep(for: .seconds(5))
+        TimelineView(.animation(minimumInterval: 1 / 24, paused: !isVisible || !motionIsEnabled)) { timeline in
+            let phase = motionIsEnabled ? timeline.date.timeIntervalSinceReferenceDate : 0
+            let x = Float(sin(phase * 0.24))
+            let y = Float(cos(phase * 0.19))
+            if #available(iOS 18.0, *) {
+                MeshGradient(width: 3, height: 3, points: [
+                    [0, 0], [0.5 + 0.08 * x, 0], [1, 0],
+                    [0, 0.5 + 0.07 * y], [0.5 + 0.12 * x, 0.5 + 0.10 * y], [1, 0.5 - 0.07 * x],
+                    [0, 1], [0.5 - 0.08 * y, 1], [1, 1]
+                ], colors: [
+                    theme.accent.opacity(0.56), theme.glow.opacity(0.74), theme.surface,
+                    theme.glow.opacity(0.82), theme.accent.opacity(0.34), theme.surface,
+                    theme.surface, theme.accent.opacity(0.45), theme.glow.opacity(0.62)
+                ])
+            } else {
+                LinearGradient(colors: [theme.accent, theme.glow, theme.surface, theme.accent.opacity(0.7)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false).accessibilityHidden(true)
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
     }
 }
 

@@ -17,7 +17,7 @@ enum GhafDigestNotifications {
     private static let ids = ["ghaf.digest.morning", "ghaf.digest.evening", "ghaf.digest.weekly"]
 
     static func isOn(_ key: String) -> Bool {
-        UserDefaults.standard.bool(forKey: key)
+        UserDefaults.standard.object(forKey: key) as? Bool ?? (key == autoTransactionKey)
     }
 
     static func requestPermission() async -> Bool {
@@ -94,8 +94,11 @@ enum GhafDigestNotifications {
     }
 
     /// Only a transaction held for review needs an event alert.
-    static func transactionAdded(_ transaction: GhafTransaction, needsReview: Bool, languageCode: String) {
-        guard needsReview else { return }
+    static func transactionAdded(_ transaction: GhafTransaction, needsReview: Bool, languageCode: String, unusual: Bool = false) {
+        guard needsReview else {
+            GhafEventNotifications.recordCaptureBanner(transaction, languageCode: languageCode, unusual: unusual)
+            return
+        }
         let ar = languageCode == "ar"
         let amount = GhafFormat.balancesHidden
             ? GhafFormat.hiddenMoney(transaction.amount, currency: transaction.currency, languageCode: languageCode)
