@@ -16,7 +16,8 @@ final class GhafWalkthroughTests: XCTestCase {
     func launch(_ extra: [String] = [], appearance: String = "Dark", language: String = "en", waitForTabBar: Bool = true) {
         app = XCUIApplication()
         let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.29/backup8.json").path
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("HANDOFF-1.29/backup8.json").path
         let environment = ProcessInfo.processInfo.environment
         let backupPath = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"]
             ?? (FileManager.default.fileExists(atPath: defaultBackup) ? defaultBackup : nil)
@@ -593,7 +594,8 @@ extension GhafWalkthroughTests {
     func testArabicBudgetDirectLaunchAndPetalTap() throws {
         let environment = ProcessInfo.processInfo.environment
         let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.29/backup8.json").path
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("HANDOFF-1.29/backup8.json").path
         let backup = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"] ?? defaultBackup
         guard FileManager.default.fileExists(atPath: backup) else { throw XCTSkip("Owner backup is unavailable") }
         for appearance in ["Light", "Dark"] {

@@ -6,7 +6,8 @@ final class GhafD2MotionEvidenceTests: XCTestCase {
     private var simulatorBackup: String? {
         let environment = ProcessInfo.processInfo.environment
         let defaultBackup = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("HANDOFF-1.29/backup8.json").path
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("HANDOFF-1.29/backup8.json").path
         let path = environment["TEST_RUNNER_GHAF_BACKUP"] ?? environment["GHAF_BACKUP"] ?? defaultBackup
         return FileManager.default.fileExists(atPath: path) ? path : nil
     }
