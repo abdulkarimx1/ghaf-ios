@@ -243,6 +243,7 @@ struct GhafRootView: View {
     private var rootContent: some View {
 #if DEBUG
         if GhafScreenshotFixture.enabled, !GhafScreenshotFixture.launchNewUser, let currentSettings = settings.first {
+            Group {
             switch GhafScreenshotFixture.screen {
             case "importSheet": GhafImportSheet(settings: currentSettings)
             case "automation": GhafAutomationGuideView(settings: currentSettings)
@@ -259,6 +260,10 @@ struct GhafRootView: View {
             case nil where GhafScreenshotFixture.tab == "subscriptions": GhafSubscriptionsView(settings: currentSettings)
             default: GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
             }
+            }
+            // Fixture screens can present tab-owned settings and subscription children directly.
+            // Give every route the same router environment as the production tab hierarchy.
+            .environment(fixtureRouter)
         } else if let currentSettings = settings.first {
             if currentSettings.hasCompletedOnboarding {
                 GhafTabView(settings: currentSettings, launchIsFinished: Binding(get: { !showLaunch }, set: { showLaunch = !$0 }))
