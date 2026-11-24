@@ -2,7 +2,7 @@ import XCTest
 
 /// Bounded navigation sweep: samples the first-level routes and a few child controls, snapping each screen
 /// and flagging taps that change nothing. Focused tests cover the critical flows in more depth.
-/// The old exhaustive sweep repeatedly materialized hundreds of XCTest accessibility elements and timed out.
+/// The unbounded version repeatedly materialized hundreds of XCTest accessibility elements and dominated suite time.
 final class GhafSweepTests: XCTestCase {
     let out = ProcessInfo.processInfo.environment["GHAF_UI_OUT"] ?? NSTemporaryDirectory()
     let tab = Int(ProcessInfo.processInfo.environment["GHAF_SWEEP_TAB"] ?? "0") ?? 0
