@@ -34,6 +34,36 @@ final class GhafImportFlowTests: XCTestCase {
         }
     }
 
+    /// The owner's real backup imports through the same code path as the button.
+    func testOwnerBackup9Restores() throws {
+        let path = ProcessInfo.processInfo.environment["TEST_RUNNER_GHAF_BACKUP9"] ?? "/Users/abdulkarim/Downloads/Ghaf-Backup-9.json"
+        guard FileManager.default.fileExists(atPath: path) else { throw XCTSkip("Owner backup 9 is unavailable") }
+        let app = launchImport(URL(fileURLWithPath: path), appearance: "Dark", language: "en")
+        let completed = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Import complete")).firstMatch
+        XCTAssertTrue(completed.waitForExistence(timeout: 30), "Backup 9 should import")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Transactions: 1212")).firstMatch.exists, completed.label)
+        saveScreenshot(app, name: "import-backup9-dark-en")
+    }
+
+    /// Tapping "Ghaf backup" then "Continue" must open the Files picker (it used to do nothing).
+    func testGhafBackupButtonOpensFilesPicker() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "importSheet", "-GhafTheme", "Graphite",
+                              "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
+        app.launch()
+        let choice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Ghaf backup")).firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 15))
+        choice.tap()
+        let alert = app.alerts["Replace current data?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["Continue"].tap()
+        let picker = app.navigationBars.matching(NSPredicate(format: "identifier IN %@", ["Recents", "Browse", "On My iPhone"])).firstMatch
+        let browse = app.buttons["Browse"].firstMatch
+        let opened = picker.waitForExistence(timeout: 8) || browse.exists
+        saveScreenshot(app, name: "import-button-picker")
+        XCTAssertTrue(opened, "Files picker did not open after Continue")
+    }
+
     private func launchImport(_ url: URL, appearance: String, language: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "importSheet", "-GhafTheme", "Graphite",
