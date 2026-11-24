@@ -12,6 +12,10 @@ Claude = orchestrator + lead (product, architecture, UI/UX, planning, review). C
 - Unclear or conflicting brief → ask Claude via Orca rather than guess.
 - Report accurately what changed, what was run, results; Claude reviews the actual diff before completion.
 
+## Design system and release process (binding)
+- `design/DESIGN.md` is the single source of truth for fonts, colours, motion, sound, layout and locked identity. Never change a locked value inside a fix; owner-approved changes go to `design/CHANGELOG.md`.
+- Every release follows `docs/RELEASE-PROCESS.md`: owner comments are copied word for word into `HANDOFF-<v>/ACCEPTANCE.md`, one row each; a row is done only with uncropped light/dark × EN/AR proof that Claude has reviewed. Redesign items get a visual spec approved by the owner before code.
+
 ## 1. Product vision
 
 Ghaf: iOS personal finance companion. Reliable, understandable view of money across multiple bank accounts, wallets, transactions, budgets, recurring subscriptions. Must feel like one coherent app, not unrelated screens.
