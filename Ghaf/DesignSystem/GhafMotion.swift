@@ -24,12 +24,20 @@ private struct GhafEntrance: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
+    private var isSnapshot: Bool {
+#if DEBUG
+        GhafScreenshotFixture.snapshotTestingEnabled
+#else
+        false
+#endif
+    }
+
     func body(content: Content) -> some View {
         content
-            .opacity(shown || reduceMotion ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 18)
+            .opacity(shown || reduceMotion || isSnapshot ? 1 : 0)
+            .offset(y: shown || reduceMotion || isSnapshot ? 0 : 18)
             .onAppear {
-                guard !shown else { return }
+                guard !shown, !isSnapshot else { return }
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(Double(index) * 0.06)) { shown = true }
             }
     }

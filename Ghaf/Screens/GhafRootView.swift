@@ -709,6 +709,9 @@ struct GhafTabView: View {
     }
 
     private func checkForStreakMilestone() {
+#if DEBUG
+        guard !GhafScreenshotFixture.snapshotTestingEnabled else { return }
+#endif
         guard queuedStreakMilestone == nil else { return }
         guard let transactions = try? modelContext.fetch(FetchDescriptor<GhafTransaction>()) else { return }
         let dates = transactions.map { GhafLoggingStreak.Entry(date: $0.date, needsReview: $0.needsReview) }
@@ -735,6 +738,9 @@ struct GhafTabView: View {
 #endif
 
     private func checkForAnnouncement() {
+#if DEBUG
+        guard !GhafScreenshotFixture.snapshotTestingEnabled else { return }
+#endif
         guard activeInAppCard == nil, queuedAnnouncement == nil else { return }
         Task { @MainActor in
             guard let item = await GhafAnnouncementService.check(language: settings.languageCode) else { return }
@@ -744,6 +750,9 @@ struct GhafTabView: View {
     }
 
     private func presentNextCard() {
+#if DEBUG
+        guard !GhafScreenshotFixture.snapshotTestingEnabled else { return }
+#endif
         guard activeInAppCard == nil else { return }
         guard !showOrbOverlay, !router.isSaveSplashPresented, !showWidgetQuickAdd, !showWidgetPro,
               linkedTransaction == nil, !hasModalPresentation, launchIsFinished, scenePhase == .active else {
