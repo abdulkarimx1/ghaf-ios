@@ -572,7 +572,13 @@ extension GhafWalkthroughTests {
             let expectedIndex = min(categories.count - 1, (language == "ar" ? 3 * categories.count : categories.count) / 4)
             chart.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
             let after = chart.value as? String ?? ""
-            XCTAssertTrue(after.hasSuffix("\(selectedMarker)\(categories[expectedIndex])"), "\(language): expected \(categories[expectedIndex]), got \(after)")
+            let selected = after.components(separatedBy: selectedMarker).last ?? ""
+            func normalized(_ value: String) -> String {
+                value.replacingOccurrences(of: "\u{2068}", with: "")
+                    .replacingOccurrences(of: "\u{2069}", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".")))
+            }
+            XCTAssertEqual(normalized(selected), normalized(categories[expectedIndex]), "\(language): expected \(categories[expectedIndex]), got \(after)")
             snap("b1-budget-after-\(appearance.lowercased())-\(language)")
             app.terminate()
           }
