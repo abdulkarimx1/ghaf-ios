@@ -532,8 +532,9 @@ extension GhafWalkthroughTests {
 
     func testSaveSplashArabicLightEvidence() {
         launch(["-GhafScreen", "new-transaction"], appearance: "Light", language: "ar")
-        XCTAssertTrue(app.buttons["Amount"].waitForExistence(timeout: 8))
-        app.buttons["Amount"].tap()
+        let amount = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@", "Amount", "المبلغ")).firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 8))
+        amount.tap()
         app.buttons["2"].tap(); app.buttons["0"].tap()
         app.buttons["."].tap(); app.buttons["5"].tap(); app.buttons["0"].tap()
         app.buttons["Done"].tap()
