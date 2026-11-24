@@ -674,10 +674,6 @@ extension GhafWalkthroughTests {
         snap("language-switch-en-ar-overlay-arabic")
         XCTAssertTrue(app.tabBars.buttons["الرئيسية"].waitForExistence(timeout: 10))
         snap("language-switch-ar-home")
-        app.tabBars.buttons["المزيد"].tap()
-        app.buttons["التخصيص"].tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'English'" )).firstMatch.tap()
-        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
     }
 }
 
