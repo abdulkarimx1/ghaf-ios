@@ -485,8 +485,17 @@ struct GhafAutomationGuideView: View {
     }
 
     private var bankPicker: some View {
-        let banks = GhafBankSupportDirectory.contacts.sorted { $0.name < $1.name }.filter { bank in
+        let matches = GhafBankSupportDirectory.contacts.filter { bank in
             bankSearch.isEmpty || bank.name.localizedCaseInsensitiveContains(bankSearch) || bank.nameArabic.localizedCaseInsensitiveContains(bankSearch)
+        }
+        // The user's own country first, then the rest in a fixed order; empty countries are dropped.
+        let home = ["AED": "United Arab Emirates", "SAR": "Saudi Arabia", "OMR": "Oman", "KWD": "Kuwait", "BHD": "Bahrain", "QAR": "Qatar"][settings.currency]
+        let order = ["United Arab Emirates", "Saudi Arabia", "Oman", "Kuwait", "Bahrain", "Qatar"]
+        let countries = (home.map { [$0] } ?? []) + order.filter { $0 != home }
+        let sections: [(country: GhafBankSupportContact, banks: [GhafBankSupportContact])] = countries.compactMap { country in
+            let banks = matches.filter { $0.countryName == country }
+                .sorted { (ar ? $0.nameArabic : $0.name).localizedStandardCompare(ar ? $1.nameArabic : $1.name) == .orderedAscending }
+            return banks.first.map { ($0, banks) }
         }
         let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
         return NavigationStack {
@@ -497,8 +506,13 @@ struct GhafAutomationGuideView: View {
                         .padding(.horizontal, 16)
                         .frame(height: 56)
                         .background(theme.surface, in: Capsule())
+                    ForEach(sections, id: \.country.countryName) { section in
+                    Text(ar ? section.country.countryNameArabic : section.country.countryName)
+                        .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(banks) { bank in
+                        ForEach(section.banks) { bank in
                             let isChosen = chosenBanks.contains(bank.name)
                             Button {
                                 if isChosen { chosenBanks.removeAll { $0 == bank.name } }
@@ -530,6 +544,7 @@ struct GhafAutomationGuideView: View {
                             .accessibilityLabel(ar ? bank.nameArabic : bank.name)
                             .accessibilityAddTraits(isChosen ? .isSelected : [])
                         }
+                    }
                     }
                 }
                 .padding(20)

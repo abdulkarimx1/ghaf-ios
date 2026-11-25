@@ -269,6 +269,272 @@ enum GhafBankSupportDirectory {
             localPhone: "4444 8444", internationalPhone: "+974 4444 8444",
             website: URL(string: "https://www.qib.com.qa/en/personal/learn-how-to-money/articles-listing/articles/2026/identity-protection-tips")!,
             aliases: ["qib", "qatar islamic bank", "مصرف قطر الإسلامي"]
+        ),
+        GhafBankSupportContact(
+            id: "ajman", name: "Ajman Bank", nameArabic: "مصرف عجمان",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 555 522", internationalPhone: "+971 600 555 522",
+            website: URL(string: "https://www.ajmanbank.ae/site/contact-us.html")!,
+            aliases: ["ajman bank", "مصرف عجمان"]
+        ),
+        GhafBankSupportContact(
+            id: "alhilal", name: "Al Hilal Bank", nameArabic: "مصرف الهلال",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 522 229", internationalPhone: "+971 600 522 229",
+            website: URL(string: "https://www.alhilalbank.ae/en/get-in-touch/call-us.aspx")!,
+            aliases: ["al hilal bank", "alhilal", "مصرف الهلال"]
+        ),
+        GhafBankSupportContact(
+            id: "almasraf", name: "Al Masraf", nameArabic: "المصرف",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 52 9999", internationalPhone: "+971 600 52 9999",
+            website: URL(string: "https://www.almasraf.ae/contact-us")!,
+            aliases: ["al masraf", "almasraf", "المصرف"]
+        ),
+        GhafBankSupportContact(
+            id: "cbd", name: "Commercial Bank of Dubai", nameArabic: "بنك دبي التجاري",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 575 556", internationalPhone: "+971 600 575 556",
+            website: URL(string: "https://www.cbd.ae/general/get-in-touch")!,
+            aliases: ["commercial bank of dubai", "بنك دبي التجاري"]
+        ),
+        GhafBankSupportContact(
+            id: "cbi", name: "Commercial Bank International", nameArabic: "البنك التجاري الدولي",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 544 440", internationalPhone: "+971 4 503 9000",
+            website: URL(string: "https://www.cbiuae.com/en/personal/contact-and-support/")!,
+            aliases: ["commercial bank international", "البنك التجاري الدولي"]
+        ),
+        GhafBankSupportContact(
+            id: "hsbcuae", name: "HSBC UAE", nameArabic: "إتش إس بي سي",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 55 4722", internationalPhone: "+971 4 228 8007",
+            website: URL(string: "https://www.hsbc.ae/help/contact/")!,
+            aliases: ["hsbc", "hsbc uae", "إتش إس بي سي"]
+        ),
+        GhafBankSupportContact(
+            id: "liv", name: "Liv", nameArabic: "ليف",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 521 212", internationalPhone: "+971 600 521 212",
+            website: URL(string: "https://www.liv.me/en/ways-of-banking/reach-us")!,
+            aliases: ["liv bank"]
+        ),
+        GhafBankSupportContact(
+            id: "nbq", name: "National Bank of Umm Al Qaiwain", nameArabic: "بنك أم القيوين الوطني",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 56 56 56", internationalPhone: "+971 600 56 56 56",
+            website: URL(string: "https://www.nbq.ae/general/contact")!,
+            aliases: ["national bank of umm al qaiwain", "بنك أم القيوين الوطني"]
+        ),
+        GhafBankSupportContact(
+            id: "scuae", name: "Standard Chartered UAE", nameArabic: "ستاندرد تشارترد",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 5222 88", internationalPhone: "+971 600 5222 88",
+            website: URL(string: "https://www.sc.com/ae/contact-us/")!,
+            aliases: ["standard chartered", "stanchart", "ستاندرد تشارترد"]
+        ),
+        GhafBankSupportContact(
+            id: "uab", name: "United Arab Bank", nameArabic: "البنك العربي المتحد",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "800 474", internationalPhone: "+971 6 598 7332",
+            website: URL(string: "https://www.uab.ae/en/help-center/contact-us")!,
+            aliases: ["united arab bank", "البنك العربي المتحد"]
+        ),
+        GhafBankSupportContact(
+            id: "arabbank", name: "Arab Bank", nameArabic: "البنك العربي",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "04 445 0000", internationalPhone: "+971 4 445 0000",
+            website: URL(string: "https://www.arabbank.ae/mainmenu/home/ways-to-bank/Customer-Care-Center")!,
+            aliases: ["arab bank", "البنك العربي"]
+        ),
+        GhafBankSupportContact(
+            id: "bos", name: "Bank of Sharjah", nameArabic: "بنك الشارقة",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "06 569 4411", internationalPhone: "+971 6 569 4411",
+            website: URL(string: "https://www.bankofsharjah.com/en/contactus")!,
+            aliases: ["bank of sharjah", "بنك الشارقة"]
+        ),
+        GhafBankSupportContact(
+            id: "zand", name: "Zand", nameArabic: "زاند",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 502 328", internationalPhone: "+971 600 502 328",
+            website: URL(string: "https://www.zand.ae/en/contact-us")!,
+            aliases: ["zand", "zand bank", "زاند"]
+        ),
+        GhafBankSupportContact(
+            id: "nbf", name: "National Bank of Fujairah", nameArabic: "بنك الفجيرة الوطني",
+            countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
+            localPhone: "600 565 551", internationalPhone: "+971 4 815 7555",
+            website: URL(string: "https://nbf.ae/contact/")!,
+            aliases: ["national bank of fujairah", "بنك الفجيرة الوطني"]
+        ),
+        GhafBankSupportContact(
+            id: "anb", name: "Arab National Bank", nameArabic: "البنك العربي الوطني",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 124 4040", internationalPhone: "+966 11 212 7555",
+            website: URL(string: "https://anb.com.sa/web/anb/contact-us")!,
+            aliases: ["arab national bank", "البنك العربي الوطني"]
+        ),
+        GhafBankSupportContact(
+            id: "bsf", name: "Banque Saudi Fransi", nameArabic: "البنك السعودي الفرنسي",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 124 2121", internationalPhone: "+966 92 000 0576",
+            website: URL(string: "https://bsf.sa/english/contactus")!,
+            aliases: ["banque saudi fransi", "saudi fransi", "البنك السعودي الفرنسي"]
+        ),
+        GhafBankSupportContact(
+            id: "sab", name: "Saudi Awwal Bank", nameArabic: "البنك السعودي الأول",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 124 8888", internationalPhone: "+966 11 406 2800",
+            website: URL(string: "https://www.sab.com/en/personal/help-and-support/contact-us/")!,
+            aliases: ["saudi awwal", "saudi british bank", "alawwal", "البنك السعودي الأول"]
+        ),
+        GhafBankSupportContact(
+            id: "saib", name: "Saudi Investment Bank", nameArabic: "البنك السعودي للاستثمار",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "011 477 8433", internationalPhone: "+966 11 477 8433",
+            website: URL(string: "https://www.saib.com.sa/en/contact-us-0")!,
+            aliases: ["saib", "saudi investment bank", "البنك السعودي للاستثمار"]
+        ),
+        GhafBankSupportContact(
+            id: "visionbank", name: "Vision Bank", nameArabic: "بنك فيجن",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 100 0010", internationalPhone: "+966 11 512 7999",
+            website: URL(string: "https://www.visionbank.com.sa/contact")!,
+            aliases: ["vision bank", "visionbank", "بنك فيجن"]
+        ),
+        GhafBankSupportContact(
+            id: "d360", name: "D360 Bank", nameArabic: "بنك D360",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 124 4410", internationalPhone: "+966 92 002 4360",
+            website: URL(string: "https://d360.com/en/contact-us")!,
+            aliases: ["d360", "d360 bank", "بنك d360"]
+        ),
+        GhafBankSupportContact(
+            id: "meem", name: "meem", nameArabic: "ميم",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 116 6336", internationalPhone: "+966 92 002 6336",
+            website: URL(string: "https://meem.com.sa/")!,
+            aliases: ["meem", "gulf international bank saudi arabia"]
+        ),
+        GhafBankSupportContact(
+            id: "aljazira", name: "Bank AlJazira", nameArabic: "بنك الجزيرة",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 244 0404", internationalPhone: "+966 92 000 6666",
+            website: URL(string: "https://www.aljazirabank.com.sa/en-us/bank/contactus")!,
+            aliases: ["bank aljazira", "aljazira", "al jazira", "بنك الجزيرة"]
+        ),
+        GhafBankSupportContact(
+            id: "stcbank", name: "STC Bank", nameArabic: "بنك stc",
+            countryName: "Saudi Arabia", countryNameArabic: "المملكة العربية السعودية",
+            localPhone: "800 118 0008", internationalPhone: "+966 92 001 1444",
+            website: URL(string: "https://stcbank.com.sa")!,
+            aliases: ["stc bank", "stcbank", "بنك stc"]
+        ),
+        GhafBankSupportContact(
+            id: "burgan", name: "Burgan Bank", nameArabic: "بنك برقان",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "1804080", internationalPhone: "+965 1804080",
+            website: URL(string: "https://burgan.com/en/services/contact-us/")!,
+            aliases: ["burgan bank", "burgan", "بنك برقان"]
+        ),
+        GhafBankSupportContact(
+            id: "gulfbank", name: "Gulf Bank", nameArabic: "بنك الخليج",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "1805805", internationalPhone: "+965 2244 4383",
+            website: URL(string: "https://www.e-gulfbank.com/en/contact-us/")!,
+            aliases: ["gulf bank", "gulfbank", "بنك الخليج"]
+        ),
+        GhafBankSupportContact(
+            id: "abk", name: "Al Ahli Bank of Kuwait", nameArabic: "البنك الأهلي الكويتي",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "1899899", internationalPhone: "+965 2290 7222",
+            website: URL(string: "https://abk.eahli.com/en/contact/contact-us/")!,
+            aliases: ["al ahli bank of kuwait", "ahli bank kuwait", "البنك الأهلي الكويتي"]
+        ),
+        GhafBankSupportContact(
+            id: "cbk", name: "Commercial Bank of Kuwait", nameArabic: "البنك التجاري الكويتي",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "1888225", internationalPhone: "+965 1888225",
+            website: URL(string: "https://www.cbk.com")!,
+            aliases: ["commercial bank of kuwait", "البنك التجاري الكويتي"]
+        ),
+        GhafBankSupportContact(
+            id: "warba", name: "Warba Bank", nameArabic: "بنك وربة",
+            countryName: "Kuwait", countryNameArabic: "الكويت",
+            localPhone: "182 5555", internationalPhone: "+965 182 5555",
+            website: URL(string: "https://www.warbabank.com")!,
+            aliases: ["warba bank", "warba", "بنك وربة"]
+        ),
+        GhafBankSupportContact(
+            id: "cbq", name: "Commercial Bank of Qatar", nameArabic: "البنك التجاري",
+            countryName: "Qatar", countryNameArabic: "قطر",
+            localPhone: "4449 0000", internationalPhone: "+974 4449 0000",
+            website: URL(string: "https://www.cbq.com.qa/en/about-us/contact-us")!,
+            aliases: ["commercial bank of qatar", "البنك التجاري القطري"]
+        ),
+        GhafBankSupportContact(
+            id: "dukhan", name: "Dukhan Bank", nameArabic: "بنك دخان",
+            countryName: "Qatar", countryNameArabic: "قطر",
+            localPhone: "800 8555", internationalPhone: "+974 4410 0888",
+            website: URL(string: "https://www.dukhanbank.com/contact-us")!,
+            aliases: ["dukhan bank", "dukhan", "بنك دخان"]
+        ),
+        GhafBankSupportContact(
+            id: "qiib", name: "Qatar International Islamic Bank", nameArabic: "بنك قطر الدولي الإسلامي",
+            countryName: "Qatar", countryNameArabic: "قطر",
+            localPhone: "4484 0000", internationalPhone: "+974 4484 0000",
+            website: URL(string: "https://www.qiib.com.qa")!,
+            aliases: ["qiib", "qatar international islamic bank", "بنك قطر الدولي الإسلامي"]
+        ),
+        GhafBankSupportContact(
+            id: "alrayan", name: "Masraf Al Rayan", nameArabic: "مصرف الريان",
+            countryName: "Qatar", countryNameArabic: "قطر",
+            localPhone: "4425 3333", internationalPhone: "+974 4425 3333",
+            website: URL(string: "https://www.alrayan.com/en/contact-us")!,
+            aliases: ["al rayan", "alrayan", "masraf al rayan", "بنك الريان", "مصرف الريان"]
+        ),
+        GhafBankSupportContact(
+            id: "ahliqatar", name: "Ahli Bank Qatar", nameArabic: "البنك الأهلي القطري",
+            countryName: "Qatar", countryNameArabic: "قطر",
+            localPhone: "4420 5222", internationalPhone: "+974 4420 5222",
+            website: URL(string: "https://www.ahlibank.com.qa/en/Others/Contact-Us")!,
+            aliases: ["ahli bank qatar", "ahlibank qatar", "البنك الأهلي القطري"]
+        ),
+        GhafBankSupportContact(
+            id: "alsalam", name: "Al Salam Bank", nameArabic: "بنك السلام",
+            countryName: "Bahrain", countryNameArabic: "البحرين",
+            localPhone: "1700 5500", internationalPhone: "+973 1700 5500",
+            website: URL(string: "https://www.alsalambank.com/contact-us/")!,
+            aliases: ["al salam bank", "alsalam bank", "بنك السلام"]
+        ),
+        GhafBankSupportContact(
+            id: "bankabc", name: "ila Bank", nameArabic: "بنك إلى",
+            countryName: "Bahrain", countryNameArabic: "البحرين",
+            localPhone: "1712 3456", internationalPhone: "+973 1712 3456",
+            website: URL(string: "https://www.ilabank.com")!,
+            aliases: ["ila bank", "ilabank", "bank abc", "abc bank", "بنك إلى"]
+        ),
+        GhafBankSupportContact(
+            id: "bisb", name: "Bahrain Islamic Bank", nameArabic: "بنك البحرين الإسلامي",
+            countryName: "Bahrain", countryNameArabic: "البحرين",
+            localPhone: "1751 5151", internationalPhone: "+973 1751 5151",
+            website: URL(string: "https://www.bisb.com/en/reach-us")!,
+            aliases: ["bisb", "bahrain islamic bank", "بنك البحرين الإسلامي"]
+        ),
+        GhafBankSupportContact(
+            id: "khaleeji", name: "Khaleeji Bank", nameArabic: "بنك الخليجي",
+            countryName: "Bahrain", countryNameArabic: "البحرين",
+            localPhone: "1754 0054", internationalPhone: "+973 1754 0054",
+            website: URL(string: "https://khaleeji.bank/")!,
+            aliases: ["khaleeji bank", "khaleeji", "بنك الخليجي"]
+        ),
+        GhafBankSupportContact(
+            id: "nizwa", name: "Bank Nizwa", nameArabic: "بنك نزوى",
+            countryName: "Oman", countryNameArabic: "سلطنة عُمان",
+            localPhone: "2495 0500", internationalPhone: "+968 2495 0500",
+            website: URL(string: "https://www.banknizwa.om/en/contact-us")!,
+            aliases: ["bank nizwa", "nizwa", "بنك نزوى"]
         )
     ]
 
