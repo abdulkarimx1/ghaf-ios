@@ -102,7 +102,22 @@ struct GhafSettingsView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: GhafMetrics.sectionSpacing) {
-                    profileHeader
+                    // Owner 1.31: ⋯ opens Profile; the gear opens Settings.
+                    HStack {
+                        Spacer()
+                        NavigationLink {
+                            GhafDeferredView { subpage(ar ? "الإعدادات" : "Settings") { settingsList } }
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(theme.primaryText)
+                                .frame(width: 44, height: 44)
+                                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
+                        }
+                        .buttonStyle(.ghafPress)
+                        .accessibilityLabel(ar ? "الإعدادات" : "Settings")
+                    }
+                    profilePage
 
                     if proUnlocked {
                         HStack(spacing: 12) {
@@ -146,48 +161,8 @@ struct GhafSettingsView: View {
                         .ghafProSheet(isPresented: $showProSheet, settings: settings)
                     }
 
-                    menuGroup(ar ? "المال" : "Money") {
-                        menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
-                        menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { budgetPage } }
-                        menuRow(ar ? "دورة الراتب" : "Salary cycle", icon: "calendar.badge.clock") { GhafSalarySettingsView(settings: settings) }
-                        menuRow(ar ? "ربط البنك تلقائياً" : "Bank automation", icon: "bolt.fill") { GhafAutomationGuideView(settings: settings) }
-                    }
-
-                    menuGroup("Ghaf AI") {
-                        menuRow(ar ? "ما تعلّمه غاف" : "What Ghaf learned", icon: "brain.head.profile") { GhafLearnedRulesView(settings: settings) }
-                        menuRow(ar ? "الصوت" : "Voice", icon: "waveform", value: voiceCharacter.isEmpty ? "Hamad" : voiceCharacter) {
-                            GhafAIVoiceSettingsView(settings: settings, firstChoiceRequired: false)
-                        }
-                    }
-
-                    menuGroup(ar ? "التطبيق" : "App") {
-                        menuRow(ar ? "الودجات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
-                        menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
-                        }
-                        menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
-                        menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
-                        menuRow(ar ? "الأمان والخصوصية" : "Security & privacy", icon: "lock.fill") { subpage(ar ? "الأمان" : "Security") { securityCard } }
-                    }
-
-                    menuGroup(ar ? "البيانات" : "Data") {
-                        menuRow(ar ? "Google Drive والنسخ الاحتياطي" : "Google Drive & backup", icon: "externaldrive.fill.badge.icloud") { subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard } }
-                        menuRow(ar ? "عن غاف" : "About Ghaf", icon: "info.circle.fill") { GhafAboutView(settings: settings) }
-                    }
-
-                    Button(role: .destructive) { showDeleteConfirmation = true } label: {
-                        Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
-                    }
-                    .ghafDestructiveButton(theme: theme, languageCode: languageCode)
-
-                    Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
-                        .font(GhafTypography.body(12, languageCode: languageCode))
-                        .foregroundStyle(theme.secondaryText)
-                        .frame(maxWidth: 320, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 4)
+                    sexCard
+                    inviteCard
                 }
                 .ghafScreenPadding()
                 .padding(.top, 40)
@@ -324,34 +299,94 @@ struct GhafSettingsView: View {
 
     // MARK: Simple More layout
 
-    private var initials: String {
-        let value = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
-        return value.isEmpty ? (ar ? "غ" : "G") : value.uppercased()
+    @ViewBuilder private var settingsList: some View {
+                    menuGroup(ar ? "المال" : "Money") {
+                        menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
+                        menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { budgetPage } }
+                        menuRow(ar ? "دورة الراتب" : "Salary cycle", icon: "calendar.badge.clock") { GhafSalarySettingsView(settings: settings) }
+                        menuRow(ar ? "ربط البنك تلقائياً" : "Bank automation", icon: "bolt.fill") { GhafAutomationGuideView(settings: settings) }
+                    }
+
+                    menuGroup("Ghaf AI") {
+                        menuRow(ar ? "ما تعلّمه غاف" : "What Ghaf learned", icon: "brain.head.profile") { GhafLearnedRulesView(settings: settings) }
+                        menuRow(ar ? "الصوت" : "Voice", icon: "waveform", value: voiceCharacter.isEmpty ? "Hamad" : voiceCharacter) {
+                            GhafAIVoiceSettingsView(settings: settings, firstChoiceRequired: false)
+                        }
+                    }
+
+                    menuGroup(ar ? "التطبيق" : "App") {
+                        menuRow(ar ? "الودجات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
+                        menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
+                        }
+                        menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
+                        menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
+                        menuRow(ar ? "الأمان والخصوصية" : "Security & privacy", icon: "lock.fill") { subpage(ar ? "الأمان" : "Security") { securityCard } }
+                    }
+
+                    menuGroup(ar ? "البيانات" : "Data") {
+                        menuRow(ar ? "Google Drive والنسخ الاحتياطي" : "Google Drive & backup", icon: "externaldrive.fill.badge.icloud") { subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard } }
+                        menuRow(ar ? "عن غاف" : "About Ghaf", icon: "info.circle.fill") { GhafAboutView(settings: settings) }
+                    }
+
+                    Button(role: .destructive) { showDeleteConfirmation = true } label: {
+                        Label(ar ? "حذف جميع بيانات غاف" : "Delete all Ghaf data", systemImage: "trash")
+                    }
+                    .ghafDestructiveButton(theme: theme, languageCode: languageCode)
+
+                    Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
+                        .font(GhafTypography.body(12, languageCode: languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .frame(maxWidth: 320, alignment: .center)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 4)
     }
 
-    private var profileHeader: some View {
-        NavigationLink {
-            GhafDeferredView { subpage(ar ? "الملف الشخصي" : "Profile") { profilePage } }
-        } label: {
-            VStack(spacing: 10) {
-                GhafAvatar(initials: initials, theme: theme, languageCode: languageCode)
-                Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
-                    .font(GhafTypography.display(26, languageCode: languageCode))
-                    .foregroundStyle(theme.primaryText)
-                HStack(spacing: 6) {
-                    Text(ar ? "عرض الملف الشخصي" : "View profile")
-                    Image(systemName: "chevron.forward").font(.system(size: 10, weight: .heavy))
+    /// V16: the user's sex picks the Arabic forms Ghaf's voices and replies use; changes apply immediately.
+    private var sexCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(ar ? "الجنس" : "Sex")
+                .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.secondaryText)
+            GhafSegmented(options: [("male", ar ? "ذكر" : "Male"), ("female", ar ? "أنثى" : "Female"), ("unspecified", ar ? "أفضّل عدم الذكر" : "Prefer not to say")],
+                          selection: Binding(get: { settings.userSex ?? "unspecified" },
+                                             set: { settings.userSex = $0; try? modelContext.save() }),
+                          theme: theme, languageCode: languageCode)
+            Text(ar ? "يخاطبك غاف بالصيغة المناسبة." : "Ghaf speaks to you in the matching Arabic forms.")
+                .font(GhafTypography.body(12, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+        }
+        .padding(GhafMetrics.cardPadding)
+        .ghafCard(theme: theme)
+    }
+
+    /// Invite: shares a message for now. shortcut: no referral discount until there's an App Store developer account.
+    private var inviteCard: some View {
+        ShareLink(item: ar ? "أستخدم غاف لتتبّع مصاريفي وحساباتي بالعربي والإنجليزي. جرّبه!" : "I use Ghaf to track my spending and accounts in Arabic and English. Try it!") {
+            HStack(spacing: 14) {
+                Image(systemName: "gift.fill").font(.system(size: 20, weight: .semibold)).foregroundStyle(theme.accent)
+                    .frame(width: 44, height: 44).background(theme.accent.opacity(0.12), in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(ar ? "ادعُ صديقاً" : "Invite a friend")
+                        .font(GhafTypography.body(16, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                    Text(ar ? "شارك غاف مع من تهتم لأمرهم." : "Share Ghaf with someone who'd use it.")
+                        .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 }
-                .font(GhafTypography.body(14, languageCode: languageCode, weight: .bold))
-                .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 18).frame(minHeight: GhafMetrics.compactButtonHeight)
-                .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
+                Spacer()
+                Image(systemName: "square.and.arrow.up").foregroundStyle(theme.secondaryText)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 8)
+            .padding(GhafMetrics.cardPadding)
             .contentShape(Rectangle())
         }
         .buttonStyle(.ghafPress)
+        .ghafCard(theme: theme)
+    }
+
+    private var initials: String {
+        let value = name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
+        return value.isEmpty ? (ar ? "غ" : "G") : value.uppercased()
     }
 
     private var profilePage: some View { profileCard.offerCodeRedemption(isPresented: $redeemingVoucher) }
@@ -417,12 +452,7 @@ struct GhafSettingsView: View {
         let preset = BudgetAllocation.Preset(rawValue: settings.allocationPresetRaw) ?? .balanced
         let shares = preset.shares
         let split = "\(NSDecimalNumber(decimal: (shares[.needs] ?? 0) * 100).intValue)/\(NSDecimalNumber(decimal: (shares[.wants] ?? 0) * 100).intValue)/\(NSDecimalNumber(decimal: (shares[.savings] ?? 0) * 100).intValue)"
-        let description: String = switch preset {
-        case .balanced: ar ? "توازن بين الاحتياجات والرغبات والادخار، مع مساحة لكل جانب." : "You balance essentials, everyday wants, and steady saving."
-        case .highRentCity: ar ? "تمنح الاحتياجات الأساسية حصة أكبر، مع استمرار الادخار." : "You prioritize essentials while keeping a steady savings share."
-        case .essentialsFirst: ar ? "تضع الاحتياجات أولاً وتخصص جزءًا واضحًا للادخار." : "You put essentials first and keep a clear portion for savings."
-        case .guardian: ar ? "تحمي الأساسيات والادخار قبل زيادة المصروفات الأخرى." : "You protect essentials and savings before expanding other spending."
-        }
+        let description = budgetCharacterLine
         return VStack(spacing: 14) {
             Text(budgetCharacterName).font(GhafTypography.heading(19, languageCode: languageCode)).foregroundStyle(theme.primaryText)
             Text(description).font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
@@ -436,6 +466,17 @@ struct GhafSettingsView: View {
         .padding(24)
         .ghafBottomCard(theme: theme, languageCode: languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+
+    /// The character's personality line, under its name on Profile (owner 1.31) and in its sheet.
+    private var budgetCharacterLine: String {
+        let preset = BudgetAllocation.Preset(rawValue: settings.allocationPresetRaw) ?? .balanced
+        return switch preset {
+        case .balanced: ar ? "توازن بين الاحتياجات والرغبات والادخار، مع مساحة لكل جانب." : "You balance essentials, everyday wants, and steady saving."
+        case .highRentCity: ar ? "تمنح الاحتياجات الأساسية حصة أكبر، مع استمرار الادخار." : "You prioritize essentials while keeping a steady savings share."
+        case .essentialsFirst: ar ? "تضع الاحتياجات أولاً وتخصص جزءًا واضحًا للادخار." : "You put essentials first and keep a clear portion for savings."
+        case .guardian: ar ? "تحمي الأساسيات والادخار قبل زيادة المصروفات الأخرى." : "You protect essentials and savings before expanding other spending."
+        }
     }
 
     private var budgetCharacterName: String {
@@ -654,9 +695,14 @@ struct GhafSettingsView: View {
                         .opacity(draftProfileName.count >= 16 || draftArabicName.count >= 16 ? 1 : 0)
                 }
                 Button { showBudgetCharacterInfo = true } label: {
-                    Text(budgetCharacterName)
-                        .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
-                        .padding(.vertical, 4)
+                    VStack(spacing: 2) {
+                        Text(budgetCharacterName)
+                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold)).foregroundStyle(theme.accent)
+                        Text(budgetCharacterLine)
+                            .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 4)
                 }.buttonStyle(.plain)
                 Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
