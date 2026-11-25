@@ -395,7 +395,6 @@ struct GhafHomeView: View {
             }
             .frame(maxWidth: .infinity)
             Button {
-                GhafSounds.shared.play(.tick)
                 if reduceMotion {
                     withAnimation(.easeInOut(duration: 0.15)) { hideBalances.toggle() }
                 } else {
