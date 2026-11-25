@@ -295,44 +295,52 @@ struct GhafBudgetView: View {
     }
 
     private var presetSheet: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(ar ? "اختر التوزيع" : "Choose a budget split").font(GhafTypography.heading(22, languageCode: lang)).foregroundStyle(theme.primaryText).frame(maxWidth: .infinity)
             ForEach(BudgetAllocation.Preset.allCases, id: \.self) { item in
                 Button { settings.allocationPresetRaw = item.rawValue; showPresetSheet = false } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             Text(ar ? presetNameArabic(item) : item.name)
-                                .font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                                .font(GhafTypography.body(17, languageCode: lang, weight: .semibold))
                                 .lineLimit(1)
+                            Spacer(minLength: 4)
                             Text(item.title)
-                                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                                .monospacedDigit()
-                                .foregroundStyle(theme.accent)
-                            Text(ar ? presetArabic(item) : item.description)
-                                .font(GhafTypography.body(11, languageCode: lang))
-                                .foregroundStyle(theme.secondaryText)
-                                .lineLimit(1).minimumScaleFactor(0.8)
+                                .font(GhafTypography.number(15, weight: .semibold))
+                                .foregroundStyle(preset == item ? theme.accent : theme.secondaryText)
+                                .environment(\.layoutDirection, .leftToRight)
+                            if preset == item {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(theme.accent)
+                            }
                         }
-                        Spacer(minLength: 4)
-                        if preset == item {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundStyle(theme.accent)
+                        GeometryReader { proxy in
+                            HStack(spacing: 3) {
+                                ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { bucket in
+                                    Capsule().fill([theme.accent, theme.glow, theme.secondaryText][bucket.rawValue])
+                                        .frame(width: max(4, (proxy.size.width - 6) * NSDecimalNumber(decimal: item.share(bucket)).doubleValue))
+                                }
+                            }
                         }
+                        .frame(height: 6)
+                        .accessibilityHidden(true)
                     }
                     .foregroundStyle(theme.primaryText)
-                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
-                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16).padding(.vertical, 16)
                     .background(preset == item ? theme.accent.opacity(0.12) : theme.surface,
                                 in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(ar ? presetNameArabic(item) : item.name), \(item.title)")
+                .accessibilityHint(ar ? presetArabic(item) : item.description)
                 .accessibilityAddTraits(preset == item ? .isSelected : [])
             }
-            Text(ar ? "تستند قاعدة ٥٠/٣٠/٢٠ إلى كتاب Elizabeth Warren بعنوان All Your Worth (2005). أما التوزيعات الأخرى فتكيّفها لتناسب ارتفاع التكاليف الثابتة." : "The 50/30/20 rule comes from Elizabeth Warren's book All Your Worth (2005). The other splits adapt it for higher fixed costs.")
-                .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).fixedSize(horizontal: false, vertical: true)
+            Text(ar ? "الأساسيات / الرغبات / الادخار" : "Needs / wants / savings")
+                .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity).padding(.top, 2)
         }.padding(22).ghafBackground(theme: theme)
     }
 
