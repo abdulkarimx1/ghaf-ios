@@ -44,7 +44,7 @@ struct GhafStreakView: View {
                     AccessoryWidgetBackground()
                     VStack(spacing: 0) {
                         Image(systemName: "flame.fill").font(.system(size: 13, weight: .semibold))
-                        Text("\(days)").font(.system(size: 20, weight: .bold, design: .rounded)).minimumScaleFactor(0.6)
+                        Text("\(days)").font(ghafNumberFont(20, weight: .bold)).minimumScaleFactor(0.6)
                     }
                 }.accessibilityLabel(spoken)
             case .accessoryRectangular:
@@ -68,7 +68,7 @@ struct GhafStreakView: View {
                         Caption(value: text(s, "Streak", "السلسلة")).foregroundStyle(tile.dim)
                     }
                     Spacer(minLength: 0)
-                    Text("\(days)").font(.system(size: 44, weight: .heavy, design: .rounded)).tracking(-1)
+                    Text("\(days)").font(ghafNumberFont(44, weight: .heavy)).tracking(-1)
                         .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1)
                     Text(text(s, days == 1 ? "day" : "days", "يوم")).font(.system(size: 11, weight: .bold)).foregroundStyle(tile.highlight)
                     HStack(spacing: 4) {
@@ -179,13 +179,13 @@ struct GhafBudgetPetalsView: View {
                     GeometryReader { geometry in
                         let diameter = min(geometry.size.width, geometry.size.height)
                         let step = 360.0 / Double(petals.count)
-                        let gap = 3 / max(diameter / 2, 1) * 180 / .pi
+                        let gap = 3 / 150.0 * 180 / .pi // the Budget screen's 3 pt gap on its ~150 pt radius, so proportions match
                         ZStack {
                             ForEach(Array(petals.enumerated()), id: \.offset) { index, petal in
                                 let start = -90 + Double(index) * step + gap / 2
                                 let end = -90 + Double(index + 1) * step - gap / 2
                                 let color = petal.over ? over : tile.highlight
-                                GhafPetalSegment(start: start, end: end, inner: 0.16, outer: 1).fill(color.opacity(0.25))
+                                GhafPetalSegment(start: start, end: end, inner: 0.16, outer: 1).fill(color.opacity(tile.isDark ? 0.25 : 0.18))
                                 GhafPetalSegment(start: start, end: end, inner: 0.16, outer: CGFloat(petal.fill)).fill(color)
                             }
                         }

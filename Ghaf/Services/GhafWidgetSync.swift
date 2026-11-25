@@ -153,13 +153,20 @@ enum GhafWidgetSync {
             .sorted { $0.amount > $1.amount }.prefix(3))
 
         let innerRadius = 0.16
-        snapshot.petals = GhafBudgetPlan(settings: settings, transactions: transactions, calendar: GhafCalendar.current, now: GhafClock.now)
-            .categoryRows.filter { $0.spent > 0 && $0.budget > 0 }.prefix(6).map {
-                // Anything spent stays visible: floor the fill at 8% of the band (same rule as the Budget screen).
-                let radii = BudgetAllocation.petalRadii(budget: $0.budget, spent: $0.spent, innerRadius: innerRadius)
-                return .init(name: name($0.name), spent: $0.spent, budget: $0.budget,
-                             fill: max(radii.fill, innerRadius + (1 - innerRadius) * 0.08), over: $0.spent > $0.budget)
-            }
+        // Same petals as the Budget screen: up to 8, with the tail folded into "Other" past 8.
+        let petalRows = GhafBudgetPlan(settings: settings, transactions: transactions, calendar: GhafCalendar.current, now: GhafClock.now)
+            .categoryRows.filter { $0.spent > 0 && $0.budget > 0 }
+        let groupedPetals = petalRows.count > 8
+        let shownPetals: [(name: String, spent: Decimal, budget: Decimal)] = Array(petalRows.prefix(groupedPetals ? 7 : 8)).map { ($0.name, $0.spent, $0.budget) }
+            + (groupedPetals ? [(settings.languageCode == "ar" ? "أخرى" : "Other",
+                                 petalRows.dropFirst(7).reduce(Decimal.zero) { $0 + $1.spent },
+                                 petalRows.dropFirst(7).reduce(Decimal.zero) { $0 + $1.budget })] : [])
+        snapshot.petals = shownPetals.map {
+            // Anything spent stays visible: floor the fill at 8% of the band (same rule as the Budget screen).
+            let radii = BudgetAllocation.petalRadii(budget: $0.budget, spent: $0.spent, innerRadius: innerRadius)
+            return .init(name: name($0.name), spent: $0.spent, budget: $0.budget,
+                         fill: max(radii.fill, innerRadius + (1 - innerRadius) * 0.08), over: $0.spent > $0.budget)
+        }
         snapshot.overColor = hex(lit.over)
 
         if let subscriptions = try? context.fetch(FetchDescriptor<GhafSubscription>()) {

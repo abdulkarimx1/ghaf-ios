@@ -33,7 +33,6 @@ struct GhafStatsView: View {
     @State private var chartReady = false
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
-    @State private var selectedBreakdownDay: Date?
     @State private var showProSheet = false
     @State private var barTransactions: BarTransactions?
     private struct BarTransactions: Identifiable { let id = UUID(); let title: String; let items: [GhafTransaction] }
@@ -151,7 +150,19 @@ struct GhafStatsView: View {
         NSDecimalNumber(decimal: items.reduce(Decimal.zero) { $0 + statisticsAmount($1) }).doubleValue
     }
 
+    /// Points on the trend line: one per day for week, month and 3 months; one per month for the year.
     private func bucketWindows() -> [SpendingForecast.Window] {
+        guard period == .month || period == .quarter else { return groupWindows() }
+        var windows: [SpendingForecast.Window] = []
+        var day = interval.start
+        while day < interval.end, let next = calendar.date(byAdding: .day, value: 1, to: day) {
+            windows.append(.init(start: day, end: next)); day = next
+        }
+        return windows
+    }
+
+    /// The four even groups for Month and 3M (they label the x-axis); same as the points for Week and Year.
+    private func groupWindows() -> [SpendingForecast.Window] {
         let corePeriod: SpendingInsights.ChartPeriod = switch period {
         case .week: .week
         case .month: .month
@@ -232,9 +243,6 @@ struct GhafStatsView: View {
                                 let trendBuckets = stats.buckets
                                 AnyView(trendHero(trendBuckets, current: stats.filtered, previous: stats.previousFiltered,
                                                   hasPreviousCoverage: stats.hasPreviousCoverage)).id("trend-chart")
-                                if period == .month, let selected = selectedLabel.flatMap({ key in trendBuckets.first { chartKey($0.start) == key } }) {
-                                    AnyView(weekBreakdown(selected, transactions: stats.filtered))
-                                }
                                 AnyView(whereItWent(stats.slices, transferTotal: stats.transferTotal)).id("category-chart")
                                 AnyView(tiles(stats.current))
                                 AnyView(budgetLink)
@@ -306,7 +314,7 @@ struct GhafStatsView: View {
         case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
         case .month, .quarter:
             // 4 even bars: label each with its date range, e.g. "1–8" or "1 Sep".
-            let end = calendar.date(byAdding: .day, value: -1, to: bucketWindows().first(where: { $0.start == date })?.end ?? interval.end)!
+            let end = calendar.date(byAdding: .day, value: -1, to: groupWindows().first(where: { $0.start == date })?.end ?? interval.end)!
             return period == .month
                 ? "\(date.formatted(.dateTime.day().locale(locale)))–\(end.formatted(.dateTime.day().locale(locale)))"
                 : date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
@@ -316,33 +324,29 @@ struct GhafStatsView: View {
     }
 
     private func chartKey(_ date: Date) -> String {
-        bucketWindows().firstIndex(where: { $0.start == date }).map(String.init)
-            ?? String(Int(date.timeIntervalSince1970))
+        String(Int(date.timeIntervalSince1970))
     }
 
     private func bucketLabel(_ date: Date) -> String {
         let locale = Locale(identifier: lang)
-        if period == .month {
-            let last = calendar.date(byAdding: .day, value: -1, to: bucketWindows().first(where: { $0.start == date })?.end ?? interval.end)!
-            return "\(date.formatted(.dateTime.day().locale(locale)))–\(last.formatted(.dateTime.day().locale(locale))) \(last.formatted(.dateTime.month(.abbreviated).locale(locale)))"
-        }
         switch period {
+        case .month, .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
         case .week: return date.formatted(.dateTime.weekday(.wide).locale(locale))
         case .month: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
-        case .quarter:
-            let end = calendar.date(byAdding: .day, value: -1, to: bucketWindows().first(where: { $0.start == date })?.end ?? interval.end)!
-            return "\(date.formatted(.dateTime.day().locale(locale)))–\(end.formatted(.dateTime.day().locale(locale))) \(end.formatted(.dateTime.month(.abbreviated).locale(locale)))"
         case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
         }
     }
 
     @ChartContentBuilder
     private func actualTrendMark(_ bucket: Bucket) -> some ChartContent {
-        // Owner 1.31 pick: bars for every period, radius 10, others fade when one is selected.
-        let faded = selectedLabel != nil && selectedLabel != chartKey(bucket.start)
-        BarMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total), width: .ratio(period == .week || period == .year ? 0.62 : 0.55))
-            .clipShape(RoundedRectangle(cornerRadius: period == .year ? 6 : 10, style: .continuous))
-            .foregroundStyle(theme.accent.opacity(faded ? 0.28 : 1))
+        // Owner 1.31: one smooth line (with a soft fill) over the period; the scrubbed point is marked separately.
+        AreaMark(x: .value("Date", chartKey(bucket.start)), yStart: .value("Baseline", 0), yEnd: .value(currency, bucket.total), series: .value("Series", "Actual"))
+            .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.28), theme.accent.opacity(0)], startPoint: .top, endPoint: .bottom))
+            .interpolationMethod(.catmullRom)
+        LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total), series: .value("Series", "Actual"))
+            .foregroundStyle(theme.accent)
+            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            .interpolationMethod(.catmullRom)
     }
 
     /// One card in the theme's surface, Stocks style: the total (or the scrubbed point), the change against the previous
@@ -369,10 +373,12 @@ struct GhafStatsView: View {
             Text(heading)
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
+                .lineLimit(1).frame(height: 20)
             GhafRollingNumber(amount: Decimal(selected.map { $0.total + ($0.forecast ?? 0) } ?? spent), currency: currency, languageCode: lang, size: 40)
                 .foregroundStyle(theme.primaryText)
                 .environment(\.layoutDirection, .leftToRight)
                 .accessibilityIdentifier("stats.period.spent")
+            Group {
             if let change, comparisonVisible, selected == nil, selectedCategory == nil {
                 Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
                       + (ar ? " عن الفترة السابقة" : " vs previous"),
@@ -388,10 +394,14 @@ struct GhafStatsView: View {
                     .foregroundStyle(theme.secondaryText)
                     .padding(.vertical, 5)
             }
-            // Owner 1.31: a tapped bar offers the transactions behind its number (the same list the bar sums).
-            if let selected {
-                let items = current.filter { $0.date >= selected.start && $0.date < selected.end }
+            }
+            .frame(height: 30)
+            // Owner 1.31: a tapped point offers the transactions behind its number. The slot is always there
+            // (hidden when nothing is selected) so the card never changes height.
+            let items = selected.map { sel in current.filter { $0.date >= sel.start && $0.date < sel.end } } ?? []
+            do {
                 Button {
+                    guard let selected else { return }
                     barTransactions = BarTransactions(title: bucketLabel(selected.start), items: items)
                 } label: {
                     Label(ar ? "عرض العمليات" : "View transactions", systemImage: "list.bullet")
@@ -402,7 +412,9 @@ struct GhafStatsView: View {
                 }
                 .buttonStyle(.ghafPress)
                 .disabled(items.isEmpty)
-                .transition(.opacity)
+                .opacity(selected == nil ? 0 : 1)
+                .allowsHitTesting(selected != nil)
+                .accessibilityHidden(selected == nil)
             }
             Chart {
                 ForEach(plotted) { bucket in
@@ -487,11 +499,11 @@ struct GhafStatsView: View {
             .chartXAxis {
                 let labels: [String] = switch period {
                 case .week: plotted.map { chartKey($0.start) }
-                case .month, .quarter: plotted.map { chartKey($0.start) }
+                case .month, .quarter: groupWindows().map { chartKey($0.start) }
                 case .year: plotted.enumerated().compactMap { $0.offset.isMultiple(of: 2) ? chartKey($0.element.start) : nil }
                 }
                 AxisMarks(values: labels) { value in
-                    AxisValueLabel {
+                    AxisValueLabel(anchor: period == .month || period == .quarter ? .topLeading : .top) {
                         if let key = value.as(String.self), let bucket = plotted.first(where: { chartKey($0.start) == key }) {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
                                 .lineLimit(1).minimumScaleFactor(0.75)
@@ -506,8 +518,8 @@ struct GhafStatsView: View {
             .padding(.top, 14)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityLabel(ar ? "اتجاه المصروف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
-            if all.contains(where: { $0.forecast != nil }) {
-                HStack(spacing: 6) {
+            // Always laid out (hidden without a forecast) so the period picker below never moves.
+            HStack(spacing: 6) {
                     Canvas { context, size in
                         var path = Path()
                         path.move(to: CGPoint(x: 0, y: size.height / 2))
@@ -518,8 +530,9 @@ struct GhafStatsView: View {
                     Text(ar ? "توقع · بناءً على آخر ٩٠ يوماً" : "Forecast · based on your last 90 days")
                         .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
-            }
+                .frame(maxWidth: .infinity, minHeight: 18, alignment: .center)
+                .opacity(all.contains(where: { $0.forecast != nil }) ? 1 : 0)
+                .accessibilityHidden(!all.contains(where: { $0.forecast != nil }))
 
             GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme, languageCode: lang)
                 .scaleEffect(x: 1, y: 52.0 / 56.0)
@@ -551,77 +564,6 @@ struct GhafStatsView: View {
 
     private func tapTrendBucket(_ key: String) {
         selectedLabel = selectedLabel == key ? nil : key
-    }
-
-    private func weekBreakdown(_ bucket: Bucket, transactions: [GhafTransaction]) -> some View {
-        let count = max(0, calendar.dateComponents([.day], from: bucket.start, to: bucket.end).day ?? 0)
-        let windows = (0..<count).compactMap { offset -> (Date, SpendingForecast.Window)? in
-            guard let date = calendar.date(byAdding: .day, value: offset, to: bucket.start) else { return nil }
-            guard let end = calendar.date(byAdding: .day, value: 1, to: date) else { return nil }
-            return (date, SpendingForecast.Window(start: date, end: end))
-        }
-        let history = selectedCategory == "Transfers" ? [] : self.transactions.filter {
-            $0.currency == currency && $0.isExpense && $0.spendingAmount > 0
-                && (selectedCategory == nil || $0.category == selectedCategory)
-        }
-        let estimates = SpendingForecast.amounts(
-            expenses: history
-                .map { SpendingForecast.Expense(date: $0.date, amount: $0.spendingAmount, isTransfer: !$0.isSpendingOrIncome) },
-            subscriptions: subscriptions.filter { $0.currency == currency && (selectedCategory == nil || selectedCategory == "Subscriptions") }.map {
-                SpendingForecast.Subscription(nextPaymentDate: $0.nextPaymentDate, amount: $0.amount, isActive: $0.isActive)
-            }, windows: windows.map(\.1), now: GhafClock.now, calendar: calendar)
-        let days = windows.map { date, window in
-            let actual = date <= GhafClock.now ? transactions.filter { calendar.isDate($0.date, inSameDayAs: date) }.reduce(Decimal.zero) { $0 + statisticsAmount($1) } : 0
-            let forecast = estimates[window.start].map { NSDecimalNumber(decimal: $0).doubleValue }
-            return DayBar(date: date, amount: NSDecimalNumber(decimal: actual).doubleValue + (forecast ?? 0), forecast: forecast != nil)
-        }
-        let first = days.first?.date ?? bucket.start
-        let last = calendar.date(byAdding: .day, value: -1, to: bucket.end) ?? bucket.start
-        let range = "\(first.formatted(.dateTime.day().locale(Locale(identifier: lang))))–\(last.formatted(.dateTime.day().locale(Locale(identifier: lang)))) \(last.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))"
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("\(range) · \(ar ? "حسب اليوم" : "by day")")
-                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.secondaryText)
-            Chart(days) { day in
-                BarMark(x: .value("Day", chartKey(day.date)),
-                        y: .value("Spent", day.amount))
-                    .foregroundStyle(theme.accent.opacity(day.forecast ? (theme.isDark ? 0.34 : 0.22) : calendar.isDate(day.date, inSameDayAs: GhafClock.now) ? 1 : 0.35))
-                    .cornerRadius(6)
-                    .annotation(position: .top, spacing: 3) {
-                        if selectedBreakdownDay == day.date {
-                            Text(GhafCompactNumber.string(day.amount, languageCode: lang))
-                                .font(GhafTypography.body(10, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
-                        }
-                    }
-            }
-            .chartOverlay { proxy in
-                GeometryReader { geometry in
-                    Rectangle().fill(.clear).contentShape(Rectangle()).gesture(SpatialTapGesture().onEnded { value in
-                        guard let frame = proxy.plotFrame else { return }
-                        let x = value.location.x - geometry[frame].minX
-                        guard let label: String = proxy.value(atX: x), let day = days.first(where: { chartKey($0.date) == label }) else { return }
-                        selectedBreakdownDay = selectedBreakdownDay == day.date ? nil : day.date
-                    })
-                }
-            }
-            .chartXAxis {
-                AxisMarks { value in
-                    AxisValueLabel {
-                        if let key = value.as(String.self), let day = days.first(where: { chartKey($0.date) == key }) {
-                            Text(day.date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: lang))))
-                                .foregroundStyle(theme.secondaryText.opacity(day.date > GhafClock.now ? 0.4 : 1))
-                        }
-                    }
-                }
-            }
-            .chartYAxis(.hidden)
-            .frame(height: 78)
-            if days.contains(where: \.forecast) {
-                Text(ar ? "توقع · بناءً على آخر ٩٠ يوماً" : "Forecast · based on your last 90 days")
-                    .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
-            }
-        }
-        .padding(GhafMetrics.cardPadding).ghafStatsCard(theme: theme, radius: 22)
-        .accessibilityLabel(ar ? "تفصيل المصروف اليومي لهذا الأسبوع" : "Daily spending breakdown for this week")
     }
 
 #if DEBUG

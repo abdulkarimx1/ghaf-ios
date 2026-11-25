@@ -280,7 +280,7 @@ struct GhafBalanceView: View {
                             .contentTransition(.numericText())
                             .privacySensitive()
                         Text(text(s, "Spent ", "صرفت ") + s.money(s.spentThisMonth) + text(s, " this month", " هذا الشهر"))
-                            .font(.system(size: 11, weight: .bold))
+                            .font(ghafNumberFont(11, weight: .bold))
                             .foregroundStyle(tile.highlight)
                             .lineLimit(1).minimumScaleFactor(0.6)
                             .privacySensitive()
@@ -387,7 +387,7 @@ struct GhafTodayView: View {
         return HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Caption(value: caption).foregroundStyle(tile.dim)
-                Text(s.money(s.spentToday)).font(.system(size: 26, weight: .heavy)).tracking(-0.8)
+                Text(s.money(s.spentToday)).font(ghafNumberFont(26, weight: .heavy)).tracking(-0.8)
                     .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1).privacySensitive()
                 Spacer(minLength: 0)
                 if let last = s.lastPurchase {
@@ -534,7 +534,7 @@ struct GhafPurchaseLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(s.signedAmount)
-                            .font(.system(size: 24, weight: .heavy, design: .rounded))
+                            .font(ghafNumberFont(24, weight: .heavy))
                             .monospacedDigit()
                             .foregroundStyle(s.isCredit ? Color.green : paper)
                             .minimumScaleFactor(0.6).lineLimit(1).privacySensitive()
@@ -560,7 +560,7 @@ struct GhafPurchaseLiveActivity: Widget {
                     .accessibilityLabel(s.category)
             } compactTrailing: {
                 Text(s.shortAmount)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(ghafNumberFont(14, weight: .heavy))
                     .monospacedDigit()
                     .foregroundStyle(s.isCredit ? Color.green : a.glowColor)
                     .opacity(fade).privacySensitive()
@@ -595,7 +595,7 @@ struct GhafPurchaseLockView: View {
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(s.signedAmount)
-                        .font(.system(size: 26, weight: .heavy, design: .rounded)).tracking(-0.6)
+                        .font(ghafNumberFont(26, weight: .heavy)).tracking(-0.6)
                         .monospacedDigit()
                         .foregroundStyle(s.isCredit ? Color.green : paper)
                         .minimumScaleFactor(0.6).lineLimit(1)

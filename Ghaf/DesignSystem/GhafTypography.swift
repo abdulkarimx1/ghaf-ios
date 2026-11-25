@@ -40,9 +40,9 @@ enum GhafTypography {
             .weight(weight == .regular ? .semibold : (weight == .medium ? .semibold : .bold))
     }
 
-    /// Amounts use SF Pro Rounded: wide, friendly numerals that scan fast and animate cleanly.
+    /// Amounts use Geist with tabular figures (Shared/GhafNumberFont.swift).
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight == .regular ? .medium : weight, design: .rounded)
+        ghafNumberFont(size, weight: weight)
     }
 
     static func userContent(_ text: String, size: CGFloat, languageCode: String, weight: Font.Weight = .regular, heading: Bool = false) -> Font {

@@ -23,6 +23,7 @@
 |---|---|---|
 | Display / headings | IBM Plex Sans | Thmanyah Serif Display Black |
 | Body | IBM Plex Sans (variable) | IBM Plex Sans Arabic (Regular/Medium/SemiBold/Bold) |
+| Numbers (amounts, charts, stats, keypad, widgets) | Geist (variable, tabular figures) via `GhafTypography.number` / `ghafNumberFont` | Geist has no Arabic-Indic digits; those glyphs use the system fallback |
 Use only `GhafTypography.display / heading / body`. No `.system(size:)` for text in new screens.
 
 ## 4. Colour
