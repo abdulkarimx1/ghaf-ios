@@ -91,22 +91,51 @@ struct GhafAboutView: View {
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
+    @State private var featureID: Int? = 0
+
+    /// Owner 1.31 (V19): full-bleed feature cards in a cover flow that advances every 3 s; swipe to browse.
     private var featureList: some View {
-        VStack(spacing: 12) {
-            ForEach(Array(features.enumerated()), id: \.offset) { _, feature in
-                VStack(alignment: .leading, spacing: 10) {
-                    Image(systemName: feature.symbol)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                        .frame(width: 48, height: 48)
-                        .background(theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    Text(feature.title).font(GhafTypography.heading(19, languageCode: lang)).foregroundStyle(theme.primaryText)
-                    Text(feature.body).font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 12) {
+                ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
+                    featureCard(feature, index: index)
+                        .containerRelativeFrame(.horizontal) { width, _ in width * 0.84 }
+                        .scrollTransition(axis: .horizontal) { view, phase in
+                            view.scaleEffect(phase.isIdentity ? 1 : 0.9).opacity(phase.isIdentity ? 1 : 0.7)
+                        }
+                        .id(index)
                 }
-                .padding(18).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme)
             }
+            .scrollTargetLayout()
         }
+        .contentMargins(.horizontal, 28, for: .scrollContent)
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: $featureID)
+        .padding(.horizontal, -GhafMetrics.gutter)
+        .frame(height: 330)
+        .task(id: featureID) {
+            guard !reduceMotion else { return }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation(.easeInOut(duration: 0.6)) { featureID = ((featureID ?? 0) + 1) % features.count }
+        }
+    }
+
+    private func featureCard(_ feature: Feature, index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: feature.symbol)
+                .font(.system(size: 30, weight: .bold))
+                .foregroundStyle(.white)
+            Spacer(minLength: 0)
+            GhafOutlinedText(text: feature.title, font: GhafTypography.display(30, languageCode: lang))
+            Text(feature.body).font(GhafTypography.body(15, languageCode: lang, weight: .medium))
+                .foregroundStyle(.white.opacity(0.9))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background { GhafAboutShader(theme: theme, seed: Double(index), animate: !reduceMotion) }
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 
     private var story: some View {
@@ -260,5 +289,46 @@ private struct GhafWhyPaidPage: View {
         }
         .frame(minHeight: 64)
         .contentShape(Rectangle())
+    }
+}
+
+/// Owner pick "outline titles": white outline, see-through middle.
+private struct GhafOutlinedText: View {
+    let text: String
+    let font: Font
+    var body: some View {
+        ZStack {
+            ForEach(0..<8, id: \.self) { i in
+                let a = Double(i) * .pi / 4
+                Text(text).font(font).foregroundStyle(.white)
+                    .offset(x: cos(a) * 1.2, y: sin(a) * 1.2)
+            }
+            Text(text).font(font).foregroundStyle(.black.opacity(0.55)).blendMode(.destinationOut)
+        }
+        .compositingGroup()
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityLabel(text)
+    }
+}
+
+/// Owner pick "shaders": a slow-moving colour field in the theme's accent, drawn live.
+private struct GhafAboutShader: View {
+    let theme: GhafTheme
+    let seed: Double
+    let animate: Bool
+    var body: some View {
+        TimelineView(.animation(paused: !animate)) { context in
+            let t = animate ? context.date.timeIntervalSinceReferenceDate * 0.25 + seed * 1.7 : seed
+            // Graphite's accent is pure black/white, which would wash out the white text; use steel instead.
+            let glow = theme.name == "Graphite" ? Color(red: 0.42, green: 0.46, blue: 0.52) : theme.accent
+            ZStack {
+                Color.black
+                RadialGradient(colors: [glow, .clear], center: UnitPoint(x: 0.5 + 0.35 * cos(t), y: 0.4 + 0.3 * sin(t * 1.3)),
+                               startRadius: 0, endRadius: 320)
+                RadialGradient(colors: [glow.opacity(0.6), .clear], center: UnitPoint(x: 0.5 + 0.4 * sin(t * 0.8), y: 0.8 + 0.2 * cos(t)),
+                               startRadius: 0, endRadius: 260)
+                    .blendMode(.screen)
+            }
+        }
     }
 }
