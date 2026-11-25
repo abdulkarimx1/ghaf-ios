@@ -185,13 +185,17 @@ private struct GhafMoneyGlyph: View {
             // animation is a pure transform, so it is smooth and runs under the shared hide transaction.
             let row = hidden ? 10 : value
             let digits = character.unicodeScalars.first.map { $0.value >= 0x660 && $0.value <= 0x669 } == true ? Self.arabicIndic : Self.latin
-            VStack(spacing: 0) {
-                ForEach(0..<10, id: \.self) { Text(String(digits[$0])).frame(width: digitWidth, height: columnHeight) }
-                Text("•").frame(width: digitWidth, height: columnHeight)
-            }
-            .offset(y: CGFloat(5 - row) * columnHeight)
-            .frame(width: digitWidth, height: columnHeight, alignment: .center)
-            .clipped()
+            // The strip is an overlay on a one-digit box, so lists and stacks size the row to one digit, not eleven.
+            Color.clear
+                .frame(width: digitWidth, height: columnHeight)
+                .overlay {
+                    VStack(spacing: 0) {
+                        ForEach(0..<10, id: \.self) { Text(String(digits[$0])).frame(width: digitWidth, height: columnHeight) }
+                        Text("•").frame(width: digitWidth, height: columnHeight)
+                    }
+                    .offset(y: CGFloat(5 - row) * columnHeight)
+                }
+                .clipped()
         } else {
             // Separators are the only flexible pieces in a tight row; fixedSize stops "100.00" being squeezed to "10000" (V2).
             Text(String(character))
