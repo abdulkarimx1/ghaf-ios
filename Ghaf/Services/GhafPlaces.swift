@@ -186,6 +186,8 @@ enum GhafPlaces {
 
     /// Best automatic match: the user's saved place, else a search for business-like names whose
     /// result starts like the merchant ("Samuel Claude" is not "Claude"), closest to the user.
+    static func hasSavedPlace(transactionID: UUID) -> Bool { load(transactionKey)[transactionID.uuidString] != nil }
+
     static func place(for merchant: String, transactionID: UUID, isManual: Bool = false, purchaseDate: Date = .now) async -> MKMapItem? {
         if isSuppressed(merchant: merchant, transactionID: transactionID) { return nil }
         if isManual {

@@ -174,7 +174,13 @@ private struct GhafMoneyGlyph: View {
     private static let arabicIndic = Array("٠١٢٣٤٥٦٧٨٩")
 
     var body: some View {
-        if let value = character.wholeNumberValue, character.isNumber {
+        if reduceMotion, character.isNumber {
+            ZStack {
+                Text(String(character)).opacity(hidden ? 0 : 1)
+                Text("•").opacity(hidden ? 1 : 0)
+            }
+            .frame(width: digitWidth, height: columnHeight)
+        } else if let value = character.wholeNumberValue, character.isNumber {
             // One tall strip (0-9 then a dot) slid by a single offset: the digits spin through and the
             // animation is a pure transform, so it is smooth and runs under the shared hide transaction.
             let row = hidden ? 10 : value

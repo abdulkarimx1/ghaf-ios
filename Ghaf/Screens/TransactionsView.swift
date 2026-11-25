@@ -731,7 +731,11 @@ struct GhafTransactionEditor: View {
         GhafTextField(text: text, placeholder: placeholder, theme: theme, languageCode: languageCode)
     }
 
-    private var nameOK: Bool { transaction.direction == "transfer" || !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    // A bank entry with no merchant (e.g. ATM) stays editable; only clearing an existing name is blocked.
+    private var nameOK: Bool {
+        transaction.direction == "transfer" || !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || (GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant) ?? "").isEmpty
+    }
 
     private func save() {
         guard nameOK else { return }

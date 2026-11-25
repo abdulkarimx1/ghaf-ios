@@ -820,6 +820,7 @@ struct GhafQuickAddView: View {
     @State private var showingDate = false
     @State private var showingTime = false
     @State private var showingDiscard = false
+    @State private var discardThenVoice = false
     @State private var locationPermission: Bool?
     @State private var showingSuccess = false
     @State private var successCategory = ""
@@ -956,7 +957,7 @@ struct GhafQuickAddView: View {
                     Group {
                         if GhafProAccess.hasAccess {
                             // Row 18: the mic hands over to Ghaf AI listening, which turns speech into transactions.
-                            Button { startAIVoice() } label: { micIcon }
+                            Button { if isDirty { discardThenVoice = true; showingDiscard = true } else { startAIVoice() } } label: { micIcon }
                         } else {
                             Button { showProForVoice = true } label: { micIcon }
                         }
@@ -978,7 +979,7 @@ struct GhafQuickAddView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .interactiveDismissDisabled(isDirty)
-        .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
+        .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false; discardThenVoice = false }, discard: { showingDiscard = false; if discardThenVoice { startAIVoice() } else { dismiss() } }) } }
         // Row 28: the splash lives in a full-screen cover, not an overlay, so the sheet's rounded frame no longer crops
         // it, and the live 24 pt blur of the whole form (costly next to the 60 fps shader) is gone.
         .fullScreenCover(isPresented: $showingSuccess) {
@@ -989,14 +990,14 @@ struct GhafQuickAddView: View {
                                detail: [successCategory,
                                         accounts.first(where: { $0.id == selectedAccountID })?.name ?? ""]
                                    .filter { !$0.isEmpty }.joined(separator: " · "),
-                               theme: theme, languageCode: lang) { dismiss() }
+                               theme: theme, languageCode: lang) { router.isSaveSplashPresented = false; dismiss() }
                 .presentationBackground(.clear)
         }
         .sheet(isPresented: $showProForVoice) {
             GhafProSheet(settings: settings, feature: ("Voice entry", "الإدخال الصوتي")).ghafDirection(settings.languageCode)
         }
         .sheet(isPresented: $showSubscriptionAdd) {
-            GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: nil, prefillName: merchant.trimmingCharacters(in: .whitespacesAndNewlines), prefillAmount: amount)
+            GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: nil, prefillName: merchant.trimmingCharacters(in: .whitespacesAndNewlines), prefillAmount: amount, prefillAccountID: selectedAccountID)
                 .presentationDragIndicator(.visible).presentationDetents([.large]).ghafDirection(settings.languageCode)
         }
         .sheet(isPresented: $showingDate) { dateSheet.ghafBottomCard(theme: theme, languageCode: lang) }

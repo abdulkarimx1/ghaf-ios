@@ -478,6 +478,7 @@ struct GhafSubscriptionEditor: View {
     let subscription: GhafSubscription?
     var prefillName = ""
     var prefillAmount = ""
+    var prefillAccountID: UUID?
     @State private var name = ""
     @State private var amount = ""
     @State private var currency = "AED"
@@ -655,7 +656,11 @@ struct GhafSubscriptionEditor: View {
     }
 
     private func load() {
-        guard let subscription else { originalNextDate = nextDate; name = prefillName; amount = prefillAmount; return }
+        guard let subscription else {
+            originalNextDate = nextDate; name = prefillName; amount = prefillAmount
+            if let account = accounts.first(where: { $0.id == prefillAccountID }) { accountID = account.id; currency = account.currency }
+            return
+        }
         categoryPickedManually = true
         name = subscription.name; amount = NSDecimalNumber(decimal: subscription.amount).stringValue
         currency = subscription.currency; cycle = subscription.cycle; nextDate = subscription.nextPaymentDate

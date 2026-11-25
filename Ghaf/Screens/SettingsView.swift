@@ -810,7 +810,7 @@ struct GhafSettingsView: View {
             return PlaceSummary(name: name, count: rows.count, totals: totals)
         }
         // Row 13: ties were broken by dictionary order, so any refresh (e.g. changing sex) reshuffled the top 3.
-        .sorted { ($0.count, $0.totals.values.reduce(0, +), $1.name) > ($1.count, $1.totals.values.reduce(0, +), $0.name) }
+        .sorted { ($0.count, $1.name) > ($1.count, $0.name) }
         .prefix(3).map { $0 }
     }
 
@@ -891,6 +891,15 @@ struct GhafSettingsView: View {
     }
 
     private func milestoneSheet(days: Int, streak: Int) -> some View {
+        ViewThatFits(in: .vertical) {
+            milestoneContent(days: days, streak: streak)
+            ScrollView { milestoneContent(days: days, streak: streak) }
+        }
+        .ghafBottomCard(theme: theme, languageCode: languageCode)
+        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+    }
+
+    private func milestoneContent(days: Int, streak: Int) -> some View {
           VStack(spacing: 16) {
             let locked = streak < days
             let previous = [7, 30, 90].last { $0 < days }
@@ -912,8 +921,6 @@ struct GhafSettingsView: View {
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
           }
           .padding(.horizontal, 24).padding(.bottom, 16).frame(maxWidth: .infinity)
-        .ghafBottomCard(theme: theme, languageCode: languageCode)
-        .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
     private func profileMetric(value: String, title: String) -> some View {

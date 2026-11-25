@@ -470,7 +470,8 @@ struct GhafAIView: View {
     private static func stampActive() { UserDefaults.standard.set(Date.now, forKey: lastActiveKey) }
     private func expireIfStale() {
         let last = UserDefaults.standard.object(forKey: Self.lastActiveKey) as? Date
-        if !messages.isEmpty, AISessionExpiry.isStale(lastActive: last, now: .now) { startNewChat() }
+        let busy = isThinking || recorder.isRecording || liveCallActive
+        if !busy, !messages.isEmpty, AISessionExpiry.isStale(lastActive: last, now: .now) { startNewChat() }
         Self.stampActive()
     }
 

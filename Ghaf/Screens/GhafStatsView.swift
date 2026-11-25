@@ -502,9 +502,9 @@ struct GhafStatsView: View {
                 let labels: [String] = switch period {
                 case .week: plotted.map { chartKey($0.start) }
                 case .month, .quarter: groupWindows().compactMap { window in
-                    // The middle day of each group, so the centred label never clips at the chart's edge.
-                    let days = calendar.dateComponents([.day], from: window.start, to: window.end).day ?? 0
-                    return calendar.date(byAdding: .day, value: days / 2, to: window.start).map(chartKey)
+                    // The middle plotted day of each group, so the centred label never clips and never vanishes.
+                    let days = plotted.filter { $0.start >= window.start && $0.start < window.end }
+                    return days.isEmpty ? nil : chartKey(days[days.count / 2].start)
                 }
                 case .year: plotted.enumerated().compactMap { $0.offset.isMultiple(of: 2) ? chartKey($0.element.start) : nil }
                 }
