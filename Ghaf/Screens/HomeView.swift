@@ -975,7 +975,8 @@ struct GhafQuickAddView: View {
             GhafProSheet(settings: settings, feature: ("Voice entry", "الإدخال الصوتي")).ghafDirection(settings.languageCode)
         }
         .sheet(isPresented: $showSubscriptionAdd) {
-            GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: nil, prefillName: merchant.trimmingCharacters(in: .whitespacesAndNewlines), prefillAmount: amount)
+                .presentationDragIndicator(.visible).presentationDetents([.large]).ghafDirection(settings.languageCode)
         }
         .sheet(isPresented: $showingDate) { dateSheet.ghafBottomCard(theme: theme, languageCode: lang) }
         .sheet(isPresented: $showingTime) { timeSheet.ghafBottomCard(theme: theme, languageCode: lang) }
@@ -1018,7 +1019,7 @@ struct GhafQuickAddView: View {
                           selection: $direction, theme: theme, languageCode: lang)
             // V21: a repeating payment belongs in Subscriptions, reachable from here.
             Button { showSubscriptionAdd = true } label: {
-                Label(ar ? "دفعة متكررة؟ أضفها في الاشتراكات" : "Repeats? Add it to Subscriptions", systemImage: "repeat")
+                Label(ar ? "متكرر؟ اجعله اشتراكاً" : "Recurring? Make it a subscription", systemImage: "repeat")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.accent)
                     .frame(minHeight: 44)
