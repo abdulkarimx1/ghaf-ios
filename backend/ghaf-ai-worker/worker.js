@@ -437,7 +437,7 @@ async function studioSpeak(text, character, style, env) {
     body: JSON.stringify({ contents: [{ parts: [{ text: `${style}\n\n${text}` }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } })
   });
-  if (!upstream.ok) return json({ error: "upstream", status: upstream.status }, upstream.status === 429 ? 429 : 502);
+  if (!upstream.ok) return json({ error: "upstream", status: upstream.status, detail: (await upstream.text()).slice(0, 300) }, upstream.status === 429 ? 429 : 502);
   const b64 = (await upstream.json())?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
   if (!b64) return json({ error: "parse" }, 502);
   return new Response(wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0))), { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "studio" } });

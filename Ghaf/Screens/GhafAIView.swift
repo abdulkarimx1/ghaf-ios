@@ -970,13 +970,14 @@ struct GhafAIView: View {
         liveCallActive = false
         tabRouter.isListening = false
         let text = ar
-            ? "وصلت إلى الحد اليومي للردود الصوتية. نتحدث غدًا!"
-            : "You've reached today's voice limit. Talk to you tomorrow!"
+            ? (settings.userSex == "male" ? "انتهى حدك اليومي من التسجيلات الصوتية." : settings.userSex == "female" ? "انتهى حدج اليومي من التسجيلات الصوتية." : "انتهى الحد اليومي من التسجيلات الصوتية.")
+            : "You've reached today's voice limit."
         appendCallNote(text)
-        let finished = { voiceGoodbyePlaying = false }
+        // Owner 1.31: after the limit line, the subscription page opens.
+        let finished = { voiceGoodbyePlaying = false; showProSheet = true }
         if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, userSex: settings.userSex, onFinish: finished) {
             voiceGoodbyePlaying = true
-        }
+        } else { showProSheet = true }
     }
 
     private func playVoiceError() {
@@ -1009,13 +1010,16 @@ struct GhafAIView: View {
             // Nothing usable: clear it and show a short note that removes itself.
             prompt = ""
             let note = GhafChatMessage(isUser: false, text: ar
-                ? "ما فهمت عليك. ممكن تعيدها؟"
-                : "I didn't catch that. Could you say it again?")
+                ? (settings.userSex == "male" ? "ما فهمت عليك، ممكن تعيد الجملة بصيغة أخرى؟" : settings.userSex == "female" ? "ما فهمت عليج، ممكن تعيدين الجملة بصيغة أخرى؟" : "ما فهمت الجملة، ممكن إعادتها بصيغة أخرى؟")
+                : "Sorry, I didn't catch that. Could you say it another way?")
             withAnimation(.snappy) { messages.append(note) }
+            // Listening restarts only after the clip ends, so the mic never hears it.
+            let relisten = { if voiceMode { startVoice() } }
+            let speaking = hasProAccess && GhafCloudVoice.shared.playBundledNotHeard(character: voiceCharacter, arabic: ar, userSex: settings.userSex, onFinish: relisten)
             Task {
-                if voiceMode {
+                if voiceMode, !speaking {
                     try? await Task.sleep(for: .seconds(1.2))
-                    if voiceMode { startVoice() }
+                    relisten()
                 }
                 try? await Task.sleep(for: .seconds(3))
                 withAnimation(.snappy) { messages.removeAll { $0.id == note.id } }

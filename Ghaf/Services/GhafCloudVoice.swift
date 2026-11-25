@@ -23,6 +23,11 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     }
 
     @discardableResult
+    func playBundledNotHeard(character: String, arabic: Bool, userSex: String? = nil, onFinish: @escaping () -> Void = {}) -> Bool {
+        playBundledClip(prefix: "notheard", character: character, arabic: arabic, userSex: userSex, onFinish: onFinish)
+    }
+
+    @discardableResult
     func playBundledError(character: String, arabic: Bool, userSex: String? = nil, onFinish: @escaping () -> Void = {}) -> Bool {
         playBundledClip(prefix: "error", character: character, arabic: arabic, userSex: userSex, onFinish: onFinish)
     }
