@@ -11,15 +11,10 @@ extension View {
     }
 }
 
-/// Owner 1.31 bottom cards: sized to their content (no empty white space), grabber + ✕, radius 40.
-/// Style "floating" keeps the system glass card; "edge" is the same card in the solid theme colour.
-/// iOS 26+ always floats partial-height sheets with side margins, so a true edge-to-edge card would need a custom presenter.
-/// The A/B switch lives in Appearance until the owner picks one. shortcut: the scrim and push-back are the system's own, not the 34 % from the prototype.
+/// Owner 1.31 bottom cards (owner picked Solid): sized to their content (no empty white space), grabber + ✕, radius 40.
 struct GhafBottomCard: ViewModifier {
-    static let styleKey = "ghaf.bottomCardStyle"
     let theme: GhafTheme
     let languageCode: String
-    @AppStorage(styleKey) private var style = "floating"
     @State private var height: CGFloat = 320
     @Environment(\.dismiss) private var dismiss
 
@@ -45,19 +40,7 @@ struct GhafBottomCard: ViewModifier {
             .presentationDetents([.height(height)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(40)
-            .modifier(Background(theme: theme, floating: style == "floating"))
-    }
-
-    private struct Background: ViewModifier {
-        let theme: GhafTheme
-        let floating: Bool
-        func body(content: Content) -> some View {
-            if floating, #available(iOS 26, *) {
-                content // the system's floating glass card
-            } else {
-                content.presentationBackground { theme.background.ignoresSafeArea() }
-            }
-        }
+            .presentationBackground { theme.background.ignoresSafeArea() }
     }
 }
 

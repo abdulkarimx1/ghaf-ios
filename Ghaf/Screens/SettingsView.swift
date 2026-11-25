@@ -49,7 +49,6 @@ struct GhafSettingsView: View {
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = Calendar.current.firstWeekday
     @AppStorage("ghaf.glass.enabled") private var glassEnabled = true
     @AppStorage("ghaf.glass.intensity") private var glassIntensity = "balanced"
-    @AppStorage(GhafBottomCard.styleKey) private var bottomCardStyle = "floating"
     @AppStorage("ghaf.glass.grain") private var glassGrain = true
     @AppStorage("ghaf.glass.glow") private var glassGlow = true
     @AppStorage("ghaf.glass.tilt") private var glassTilt = true
@@ -1049,14 +1048,6 @@ HStack(spacing: 8) {
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
                 .disabled(!glassEnabled)
-                glassDivider
-                // 1.31: owner compares both bottom-card styles on the phone, then we keep one and remove this.
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(ar ? "البطاقات السفلية" : "Bottom cards").foregroundStyle(theme.primaryText)
-                    GhafSegmented(options: [("floating", ar ? "زجاجية" : "Glass"), ("edge", ar ? "صلبة" : "Solid")],
-                                  selection: $bottomCardStyle, theme: theme, languageCode: languageCode)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }.frame(maxWidth: .infinity).padding(.vertical, 10)
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
                 glassDivider
