@@ -143,8 +143,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ghaf.app.widgets
         PRODUCT_NAME: GhafWidgets
-        MARKETING_VERSION: "1.30"
-        CURRENT_PROJECT_VERSION: "44"
+        MARKETING_VERSION: "1.31"
+        CURRENT_PROJECT_VERSION: "45"
         CODE_SIGN_ENTITLEMENTS: Config/GhafWidgets.entitlements
         SWIFT_VERSION: "5.0"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_EXTENSION"
