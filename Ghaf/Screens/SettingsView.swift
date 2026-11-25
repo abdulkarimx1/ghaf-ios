@@ -104,9 +104,8 @@ struct GhafSettingsView: View {
             ScrollView {
                 // Not Lazy: a LazyVStack here spun the main thread in layout once scrolled (UI tests never idled); ~8 cards.
                 VStack(spacing: GhafMetrics.sectionSpacing) {
-                    // Owner 1.31: ⋯ opens Profile; the gear opens Settings.
-                    HStack {
-                        Spacer()
+                    // Owner 1.31: this tab opens Profile; the gear (beside the avatar, not on its own row) opens Settings.
+                    profilePage.overlay(alignment: .topTrailing) {
                         NavigationLink {
                             GhafDeferredView { subpage(ar ? "الإعدادات" : "Settings") { settingsList } }
                         } label: {
@@ -119,7 +118,6 @@ struct GhafSettingsView: View {
                         .buttonStyle(.ghafPress)
                         .accessibilityLabel(ar ? "الإعدادات" : "Settings")
                     }
-                    profilePage
 
                     if proUnlocked {
                         HStack(spacing: 12) {
@@ -166,7 +164,7 @@ struct GhafSettingsView: View {
                     inviteCard
                 }
                 .ghafScreenPadding()
-                .padding(.top, 40)
+                .padding(.top, 8)
                 .padding(.bottom, 32)
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)

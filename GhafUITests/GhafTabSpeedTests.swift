@@ -23,7 +23,7 @@ final class GhafTabSpeedTests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 30))
         capture("\(appearance)-\(language)-cold-Home", index: 0)
 
-        let tabs: [(index: Int, name: String)] = [(1, "Transactions"), (3, "Stats"), (4, "More"), (0, "Home")]
+        let tabs: [(index: Int, name: String)] = [(1, "Transactions"), (3, "Stats"), (4, "Profile"), (0, "Home")]
         var shot = 0
         for cycle in 1...cycles {
             for (index, name) in tabs {

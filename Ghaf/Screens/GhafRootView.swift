@@ -561,7 +561,7 @@ struct GhafTabView: View {
         let aiLabel = tabIcon(Image(uiImage: UIImage()),
                               router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
         let statsLabel = tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats")
-        let moreLabel = tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More")
+        let moreLabel = tabIcon(Image(systemName: "person.crop.circle"), settings.languageCode == "ar" ? "حسابي" : "Profile")
         Group {
             if #available(iOS 18, *) {
                 // tabBarMinimizeBehavior only engages with the Tab builder API, not .tabItem.

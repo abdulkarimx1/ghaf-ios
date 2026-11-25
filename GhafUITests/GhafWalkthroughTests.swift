@@ -205,7 +205,7 @@ extension GhafWalkthroughTests {
 
     func test5ProfileBeforeAfterCapture() {
         launch()
-        timedTap(app.tabBars.buttons["More"], "tab More for profile")
+        timedTap(app.tabBars.buttons["Profile"], "tab More for profile")
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.31)).tap()
         sleep(1)
         snap("p0-profile")
@@ -249,7 +249,7 @@ extension GhafWalkthroughTests {
         func tabPoint(_ i: Int) -> XCUICoordinate {
             app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: bar.minX + bar.width * (CGFloat(i) + 0.5) / 5, dy: bar.midY))
         }
-        for (i, name) in [(2, "Stats"), (4, "More"), (3, "Transactions"), (0, "Home"), (2, "Stats")] {
+        for (i, name) in [(2, "Stats"), (4, "Profile"), (3, "Transactions"), (0, "Home"), (2, "Stats")] {
             var t = Date(); _ = app.tabBars.buttons[name].exists; let lookup = Date().timeIntervalSince(t)
             t = Date(); tabPoint(i).tap(); let tap = Date().timeIntervalSince(t)
             log += String(format: "coord tab %@ tap+idle %.2fs | element lookup alone %.2fs\n", name, tap, lookup)
@@ -329,7 +329,7 @@ extension GhafWalkthroughTests {
 
     func testBankLogoProof() {
         launch()
-        timedTap(app.tabBars.buttons["More"], "tab More for bank logo proof")
+        timedTap(app.tabBars.buttons["Profile"], "tab More for bank logo proof")
         let bankAutomation = app.buttons["Bank automation"]
         for _ in 0..<5 where !bankAutomation.exists { app.swipeUp(velocity: .fast) }
         timedTap(bankAutomation, "open bank automation")
@@ -350,7 +350,7 @@ extension GhafWalkthroughTests {
         app.swipeUp(velocity: .fast); snap("bank-picker-dark-after-bottom")
         app.terminate()
         launch(appearance: "Light")
-        timedTap(app.tabBars.buttons["More"], "tab More for light bank logo proof")
+        timedTap(app.tabBars.buttons["Profile"], "tab More for light bank logo proof")
         let lightBankAutomation = app.buttons["Bank automation"]
         for _ in 0..<5 where !lightBankAutomation.exists { app.swipeUp(velocity: .fast) }
         timedTap(lightBankAutomation, "open bank automation in light appearance")
@@ -362,7 +362,7 @@ extension GhafWalkthroughTests {
 
     func testImportSheetWithRealBackupData() {
         launch()
-        timedTap(app.tabBars.buttons["More"], "tab More for import proof")
+        timedTap(app.tabBars.buttons["Profile"], "tab More for import proof")
         let backup = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Google Drive' AND label CONTAINS[c] 'backup'")).firstMatch
         for _ in 0..<5 where !backup.exists { swipeUp() }
         timedTap(backup, "open data and backup")
@@ -691,8 +691,8 @@ extension GhafWalkthroughTests {
         app = XCUIApplication()
         app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout: 20))
-        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Profile"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Profile"].tap()
         app.buttons["Customization"].tap()
         let arabicChoice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'العربية'" )).firstMatch
         XCTAssertTrue(arabicChoice.waitForExistence(timeout: 5))
@@ -767,7 +767,7 @@ extension GhafWalkthroughTests {
         app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let activity = app.buttons["Live Activity"].firstMatch
         XCTAssertTrue(activity.waitForExistence(timeout: 8))
         activity.tap()
@@ -818,7 +818,7 @@ extension GhafWalkthroughTests {
 
     func testSessionG1VoiceSelectionProof() {
         launch()
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let voiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND (label CONTAINS[c] 'Hamad' OR label CONTAINS[c] 'Mariam')")).firstMatch
         for _ in 0..<8 where !voiceRow.exists { app.swipeUp() }
         XCTAssertTrue(voiceRow.waitForExistence(timeout: 5))
@@ -833,7 +833,7 @@ extension GhafWalkthroughTests {
         app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let savedVoiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND label CONTAINS[c] 'Mariam'")).firstMatch
         for _ in 0..<8 where !savedVoiceRow.exists { app.swipeUp() }
         savedVoiceRow.tap()
@@ -934,7 +934,7 @@ extension GhafWalkthroughTests {
 extension GhafWalkthroughTests {
     func testSessionEVoicePickerProof() {
         launch()
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let voiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND (label CONTAINS[c] 'Hamad' OR label CONTAINS[c] 'Mariam')")).firstMatch
         for _ in 0..<8 where !voiceRow.exists { app.swipeUp() }
         XCTAssertTrue(voiceRow.waitForExistence(timeout: 5))
@@ -991,7 +991,7 @@ extension GhafWalkthroughTests {
         snap("r-plans-ar")
 
         launch()
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let backupRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Google Drive' AND label CONTAINS[c] 'backup'")).firstMatch
         for _ in 0..<8 where !backupRow.exists { app.swipeUp() }
         XCTAssertTrue(backupRow.waitForExistence(timeout: 5))
@@ -1005,7 +1005,7 @@ extension GhafWalkthroughTests {
 
     func testSessionISettingsVoiceAndWidgetGalleryProof() {
         launch()
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let voiceRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Voice' AND (label CONTAINS[c] 'Hamad' OR label CONTAINS[c] 'Mariam')")).firstMatch
         for _ in 0..<8 where !voiceRow.exists { app.swipeUp() }
         XCTAssertTrue(voiceRow.exists)
@@ -1191,7 +1191,7 @@ extension GhafWalkthroughTests {
                 }
                 app.tabBars.buttons["Ghaf AI"].tap(); snap("\(key)-ai")
                 app.tabBars.buttons["Stats"].tap(); snap("\(key)-stats")
-                app.tabBars.buttons["More"].tap(); snap("\(key)-more")
+                app.tabBars.buttons["Profile"].tap(); snap("\(key)-more")
                 app.open(URL(string: "ghaf://pro")!); snap("\(key)-pro-sheet")
                 app.buttons["Close"].firstMatch.tap()
                 app.tabBars.buttons["Home"].tap()
@@ -1390,7 +1390,7 @@ extension GhafWalkthroughTests {
         _ = added.waitForExistence(timeout: 8)
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: added)
         waitForExpectations(timeout: 10)
-        app.tabBars.buttons["More"].tap()
+        app.tabBars.buttons["Profile"].tap()
         let learnedRow = app.buttons["What Ghaf learned"]
         for _ in 0..<8 where !learnedRow.exists { app.swipeUp() }
         XCTAssertTrue(learnedRow.waitForExistence(timeout: 5))
