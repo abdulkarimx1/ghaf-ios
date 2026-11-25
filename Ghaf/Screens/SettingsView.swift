@@ -813,7 +813,10 @@ struct GhafSettingsView: View {
             var totals: [String: Decimal] = [:]
             for (_, row) in rows { totals[row.currency, default: 0] += row.amount }
             return PlaceSummary(name: name, count: rows.count, totals: totals)
-        }.sorted { $0.count > $1.count }.prefix(3).map { $0 }
+        }
+        // Row 13: ties were broken by dictionary order, so any refresh (e.g. changing sex) reshuffled the top 3.
+        .sorted { ($0.count, $0.totals.values.reduce(0, +), $1.name) > ($1.count, $1.totals.values.reduce(0, +), $0.name) }
+        .prefix(3).map { $0 }
     }
 
     private var placesCard: some View {
