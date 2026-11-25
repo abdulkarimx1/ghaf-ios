@@ -949,13 +949,13 @@ struct GhafAIView: View {
             : "You've reached today's voice limit. Talk to you tomorrow!"
         appendCallNote(text)
         let finished = { voiceGoodbyePlaying = false }
-        if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, onFinish: finished) {
+        if GhafCloudVoice.shared.playBundledGoodbye(character: voiceCharacter, arabic: ar, userSex: settings.userSex, onFinish: finished) {
             voiceGoodbyePlaying = true
         }
     }
 
     private func playVoiceError() {
-        _ = GhafCloudVoice.shared.playBundledError(character: voiceCharacter, arabic: ar)
+        _ = GhafCloudVoice.shared.playBundledError(character: voiceCharacter, arabic: ar, userSex: settings.userSex)
     }
 
     /// Called by the stop button, or automatically after a pause. Clear speech is sent;
@@ -1161,8 +1161,9 @@ struct GhafAIView: View {
         }
 
         let history = messages.dropLast().filter { !$0.text.isEmpty }.map { (isUser: $0.isUser, text: $0.text) }
-        let facts = GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions,
-                                              memories: memoryEnabled ? memories : [], languageCode: settings.languageCode)
+        let facts = GhafFinanceFacts.addressLine(sex: settings.userSex) + "\n"
+            + GhafFinanceFacts.summary(accounts: accounts, transactions: transactions, subscriptions: subscriptions,
+                                       memories: memoryEnabled ? memories : [], languageCode: settings.languageCode)
         let progressQuery = GhafLedgerAnswers.progressQuery(for: resolved, transactions: transactions,
                                                             currency: settings.currency, languageCode: settings.languageCode)
         if let progressQuery {
@@ -1347,7 +1348,7 @@ struct GhafAIView: View {
             startVoice()
             return
         }
-        liveFacts = GhafCloudAI.minimized(GhafFinanceFacts.summary(accounts: accounts, transactions: transactions,
+        liveFacts = GhafFinanceFacts.addressLine(sex: settings.userSex) + "\n" + GhafCloudAI.minimized(GhafFinanceFacts.summary(accounts: accounts, transactions: transactions,
                                                                    subscriptions: subscriptions,
                                                                    memories: memoryEnabled ? memories : [], languageCode: settings.languageCode))
         if liveGroundingSources.isEmpty { liveGroundingSources = [liveFacts] }

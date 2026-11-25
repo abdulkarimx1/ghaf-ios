@@ -18,13 +18,13 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     var isPlaying: Bool { player?.isPlaying ?? false }
 
     @discardableResult
-    func playBundledGoodbye(character: String, arabic: Bool, onFinish: @escaping () -> Void) -> Bool {
-        playBundledClip(prefix: "goodbye", character: character, arabic: arabic, onFinish: onFinish)
+    func playBundledGoodbye(character: String, arabic: Bool, userSex: String? = nil, onFinish: @escaping () -> Void) -> Bool {
+        playBundledClip(prefix: "goodbye", character: character, arabic: arabic, userSex: userSex, onFinish: onFinish)
     }
 
     @discardableResult
-    func playBundledError(character: String, arabic: Bool, onFinish: @escaping () -> Void = {}) -> Bool {
-        playBundledClip(prefix: "error", character: character, arabic: arabic, onFinish: onFinish)
+    func playBundledError(character: String, arabic: Bool, userSex: String? = nil, onFinish: @escaping () -> Void = {}) -> Bool {
+        playBundledClip(prefix: "error", character: character, arabic: arabic, userSex: userSex, onFinish: onFinish)
     }
 
     @discardableResult
@@ -33,9 +33,12 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     }
 
     @discardableResult
-    private func playBundledClip(prefix: String, character: String, arabic: Bool, onFinish: @escaping () -> Void) -> Bool {
+    private func playBundledClip(prefix: String, character: String, arabic: Bool, userSex: String? = nil, onFinish: @escaping () -> Void) -> Bool {
         let name = "\(prefix)_\(character == "Mariam" ? "Mariam" : "Hamad")_\(arabic ? "ar" : "en")"
-        guard let url = Bundle.main.url(forResource: name, withExtension: "wav"),
+        // V16: the base Arabic clips address a man (ك). Female users get the ج recording, anyone else the neutral one.
+        let variant = !arabic || userSex == "male" ? nil : (userSex == "female" ? "\(name)_female" : "\(name)_neutral")
+        guard let url = variant.flatMap({ Bundle.main.url(forResource: $0, withExtension: "wav") })
+                ?? Bundle.main.url(forResource: name, withExtension: "wav"),
               let player = try? AVAudioPlayer(contentsOf: url) else { return false }
         stop()
         let session = AVAudioSession.sharedInstance()
