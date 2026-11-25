@@ -644,6 +644,8 @@ struct GhafSettingsView: View {
         return VStack(spacing: 18) {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
+                    .overlay { GhafStreakRing(streak: streak, theme: theme).padding(-10).allowsHitTesting(false) }
+                    .padding(.top, 8)
                     .overlay(alignment: .bottomTrailing) {
                         Button { showPhotoMenu = true } label: {
                             Image(systemName: "camera.fill")
@@ -1847,4 +1849,38 @@ private struct GhafDeferredView<Content: View>: View {
     let build: () -> Content
     init(@ViewBuilder _ build: @escaping () -> Content) { self.build = build }
     var body: some View { build() }
+}
+
+/// Row 10: progress toward the next streak tier (7, 30, 100, 365 days) as a glowing accent ring around the avatar.
+private struct GhafStreakRing: View {
+    let streak: Int
+    let theme: GhafTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown: Double = 0
+
+    private var target: Double {
+        let tiers = [0] + GhafLoggingStreak.milestones
+        guard let next = tiers.first(where: { $0 > streak }), let prev = tiers.last(where: { $0 <= streak }) else { return 1 }
+        return Double(streak - prev) / Double(next - prev)
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(theme.accent.opacity(0.14), lineWidth: 5)
+            Circle().trim(from: 0, to: max(shown, streak > 0 ? 0.02 : 0))
+                .stroke(AngularGradient(colors: [theme.accent.opacity(0.45), theme.accent], center: .center, startAngle: .zero, endAngle: .degrees(360 * max(shown, 0.02))),
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .shadow(color: theme.accent.opacity(0.55), radius: 6)
+        }
+        .onAppear { set(target) }
+        .onChange(of: target) { _, value in set(value) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Locale.current.language.languageCode?.identifier == "ar" ? "سلسلة \(streak) يوماً" : "\(streak) day streak")
+        .accessibilityHidden(streak == 0)
+    }
+
+    private func set(_ value: Double) {
+        if reduceMotion { shown = value } else { withAnimation(.easeOut(duration: 0.6)) { shown = value } }
+    }
 }
