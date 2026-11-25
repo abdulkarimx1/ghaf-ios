@@ -397,6 +397,8 @@ final class GhafTabRouter {
     /// Bumped when Home is tapped while already open; Home cycles Daily, Weekly, Monthly.
     var homeReselects = 0
     var isListening = false
+    /// Live voice loudness 0…1 from Ghaf AI, so the tab-bar orb moves with the user's voice. Read only by GhafRouterLevelOrb.
+    var voiceLevel: Float = 0
     var startVoice: (() -> Void)?
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?
@@ -415,6 +417,13 @@ private struct GhafTabBarMinimize: ViewModifier {
 extension View {
     /// Tells the tab router when the main scroll view has been scrolled down (bar minimized) or back up.
     func ghafReportsTabBarMinimize() -> some View { modifier(GhafReportsTabBarMinimize()) }
+}
+
+/// Its own view so the ~30 Hz level changes redraw only the orb, never the whole tab view.
+private struct GhafRouterLevelOrb: View {
+    let theme: GhafTheme
+    @Environment(GhafTabRouter.self) private var router
+    var body: some View { GhafAIOrb(theme: theme, mood: .listening, level: router.voiceLevel) }
 }
 
 private struct GhafReportsTabBarMinimize: ViewModifier {
@@ -643,7 +652,7 @@ struct GhafTabView: View {
                 }
                 Group {
                     if router.isListening || showOrbOverlay {
-                        GhafAIOrb(theme: theme, mood: .listening, level: 0)
+                        GhafRouterLevelOrb(theme: theme)
                             .frame(width: 112, height: 112)
                             .scaleEffect(expandedOrb ? 1 : 26 / 112)
                     } else {
@@ -1856,11 +1865,10 @@ enum GhafAITabIcon {
     static func image(theme: GhafTheme, selected: Bool) -> UIImage {
         let key = "\(theme.name)-\(theme.isDark)-\(selected)"
         if let cached = cache[key] { return cached }
-        // The Ghaf AI orb, drawn by the same code as the AI screen. The dark palette's accent and glow are
-        // the brighter pair, so it reads on light and dark tab bars.
+        // The Ghaf AI orb, drawn by the same code as the AI screen, in the current theme's own accent.
+        // Owner 1.31: the dark palette's near-white accent made it pale (white on white) on light tab bars.
         let side: CGFloat = selected ? 32 : 29
-        let lit = GhafTheme.resolve(name: theme.name, appearanceMode: "Dark", systemIsDark: true)
-        let mark = GhafAIOrbFace(theme: lit, mood: .idle, level: 0, time: 3.1, still: true, halo: false)
+        let mark = GhafAIOrbFace(theme: theme, mood: .idle, level: 0, time: 3.1, still: true, halo: false)
             .frame(width: side, height: side)
             .opacity(selected ? 1 : 0.82)
             .frame(width: 40, height: 40)

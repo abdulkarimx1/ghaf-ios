@@ -578,6 +578,7 @@ struct GhafAIView: View {
     private var voiceOrbControl: some View {
         VStack(spacing: 4) {
             GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+                .onChange(of: orbLevel) { _, level in tabRouter.voiceLevel = level }
                 .frame(width: 72, height: 72)
                 .contentShape(Circle())
                 .modifier(GhafOrbPressGesture(

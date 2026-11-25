@@ -112,8 +112,10 @@ struct GhafAIOrbFace: View {
             let react = 0.6 * Double(level)
             let angle = t * spin, tilt = 0.35 + (mood == .thinking ? 0.25 * sin(t * 1.3) : 0)
             let (ca, sa, ct, st) = (cos(angle), sin(angle), cos(tilt), sin(tilt))
-            let dot = max(0.6, side * 0.0075 * 0.9)
-            for p in Self.points {
+            // Owner 1.31: brighter (was pale on device), and a share of particles drifts past the sphere's edge.
+            let dot = max(0.9, side * 0.0105)
+            let voice = mood == .listening || mood == .speaking
+            for (i, p) in Self.points.enumerated() {
                 // Spin about Y, then tilt about X so the poles read as a globe.
                 let x1 = p.x * ca + p.z * sa, z1 = -p.x * sa + p.z * ca
                 let y2 = p.y * ct - z1 * st, z2 = p.y * st + z1 * ct
@@ -124,11 +126,18 @@ struct GhafAIOrbFace: View {
                 case .thinking: r *= 1 + 0.04 * sin(t * 4 + p.x * 6)
                 case .speaking: r *= 1 + (0.05 + react * 0.2) * max(0, sin(t * 7 - (1 - p.y) * 5))
                 }
+                // Every 5th particle floats out and back; voice pushes them further, silence leaves a slow breath.
+                if i % 5 == 0 {
+                    let phase = Double(i) * 0.618
+                    r *= 1 + (0.05 + (voice ? react * 0.35 : 0)) * (0.5 + 0.5 * sin(t * 0.8 + phase))
+                }
+                if voice { r *= 1 + 0.012 * sin(t * 2.2) }
+                r = min(r, side * 0.5 - dot) // never clipped by the canvas edge
                 let depth = (z2 + 1) / 2 // 0 back … 1 front
                 let px = center.x + x1 * r, py = center.y + y2 * r
                 let d = dot * (0.55 + depth * 0.9)
                 context.fill(Circle().path(in: CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)),
-                             with: .color(theme.accent.opacity(0.18 + depth * 0.82)))
+                             with: .color(theme.accent.opacity(0.4 + depth * 0.6)))
             }
         }
     }
