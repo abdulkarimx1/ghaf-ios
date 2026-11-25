@@ -234,14 +234,16 @@ private struct GhafWalletCarousel: View {
                 .onChanged { value in
                     if dragStartPosition == nil { dragStartPosition = pagePosition; flippedID = nil }
                     let direction: CGFloat = ar ? -1 : 1
-                    pagePosition = (dragStartPosition ?? pagePosition)
-                        - value.translation.width * direction / (step * 1.6)
+                    // Row 23: one swipe moves at most one card, however fast or far the finger goes.
+                    let start = dragStartPosition ?? pagePosition
+                    pagePosition = min(max(start - value.translation.width * direction / (step * 1.6), start.rounded() - 1), start.rounded() + 1)
                 }
                 .onEnded { value in
                     let direction: CGFloat = ar ? -1 : 1
                     let start = dragStartPosition ?? pagePosition
                     let projected = start - value.predictedEndTranslation.width * direction / (step * 1.6)
-                    let target = min(max(projected.rounded(), 0), CGFloat(accounts.count - 1))
+                    let base = start.rounded()
+                    let target = min(max(min(max(projected.rounded(), base - 1), base + 1), 0), CGFloat(accounts.count - 1))
                     dragStartPosition = nil
                     withAnimation(deckAnimation) {
                         pagePosition = target
