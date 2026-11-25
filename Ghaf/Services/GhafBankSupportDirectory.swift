@@ -289,7 +289,7 @@ enum GhafBankSupportDirectory {
             countryName: "United Arab Emirates", countryNameArabic: "الإمارات العربية المتحدة",
             localPhone: "600 52 9999", internationalPhone: "+971 600 52 9999",
             website: URL(string: "https://www.almasraf.ae/contact-us")!,
-            aliases: ["al masraf", "almasraf", "المصرف"]
+            aliases: ["al masraf", "almasraf"]
         ),
         GhafBankSupportContact(
             id: "cbd", name: "Commercial Bank of Dubai", nameArabic: "بنك دبي التجاري",
@@ -539,22 +539,15 @@ enum GhafBankSupportDirectory {
     ]
 
     static func contact(for identifiers: [String?]) -> GhafBankSupportContact? {
-        let values = identifiers.compactMap { $0 }
-            .map(normalize)
-            .filter { !$0.isEmpty }
-        guard !values.isEmpty else { return nil }
-
-        for contact in contacts {
-            let aliases = contact.aliases.map(normalize)
-            if values.contains(where: { value in
-                aliases.contains(where: { alias in
-                    value == alias || value.contains(alias)
-                })
-            }) {
-                return contact
-            }
+        let texts = identifiers.compactMap { $0?.lowercased() }
+        let joined = texts.map(normalize).filter { !$0.isEmpty }
+        let words = Set(texts.flatMap { $0.split { !$0.isLetter && !$0.isNumber }.map(String.init) })
+        guard !joined.isEmpty else { return nil }
+        // Longest alias wins ("البنك العربي الوطني" over "البنك العربي"); short codes must be a whole word ("snb" is inside "emirates nbd").
+        let hits = contacts.flatMap { contact in contact.aliases.map { (contact, normalize($0)) } }.filter { _, alias in
+            alias.count <= 4 ? words.contains(alias) : joined.contains { $0.contains(alias) }
         }
-        return nil
+        return hits.max { $0.1.count < $1.1.count }?.0
     }
 
     private static func normalize(_ value: String) -> String {
