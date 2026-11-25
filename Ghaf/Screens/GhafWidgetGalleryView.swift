@@ -50,25 +50,11 @@ struct GhafWidgetGalleryView: View {
                 Text(ar ? "لإضافة أداة، اضغط مطولًا على الشاشة الرئيسية، ثم اختر تحرير وإضافة أداة." : "To add a widget, touch and hold your Home Screen, tap Edit, then Add Widget.")
                     .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
 
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
-                    ForEach(Array(widgets.enumerated()), id: \.offset) { index, item in
-                        let (name, detail, free) = item
-                        let family: WidgetFamily = index.isMultiple(of: 3) ? .systemMedium : .systemSmall
-                        VStack(alignment: .leading, spacing: 7) {
-                            HStack(spacing: 5) {
-                                Text(ar ? arabicTitle(name) : name)
-                                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                                    .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.8)
-                                Spacer(minLength: 2)
-                                if !free && !GhafProAccess.hasAccess { Image(systemName: "lock.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.accent) }
-                            }
-                            widgetPreview(name, family: family)
-                            Text(ar ? arabicDetail(name) : detail)
-                                .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                                .lineLimit(1).minimumScaleFactor(0.75)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .gridCellColumns(family == .systemMedium ? 2 : 1)
+                // Medium widgets get a full-width row, small ones pair up (LazyVGrid ignores gridCellColumns).
+                Grid(horizontalSpacing: 12, verticalSpacing: 14) {
+                    ForEach(Array(stride(from: 0, to: widgets.count, by: 3)), id: \.self) { start in
+                        GridRow { cell(start).gridCellColumns(2) }
+                        GridRow { cell(start + 1); if start + 2 < widgets.count { cell(start + 2) } else { Color.clear } }
                     }
                 }
             }
@@ -79,6 +65,25 @@ struct GhafWidgetGalleryView: View {
         .ghafDirection(lang)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showPro) { GhafProSheet(settings: settings, feature: ("Widgets", "الودجات")).ghafDirection(lang) }
+    }
+
+    @ViewBuilder private func cell(_ index: Int) -> some View {
+        let (name, detail, free) = widgets[index]
+        let family: WidgetFamily = index.isMultiple(of: 3) ? .systemMedium : .systemSmall
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 5) {
+                Text(ar ? arabicTitle(name) : name)
+                    .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: 2)
+                if !free && !GhafProAccess.hasAccess { Image(systemName: "lock.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.accent) }
+            }
+            widgetPreview(name, family: family)
+            Text(ar ? arabicDetail(name) : detail)
+                .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                .lineLimit(1).minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder private func widgetPreview(_ name: String, family: WidgetFamily) -> some View {
@@ -108,7 +113,8 @@ struct GhafWidgetGalleryView: View {
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
         .padding(8)
-        .background { GhafWidgetBackground(tile: GhafTile(.ink, snapshot), enabled: false) }
+        // Today, Latest transaction and Budget default to the theme-coloured tile (dark text), as on the Home Screen.
+        .background { GhafWidgetBackground(tile: GhafTile(["Today", "Latest transaction", "Budget"].contains(name) ? .theme : .ink, snapshot), enabled: false) }
         // V17: everyone sees every widget; only using a Pro one needs Pro (lock on the title, tap opens Pro).
         .contentShape(Rectangle())
         .onTapGesture { if proLocked { showPro = true } }

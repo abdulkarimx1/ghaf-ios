@@ -102,7 +102,7 @@ extension GhafWidgetSnapshot {
         now = .now
         #endif
         var s = GhafWidgetSnapshot(currency: "AED", balance: 12_450, spentToday: 86.5, spentThisMonth: 2_310,
-                                   lastPurchase: .init(merchant: "Carrefour", amount: 45, currency: "AED", date: now),
+                                   lastPurchase: .init(merchant: "Carrefour", amount: 45, currency: "AED", date: now.addingTimeInterval(-1_500)),
                                    hidden: false, arabic: false, updated: now,
                                    todayCategories: [.init(name: "Groceries", amount: 45), .init(name: "Dining", amount: 28.5), .init(name: "Transport", amount: 13)],
                                    lastSevenDays: [120, 60, 210, 90, 40, 150, 86.5])
@@ -112,7 +112,7 @@ extension GhafWidgetSnapshot {
         s.day = .init(end: far, spent: 86.5, previous: 150, count: 3, bars: [0, 0, 0, 12, 45, 28.5, 0, 0], categories: Array(categories.prefix(2)))
         s.week = .init(end: far, spent: 756.5, previous: 910, count: 14, bars: [120, 60, 210, 90, 40, 150, 86.5], categories: categories)
         s.month = .init(end: far, spent: 2_310, previous: 2_640, count: 41, bars: [640, 820, 610, 240, 0], categories: categories)
-        s.recent = .init(merchant: "Carrefour", category: "Groceries", symbol: "basket.fill", amount: 45, currency: "AED", date: now,
+        s.recent = .init(merchant: "Carrefour", category: "Groceries", symbol: "basket.fill", amount: 45, currency: "AED", date: now.addingTimeInterval(-1_500),
                          isCredit: false, account: "Mashreq", bank: "Mashreq", needsReview: false)
         s.budget = .init(limit: 9_000, spent: 3_150, title: "Monthly budget", end: far)
         s.streak = .init(days: 12, week: [true, true, false, true, true, true, true])
