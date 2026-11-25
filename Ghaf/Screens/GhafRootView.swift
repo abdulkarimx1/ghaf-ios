@@ -401,6 +401,43 @@ final class GhafTabRouter {
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?
     var isSaveSplashPresented = false
+    /// True while iOS 26 shows the shrunken tab bar (no centre tab, so the orb hides). No public API: inferred from scroll direction.
+    var isTabBarMinimized = false
+}
+
+/// Native minimize-on-scroll, iOS 26 only.
+private struct GhafTabBarMinimize: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) { content.tabBarMinimizeBehavior(.onScrollDown) } else { content }
+    }
+}
+
+extension View {
+    /// Tells the tab router when the main scroll view has been scrolled down (bar minimized) or back up.
+    func ghafReportsTabBarMinimize() -> some View { modifier(GhafReportsTabBarMinimize()) }
+}
+
+private struct GhafReportsTabBarMinimize: ViewModifier {
+    @Environment(GhafTabRouter.self) private var router
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                // x = offset from the top, y = scrollable distance. Observed on iOS 26.2: iOS leaves the bar full
+                // unless the content scrolls further than about one screen, so short screens never report minimized.
+                .onScrollGeometryChange(for: CGPoint.self) {
+                    CGPoint(x: $0.contentOffset.y + $0.contentInsets.top,
+                            y: $0.contentSize.height - $0.containerSize.height)
+                } action: { old, new in
+                    let delta = new.x - old.x
+                    if new.x <= 20 || delta < -8 || new.y < UIScreen.main.bounds.height { if router.isTabBarMinimized { router.isTabBarMinimized = false } }
+                    else if delta > 8 { if !router.isTabBarMinimized { router.isTabBarMinimized = true } }
+                }
+                .onChange(of: router.selectedTab) { _, _ in router.isTabBarMinimized = false }
+        } else {
+            content
+        }
+    }
 }
 
 struct GhafTabView: View {
@@ -468,6 +505,32 @@ struct GhafTabView: View {
     /// iOS 26 draws the tab bar as a floating pill whose icon line sits lower than the classic bar's.
     private static var floatingTabBar: Bool { if #available(iOS 26, *) { true } else { false } }
 
+    private var homeTab: some View {
+        GhafHomeView(settings: settings)
+#if DEBUG
+            .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 0) }
+#endif
+    }
+    private var transactionsTab: some View {
+        GhafTransactionsView(settings: settings)
+#if DEBUG
+            .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 3) }
+#endif
+    }
+    private var aiTab: some View { GhafAIView(settings: settings) }
+    private var statsTab: some View {
+        GhafStatsView(settings: settings)
+#if DEBUG
+            .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 2) }
+#endif
+    }
+    private var moreTab: some View {
+        GhafSettingsView(settings: settings)
+#if DEBUG
+            .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 4) }
+#endif
+    }
+
     var body: some View {
         let theme = GhafTheme.resolve(
             name: settings.themeName,
@@ -491,43 +554,34 @@ struct GhafTabView: View {
                 withTransaction(Transaction(animation: nil)) { router.selectedTab = tab }
             }
         })
-        TabView(selection: selection) {
-            GhafHomeView(settings: settings)
-#if DEBUG
-                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 0) }
-#endif
-                .tabItem { tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home", attentionCount: subscriptionReviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
-                .tag(0)
-
-            GhafTransactionsView(settings: settings)
-#if DEBUG
-                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 3) }
-#endif
-                .tabItem { tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, hasUnread: hasUnreadTransactions, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion) }
-                .tag(3)
-
-            GhafAIView(settings: settings)
-                // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
-                // exactly where the tab is on every iPhone and tab bar layout.
-                .tabItem {
-                    tabIcon(Image(uiImage: UIImage()),
-                            router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
+        let homeLabel = tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home", attentionCount: subscriptionReviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
+        let transactionsLabel = tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, hasUnread: hasUnreadTransactions, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
+        // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
+        // exactly where the tab is on every iPhone and tab bar layout.
+        let aiLabel = tabIcon(Image(uiImage: UIImage()),
+                              router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
+        let statsLabel = tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats")
+        let moreLabel = tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More")
+        Group {
+            if #available(iOS 18, *) {
+                // tabBarMinimizeBehavior only engages with the Tab builder API, not .tabItem.
+                TabView(selection: selection) {
+                    Tab(value: 0) { homeTab } label: { homeLabel }
+                    Tab(value: 3) { transactionsTab } label: { transactionsLabel }
+                    Tab(value: 1) { aiTab } label: { aiLabel }
+                    Tab(value: 2) { statsTab } label: { statsLabel }
+                    Tab(value: 4) { moreTab } label: { moreLabel }
                 }
-                .tag(1)
-
-            GhafStatsView(settings: settings)
-#if DEBUG
-                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 2) }
-#endif
-                .tabItem { tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats") }
-                .tag(2)
-
-            GhafSettingsView(settings: settings)
-#if DEBUG
-                .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 4) }
-#endif
-                .tabItem { tabIcon(Image(systemName: "ellipsis"), settings.languageCode == "ar" ? "المزيد" : "More") }
-                .tag(4)
+                .modifier(GhafTabBarMinimize())
+            } else {
+                TabView(selection: selection) {
+                    homeTab.tabItem { homeLabel }.tag(0)
+                    transactionsTab.tabItem { transactionsLabel }.tag(3)
+                    aiTab.tabItem { aiLabel }.tag(1)
+                    statsTab.tabItem { statsLabel }.tag(2)
+                    moreTab.tabItem { moreLabel }.tag(4)
+                }
+            }
         }
 #if DEBUG
         .overlay(alignment: .topLeading) {
@@ -607,6 +661,10 @@ struct GhafTabView: View {
                     .accessibilityLabel(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
                     .accessibilityIdentifier("ghaf.ai.tab-orb")
                     .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
+                    .opacity(router.isTabBarMinimized ? 0 : 1)
+                    .allowsHitTesting(!router.isTabBarMinimized)
+                    .accessibilityHidden(router.isTabBarMinimized)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: router.isTabBarMinimized)
                     .position(x: geometry.size.width / 2, y: geometry.size.height - (Self.floatingTabBar ? 16 : 32)) // row 3: centre line of the tab icons
             }
             // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.

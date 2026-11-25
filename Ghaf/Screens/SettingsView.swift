@@ -171,6 +171,7 @@ struct GhafSettingsView: View {
                 .frame(maxWidth: 620)
                 .frame(maxWidth: .infinity)
             }
+            .ghafReportsTabBarMinimize()
             .ghafBackground(theme: theme)
             .ghafStatusBarFade(theme: theme)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
