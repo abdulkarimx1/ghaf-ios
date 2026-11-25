@@ -332,7 +332,6 @@ struct GhafStatsView: View {
         switch period {
         case .month, .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
         case .week: return date.formatted(.dateTime.weekday(.wide).locale(locale))
-        case .month: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
         case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
         }
     }
