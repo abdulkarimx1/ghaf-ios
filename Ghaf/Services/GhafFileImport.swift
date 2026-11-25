@@ -97,26 +97,28 @@ enum GhafFileImport {
                               reference: reference, hasTime: hasTime))
         }
         guard !rows.isEmpty else { throw GhafFileImportError.noTransactions }
-        let names = Set(existingAccounts.map(\.name))
-        return GhafFileImportPreview(rows: rows, skipped: skipped,
-            accountsToCreate: Array(Set(rows.compactMap(\.account).filter { !names.contains($0) })).sorted())
+        // Account names match case-insensitively ("MASHREQ" is the existing "Mashreq", R10).
+        let names = Set(existingAccounts.map { $0.name.lowercased() })
+        var toCreate: [String: String] = [:]
+        for name in rows.compactMap(\.account) where !names.contains(name.lowercased()) { toCreate[name.lowercased()] = toCreate[name.lowercased()] ?? name }
+        return GhafFileImportPreview(rows: rows, skipped: skipped, accountsToCreate: toCreate.values.sorted())
     }
 
     static func commit(_ preview: GhafFileImportPreview, createAccounts: Bool, context: ModelContext) throws -> (imported: Int, duplicates: Int) {
         let accounts = try context.fetch(FetchDescriptor<GhafAccount>())
-        var byName = Dictionary(accounts.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+        var byName = Dictionary(accounts.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
         var imported = 0, duplicates = 0, seen: [FileImportIdentity] = []
         do {
             if createAccounts {
-                for name in preview.accountsToCreate where byName[name] == nil {
-                    let currency = preview.rows.first(where: { $0.account == name })?.currency ?? "AED"
+                for name in preview.accountsToCreate where byName[name.lowercased()] == nil {
+                    let currency = preview.rows.first(where: { $0.account?.lowercased() == name.lowercased() })?.currency ?? "AED"
                     let account = GhafAccount(name: name, accountType: .cash, currency: currency)
-                    context.insert(account); byName[name] = account
+                    context.insert(account); byName[name.lowercased()] = account
                 }
             }
             let existing = try context.fetch(FetchDescriptor<GhafTransaction>())
             for row in preview.rows {
-                let accountID = row.account.flatMap { byName[$0]?.id }
+                let accountID = row.account.flatMap { byName[$0.lowercased()]?.id }
                 let identity = FileImportIdentity(date: row.date, hasTime: row.hasTime, amount: row.amount, merchant: row.merchant, account: row.account, reference: row.reference)
                 if existing.contains(where: { abs($0.date.timeIntervalSince(row.date)) < 1 && $0.amount == row.amount && $0.merchant?.localizedCaseInsensitiveCompare(row.merchant) == .orderedSame && $0.accountID == accountID }) || FileImportRules.isDuplicate(reference: row.reference, hasTime: row.hasTime, date: row.date, amount: row.amount, merchant: row.merchant, account: row.account, among: seen) { duplicates += 1; continue }
                 seen.append(identity)

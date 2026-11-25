@@ -285,9 +285,13 @@ struct GhafStatsView: View {
         let locale = Locale(identifier: lang)
         switch period {
         case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
-        case .month:
-            return date.formatted(.dateTime.day().locale(locale))
-        case .quarter, .year:
+        case .month, .quarter:
+            // 4 even bars: label each with its date range, e.g. "1–8" or "1 Sep".
+            let end = calendar.date(byAdding: .day, value: -1, to: bucketWindows().first(where: { $0.start == date })?.end ?? interval.end)!
+            return period == .month
+                ? "\(date.formatted(.dateTime.day().locale(locale)))–\(end.formatted(.dateTime.day().locale(locale)))"
+                : date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .year:
             return date.formatted(.dateTime.month(ar ? .wide : .abbreviated).locale(locale))
         }
     }
@@ -315,19 +319,11 @@ struct GhafStatsView: View {
 
     @ChartContentBuilder
     private func actualTrendMark(_ bucket: Bucket) -> some ChartContent {
-        if period == .month {
-            BarMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total), width: .fixed(6))
-                .foregroundStyle(theme.accent)
-        } else {
-            AreaMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.18), theme.accent.opacity(0)], startPoint: .top, endPoint: .bottom))
-                .interpolationMethod(.catmullRom)
-            LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
-                .foregroundStyle(theme.accent)
-                .interpolationMethod(.catmullRom)
-                .symbolSize(0)
-                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-        }
+        // Owner 1.31 pick: bars for every period, radius 10, others fade when one is selected.
+        let faded = selectedLabel != nil && selectedLabel != chartKey(bucket.start)
+        BarMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total), width: .ratio(period == .week || period == .year ? 0.62 : 0.55))
+            .clipShape(RoundedRectangle(cornerRadius: period == .year ? 6 : 10, style: .continuous))
+            .foregroundStyle(theme.accent.opacity(faded ? 0.28 : 1))
     }
 
     /// One card in the theme's surface, Stocks style: the total (or the scrubbed point), the change against the previous
@@ -456,13 +452,7 @@ struct GhafStatsView: View {
             .chartXAxis {
                 let labels: [String] = switch period {
                 case .week: plotted.map { chartKey($0.start) }
-                case .month:
-                    plotted.filter { [1, 8, 15, 22, 29].contains(calendar.component(.day, from: $0.start)) }.map { chartKey($0.start) }
-                case .quarter:
-                    plotted.enumerated().compactMap { index, bucket in
-                        index == 0 || calendar.component(.month, from: bucket.start) != calendar.component(.month, from: plotted[index - 1].start)
-                            ? chartKey(bucket.start) : nil
-                    }
+                case .month, .quarter: plotted.map { chartKey($0.start) }
                 case .year: plotted.enumerated().compactMap { $0.offset.isMultiple(of: 2) ? chartKey($0.element.start) : nil }
                 }
                 AxisMarks(values: labels) { value in

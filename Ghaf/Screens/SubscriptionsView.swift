@@ -42,15 +42,17 @@ struct GhafSubscriptionsView: View {
         let window = Calendar.current.dateInterval(of: .month, for: GhafClock.now)
         return active.compactMap { item in
             guard !item.needsConfirmation else { return nil }
+            // Same per-cycle window as ingestion (R3): a flat 15 days let last week's charge pay this week's plan.
+            let tolerance = item.cycle == .weekly ? 2 : 5
             let match = debits.first { transaction in
                 guard transaction.currency == item.currency, window?.contains(transaction.date) == true,
                       !UserDefaults.standard.bool(forKey: "ghaf.subscription.match.dismissed.\(item.id).\(transaction.id)") else { return false }
                 return SubscriptionDetector.isPayment(merchant: transaction.merchant, amount: transaction.amount, date: transaction.date,
                                                       subscriptionName: item.name, subscriptionAmount: item.amount,
-                                                      dueDate: item.nextPaymentDate, toleranceDays: 15)
+                                                      dueDate: item.nextPaymentDate, toleranceDays: tolerance)
                     || SubscriptionDetector.raisedPrice(merchant: transaction.merchant, amount: transaction.amount, date: transaction.date,
                                                         subscriptionName: item.name, subscriptionAmount: item.amount,
-                                                        dueDate: item.nextPaymentDate, toleranceDays: 15) != nil
+                                                        dueDate: item.nextPaymentDate, toleranceDays: tolerance) != nil
             }
             return match.map { (item, $0) }
         }

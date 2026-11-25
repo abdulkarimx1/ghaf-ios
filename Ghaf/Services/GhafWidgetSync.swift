@@ -210,7 +210,12 @@ enum GhafWidgetSync {
             attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
             content: .init(state: state, staleDate: expires)
         ) else { return }
-        await activity.end(.init(state: state, staleDate: expires), dismissalPolicy: .after(expires))
+        // R4: ending it here (even with .after) removed it from the Dynamic Island at once.
+        // Keep it live; end it when it expires (best effort while running; the stale date covers suspension).
+        Task {
+            try? await Task.sleep(for: .seconds(max(1, expires.timeIntervalSinceNow)))
+            await activity.end(.init(state: state, staleDate: expires), dismissalPolicy: .immediate)
+        }
     }
 
     /// Spending in the current day/week/month (main currency, transfers excluded by `isExpense`), cut into

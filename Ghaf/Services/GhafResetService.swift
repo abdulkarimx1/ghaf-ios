@@ -49,6 +49,9 @@ enum GhafResetService {
         if let bundleID = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: bundleID)
         }
+        // In-memory learned state would otherwise be written straight back on the next save (R8).
+        GhafAccountMappings.forgetCachedStore()
+        MerchantCategorizer.invalidateLearner()
         for group in GhafWidgetSnapshot.groupIDs {
             UserDefaults(suiteName: group)?.removePersistentDomain(forName: group)
         }

@@ -52,7 +52,7 @@ async function handle(request, env, usage) {
     if (request.method === "GET" && path === "/voice-usage") {
       const auth = authorize(request, env);
       if (!auth) return json({ error: "unauthorized" }, 401);
-      const codeTier = await accessCodeTier(request, env);
+      const codeTier = await accessCodeTier(request, env, auth.device);
       if (codeTier === false) return json({ error: "invalid_access_code" }, 401);
       const tier = codeTier || normalizeTier(request.headers.get("X-Ghaf-Tier"));
       if (usage) { usage.tier = tier; usage.model = "voice-usage-v1"; }
@@ -71,7 +71,7 @@ async function handle(request, env, usage) {
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
     if (path === "/redeem") return redeemAccessCode(body, env, device, usage);
-    const codeTier = await accessCodeTier(request, env);
+    const codeTier = await accessCodeTier(request, env, device);
     if (codeTier === false) return json({ error: "invalid_access_code" }, 401);
     if (codeTier) body.tier = codeTier;
     usage.tier = normalizeTier(body.tier);
@@ -327,11 +327,21 @@ async function redeemAccessCode(body, env, device, usage) {
   return json({ tier: "pro_yearly" });
 }
 
-async function accessCodeTier(request, env) {
+// R2: the header path used to check codes with no limit, so short codes could be guessed.
+// Wrong codes now count per device (5/day, same as /redeem) and per IP (30/day); past the limit nothing is checked.
+async function accessCodeTier(request, env, device = "") {
   const code = request.headers.get("X-Ghaf-Code");
   if (!code) return null;
-  if (!await matchesAccessCode(code, env.ACCESS_CODE_HASHES)) return false;
-  return "pro_yearly";
+  if (code.length > 256) return false;
+  const day = new Date().toISOString().slice(0, 10);
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  const deviceKey = `codefail:${day}:${device}`, ipKey = `codefail-ip:${day}:${ip}`;
+  const [deviceFails, ipFails] = await Promise.all([env.USAGE.get(deviceKey), ip ? env.USAGE.get(ipKey) : null]);
+  if (Number(deviceFails || 0) >= 5 || Number(ipFails || 0) >= 30) return false;
+  if (await matchesAccessCode(code, env.ACCESS_CODE_HASHES)) return "pro_yearly";
+  await env.USAGE.put(deviceKey, String(Number(deviceFails || 0) + 1), { expirationTtl: 172800 });
+  if (ip) await env.USAGE.put(ipKey, String(Number(ipFails || 0) + 1), { expirationTtl: 172800 });
+  return false;
 }
 
 async function matchesAccessCode(code, configuredHashes) {

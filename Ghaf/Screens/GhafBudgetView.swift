@@ -210,9 +210,10 @@ struct GhafBudgetView: View {
                         .fill(petalColor.opacity(theme.isDark ? 0.25 : 0.18))
                         .frame(width: outerRadius * 2, height: outerRadius * 2)
                         .overlay {
-                            // A sliver under ~6% of the radius reads as a rendering glitch, not data.
-                            if item.spent > 0, fillRadius - innerRatio >= 0.06 {
-                                GhafPetalSegment(start: start, end: end, inner: innerRatio, outer: fillRadius)
+                            // Anything spent must be visible (V10: AED 25 of 1,195 looked empty): floor the fill at 8% of the band.
+                            if item.spent > 0 {
+                                GhafPetalSegment(start: start, end: end, inner: innerRatio,
+                                                 outer: max(fillRadius, innerRatio + (1 - innerRatio) * 0.08))
                                     .fill(petalColor)
                                     .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1), value: fillRadius)
                             }

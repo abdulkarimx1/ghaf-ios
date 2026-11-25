@@ -601,6 +601,8 @@ struct GhafTabView: View {
                     .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
                     .position(x: geometry.size.width / 2, y: geometry.size.height - 32)
             }
+            // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
         .tint(theme.accent)

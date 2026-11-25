@@ -48,10 +48,16 @@ enum GhafAccountMappings {
         return exact.count == 1 ? exact.first : nil
     }
 
-    static func bankOnlyAccountID(bank: String?, sender: String?) -> UUID? {
+    /// With `accountRef`, a mapping learned for a *different* card never counts (R7: card 2222 must not follow card 1111).
+    static func bankOnlyAccountID(bank: String?, sender: String?, accountRef: String? = nil) -> UUID? {
         let source = normalize(bank ?? sender ?? "")
         guard !source.isEmpty else { return nil }
-        let records = store.mappings.filter { normalize($0.bank) == source }
+        var records = store.mappings.filter { normalize($0.bank) == source }
+        if let accountRef {
+            let ref = String(accountRef.filter(\.isNumber).suffix(4))
+            if records.contains(where: { ($0.accountRef ?? ref) != ref }) { return nil }
+            records = records.filter { $0.accountRef == nil || $0.accountRef == ref }
+        }
         let bankOnly = Set(records.map(\.accountID))
         return bankOnly.count == 1 ? bankOnly.first : nil
     }
@@ -104,6 +110,9 @@ enum GhafAccountMappings {
         store = current
         return changed
     }
+
+    /// Drops the in-memory copy so Delete All Data can't write the old mappings back (R8).
+    static func forgetCachedStore() { cachedStore = nil }
 
     static func backupData() -> Data? { try? JSONEncoder().encode(store) }
     static func isValidBackup(_ data: Data?) -> Bool {

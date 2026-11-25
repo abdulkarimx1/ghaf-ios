@@ -240,7 +240,9 @@ struct GhafReviewInboxView: View {
                     ForEach(activeAccounts) { item in
                         Button(item.name) {
                             transaction.accountID = item.id
-                            if let bank = transaction.bank {
+                            // R5: only move similar alerts / learn a bank-wide rule when this bank has one account here.
+                            // With two Mashreq accounts, picking one must change this item only.
+                            if let bank = transaction.bank, Self.accountsForBank(bank, in: activeAccounts) <= 1 {
                                 let moved = (try? GhafAccountMappings.apply(bank: bank, accountRef: nil, accountID: item.id, context: modelContext)) ?? 0
                                 if moved > 0 { movedSimilar[transaction.id] = moved }
                                 GhafAccountMappings.confirm(transactionID: transaction.id, bank: bank, sender: nil, accountRef: nil, accountID: item.id)
@@ -313,5 +315,17 @@ struct GhafReviewInboxView: View {
             Image(systemName: "chevron.up.chevron.down").font(.system(size: 12, weight: .semibold))
         }
         .foregroundStyle(missing ? theme.close : theme.primaryText)
+    }
+}
+
+extension GhafReviewInboxView {
+    /// How many active accounts could belong to `bank` (by institution or name), for the R5 guard.
+    static func accountsForBank(_ bank: String, in accounts: [GhafAccount]) -> Int {
+        let key = bank.lowercased().filter(\.isLetter)
+        guard !key.isEmpty else { return 0 }
+        return accounts.filter { account in
+            [account.institution, account.name].compactMap { $0?.lowercased().filter(\.isLetter) }
+                .contains { !$0.isEmpty && ($0.contains(key) || key.contains($0)) }
+        }.count
     }
 }

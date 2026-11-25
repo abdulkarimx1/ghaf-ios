@@ -738,10 +738,11 @@ struct GhafTransactionEditor: View {
         transaction.direction = direction
         transaction.note = note
         transaction.date = date
+        let accountChanged = transaction.accountID != accountID
         transaction.accountID = accountID
         transaction.needsReview = false
-        // Saving an automated transaction confirms its account, so the next alert from that card lands there.
-        if transaction.bank != nil, let accountID {
+        // Only an account the user actually changed is learned (R6): saving a note must not turn a guess into a rule.
+        if accountChanged, transaction.bank != nil, let accountID {
             GhafAccountMappings.confirm(transactionID: transaction.id, bank: transaction.bank, sender: nil, accountRef: nil, accountID: accountID)
         }
 

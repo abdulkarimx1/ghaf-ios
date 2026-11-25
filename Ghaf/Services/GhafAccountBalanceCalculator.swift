@@ -88,7 +88,7 @@ enum GhafAccountBalanceCalculator {
             let matches = active.filter { $0.cardLast4 == suffix }
             if matches.count == 1 { return matches[0] }
         }
-        if let learnedID = GhafAccountMappings.bankOnlyAccountID(bank: bank, sender: sender),
+        if let learnedID = GhafAccountMappings.bankOnlyAccountID(bank: bank, sender: sender, accountRef: accountRef),
            let learned = active.first(where: { $0.id == learnedID }),
            accountRef == nil || (learned.cardLast4 ?? "").isEmpty {
             return learned

@@ -596,9 +596,9 @@ struct GhafHomeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(prominent ? theme.background : theme.primaryText)
+            .foregroundStyle(prominent ? theme.accentContrast : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 68)
-            .background(prominent ? theme.primaryText : theme.surface, in: Capsule())
+            .background(prominent ? theme.accent : theme.surface, in: Capsule())
             .overlay(alignment: .topTrailing) {
                 if count > 0 { Circle().fill(theme.accent).frame(width: 7, height: 7).padding(9) }
             }
@@ -623,9 +623,9 @@ struct GhafHomeView: View {
                     Spacer()
                     Image(systemName: "arrow.up.forward")
                         .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(theme.inkText)
+                        .foregroundStyle(theme.accentContrast)
                         .frame(width: 34, height: 34)
-                        .background(theme.inkText.opacity(0.12), in: Circle())
+                        .background(theme.accent, in: Circle())
                 }
                 if summary.spent > 0 {
                     categoryBar(summary)

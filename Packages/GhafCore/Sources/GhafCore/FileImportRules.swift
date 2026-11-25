@@ -14,8 +14,11 @@ public enum FileImportRules {
     /// Classifies explicit types by complete words so "credit card purchase" remains an expense.
     public static func classification(type: String?, hasTypeColumn: Bool, amount: Decimal,
                                       amountHeader: String, category: String = "") -> FileImportClassification {
-        let tokens = Set(typeTokens(type ?? ""))
-        let expenseTokens: Set<String> = ["expense", "debit", "purchase", "withdrawal", "payment", "spent", "مصروف", "خصم", "سحب"]
+        // Plurals count too ("Purchases", "Payments"): R9 read them as income.
+        let raw = typeTokens(type ?? "")
+        let tokens = Set(raw + raw.compactMap { $0.count > 3 && $0.hasSuffix("s") ? String($0.dropLast()) : nil })
+        let expenseTokens: Set<String> = ["expense", "debit", "purchase", "withdrawal", "payment", "spent", "pos", "atm", "fee",
+                                          "charge", "bill", "مصروف", "مصروفات", "خصم", "سحب", "شراء", "مشتريات"]
         let incomeTokens: Set<String> = ["income", "credit", "deposit", "salary", "received", "دخل", "إيداع", "ايداع"]
         if !tokens.isDisjoint(with: expenseTokens) { return .init(direction: .debit, needsReview: false) }
         if !tokens.isDisjoint(with: incomeTokens) { return .init(direction: .credit, needsReview: false) }
@@ -25,7 +28,8 @@ public enum FileImportRules {
             return .init(direction: .credit, needsReview: false)
         }
         guard !hasTypeColumn else {
-            return .init(direction: amount < 0 ? .debit : .credit, needsReview: false)
+            // An unknown type with a positive amount is ambiguous: keep it as spending and ask, never silently income.
+            return amount < 0 ? .init(direction: .debit, needsReview: false) : .init(direction: .debit, needsReview: true)
         }
         if amount < 0 { return .init(direction: .debit, needsReview: false) }
         let headerTokens = Set(typeTokens(amountHeader))

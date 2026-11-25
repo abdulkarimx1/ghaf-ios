@@ -56,3 +56,13 @@ test('redemption is limited to five attempts per device per UTC day', async () =
   assert.equal((await limited.json()).error, 'rate_limited');
   assert.equal(Number([...values.values()][0]), 5);
 });
+
+test('R2: guessing codes through the header is limited like /redeem', async () => {
+  const { env } = harness(hash('correct'));
+  for (let index = 0; index < 5; index++) {
+    const response = await makeRequest('/voice-turn', 'wrong', { tier: 'free', language: 'en' })(env);
+    assert.equal(response.status, 401);
+  }
+  const blocked = await makeRequest('/voice-turn', 'correct', { tier: 'free', language: 'en' })(env);
+  assert.equal(blocked.status, 401, 'the right code is not even checked once the device hit the limit');
+});

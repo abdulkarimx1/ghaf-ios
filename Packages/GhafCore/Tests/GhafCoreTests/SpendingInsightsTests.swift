@@ -14,8 +14,8 @@ final class SpendingInsightsTests: XCTestCase {
         let quarterEnd = calendar.date(byAdding: .month, value: 3, to: quarter)!
         let yearEnd = calendar.date(byAdding: .year, value: 1, to: year)!
         let windows: [(SpendingInsights.ChartPeriod, Date, Date, Int)] = [
-            (.week, week, weekEnd, 7), (.month, month, monthEnd, 29),
-            (.quarter, quarter, quarterEnd, 13), (.year, year, yearEnd, 12)
+            (.week, week, weekEnd, 7), (.month, month, monthEnd, 4),
+            (.quarter, quarter, quarterEnd, 4), (.year, year, yearEnd, 12)
         ]
         for (period, start, end, expected) in windows {
             let buckets = SpendingInsights.chartWindows(period: period, start: start, end: end, calendar: calendar)
@@ -23,6 +23,25 @@ final class SpendingInsightsTests: XCTestCase {
             XCTAssertEqual(buckets.first?.start, start)
             XCTAssertEqual(buckets.last?.end, end)
             XCTAssertTrue(zip(buckets, buckets.dropFirst()).allSatisfy { $0.end == $1.start })
+        }
+    }
+
+    /// Owner rule, regressed twice (1.29, 1.30): Month and 3M are exactly 4 even bars. Do not change without the owner.
+    func testOwnerRule_MonthAndQuarterAreFourEvenBars() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Dubai")!
+        func day(_ s: String) -> Date { calendar.date(from: DateComponents(year: Int(s.prefix(4)), month: Int(s.dropFirst(5).prefix(2)), day: Int(s.suffix(2))))! }
+        let cases: [(SpendingInsights.ChartPeriod, String, Int, Int)] = [
+            (.month, "2026-02-01", 1, 28), (.month, "2026-04-01", 1, 30), (.month, "2026-11-01", 1, 30),
+            (.month, "2026-12-01", 1, 31), (.quarter, "2026-09-01", 3, 91), (.quarter, "2026-01-01", 3, 90)
+        ]
+        for (period, from, months, totalDays) in cases {
+            let start = day(from), end = calendar.date(byAdding: .month, value: months, to: start)!
+            let bars = SpendingInsights.chartWindows(period: period, start: start, end: end, calendar: calendar)
+            XCTAssertEqual(bars.count, 4, "\(period) from \(from)")
+            let lengths = bars.map { calendar.dateComponents([.day], from: $0.start, to: $0.end).day! }
+            XCTAssertEqual(lengths.reduce(0, +), totalDays)
+            XCTAssertLessThanOrEqual(lengths.max()! - lengths.min()!, 1, "\(period) from \(from): \(lengths)")
         }
     }
 

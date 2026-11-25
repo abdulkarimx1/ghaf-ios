@@ -37,6 +37,8 @@ enum GhafPlaces {
 
     private static let merchantKey = "ghaf.places.byMerchant"
     private static let transactionKey = "ghaf.places.byTransaction"
+    /// Automatic search hits, kept across launches so a relaunch doesn't search Apple Maps again (V5).
+    private static let searchKey = "ghaf.places.searchHits"
 
     /// Descriptions people type or import ("Lunch", "Groceries") are not places to look up.
     private static let genericWords: Set<String> = [
@@ -188,6 +190,9 @@ enum GhafPlaces {
         guard !isGeneric(merchant) else { return nil }
         let key = SubscriptionDetector.normalize(merchant)
         if let cached = cache[key] { return cached }
+        if let hit = load(searchKey)[key] {
+            let item = Self.mapItem(hit); item.phoneNumber = nil; cache[key] = item; return item
+        }
         let first = key.split(separator: " ").first.map(String.init) ?? key
         let items = (try? await search(merchant)) ?? []
         let matching = items.filter { candidate in
@@ -200,6 +205,13 @@ enum GhafPlaces {
         } ?? matching.first
         best?.phoneNumber = nil
         cache[key] = best
+        if let best {
+            var hits = load(searchKey)
+            hits[key] = Saved(name: best.name ?? MerchantName.clean(merchant),
+                              latitude: best.placemark.coordinate.latitude, longitude: best.placemark.coordinate.longitude,
+                              address: best.placemark.title, phone: nil, isUserChosen: false)
+            store(hits, searchKey)
+        }
         return best
     }
 

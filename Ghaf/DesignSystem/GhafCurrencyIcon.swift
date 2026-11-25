@@ -164,6 +164,11 @@ private struct GhafMoneyGlyph: View {
     let weight: Font.Weight
     let reduceMotion: Bool
 
+    /// Owner 1.31: the eye hide must read as a deliberate ~0.7 s ease-in-out, not a 0.2 s snap.
+    static func hideAnimation(_ reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.45, 0, 0.2, 1, duration: 0.7)
+    }
+
     private var digitWidth: CGFloat { size * 0.60 }
     private var columnHeight: CGFloat { size * 1.25 }
 
@@ -182,12 +187,13 @@ private struct GhafMoneyGlyph: View {
             }
             .frame(width: digitWidth, height: columnHeight)
             .clipped()
-            .animation(reduceMotion ? .easeInOut(duration: 0.15)
-                : .timingCurve(0.22, 1, 0.36, 1, duration: 0.20), value: hidden)
+            .animation(Self.hideAnimation(reduceMotion), value: hidden)
         } else {
+            // Separators are the only flexible pieces in a tight row; fixedSize stops "100.00" being squeezed to "10000" (V2).
             Text(String(character))
-                .animation(reduceMotion ? .easeInOut(duration: 0.15)
-                    : .timingCurve(0.22, 1, 0.36, 1, duration: 0.20), value: hidden)
+                .fixedSize()
+                .layoutPriority(1)
+                .animation(Self.hideAnimation(reduceMotion), value: hidden)
         }
     }
 }

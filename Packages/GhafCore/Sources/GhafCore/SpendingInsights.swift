@@ -13,26 +13,28 @@ public enum SpendingInsights {
         public init(start: Date, end: Date) { self.start = start; self.end = end }
     }
 
-    /// Calendar-aligned, evenly spaced buckets for the Statistics chart.
-    /// Weeks are daily, months are daily, quarters are 13 weeks, and years are monthly.
+    /// Calendar-aligned buckets for the Statistics chart. Owner rule (1.31, locked by
+    /// `testOwnerRule_MonthAndQuarterAreFourEvenBars`): week = 7 daily bars, month = 4 even bars,
+    /// 3 months = 4 even bars, year = 12 monthly bars. Even = whole days, sizes differ by at most one day.
     public static func chartWindows(period: ChartPeriod, start: Date, end: Date, calendar: Calendar) -> [Window] {
         guard start < end else { return [] }
-        let count: Int
-        switch period {
-        case .week: count = 7
-        case .month: count = max(1, calendar.dateComponents([.day], from: start, to: end).day ?? 1)
-        case .quarter: count = 13
-        case .year: count = 12
-        }
         var boundaries = [start]
-        for index in 1..<count {
-            let boundary: Date?
-            switch period {
-            case .week, .month: boundary = calendar.date(byAdding: .day, value: index, to: start)
-            case .quarter: boundary = calendar.date(byAdding: .day, value: index * 7, to: start)
-            case .year: boundary = calendar.date(byAdding: .month, value: index, to: start)
+        switch period {
+        case .week, .year:
+            let unit: Calendar.Component = period == .week ? .day : .month
+            for index in 1..<(period == .week ? 7 : 12) {
+                if let boundary = calendar.date(byAdding: unit, value: index, to: start),
+                   boundary > boundaries.last!, boundary < end { boundaries.append(boundary) }
             }
-            if let boundary, boundary > boundaries.last!, boundary < end { boundaries.append(boundary) }
+        case .month, .quarter:
+            let days = max(1, calendar.dateComponents([.day], from: start, to: end).day ?? 1)
+            let bars = min(4, days), base = days / bars, extra = days % bars
+            var offset = 0
+            for index in 0..<(bars - 1) {
+                offset += base + (index < extra ? 1 : 0)
+                if let boundary = calendar.date(byAdding: .day, value: offset, to: start),
+                   boundary > boundaries.last!, boundary < end { boundaries.append(boundary) }
+            }
         }
         return boundaries.enumerated().map { index, boundary in
             Window(start: boundary, end: index + 1 < boundaries.count ? boundaries[index + 1] : end)
