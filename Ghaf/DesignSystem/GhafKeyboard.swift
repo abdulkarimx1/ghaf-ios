@@ -55,22 +55,3 @@ final class GhafKeyboardDismisser: NSObject, UIGestureRecognizerDelegate {
                            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 }
 
-// MARK: Tab bar compaction (owner 1.31, row 5)
-
-private struct GhafCompactsTabBar: ViewModifier {
-    @Environment(GhafTabRouter.self) private var router
-    func body(content: Content) -> some View {
-        if #available(iOS 18, *) {
-            content.onScrollGeometryChange(for: CGFloat.self, of: { $0.contentOffset.y + $0.contentInsets.top }) { old, new in
-                guard abs(new - old) > 2 else { return }
-                let compact = new > old && new > 40
-                if compact != router.tabBarCompact { router.tabBarCompact = compact }
-            }
-        } else { content }
-    }
-}
-
-extension View {
-    /// Attach to a tab's main scroll view: scrolling down compacts the tab bar, scrolling up restores it.
-    func ghafCompactsTabBar() -> some View { modifier(GhafCompactsTabBar()) }
-}
