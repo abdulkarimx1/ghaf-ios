@@ -105,7 +105,7 @@ struct GhafCapsuleButtonStyle: ButtonStyle {
             .font(GhafTypography.body(17, languageCode: languageCode, weight: .semibold))
             .foregroundStyle(colors.foreground)
             .padding(.horizontal, 18)
-            .frame(maxWidth: .infinity, minHeight: 60)
+            .frame(maxWidth: .infinity, minHeight: 52) // owner pick 1.31: height 52, radius 26
             .background(colors.fill, in: Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
             .sensoryFeedback(.impact(weight: role == .primary ? .medium : .light), trigger: configuration.isPressed) { _, pressed in pressed }
@@ -387,5 +387,150 @@ struct GhafCategoryIcon: View {
         let custom = meta[category]
         GhafIconBadge(symbol: custom?.icon ?? style.symbol,
                       tint: color(named: custom?.color) ?? style.color, theme: theme)
+    }
+}
+
+
+// MARK: - 1.31 button behaviours (owner picks: ring loader, drawn check held 900 ms, split delete, Undo for 5 s)
+
+/// A capsule button that runs async work: the label turns into a ring while it runs, then a drawn ✓ for 900 ms.
+/// The ✓ only shows when `action` returns without throwing; a throw shakes the button and keeps the label.
+struct GhafAsyncButton: View {
+    let title: String
+    let theme: GhafTheme
+    let languageCode: String
+    var role: GhafCapsuleButtonStyle.Role = .primary
+    let action: () async throws -> Void
+    @State private var phase = Phase.idle
+    @State private var shakes = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    enum Phase { case idle, running, done }
+
+    var body: some View {
+        Button {
+            guard phase == .idle else { return }
+            phase = .running
+            Task { @MainActor in
+                do {
+                    try await action()
+                    withAnimation(.easeOut(duration: 0.2)) { phase = .done }
+                    try? await Task.sleep(for: .milliseconds(900))
+                    withAnimation(.easeOut(duration: 0.2)) { phase = .idle }
+                } catch {
+                    phase = .idle
+                    shakes += 1
+                }
+            }
+        } label: {
+            ZStack {
+                Text(title).opacity(phase == .idle ? 1 : 0)
+                if phase == .running { ProgressView().tint(.primary).controlSize(.regular) }
+                if phase == .done { GhafDrawnCheck(reduceMotion: reduceMotion).frame(width: 22, height: 22) }
+            }
+        }
+        .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: role))
+        .modifier(GhafShake(amount: reduceMotion ? 0 : 8, shakes: CGFloat(shakes)))
+        .sensoryFeedback(.success, trigger: phase) { _, new in new == .done }
+        .sensoryFeedback(.error, trigger: shakes)
+        .accessibilityValue(phase == .running ? (languageCode == "ar" ? "جارٍ" : "In progress") : phase == .done ? (languageCode == "ar" ? "تم" : "Done") : "")
+    }
+}
+
+/// A ✓ that draws itself left to right.
+struct GhafDrawnCheck: View {
+    let reduceMotion: Bool
+    @State private var progress: CGFloat = 0
+    var body: some View {
+        CheckShape()
+        .trim(from: 0, to: progress)
+        .stroke(style: StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
+        .onAppear { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.35)) { progress = 1 } }
+    }
+}
+
+private struct CheckShape: Shape {
+    func path(in r: CGRect) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: r.minX + r.width * 0.12, y: r.minY + r.height * 0.55))
+            p.addLine(to: CGPoint(x: r.minX + r.width * 0.40, y: r.minY + r.height * 0.80))
+            p.addLine(to: CGPoint(x: r.minX + r.width * 0.88, y: r.minY + r.height * 0.22))
+        }
+    }
+}
+
+struct GhafShake: GeometryEffect {
+    var amount: CGFloat
+    var shakes: CGFloat
+    var animatableData: CGFloat { get { shakes } set { shakes = newValue } }
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: amount * sin(shakes * .pi * 4), y: 0))
+    }
+}
+
+/// Delete that splits in place into Cancel | Delete instead of opening a pop-up.
+struct GhafSplitDeleteButton: View {
+    let title: String
+    let confirmTitle: String
+    let theme: GhafTheme
+    let languageCode: String
+    let action: () -> Void
+    @State private var armed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var ar: Bool { languageCode == "ar" }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if armed {
+                Button(ar ? "إلغاء" : "Cancel") { withAnimation(anim) { armed = false } }
+                    .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .secondary))
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                Button(confirmTitle) { armed = false; action() }
+                    .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .destructive))
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            } else {
+                Button(title) { withAnimation(anim) { armed = true } }
+                    .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .destructive))
+                    .transition(.opacity)
+            }
+        }
+        .sensoryFeedback(.warning, trigger: armed) { _, new in new }
+        // Walking away disarms it, so a later stray tap can't delete.
+        .task(id: armed) { if armed { try? await Task.sleep(for: .seconds(4)); withAnimation(anim) { armed = false } } }
+    }
+    private var anim: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 1) }
+}
+
+/// After an edit or delete: a Done | Undo pair for 5 s, then it goes away. Undo must restore exactly what changed.
+struct GhafUndoBar: View {
+    let message: String
+    let theme: GhafTheme
+    let languageCode: String
+    let undo: () -> Void
+    let finished: () -> Void
+    @State private var remaining: CGFloat = 1
+    private var ar: Bool { languageCode == "ar" }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(message)
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            Button(ar ? "تراجع" : "Undo") { undo(); finished() }
+                .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
+                .foregroundStyle(theme.accent)
+                .frame(minWidth: 44, minHeight: 44)
+                .buttonStyle(.ghafPress)
+        }
+        .padding(.horizontal, 18).padding(.vertical, 6)
+        .background(theme.surface, in: Capsule())
+        .overlay(alignment: .bottom) {
+            Capsule().fill(theme.accent.opacity(0.5)).frame(height: 2).scaleEffect(x: remaining, anchor: .leading).padding(.horizontal, 24)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+        .onAppear { withAnimation(.linear(duration: 5)) { remaining = 0 } }
+        .task { try? await Task.sleep(for: .seconds(5)); finished() }
+        .accessibilityElement(children: .contain)
     }
 }

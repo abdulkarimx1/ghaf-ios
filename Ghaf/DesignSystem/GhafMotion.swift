@@ -6,7 +6,7 @@ struct GhafPressStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.95 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1) // owner pick 1.31
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
             // A light tap felt on press, so every Ghaf button answers the finger.
