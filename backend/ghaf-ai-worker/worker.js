@@ -4,7 +4,7 @@
 // GLOBAL_DAILY_LIMIT across all devices, counted in KV. Questions, replies and audio are never stored;
 // only counters and anonymous usage metadata are kept. APP_TOKEN skips the limits.
 //
-// Secrets: GEMINI_API_KEY, APP_TOKEN (optional), ACCESS_CODE_HASHES (comma-separated SHA-256 hex hashes). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, ESSENTIALS_DAILY_VOICE_LIMIT, COMPLETE_DAILY_VOICE_LIMIT, GLOBAL_DAILY_LIMIT,
+// Secrets: GEMINI_API_KEY, ELEVENLABS_API_KEY (optional; with vars ELEVEN_VOICE_HAMAD, ELEVEN_VOICE_MARIAM, ELEVEN_MODEL, MONTHLY_VOICE_CHARS, YEARLY_VOICE_CHARS), APP_TOKEN (optional), ACCESS_CODE_HASHES (comma-separated SHA-256 hex hashes). Vars: GEMINI_MODEL, FREE_DAILY_LIMIT, ESSENTIALS_DAILY_VOICE_LIMIT, COMPLETE_DAILY_VOICE_LIMIT, GLOBAL_DAILY_LIMIT,
 // LIVE_DAILY_CALLS, LIVE_GLOBAL_DAILY_CALLS, LIVE_VOICE_AR, LIVE_VOICE_EN.
 
 const MAX_BODY = 16_000; // bytes; the app sends a question and a short summary, never full history
@@ -414,10 +414,13 @@ async function speak(body, env, developer, device, usage) {
     return json({ error: "pro_required", code: "pro_required" }, 429);
   }
   if (!text) return json({ error: "missing_text" }, 400);
-  const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${character}\n${text}`));
+  const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${useEleven(env) ? "eleven\n" : ""}${character}\n${text}`));
   const cacheKey = `tts:${Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("")}`;
   const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
   if (cached) { if (usage) { usage.model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview"; usage.outcome = "ok"; } return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini", "X-Ghaf-Cache": "hit" } }); }
+  // Owner 1.31: answers speak in the ElevenLabs Hamad/Mariam voices, inside a monthly character allowance per device
+  // (AED 10/month and AED 99/year keep a margin over ElevenLabs Flash at $0.05 per 1,000 characters).
+  if (useEleven(env)) return elevenSpeak(text, character, tier, env, developer, device, usage, cacheKey);
   if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, Math.ceil(text.length / 4), 0, Math.max(1, text.length / 14))) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
   if (!developer) {
     const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 10));
@@ -464,6 +467,43 @@ async function speak(body, env, developer, device, usage) {
     }
   }
   return json({ error: "unavailable" }, 503);
+}
+
+function useEleven(env) { return Boolean(env.ELEVENLABS_API_KEY && env.ELEVEN_VOICE_HAMAD && env.ELEVEN_VOICE_MARIAM); }
+
+function voiceCharacterAllowance(tier, env) {
+  return { pro_monthly: Number(env.MONTHLY_VOICE_CHARS ?? 15000), pro_yearly: Number(env.YEARLY_VOICE_CHARS ?? 20000) }[tier] ?? 0;
+}
+
+async function elevenSpeak(text, character, tier, env, developer, device, usage, cacheKey) {
+  const month = new Date().toISOString().slice(0, 7);
+  const key = `vc:${tier}:${month}:${device}`;
+  const used = Number(await env.USAGE.get(key) || 0);
+  const allowance = voiceCharacterAllowance(tier, env);
+  if (!developer) {
+    if (used + text.length > allowance) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "voice_month", used, limit: allowance }, 429); }
+    const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 10));
+    if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "limit", scope: limited }, 429); }
+  }
+  const voiceID = character === "Mariam" ? env.ELEVEN_VOICE_MARIAM : env.ELEVEN_VOICE_HAMAD;
+  const model = env.ELEVEN_MODEL || "eleven_flash_v2_5";
+  if (usage) usage.model = model;
+  let upstream;
+  try {
+    upstream = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceID)}?output_format=pcm_24000`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY },
+      body: JSON.stringify({ text, model_id: model })
+    });
+  } catch { return json({ error: "unavailable" }, 503); }
+  if (upstream.status === 429) { if (usage) { usage.outcome = "limited_global"; usage.errorKind = "upstream_4xx"; } return json({ error: "limit" }, 429); }
+  if (!upstream.ok) { if (usage) usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx"; return json({ error: "unavailable" }, 503); }
+  const audio = wav(new Uint8Array(await upstream.arrayBuffer()));
+  // Charge the allowance only for audio actually produced; cached repeats stay free.
+  if (!developer) await env.USAGE.put(key, String(used + text.length), { expirationTtl: 40 * 86400 });
+  await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
+  if (usage) { usage.output = text.length; usage.outcome = "ok"; }
+  return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs" } });
 }
 
 // Gemini returns raw 24 kHz 16-bit mono PCM; wrap it in a WAV header so iOS can play it directly.
