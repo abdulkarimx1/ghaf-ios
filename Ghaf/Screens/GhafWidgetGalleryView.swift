@@ -22,7 +22,10 @@ struct GhafWidgetGalleryView: View {
         ("Trends", "Spending over time", false),
         ("Quick add", "Add a transaction", false),
         ("Ask Ghaf", "Open Ghaf AI ready to type", false),
-        ("Money tip", "A cited daily budgeting tip", false)
+        ("Money tip", "A cited daily budgeting tip", false),
+        ("Streak", "Your logging streak and the last 7 days", false),
+        ("Top places", "Where you spent the most this month", false),
+        ("Budget petals", "Category budgets as petals", false)
     ]
 
     var body: some View {
@@ -91,6 +94,9 @@ struct GhafWidgetGalleryView: View {
             case "Budget": GhafBudgetWidgetView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafBudgetConfig()))
             case "Where it went": GhafCategoriesView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafCategoriesConfig()))
             case "Trends": GhafTrendsView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot, config: GhafTrendsConfig()))
+            case "Streak": GhafStreakView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot))
+            case "Top places": GhafTopPlacesView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot))
+            case "Budget petals": GhafBudgetPetalsView(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot))
             default:
                 PremiumTile(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot,
                                          tip: .init(id: 0, en: "Plan a small weekly savings goal and track it.", ar: "حدّد هدفًا أسبوعيًا صغيرًا للادخار وتابعه.", source: "CFPB", url: "https://www.consumerfinance.gov/")),
@@ -113,9 +119,9 @@ struct GhafWidgetGalleryView: View {
     }
 
     private func arabicTitle(_ value: String) -> String {
-        ["Balance":"الرصيد", "Spending":"المصروف", "Upcoming payments":"الدفعات القادمة", "Today":"اليوم", "Latest transaction":"آخر عملية", "Budget":"الميزانية", "Where it went":"أين صُرف المال", "Trends":"الاتجاهات", "Quick add":"إضافة سريعة", "Ask Ghaf":"اسأل غاف", "Money tip":"نصيحة مالية"][value] ?? value
+        ["Balance":"الرصيد", "Spending":"المصروف", "Upcoming payments":"الدفعات القادمة", "Today":"اليوم", "Latest transaction":"آخر عملية", "Budget":"الميزانية", "Where it went":"أين صُرف المال", "Trends":"الاتجاهات", "Quick add":"إضافة سريعة", "Ask Ghaf":"اسأل غاف", "Money tip":"نصيحة مالية", "Streak":"السلسلة", "Top places":"أكثر الأماكن صرفاً", "Budget petals":"بتلات الميزانية"][value] ?? value
     }
     private func arabicDetail(_ value: String) -> String {
-        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها"][value] ?? value
+        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها", "Streak":"سلسلتك في تسجيل العمليات وآخر ٧ أيام", "Top places":"أكثر الأماكن في المصروف هذا الشهر", "Budget petals":"ميزانيات الفئات على شكل بتلات"][value] ?? value
     }
 }

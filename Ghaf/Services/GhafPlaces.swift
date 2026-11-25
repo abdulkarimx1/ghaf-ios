@@ -64,6 +64,15 @@ enum GhafPlaces {
         UserDefaults.standard.set(try? JSONEncoder().encode(value), forKey: key)
     }
 
+    /// Area name for each transaction (by id) that has a saved place; read-only, no search or location.
+    /// Same area rule as the Places card in More: the address's second-to-last part, else the place name.
+    static func savedAreasByTransaction() -> [String: String] {
+        load(transactionKey).mapValues { place in
+            let address = place.address?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } ?? []
+            return address.count > 1 ? address[address.count - 2] : place.name
+        }
+    }
+
     /// The user's choice: for a named merchant it applies to all its transactions, for a description
     /// ("Lunch") only to this transaction.
     static func remember(_ item: MKMapItem, merchant: String, transactionID: UUID) {

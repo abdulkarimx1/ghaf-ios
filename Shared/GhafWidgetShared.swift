@@ -93,6 +93,32 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     }
     var upcoming: [Bill]? = nil
 
+    /// Logging streak (GhafLoggingStreak) as of `updated`, and which of the last seven days (oldest first, today last) had a logged transaction.
+    struct Streak: Codable, Equatable {
+        var days: Int
+        var week: [Bool]
+    }
+    var streak: Streak? = nil
+
+    /// Top areas by spending this month (main currency only), largest first.
+    struct PlaceSpend: Codable, Equatable {
+        var name: String
+        var amount: Decimal
+    }
+    var places: [PlaceSpend]? = nil
+
+    /// Category petals from the Budget screen: `fill` is the filled radius (0...1 of the petal) already floored so any spend is visible.
+    struct Petal: Codable, Equatable {
+        var name: String
+        var spent: Decimal
+        var budget: Decimal
+        var fill: Double
+        var over: Bool
+    }
+    var petals: [Petal]? = nil
+    /// The theme's "over budget" colour (0xRRGGBB, dark palette).
+    var overColor: UInt32? = nil
+
     /// The App Group to use. Sideload tools re-sign with their own profile and often rename the group
     /// (AltStore lists the new names under `ALTAppGroups`; others only put them in the embedded profile),
     /// so every group the install actually grants is tried, Ghaf-named ones first.

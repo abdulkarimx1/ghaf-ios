@@ -19,6 +19,9 @@ struct GhafWidgetBundle: WidgetBundle {
         GhafQuickAddWidget()
         GhafAskWidget()
         GhafMoneyTipWidget()
+        GhafStreakWidget()
+        GhafTopPlacesWidget()
+        GhafBudgetPetalsWidget()
         GhafPurchaseLiveActivity()
     }
 }
@@ -112,6 +115,13 @@ extension GhafWidgetSnapshot {
         s.recent = .init(merchant: "Carrefour", category: "Groceries", symbol: "basket.fill", amount: 45, currency: "AED", date: now,
                          isCredit: false, account: "Mashreq", bank: "Mashreq", needsReview: false)
         s.budget = .init(limit: 9_000, spent: 3_150, title: "Monthly budget", end: far)
+        s.streak = .init(days: 12, week: [true, true, false, true, true, true, true])
+        s.places = [.init(name: "Dubai Marina", amount: 640), .init(name: "Downtown Dubai", amount: 410), .init(name: "JLT", amount: 180)]
+        s.petals = [.init(name: "Groceries", spent: 420, budget: 900, fill: 0.16 + 0.64 * 0.47, over: false),
+                    .init(name: "Dining", spent: 310, budget: 300, fill: 0.8, over: true),
+                    .init(name: "Transport", spent: 180, budget: 400, fill: 0.16 + 0.64 * 0.45, over: false),
+                    .init(name: "Shopping", spent: 25, budget: 1_200, fill: 0.16 + 0.84 * 0.08, over: false)]
+        s.overColor = 0xFF7A6B
         s.upcoming = [.init(name: "Netflix", amount: 39, currency: "AED", date: now.addingTimeInterval(2 * 86_400), symbol: "play.tv.fill"),
                       .init(name: "iCloud+", amount: 10.99, currency: "AED", date: now.addingTimeInterval(5 * 86_400), symbol: "icloud.fill")]
         return s

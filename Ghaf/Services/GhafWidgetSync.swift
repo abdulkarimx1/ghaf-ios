@@ -7,6 +7,7 @@ import UIKit
 import AppIntents
 import StoreKit
 import OSLog
+import GhafCore
 
 enum GhafLiveActivityBalance: String, CaseIterable {
     case total = "total"
@@ -132,6 +133,34 @@ enum GhafWidgetSync {
                                     title: daily ? (ar ? "ميزانية اليوم" : "Today's budget") : (ar ? "ميزانية الشهر" : "Monthly budget"),
                                     end: end)
         }
+
+        let reviewed = transactions.filter { !$0.needsReview }
+        let streakDates = reviewed.map(\.date)
+        snapshot.streak = .init(
+            days: GhafLoggingStreak.count(streakDates, through: .now, calendar: Calendar.current),
+            week: (0..<7).reversed().map { back in
+                guard let day = Calendar.current.date(byAdding: .day, value: -back, to: .now) else { return false }
+                return streakDates.contains { Calendar.current.isDate($0, inSameDayAs: day) }
+            })
+
+        let areas = GhafPlaces.savedAreasByTransaction()
+        let monthSpending = spending.filter { calendar.isDate($0.date, equalTo: .now, toGranularity: .month) }
+        snapshot.places = Array(Dictionary(grouping: monthSpending.compactMap { transaction in
+            areas[transaction.id.uuidString].map { ($0, transaction.spendingAmount) }
+        }, by: \.0)
+            .map { GhafWidgetSnapshot.PlaceSpend(name: $0.key, amount: $0.value.reduce(Decimal.zero) { $0 + $1.1 }) }
+            .filter { $0.amount > 0 }
+            .sorted { $0.amount > $1.amount }.prefix(3))
+
+        let innerRadius = 0.16
+        snapshot.petals = GhafBudgetPlan(settings: settings, transactions: transactions, calendar: GhafCalendar.current, now: GhafClock.now)
+            .categoryRows.filter { $0.spent > 0 && $0.budget > 0 }.prefix(6).map {
+                // Anything spent stays visible: floor the fill at 8% of the band (same rule as the Budget screen).
+                let radii = BudgetAllocation.petalRadii(budget: $0.budget, spent: $0.spent, innerRadius: innerRadius)
+                return .init(name: name($0.name), spent: $0.spent, budget: $0.budget,
+                             fill: max(radii.fill, innerRadius + (1 - innerRadius) * 0.08), over: $0.spent > $0.budget)
+            }
+        snapshot.overColor = hex(lit.over)
 
         if let subscriptions = try? context.fetch(FetchDescriptor<GhafSubscription>()) {
             snapshot.upcoming = subscriptions.filter(\.isActive).sorted { $0.nextPaymentDate < $1.nextPaymentDate }.prefix(6)

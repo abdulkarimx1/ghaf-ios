@@ -544,6 +544,9 @@ struct GhafTabView: View {
                 guard let id = UUID(uuidString: url.lastPathComponent) else { return }
                 linkedTransaction = try? modelContext.fetch(FetchDescriptor<GhafTransaction>(predicate: #Predicate { $0.id == id })).first
                 if linkedTransaction != nil { router.selectedTab = 3 }
+            case "home": router.selectedTab = 0
+            case "transactions": router.selectedTab = 3
+            case "insights": router.selectedTab = 2
             case "add-transaction":
                 showWidgetQuickAdd = true
             case "pro":
