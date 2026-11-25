@@ -102,7 +102,8 @@ struct GhafSettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: GhafMetrics.sectionSpacing) {
+                // Not Lazy: a LazyVStack here spun the main thread in layout once scrolled (UI tests never idled); ~8 cards.
+                VStack(spacing: GhafMetrics.sectionSpacing) {
                     // Owner 1.31: ⋯ opens Profile; the gear opens Settings.
                     HStack {
                         Spacer()
