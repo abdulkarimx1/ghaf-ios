@@ -314,10 +314,13 @@ struct GhafStatsView: View {
         case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
         case .month, .quarter:
             // 4 even bars: label each with its date range, e.g. "1–8" or "1 Sep".
-            let end = calendar.date(byAdding: .day, value: -1, to: groupWindows().first(where: { $0.start == date })?.end ?? interval.end)!
+            // Labels sit under the middle day of each group; show that group's range.
+            let group = groupWindows().first(where: { $0.start <= date && date < $0.end })
+            let start = group?.start ?? date
+            let end = calendar.date(byAdding: .day, value: -1, to: group?.end ?? interval.end)!
             return period == .month
-                ? "\(date.formatted(.dateTime.day().locale(locale)))–\(end.formatted(.dateTime.day().locale(locale)))"
-                : date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+                ? "\(start.formatted(.dateTime.day().locale(locale)))–\(end.formatted(.dateTime.day().locale(locale)))"
+                : start.formatted(.dateTime.day().month(.abbreviated).locale(locale))
         case .year:
             return date.formatted(.dateTime.month(ar ? .wide : .abbreviated).locale(locale))
         }
@@ -341,11 +344,11 @@ struct GhafStatsView: View {
         // Owner 1.31: one smooth line (with a soft fill) over the period; the scrubbed point is marked separately.
         AreaMark(x: .value("Date", chartKey(bucket.start)), yStart: .value("Baseline", 0), yEnd: .value(currency, bucket.total), series: .value("Series", "Actual"))
             .foregroundStyle(LinearGradient(colors: [theme.accent.opacity(0.28), theme.accent.opacity(0)], startPoint: .top, endPoint: .bottom))
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.monotone)
         LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total), series: .value("Series", "Actual"))
             .foregroundStyle(theme.accent)
             .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.monotone)
     }
 
     /// One card in the theme's surface, Stocks style: the total (or the scrubbed point), the change against the previous
@@ -448,7 +451,7 @@ struct GhafStatsView: View {
                     let (bucket, amount) = entry.element
                     AreaMark(x: .value("Date", chartKey(bucket.start)), yStart: .value("Baseline", 0), yEnd: .value(currency, amount), series: .value("Series", "Forecast"))
                         .foregroundStyle(accent.opacity(0.06))
-                        .interpolationMethod(.catmullRom)
+                        .interpolationMethod(.monotone)
                     LineMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, amount), series: .value("Series", "Forecast"))
                         .foregroundStyle(accent.opacity(theme.isDark ? 0.55 : 0.45))
                         .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [5, 4]))
@@ -498,11 +501,15 @@ struct GhafStatsView: View {
             .chartXAxis {
                 let labels: [String] = switch period {
                 case .week: plotted.map { chartKey($0.start) }
-                case .month, .quarter: groupWindows().map { chartKey($0.start) }
+                case .month, .quarter: groupWindows().compactMap { window in
+                    // The middle day of each group, so the centred label never clips at the chart's edge.
+                    let days = calendar.dateComponents([.day], from: window.start, to: window.end).day ?? 0
+                    return calendar.date(byAdding: .day, value: days / 2, to: window.start).map(chartKey)
+                }
                 case .year: plotted.enumerated().compactMap { $0.offset.isMultiple(of: 2) ? chartKey($0.element.start) : nil }
                 }
                 AxisMarks(values: labels) { value in
-                    AxisValueLabel(anchor: period == .month || period == .quarter ? .topLeading : .top) {
+                    AxisValueLabel(anchor: .top) {
                         if let key = value.as(String.self), let bucket = plotted.first(where: { chartKey($0.start) == key }) {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
                                 .lineLimit(1).minimumScaleFactor(0.75)
