@@ -604,7 +604,7 @@ struct GhafHomeView: View {
         .accessibilityValue(count > 0 ? (ar ? "يحتاج إلى انتباه" : "Needs attention") : "")
     }
 
-    // MARK: Dark insight card
+    // MARK: Insight card (follows the theme, owner 1.31)
 
     private func insightCard(_ summary: Summary) -> some View {
         // V4 (owner 1.31): no category breakdown here; Insights opens Statistics.
@@ -616,7 +616,7 @@ struct GhafHomeView: View {
                           systemImage: "chart.pie.fill")
                         .contentTransition(.opacity)
                         .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                        .foregroundStyle(theme.inkText.opacity(0.75))
+                        .foregroundStyle(theme.secondaryText)
                     Spacer()
                     Image(systemName: "arrow.up.forward")
                         .font(.system(size: 14, weight: .heavy))
@@ -628,26 +628,26 @@ struct GhafHomeView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(ar ? "المصروف" : "Spent")
                             .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.inkText.opacity(0.65))
+                            .foregroundStyle(theme.secondaryText)
                         GhafMoneyLabel(amount: summary.spent, currency: summary.mainCurrency, languageCode: lang, size: 30)
-                            .foregroundStyle(theme.inkText)
+                            .foregroundStyle(theme.primaryText)
                         Text(ar ? "افتح الإحصائيات لترى وين راحت فلوسك" : "Open Statistics to see where it went")
                             .font(GhafTypography.body(13, languageCode: lang))
-                            .foregroundStyle(theme.inkText.opacity(0.65))
+                            .foregroundStyle(theme.secondaryText)
                     }
                     .id(activityPeriodIndex)
                     .transition(.opacity)
                 } else {
                     GhafMoneyText.text(emptyInsight(summary), size: 17)
                         .font(GhafTypography.heading(17, languageCode: lang))
-                        .foregroundStyle(theme.inkText)
+                        .foregroundStyle(theme.primaryText)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.ink, in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+            .ghafCard(theme: theme)
         }
         .buttonStyle(.ghafPress)
     }
@@ -675,7 +675,7 @@ struct GhafHomeView: View {
             GhafSectionHeader(title: ar ? "النشاط" : "Activity", theme: theme, languageCode: lang,
                               actionTitle: ar ? "عرض الكل" : "See all") { router.selectedTab = 3 }
             VStack(spacing: 0) {
-                let recent = Array(transactions.prefix(4))
+                let recent = Array(transactions.prefix(3))
                 if recent.isEmpty && automationLastRun == 0 {
                     GhafListRow(icon: "bolt.fill", tint: theme.accent,
                                 title: ar ? "اربط رسائل البنك" : "Connect your bank messages",
