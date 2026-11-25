@@ -929,6 +929,7 @@ struct GhafQuickAddView: View {
                             .font(GhafTypography.body(13, languageCode: lang))
                             .foregroundStyle(theme.secondaryText)
                     }
+                    Color.clear.frame(height: noteFocused ? 24 : 0).id("form-end") // lets the note clear the action bar
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
                             .font(GhafTypography.body(13, languageCode: lang))
@@ -945,12 +946,12 @@ struct GhafQuickAddView: View {
             // Row 17: bring the focused note above the keyboard.
             .onChange(of: noteFocused) { _, focused in
                 guard focused else { return }
-                withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo("note-field", anchor: .center) }
+                // Wait for the keyboard to shrink the scroll area, then centre the field in what is left.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo("note-field", anchor: .bottom) }
+                }
             }
-            }
-            }
-            .ghafBackground(theme: theme)
-            .ghafKeyboardDone()
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 12) {
                     // Owner 1.31: voice entry is Pro; without Pro the mic opens the paywall.
@@ -968,6 +969,10 @@ struct GhafQuickAddView: View {
                 .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 8)
                 .background(theme.background)
             }
+            }
+            }
+            .ghafBackground(theme: theme)
+            .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
         .background(GhafQuickAddDismissObserver { showingDiscard = true }.frame(width: 1, height: 1))
         .tint(theme.accent)
