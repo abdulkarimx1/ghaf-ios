@@ -472,17 +472,18 @@ struct GhafBudgetView: View {
         let used: Decimal = bucket == .needs ? needs : bucket == .wants ? wants
             : BudgetAllocation.remainingAfterSpending(income: allocationIncome, needs: needs, wants: wants)
         return VStack(spacing: 14) {
-            HStack {
-                Text(ar ? presetNameArabic(preset) : preset.name)
-                    .font(GhafTypography.body(20, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.primaryText)
-                Spacer()
-                Button { showPresetSheet = true } label: {
+            Button { showPresetSheet = true } label: {
+                HStack {
+                    Text(ar ? presetNameArabic(preset) : preset.name)
+                        .font(GhafTypography.body(20, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                    Spacer()
                     Image(systemName: ar ? "chevron.left" : "chevron.right")
                         .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.secondaryText)
-                }.buttonStyle(.plain)
-            }
+                }
+                .contentShape(Rectangle())
+            }.buttonStyle(.plain)
             if allocationIncome <= 0 {
                 Text(ar ? "أضف دخلك الشهري من المزيد › الميزانية والفئات، أو راتبك من دورة الراتب، ليقسّمه غاف ٥٠/٣٠/٢٠."
                         : "Add your monthly income in More › Budget & categories, or your salary in Salary cycle, and Ghaf splits it using your selected budget plan.")
@@ -606,6 +607,7 @@ struct GhafBudgetView: View {
             }
             .padding(GhafMetrics.cardPadding)
             .ghafStatsCard(theme: theme, radius: 22)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.ghafPress)
         .accessibilityHint(ar ? "يفتح إعدادات دورة الراتب" : "Opens salary cycle settings")

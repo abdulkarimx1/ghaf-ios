@@ -349,6 +349,7 @@ struct GhafSettingsView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.ghafPress)
     }

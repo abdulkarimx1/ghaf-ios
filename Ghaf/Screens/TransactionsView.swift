@@ -178,6 +178,7 @@ struct GhafTransactionsView: View {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
+                                        .contentShape(Rectangle())
                                         .overlay(alignment: ar ? .topLeading : .topTrailing) {
                                             if transaction.isUnread {
                                                 Circle().fill(theme.accent).frame(width: 7, height: 7)

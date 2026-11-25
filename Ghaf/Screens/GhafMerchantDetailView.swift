@@ -233,6 +233,7 @@ struct GhafPlacePicker: View {
                                 }
                             }
                             .frame(minHeight: GhafMetrics.rowHeight)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 14)

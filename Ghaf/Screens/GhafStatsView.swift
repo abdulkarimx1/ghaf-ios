@@ -634,6 +634,7 @@ struct GhafStatsView: View {
             }
             .padding(GhafMetrics.cardPadding)
             .ghafStatsCard(theme: theme, radius: 22)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.ghafPress)
     }

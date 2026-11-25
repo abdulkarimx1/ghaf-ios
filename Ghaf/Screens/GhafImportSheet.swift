@@ -104,6 +104,7 @@ struct GhafImportSheet: View {
                 VStack(alignment: .leading, spacing: 4) { Text(title).font(.system(size: 17, weight: .semibold)).foregroundStyle(theme.primaryText); Text(subtitle).font(.system(size: 14)).foregroundStyle(theme.secondaryText) }
                 Spacer(minLength: 4); Image(systemName: "chevron.forward").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.secondaryText)
             }.padding(18).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).background(theme.surface, in: RoundedRectangle(cornerRadius: 20))
+            .contentShape(Rectangle())
         }.buttonStyle(.plain)
     }
 

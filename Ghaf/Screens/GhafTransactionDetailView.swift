@@ -225,6 +225,7 @@ struct GhafTransactionDetailView: View {
             .foregroundStyle(theme.close)
             .padding(14)
             .background(theme.close.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.ghafPress)
     }

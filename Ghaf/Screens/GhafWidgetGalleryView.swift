@@ -39,6 +39,7 @@ struct GhafWidgetGalleryView: View {
                         Image(systemName: "chevron.forward").font(.system(size: 12, weight: .bold)).foregroundStyle(theme.secondaryText)
                     }
                     .foregroundStyle(theme.primaryText).padding(18).ghafCard(theme: theme)
+                    .contentShape(Rectangle())
                 }.buttonStyle(.plain)
 
                 Text(ar ? "لإضافة أداة، اضغط مطولًا على الشاشة الرئيسية، ثم اختر تحرير وإضافة أداة." : "To add a widget, touch and hold your Home Screen, tap Edit, then Add Widget.")
