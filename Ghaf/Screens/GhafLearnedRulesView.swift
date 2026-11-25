@@ -8,8 +8,6 @@ struct GhafLearnedRulesView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \MerchantCategoryRule.updatedAt, order: .reverse) private var rules: [MerchantCategoryRule]
     @Query(sort: \GhafMemory.updatedAt, order: .reverse) private var memories: [GhafMemory]
-    @State private var confirmReset = false
-    @State private var confirmForgetMemories = false
     @AppStorage(MerchantCategorizer.modelLearningKey) private var modelLearning = true
     @AppStorage(GhafCloudAI.enabledKey) private var cloudEnabled = false
     @AppStorage(GhafMemoryStore.enabledKey) private var memoryEnabled = GhafMemoryStore.defaultEnabled
@@ -58,7 +56,12 @@ struct GhafLearnedRulesView: View {
                     }
                 }
                 Section {
-                    Button(ar ? "انسَ كل الذكريات" : "Forget everything", role: .destructive) { confirmForgetMemories = true }
+                    GhafSplitDeleteButton(title: ar ? "انسَ كل الذكريات" : "Forget everything", confirmTitle: ar ? "انسَ الكل" : "Forget all",
+                                          theme: theme, languageCode: settings.languageCode) {
+                        memories.forEach(context.delete)
+                        try? context.save()
+                    }
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
                 }
             }
             Section {
@@ -107,7 +110,12 @@ struct GhafLearnedRulesView: View {
                     }
                 }
                 Section {
-                    Button(ar ? "مسح كل ما تعلّمه غاف" : "Reset everything Ghaf learned", role: .destructive) { confirmReset = true }
+                    GhafSplitDeleteButton(title: ar ? "مسح كل ما تعلّمه غاف" : "Reset everything Ghaf learned", confirmTitle: ar ? "مسح" : "Reset",
+                                          theme: theme, languageCode: settings.languageCode) {
+                        rules.forEach(context.delete)
+                        try? context.save()
+                    }
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
                 }
             }
         }
@@ -115,21 +123,5 @@ struct GhafLearnedRulesView: View {
         .ghafBackground(theme: theme)
         .ghafPageTitle(ar ? "ما تعلّمه غاف" : "What Ghaf learned", languageCode: settings.languageCode, theme: theme)
         .toolbar(.visible, for: .navigationBar)
-        .confirmationDialog(ar ? "مسح كل القواعد المتعلَّمة؟" : "Reset all learned rules?", isPresented: $confirmReset, titleVisibility: .visible) {
-            Button(ar ? "مسح" : "Reset", role: .destructive) {
-                rules.forEach(context.delete)
-                try? context.save()
-            }
-        } message: {
-            Text(ar ? "لن تتأثر عملياتك المسجلة." : "Your recorded transactions are not changed.")
-        }
-        .confirmationDialog(ar ? "نسيان كل الذكريات؟" : "Forget all memories?", isPresented: $confirmForgetMemories, titleVisibility: .visible) {
-            Button(ar ? "انسَ الكل" : "Forget everything", role: .destructive) {
-                memories.forEach(context.delete)
-                try? context.save()
-            }
-        } message: {
-            Text(ar ? "لن تتأثر عملياتك المسجلة." : "Your recorded transactions are not changed.")
-        }
     }
 }

@@ -586,13 +586,13 @@ private struct GhafSubscriptionEditor: View {
                     }
                     .padding(.top, 8)
                     if subscription != nil {
-                        Button(ar ? "حذف الاشتراك" : "Delete subscription", role: .destructive) {
+                        GhafSplitDeleteButton(title: ar ? "حذف الاشتراك" : "Delete subscription", confirmTitle: ar ? "حذف" : "Delete",
+                                              theme: theme, languageCode: settings.languageCode) {
                             guard let subscription else { return dismiss() }
                             context.delete(subscription)
                             do { try context.save(); GhafSubscriptionReminderService.cancel(subscription); dismiss() }
                             catch { context.rollback(); saveFailed = true }
                         }
-                        .ghafDestructiveButton(theme: theme, languageCode: settings.languageCode)
                         .padding(.top, 8)
                     }
                     Button { requestSave() } label: { Text(ar ? "حفظ" : "Save") }
