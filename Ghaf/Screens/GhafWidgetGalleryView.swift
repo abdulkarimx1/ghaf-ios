@@ -31,6 +31,7 @@ struct GhafWidgetGalleryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                if !GhafProAccess.hasAccess {
                 Button { showPro = true } label: {
                     HStack(spacing: 14) {
                         Image(systemName: "sparkles").font(.system(size: 24, weight: .semibold)).foregroundStyle(theme.accent)
@@ -44,6 +45,7 @@ struct GhafWidgetGalleryView: View {
                     .foregroundStyle(theme.primaryText).padding(18).ghafCard(theme: theme)
                     .contentShape(Rectangle())
                 }.buttonStyle(.plain)
+                }
 
                 Text(ar ? "لإضافة أداة، اضغط مطولًا على الشاشة الرئيسية، ثم اختر تحرير وإضافة أداة." : "To add a widget, touch and hold your Home Screen, tap Edit, then Add Widget.")
                     .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
@@ -58,7 +60,7 @@ struct GhafWidgetGalleryView: View {
                                     .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                                     .foregroundStyle(theme.primaryText).lineLimit(1).minimumScaleFactor(0.8)
                                 Spacer(minLength: 2)
-                                if !free { Image(systemName: "lock.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.accent) }
+                                if !free && !GhafProAccess.hasAccess { Image(systemName: "lock.fill").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.accent) }
                             }
                             widgetPreview(name, family: family)
                             Text(ar ? arabicDetail(name) : detail)
@@ -107,12 +109,9 @@ struct GhafWidgetGalleryView: View {
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
         .padding(8)
         .background { GhafWidgetBackground(tile: GhafTile(.ink, snapshot), enabled: false) }
-        .blur(radius: proLocked ? 7 : 0)
-        .overlay {
-            if proLocked {
-                Button { showPro = true } label: { GhafWidgetProMask() }.buttonStyle(.plain)
-            }
-        }
+        // V17: everyone sees every widget; only using a Pro one needs Pro (lock on the title, tap opens Pro).
+        .contentShape(Rectangle())
+        .onTapGesture { if proLocked { showPro = true } }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(name), \(family == .systemSmall ? "Small" : family == .systemMedium ? "Medium" : "Large")")
