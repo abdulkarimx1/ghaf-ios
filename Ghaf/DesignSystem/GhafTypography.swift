@@ -222,8 +222,9 @@ private struct GhafStatusBarFadeModifier: ViewModifier {
             .accessibilityHidden(true)
         }
         if #available(iOS 18, *) {
+            // The fade only uses 0–8 pt, so clamp here: past 8 pt the value stops changing and scrolling no longer redraws it.
             faded.onScrollGeometryChange(for: CGFloat.self) { geometry in
-                max(0, geometry.contentOffset.y + geometry.contentInsets.top)
+                min(8, max(0, (geometry.contentOffset.y + geometry.contentInsets.top).rounded()))
             } action: { _, offset in
                 scrollOffset = offset
             }

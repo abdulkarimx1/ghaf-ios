@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Tactile press for custom buttons: a quick spring squash, softened when Reduce Motion is on.
 struct GhafPressStyle: ButtonStyle {
+    /// Off where the control already plays its own haptic (number pad), so a tap never vibrates twice.
+    var haptic = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
@@ -10,7 +12,7 @@ struct GhafPressStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
             // A light tap felt on press, so every Ghaf button answers the finger.
-            .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in pressed }
+            .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in haptic && pressed }
     }
 }
 

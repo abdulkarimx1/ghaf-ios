@@ -168,6 +168,26 @@ private struct GhafMoneyGlyph: View {
     let weight: Font.Weight
     let reduceMotion: Bool
 
+    @State private var spinning = false
+    @State private var shownHidden: Bool?
+    @State private var restHidden: Bool?
+    @State private var spinToken = 0
+
+    /// Mounts the strip at the old row without animation, then slides it to the new row and drops it afterwards.
+    private func spin(from old: Bool, to new: Bool) {
+        spinToken += 1
+        let token = spinToken
+        var still = Transaction(); still.disablesAnimations = true
+        withTransaction(still) { if !spinning { shownHidden = old }; spinning = true }
+        DispatchQueue.main.async {
+            withAnimation(GhafMoneyLabel.hideAnimation(false)) { shownHidden = new }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            guard token == spinToken else { return }
+            withTransaction(still) { spinning = false; shownHidden = nil; restHidden = new }
+        }
+    }
+
     private var digitWidth: CGFloat { size * 0.60 }
     private var columnHeight: CGFloat { size * 1.25 }
     private static let latin = Array("0123456789")
@@ -180,10 +200,16 @@ private struct GhafMoneyGlyph: View {
                 Text("•").opacity(hidden ? 1 : 0)
             }
             .frame(width: digitWidth, height: columnHeight)
+        } else if character.isNumber, character.wholeNumberValue != nil, !spinning {
+            // At rest a digit is one Text in the same box the strip uses, so nothing moves when the strip swaps in.
+            // shortcut: 1.31 perf — the 11-Text strip below exists only during the 0.7 s eye spin; lists scroll one Text per digit.
+            Text((restHidden ?? hidden) ? "•" : String(character))
+                .frame(width: digitWidth, height: columnHeight)
+                .onChange(of: hidden) { old, new in spin(from: old, to: new) }
         } else if let value = character.wholeNumberValue, character.isNumber {
             // One tall strip (0-9 then a dot) slid by a single offset: the digits spin through and the
-            // animation is a pure transform, so it is smooth and runs under the shared hide transaction.
-            let row = hidden ? 10 : value
+            // animation is a pure transform, so it is smooth.
+            let row = (shownHidden ?? hidden) ? 10 : value
             let digits = character.unicodeScalars.first.map { $0.value >= 0x660 && $0.value <= 0x669 } == true ? Self.arabicIndic : Self.latin
             // The strip is an overlay on a one-digit box, so lists and stacks size the row to one digit, not eleven.
             Color.clear
@@ -196,6 +222,7 @@ private struct GhafMoneyGlyph: View {
                     .offset(y: CGFloat(5 - row) * columnHeight)
                 }
                 .clipped()
+                .onChange(of: hidden) { old, new in spin(from: old, to: new) }
         } else {
             // Separators are the only flexible pieces in a tight row; fixedSize stops "100.00" being squeezed to "10000" (V2).
             Text(String(character))

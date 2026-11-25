@@ -138,9 +138,10 @@ struct GhafAmountField: View {
                                 keyShape.fill(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06))
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(GhafPressStyle(haptic: false))
                         .accessibilityLabel(key == "delete" ? (languageCode == "ar" ? "حذف" : "Delete") : localized(key))
-                        .onLongPressGesture { if key == "delete" { value = ""; keyPress += 1 } }
+                        // Only delete needs a hold (clear all); on other keys a hold recognizer delayed every tap.
+                        .simultaneousGesture(LongPressGesture().onEnded { _ in value = ""; keyPress += 1 }, isEnabled: key == "delete")
                     }
                 }
             }
