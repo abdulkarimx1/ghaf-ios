@@ -399,7 +399,7 @@ struct GhafHomeView: View {
                     withAnimation(.easeInOut(duration: 0.15)) { hideBalances.toggle() }
                 } else {
                     withAnimation(.easeInOut(duration: 0.11)) { eyeLidClosed = true }
-                    withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.26)) { hideBalances.toggle() }
+                    withAnimation(GhafMoneyLabel.hideAnimation(false)) { hideBalances.toggle() }
                     Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(110))
                         withAnimation(.easeOut(duration: 0.11)) { eyeLidClosed = false }

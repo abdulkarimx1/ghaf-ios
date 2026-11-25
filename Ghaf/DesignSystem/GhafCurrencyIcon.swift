@@ -93,6 +93,10 @@ struct GhafCurrencyPicker: View {
 
 /// An amount with its real currency sign (AED, SAR, OMR) or ISO code, masked with sparkles when hidden.
 struct GhafMoneyLabel: View {
+    /// Owner 1.31: the eye hide is one deliberate ~0.7 s ease-in-out shared by every amount (set via withAnimation on the toggle).
+    static func hideAnimation(_ reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.45, 0, 0.2, 1, duration: 0.7)
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let amount: Decimal
     let currency: String
@@ -164,36 +168,29 @@ private struct GhafMoneyGlyph: View {
     let weight: Font.Weight
     let reduceMotion: Bool
 
-    /// Owner 1.31: the eye hide must read as a deliberate ~0.7 s ease-in-out, not a 0.2 s snap.
-    static func hideAnimation(_ reduceMotion: Bool) -> Animation {
-        reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.45, 0, 0.2, 1, duration: 0.7)
-    }
-
     private var digitWidth: CGFloat { size * 0.60 }
     private var columnHeight: CGFloat { size * 1.25 }
+    private static let latin = Array("0123456789")
+    private static let arabicIndic = Array("٠١٢٣٤٥٦٧٨٩")
 
     var body: some View {
-        if character.isNumber {
-            ZStack {
-                Text(String(character))
-                    .contentTransition(.numericText())
-                    .offset(y: hidden && !reduceMotion ? -columnHeight : 0)
-                    .opacity(hidden ? 0 : 1)
-                Text("•")
-                    .font(GhafTypography.number(size, weight: weight))
-                    .frame(width: digitWidth)
-                    .offset(y: !hidden && !reduceMotion ? columnHeight : 0)
-                    .opacity(hidden ? 1 : 0)
+        if let value = character.wholeNumberValue, character.isNumber {
+            // One tall strip (0-9 then a dot) slid by a single offset: the digits spin through and the
+            // animation is a pure transform, so it is smooth and runs under the shared hide transaction.
+            let row = hidden ? 10 : value
+            let digits = character.unicodeScalars.first.map { $0.value >= 0x660 && $0.value <= 0x669 } == true ? Self.arabicIndic : Self.latin
+            VStack(spacing: 0) {
+                ForEach(0..<10, id: \.self) { Text(String(digits[$0])).frame(width: digitWidth, height: columnHeight) }
+                Text("•").frame(width: digitWidth, height: columnHeight)
             }
-            .frame(width: digitWidth, height: columnHeight)
+            .offset(y: CGFloat(5 - row) * columnHeight)
+            .frame(width: digitWidth, height: columnHeight, alignment: .center)
             .clipped()
-            .animation(Self.hideAnimation(reduceMotion), value: hidden)
         } else {
             // Separators are the only flexible pieces in a tight row; fixedSize stops "100.00" being squeezed to "10000" (V2).
             Text(String(character))
                 .fixedSize()
                 .layoutPriority(1)
-                .animation(Self.hideAnimation(reduceMotion), value: hidden)
         }
     }
 }
