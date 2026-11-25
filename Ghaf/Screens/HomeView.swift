@@ -828,6 +828,7 @@ struct GhafQuickAddView: View {
     @State private var categoryWasManuallyPicked = false
     @State private var categorizationTask: Task<Void, Never>?
     @State private var noteExpanded = false
+    @FocusState private var noteFocused: Bool
     @State private var errorMessage = ""
 
     private var theme: GhafTheme {
@@ -856,6 +857,8 @@ struct GhafQuickAddView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
+            ScrollView {
             VStack(spacing: 6) {
                     ZStack {
                         Text(ar ? "عملية جديدة" : "New transaction")
@@ -915,6 +918,7 @@ struct GhafQuickAddView: View {
                                     .padding(16).frame(minHeight: 56, alignment: .leading)
                                     .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18))
                                     .padding(.leading, 52).padding(.bottom, 10)
+                                    .focused($noteFocused).id("note-field")
                             }
                         }
                     }
@@ -934,6 +938,15 @@ struct GhafQuickAddView: View {
                 .padding(.top, 0).padding(.bottom, 0)
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.basedOnSize)
+            // Row 17: bring the focused note above the keyboard.
+            .onChange(of: noteFocused) { _, focused in
+                guard focused else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo("note-field", anchor: .center) }
+            }
+            }
             }
             .ghafBackground(theme: theme)
             .ghafKeyboardDone()
