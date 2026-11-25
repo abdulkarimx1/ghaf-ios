@@ -214,6 +214,7 @@ struct GhafTransactionsView: View {
                     }
                 }
             }
+.ghafCompactsTabBar()
             .listStyle(.plain)
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
