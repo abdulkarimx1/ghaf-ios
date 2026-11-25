@@ -163,7 +163,6 @@ struct GhafSettingsView: View {
                         .ghafProSheet(isPresented: $showProSheet, settings: settings)
                     }
 
-                    sexCard
                     inviteCard
                 }
                 .ghafScreenPadding()
@@ -304,7 +303,6 @@ struct GhafSettingsView: View {
 
     @ViewBuilder private var settingsList: some View {
                     menuGroup(ar ? "المال" : "Money") {
-                        menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
                         menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { budgetPage } }
                         menuRow(ar ? "دورة الراتب" : "Salary cycle", icon: "calendar.badge.clock") { GhafSalarySettingsView(settings: settings) }
                         menuRow(ar ? "ربط البنك تلقائياً" : "Bank automation", icon: "bolt.fill") { GhafAutomationGuideView(settings: settings) }
@@ -320,7 +318,7 @@ struct GhafSettingsView: View {
                     menuGroup(ar ? "التطبيق" : "App") {
                         menuRow(ar ? "الودجات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; sexCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -353,8 +351,8 @@ struct GhafSettingsView: View {
             Text(ar ? "الجنس" : "Sex")
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
-            GhafSegmented(options: [("male", ar ? "ذكر" : "Male"), ("female", ar ? "أنثى" : "Female"), ("unspecified", ar ? "أفضّل عدم الذكر" : "Prefer not to say")],
-                          selection: Binding(get: { settings.userSex ?? "unspecified" },
+            GhafSegmented(options: [("male", ar ? "ذكر" : "Male"), ("female", ar ? "أنثى" : "Female")],
+                          selection: Binding(get: { ["male", "female"].contains(settings.userSex ?? "") ? settings.userSex! : "" },
                                              set: { settings.userSex = $0; try? modelContext.save() }),
                           theme: theme, languageCode: languageCode)
             Text(ar ? "يخاطبك غاف بالصيغة المناسبة." : "Ghaf speaks to you in the matching Arabic forms.")
