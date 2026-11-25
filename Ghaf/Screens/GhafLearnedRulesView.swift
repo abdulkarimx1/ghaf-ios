@@ -116,6 +116,8 @@ struct GhafLearnedRulesView: View {
                         try? context.save()
                     }
                     .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
+                } footer: {
+                    Text(ar ? "لن تتأثر عملياتك المسجلة." : "Your recorded transactions are not changed.")
                 }
             }
         }
