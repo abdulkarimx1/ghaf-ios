@@ -18,6 +18,9 @@ struct GhafAmountField: View {
 
     @State private var presented = false
     @State private var keyPress = 0
+    /// Owner 1.31: the pad reads 1-2-3 left to right in every language unless mirrored here; digits can show as ١٢٣.
+    @AppStorage("ghaf.pad.indicDigits") private var indicDigits = false
+    @AppStorage("ghaf.pad.mirrored") private var mirrored = false
     @State private var replaceOnNextKey = true
 
     private var digits: Int { integerMode ? 0 : currency.map(GhafCurrencyDigits.fractionDigits(for:)) ?? 2 }
@@ -145,6 +148,7 @@ struct GhafAmountField: View {
                     }
                 }
             }
+            .environment(\.layoutDirection, mirrored ? .rightToLeft : .leftToRight)
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -182,7 +186,9 @@ struct GhafAmountField: View {
     }
 
     private func localized(_ text: String) -> String {
-        text.replacingOccurrences(of: ".", with: separator)
+        let shown = text.replacingOccurrences(of: ".", with: separator)
+        guard indicDigits else { return shown }
+        return String(shown.map { $0.wholeNumberValue.map { Character(UnicodeScalar(0x660 + $0)!) } ?? $0 })
     }
 
     private func amountDisplay(_ text: String) -> String {

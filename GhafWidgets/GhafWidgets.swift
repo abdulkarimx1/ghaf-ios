@@ -221,7 +221,7 @@ struct OpenGhaf: View {
             Text("Open Ghaf to load your numbers").font(.caption.weight(.semibold)).multilineTextAlignment(.center)
             // What this widget can reach, so a sideloaded install with mismatched sharing can be diagnosed.
             Text("Widget · group \(GhafWidgetSnapshot.hasSharedContainer ? "✓" : "✗") \(GhafWidgetSnapshot.groupID) · keychain \(GhafWidgetKeychain.read() != nil ? "✓" : (GhafWidgetKeychain.accessGroup == nil ? "✗" : "empty"))")
-                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                .font(ghafNumberFont(8, weight: .medium))
                 .multilineTextAlignment(.center)
                 .opacity(0.6)
         }
@@ -416,7 +416,7 @@ struct GhafTodayView: View {
                             Spacer(minLength: 4)
                             Text(s.hidden ? "✦✦" : c.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency))))).privacySensitive()
                         }
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .font(ghafNumberFont(11, weight: .semibold))
                         .foregroundStyle(tile.foreground)
                     }
                 }

@@ -81,6 +81,8 @@ struct GhafSettingsView: View {
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
+    @AppStorage("ghaf.pad.indicDigits") private var padIndicDigits = false
+    @AppStorage("ghaf.pad.mirrored") private var padMirrored = false
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
@@ -1004,6 +1006,18 @@ struct GhafSettingsView: View {
                 catch { modelContext.rollback(); prompt = .message(ar ? "تعذر حفظ الإعداد." : "Couldn't save this setting.") }
             })) {
                 Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+            .frame(minHeight: 56)
+            Toggle(isOn: $padIndicDigits) {
+                Text(ar ? "أرقام هندية في لوحة الأرقام (١٢٣)" : "Arabic-Indic digits on the keypad (١٢٣)")
+                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            }
+            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
+            .frame(minHeight: 56)
+            Toggle(isOn: $padMirrored) {
+                Text(ar ? "لوحة أرقام من اليمين لليسار" : "Right-to-left keypad")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
             }
             .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))

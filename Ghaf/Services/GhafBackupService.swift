@@ -668,7 +668,7 @@ enum GhafBackupService {
         "ghaf.glass.glow", "ghaf.glass.tilt", "ghaf.ai.cloudEnabled", "ghaf.ai.modelLearning", "ghaf.ai.memoryEnabled",
         "ghaf.ai.speakReplies", "ghaf.notify.autoTransaction", "ghaf.notify.morning",
         "ghaf.notify.evening", "ghaf.notify.weekly", "ghaf.liveActivity", "ghaf.places.byMerchant",
-        "ghaf.places.byTransaction", "ghaf.voice.learnedPause", "ghaf.liveActivity.enabled",
+        "ghaf.places.byTransaction", "ghaf.pad.indicDigits", "ghaf.pad.mirrored", "ghaf.voice.learnedPause", "ghaf.liveActivity.enabled",
         "ghaf.liveActivity.balance", "ghaf.liveActivity.duration", "ghaf.ai.voiceCharacter", "ghaf.merchant.aliases"
     ]
 

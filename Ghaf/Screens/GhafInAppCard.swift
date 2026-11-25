@@ -89,7 +89,7 @@ struct GhafInAppCard: View {
                 .frame(maxWidth: .infinity)
             if case .announcement(let item) = content, let code = item.code {
                 Text(code)
-                    .font(GhafTypography.heading(18, languageCode: languageCode).weight(.bold).monospaced())
+                    .font(GhafTypography.number(18, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 8)

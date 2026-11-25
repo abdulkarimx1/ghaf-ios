@@ -617,10 +617,10 @@ struct GhafCategoriesView: View {
                         Spacer(minLength: 4)
                         if entry.config.showAmounts {
                             Text(s.hidden ? "✦✦✦" : c.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency))).locale(s.locale)))
-                                .font(.system(size: large ? 14 : 12, weight: .semibold, design: .monospaced)).privacySensitive()
+                                .font(ghafNumberFont(large ? 14 : 12, weight: .semibold)).privacySensitive()
                         } else {
                             Text((NSDecimalNumber(decimal: c.amount / total).doubleValue).formatted(.percent.precision(.fractionLength(0)).locale(s.locale)))
-                                .font(.system(size: large ? 14 : 12, weight: .semibold, design: .monospaced))
+                                .font(ghafNumberFont(large ? 14 : 12, weight: .semibold))
                         }
                     }
                     .accessibilityElement(children: .combine)
@@ -704,7 +704,7 @@ struct GhafBillsView: View {
                             Text(dueText(b.date, now: entry.date, s)).font(.system(size: 10, weight: .semibold)).foregroundStyle(tile.dim)
                         }
                         Spacer(minLength: 4)
-                        Text("\(b.currency) \(amount(b))").font(.system(size: 12, weight: .semibold, design: .monospaced)).privacySensitive()
+                        Text("\(b.currency) \(amount(b))").font(ghafNumberFont(12, weight: .semibold)).privacySensitive()
                     }
                     .accessibilityElement(children: .combine)
                 }

@@ -1603,6 +1603,8 @@ struct GhafOnboardingView: View {
             Text(placeholder).foregroundStyle(theme.primaryText.opacity(0.78))
         }
             .font(GhafTypography.body(16, languageCode: languageCode))
+            // Explicit, so the field follows the screen's direction (right in Arabic) instead of the iPhone's language.
+            .multilineTextAlignment(.leading)
             .keyboardType(numeric ? .decimalPad : .default)
             .padding(.horizontal, 14)
             .padding(.vertical, 14)

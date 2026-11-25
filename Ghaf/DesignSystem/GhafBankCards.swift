@@ -117,7 +117,7 @@ struct GhafCardFace: View {
                         Text(name.isEmpty ? " " : name).font(.system(size: width * 0.045, weight: .semibold)).lineLimit(1)
                         Spacer()
                         Text(lastFour.isEmpty ? "•••• ••••" : "•••• \(lastFour)")
-                            .font(.system(size: width * 0.045, weight: .semibold, design: .monospaced))
+                            .font(ghafNumberFont(width * 0.045, weight: .semibold))
                     }
                 }
                 .foregroundStyle(.white)
