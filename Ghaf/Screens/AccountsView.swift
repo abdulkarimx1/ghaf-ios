@@ -72,10 +72,11 @@ struct GhafAccountsView: View {
     }
 
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var eyeButton: some View {
         Button {
-            withAnimation(.easeOut(duration: 0.35)) { hideBalances.toggle() }
+            withAnimation(GhafMoneyLabel.hideAnimation(reduceMotion)) { hideBalances.toggle() }
         } label: {
             Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                 .font(.system(size: 17, weight: .bold))

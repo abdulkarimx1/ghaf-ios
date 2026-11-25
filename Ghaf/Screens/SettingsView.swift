@@ -163,7 +163,6 @@ struct GhafSettingsView: View {
                         .ghafProSheet(isPresented: $showProSheet, settings: settings)
                     }
 
-                    sexCard
                     inviteCard
                 }
                 .ghafScreenPadding()
@@ -304,7 +303,6 @@ struct GhafSettingsView: View {
 
     @ViewBuilder private var settingsList: some View {
                     menuGroup(ar ? "المال" : "Money") {
-                        menuRow(ar ? "الحسابات والمحافظ" : "Accounts & wallets", icon: "wallet.pass.fill") { GhafAccountsView(settings: settings) }
                         menuRow(ar ? "الميزانية والفئات" : "Budget & categories", icon: "chart.pie.fill") { subpage(ar ? "الميزانية والفئات" : "Budget & categories") { budgetPage } }
                         menuRow(ar ? "دورة الراتب" : "Salary cycle", icon: "calendar.badge.clock") { GhafSalarySettingsView(settings: settings) }
                         menuRow(ar ? "ربط البنك تلقائياً" : "Bank automation", icon: "bolt.fill") { GhafAutomationGuideView(settings: settings) }
@@ -320,7 +318,7 @@ struct GhafSettingsView: View {
                     menuGroup(ar ? "التطبيق" : "App") {
                         menuRow(ar ? "الودجات" : "Widgets", icon: "square.grid.2x2.fill") { GhafWidgetGalleryView(settings: settings) }
                         menuRow(ar ? "التخصيص" : "Customization", icon: "paintpalette.fill") {
-                            subpage(ar ? "التخصيص" : "Customization") { languageCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
+                            subpage(ar ? "التخصيص" : "Customization") { languageCard; sexCard; currencyCard; keypadCard; mapsCard; soundCard; appearanceCard }
                         }
                         menuRow(ar ? "الإشعارات" : "Notifications", icon: "bell.badge.fill") { GhafNotificationSettingsView(settings: settings) }
                         menuRow(ar ? "النشاط المباشر" : "Live Activity", icon: "livephoto") { GhafLiveActivitySettingsView(settings: settings) }
@@ -353,8 +351,8 @@ struct GhafSettingsView: View {
             Text(ar ? "الجنس" : "Sex")
                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
-            GhafSegmented(options: [("male", ar ? "ذكر" : "Male"), ("female", ar ? "أنثى" : "Female"), ("unspecified", ar ? "أفضّل عدم الذكر" : "Prefer not to say")],
-                          selection: Binding(get: { settings.userSex ?? "unspecified" },
+            GhafSegmented(options: [("male", ar ? "ذكر" : "Male"), ("female", ar ? "أنثى" : "Female")],
+                          selection: Binding(get: { ["male", "female"].contains(settings.userSex ?? "") ? settings.userSex! : "" },
                                              set: { settings.userSex = $0; try? modelContext.save() }),
                           theme: theme, languageCode: languageCode)
             Text(ar ? "يخاطبك غاف بالصيغة المناسبة." : "Ghaf speaks to you in the matching Arabic forms.")
@@ -646,6 +644,8 @@ struct GhafSettingsView: View {
         return VStack(spacing: 18) {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
+                    .overlay { GhafStreakRing(streak: streak, theme: theme, ar: ar).padding(-10).allowsHitTesting(false) }
+                    .padding(.top, 8)
                     .overlay(alignment: .bottomTrailing) {
                         Button { showPhotoMenu = true } label: {
                             Image(systemName: "camera.fill")
@@ -1852,4 +1852,39 @@ private struct GhafDeferredView<Content: View>: View {
     let build: () -> Content
     init(@ViewBuilder _ build: @escaping () -> Content) { self.build = build }
     var body: some View { build() }
+}
+
+/// Row 10: progress toward the next streak tier (7, 30, 100, 365 days) as a glowing accent ring around the avatar.
+private struct GhafStreakRing: View {
+    let streak: Int
+    let theme: GhafTheme
+    let ar: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown: Double = 0
+
+    private var target: Double {
+        let tiers = [0] + GhafLoggingStreak.milestones
+        guard let next = tiers.first(where: { $0 > streak }), let prev = tiers.last(where: { $0 <= streak }) else { return 1 }
+        return Double(streak - prev) / Double(next - prev)
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(theme.accent.opacity(0.14), lineWidth: 5)
+            Circle().trim(from: 0, to: max(shown, streak > 0 ? 0.02 : 0))
+                .stroke(AngularGradient(colors: [theme.accent.opacity(0.45), theme.accent], center: .center, startAngle: .zero, endAngle: .degrees(360 * max(shown, 0.02))),
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .shadow(color: theme.accent.opacity(0.55), radius: 6)
+        }
+        .onAppear { set(target) }
+        .onChange(of: target) { _, value in set(value) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ar ? "سلسلة \(streak) يوماً" : "\(streak) day streak")
+        .accessibilityHidden(streak == 0)
+    }
+
+    private func set(_ value: Double) {
+        if reduceMotion { shown = value } else { withAnimation(.easeOut(duration: 0.6)) { shown = value } }
+    }
 }

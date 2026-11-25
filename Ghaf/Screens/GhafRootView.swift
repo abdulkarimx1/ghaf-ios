@@ -1212,7 +1212,7 @@ struct GhafOnboardingView: View {
                 .foregroundStyle(theme.primaryText)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
-            Text(localized("Ghaf AI uses your sex for the right Arabic forms. You can change it in Profile.", "يستخدم غاف جنسك لمخاطبتك بالصيغة الصحيحة. يمكنك تغييره من الملف الشخصي."))
+            Text(localized("Ghaf AI uses your sex for the right Arabic forms. You can change it in Settings.", "يستخدم غاف جنسك لمخاطبتك بالصيغة الصحيحة. يمكنك تغييره من الإعدادات."))
                 .font(GhafTypography.body(15, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
                 .frame(maxWidth: .infinity)
@@ -1221,8 +1221,8 @@ struct GhafOnboardingView: View {
             formLabel(localized("Your name", "اسمك"))
             onboardingField(localized("Name", "الاسم"), text: $name)
             formLabel(localized("Sex", "الجنس"))
-            GhafSegmented(options: [("male", localized("Male", "ذكر")), ("female", localized("Female", "أنثى")), ("unspecified", localized("Prefer not to say", "أفضّل عدم الذكر"))],
-                          selection: $userSex, theme: theme, languageCode: languageCode)
+            GhafSegmented(options: [("male", localized("Male", "ذكر")), ("female", localized("Female", "أنثى"))],
+                          selection: Binding(get: { ["male", "female"].contains(userSex) ? userSex : "" }, set: { userSex = $0 }), theme: theme, languageCode: languageCode)
         }
     }
 

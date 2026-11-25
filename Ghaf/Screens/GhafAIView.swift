@@ -62,6 +62,8 @@ struct GhafAIView: View {
     @State private var prompt = ""
     @State private var isTyping = false
     @State private var microphoneOff = false
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isOnScreen = false
     @State private var messages: [GhafChatMessage] = []
     @State private var isThinking = false
     @State private var replyTask: Task<Void, Never>?
@@ -175,6 +177,8 @@ struct GhafAIView: View {
                 DispatchQueue.main.async { inputFocused = true }
             }
             .onAppear {
+                isOnScreen = true
+                expireIfStale()
                 engine = assistant.engine
 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-GhafAIProTestAccess") {
@@ -254,7 +258,14 @@ struct GhafAIView: View {
                 }
 #endif
             }
+            .onChange(of: scenePhase) { _, phase in
+                // Only while Ghaf AI is on screen: backgrounding from another tab is not AI activity.
+                guard isOnScreen else { return }
+                if phase == .active { expireIfStale() } else { Self.stampActive() }
+            }
             .onDisappear {
+                isOnScreen = false
+                Self.stampActive()
                 recorder.reset()
                 tabRouter.isListening = false
                 progress.stage = nil
@@ -453,6 +464,15 @@ struct GhafAIView: View {
     }
 
     // MARK: History
+
+    // Row 14: 15 minutes away from Ghaf AI starts a fresh chat; the old one stays in history (persistChat runs first).
+    private static let lastActiveKey = "ghaf.ai.lastActive"
+    private static func stampActive() { UserDefaults.standard.set(Date.now, forKey: lastActiveKey) }
+    private func expireIfStale() {
+        let last = UserDefaults.standard.object(forKey: Self.lastActiveKey) as? Date
+        if !messages.isEmpty, AISessionExpiry.isStale(lastActive: last, now: .now) { startNewChat() }
+        Self.stampActive()
+    }
 
     private func startNewChat() {
         replyTask?.cancel()

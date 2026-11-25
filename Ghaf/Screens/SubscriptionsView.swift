@@ -281,7 +281,6 @@ struct GhafSubscriptionsView: View {
         }
         .padding(.vertical, 22).padding(.horizontal, 12)
         .frame(maxWidth: .infinity, minHeight: 180)
-        .background(alignment: .bottom) { GhafCalmLiquid(tint: theme.inkText).allowsHitTesting(false) }
         .ghafGlassHero(theme: theme, radius: 28, fallback: theme.ink)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
@@ -965,30 +964,5 @@ private struct GhafSubscriptionDetailView: View {
         payments = Array(debits.lazy.filter {
             SubscriptionDetector.sameService(merchant: $0.merchant ?? "", subscriptionName: name)
         }.prefix(12))
-    }
-}
-
-/// Owner 1.31: a calm liquid line under the subscription total (speed 0.2), not the "extreme" version.
-private struct GhafCalmLiquid: View {
-    let tint: Color
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate * 0.2 * 2 * .pi
-            Canvas { g, size in
-                for layer in 0..<2 {
-                    var path = Path()
-                    let base = size.height * (layer == 0 ? 0.62 : 0.70), amp = size.height * (layer == 0 ? 0.05 : 0.035)
-                    path.move(to: CGPoint(x: 0, y: size.height))
-                    for x in stride(from: 0, through: size.width, by: 4) {
-                        let phase = Double(x / size.width) * 2 * .pi
-                        path.addLine(to: CGPoint(x: x, y: base + amp * sin(phase + t + Double(layer) * 1.4)))
-                    }
-                    path.addLine(to: CGPoint(x: size.width, y: size.height))
-                    path.closeSubpath()
-                    g.fill(path, with: .color(tint.opacity(layer == 0 ? 0.07 : 0.10)))
-                }
-            }
-        }
     }
 }
