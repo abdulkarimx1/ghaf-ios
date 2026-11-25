@@ -701,15 +701,23 @@ struct GhafSettingsView: View {
                         .font(GhafTypography.body(11, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                         .opacity(draftProfileName.count >= 16 || draftArabicName.count >= 16 ? 1 : 0)
                 }
+                // V11: the character reads as an identity badge (tinted capsule + chevron), not just bigger text.
                 Button { showBudgetCharacterInfo = true } label: {
-                    VStack(spacing: 2) {
-                        Text(budgetCharacterName)
-                            .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold)).foregroundStyle(theme.accent)
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Text(budgetCharacterName)
+                                .font(GhafTypography.heading(16, languageCode: languageCode))
+                            Image(systemName: "chevron.forward").font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(theme.accent)
+                        .padding(.horizontal, 16).frame(minHeight: 40)
+                        .background(theme.accent.opacity(0.12), in: Capsule())
                         Text(budgetCharacterLine)
                             .font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.vertical, 4)
+                    .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("budget-character")
                 Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
