@@ -63,6 +63,7 @@ struct GhafAIView: View {
     @State private var isTyping = false
     @State private var microphoneOff = false
     @Environment(\.scenePhase) private var scenePhase
+    @State private var isOnScreen = false
     @State private var messages: [GhafChatMessage] = []
     @State private var isThinking = false
     @State private var replyTask: Task<Void, Never>?
@@ -176,6 +177,7 @@ struct GhafAIView: View {
                 DispatchQueue.main.async { inputFocused = true }
             }
             .onAppear {
+                isOnScreen = true
                 expireIfStale()
                 engine = assistant.engine
 #if DEBUG
@@ -257,9 +259,12 @@ struct GhafAIView: View {
 #endif
             }
             .onChange(of: scenePhase) { _, phase in
+                // Only while Ghaf AI is on screen: backgrounding from another tab is not AI activity.
+                guard isOnScreen else { return }
                 if phase == .active { expireIfStale() } else { Self.stampActive() }
             }
             .onDisappear {
+                isOnScreen = false
                 Self.stampActive()
                 recorder.reset()
                 tabRouter.isListening = false

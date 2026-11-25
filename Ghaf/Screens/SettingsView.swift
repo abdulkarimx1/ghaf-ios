@@ -644,7 +644,7 @@ struct GhafSettingsView: View {
         return VStack(spacing: 18) {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
-                    .overlay { GhafStreakRing(streak: streak, theme: theme).padding(-10).allowsHitTesting(false) }
+                    .overlay { GhafStreakRing(streak: streak, theme: theme, ar: ar).padding(-10).allowsHitTesting(false) }
                     .padding(.top, 8)
                     .overlay(alignment: .bottomTrailing) {
                         Button { showPhotoMenu = true } label: {
@@ -1855,6 +1855,7 @@ private struct GhafDeferredView<Content: View>: View {
 private struct GhafStreakRing: View {
     let streak: Int
     let theme: GhafTheme
+    let ar: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown: Double = 0
 
@@ -1876,7 +1877,7 @@ private struct GhafStreakRing: View {
         .onAppear { set(target) }
         .onChange(of: target) { _, value in set(value) }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Locale.current.language.languageCode?.identifier == "ar" ? "سلسلة \(streak) يوماً" : "\(streak) day streak")
+        .accessibilityLabel(ar ? "سلسلة \(streak) يوماً" : "\(streak) day streak")
         .accessibilityHidden(streak == 0)
     }
 
