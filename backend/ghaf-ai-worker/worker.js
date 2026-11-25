@@ -246,6 +246,8 @@ const MONEY_TIPS = [
 ].map(([en, ar, source, url], index) => ({ id: index + 1, en, ar, source, url }));
 
 async function liveToken(body, env, developer, device, usage) {
+  // Live calls speak in Gemini voices, not Hamad/Mariam, so they stay off unless the owner turns them on.
+  if (env.LIVE_CALLS_ENABLED !== "1") { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
   if (usage) usage.lang = body.language === "ar" ? "ar" : body.language === "en" ? "en" : "other";
   if (body.language !== "ar" && body.language !== "en") return json({ error: "bad_language" }, 400);
   const character = body.character === "Mariam" ? "Mariam" : "Hamad";
@@ -414,59 +416,14 @@ async function speak(body, env, developer, device, usage) {
     return json({ error: "pro_required", code: "pro_required" }, 429);
   }
   if (!text) return json({ error: "missing_text" }, 400);
-  const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${useEleven(env) ? "eleven\n" : ""}${character}\n${text}`));
+  // Owner rule (2026-11-25): users only ever hear Hamad or Mariam. Until ElevenLabs is paid for, answers are
+  // text only ("voice_off"); there is no stand-in voice, and old stand-in audio in the cache is never served.
+  if (!useEleven(env)) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
+  const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`eleven\n${character}\n${text}`));
   const cacheKey = `tts:${Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("")}`;
   const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
-  if (cached) { if (usage) { usage.model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview"; usage.outcome = "ok"; } return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini", "X-Ghaf-Cache": "hit" } }); }
-  // Owner 1.31: answers speak in the ElevenLabs Hamad/Mariam voices, inside a monthly character allowance per device
-  // (AED 10/month and AED 99/year keep a margin over ElevenLabs Flash at $0.05 per 1,000 characters).
-  if (useEleven(env)) return elevenSpeak(text, character, tier, env, developer, device, usage, cacheKey);
-  if (!developer && tier === "pro_yearly" && !await reserveYearlyBudget(env, device, Math.ceil(text.length / 4), 0, Math.max(1, text.length / 14))) { if (usage) usage.outcome = "limited_device"; return json({ error: "limit", scope: "budget" }, 429); }
-  if (!developer) {
-    const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 10));
-    if (limited) { if (usage) usage.outcome = `limited_${limited}`; return json({ error: "limit", scope: limited }, 429); }
-  }
-  if (env.GEMINI_API_KEY) {
-    const makeRequest = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.TTS_MODEL || "gemini-3.1-flash-tts-preview"}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        // The style line steers delivery: Gulf-friendly Arabic, like a friend talking, not a newsreader.
-        contents: [{ parts: [{ text: (arabic
-          ? `اقرأ النص التالي بصوت ${character === "Mariam" ? "امرأة إماراتية" : "رجل إماراتي"}، دافئ وعفوي، بنطق خليجي إماراتي طبيعي وليس كمذيع أخبار: `
-          : `Read this in a warm, natural ${character === "Mariam" ? "female" : "male"} Emirati voice, conversationally, not like an announcer: `) + text }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
-        }
-      })
-    });
-    let upstream = await makeRequest();
-    if (upstream.status === 503) {
-      await new Promise(resolve => setTimeout(resolve, 1_000));
-      upstream = await makeRequest();
-    }
-    if (upstream.status === 429) { if (usage) { usage.outcome = "limited_global"; usage.errorKind = "upstream_4xx"; } return json({ error: "limit" }, 429); }
-    if (upstream.ok) {
-      const data = await upstream.json();
-      if (usage) {
-        usage.input = Number(data?.usageMetadata?.promptTokenCount) || 0;
-        usage.output = Number(data?.usageMetadata?.candidatesTokenCount) || 0;
-      }
-      const b64 = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-      if (b64) {
-        const audio = wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
-        if (usage) usage.model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview";
-        await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
-        if (usage) usage.outcome = "ok";
-        return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini" } });
-      }
-      if (usage) usage.errorKind = "parse";
-    } else if (usage) {
-      usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx";
-    }
-  }
-  return json({ error: "unavailable" }, 503);
+  if (cached) { if (usage) { usage.model = env.ELEVEN_MODEL || "eleven_flash_v2_5"; usage.outcome = "ok"; } return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs", "X-Ghaf-Cache": "hit" } }); }
+  return elevenSpeak(text, character, tier, env, developer, device, usage, cacheKey);
 }
 
 function useEleven(env) { return Boolean(env.ELEVENLABS_API_KEY && env.ELEVEN_VOICE_HAMAD && env.ELEVEN_VOICE_MARIAM); }
@@ -499,6 +456,8 @@ async function elevenSpeak(text, character, tier, env, developer, device, usage,
   if (upstream.status === 429) { if (usage) { usage.outcome = "limited_global"; usage.errorKind = "upstream_4xx"; } return json({ error: "limit" }, 429); }
   if (!upstream.ok) {
     if (usage) usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx";
+    // Unpaid plan, bad key or missing voice: no Hamad/Mariam audio is possible, so tell the app to stay text-only.
+    if ([401, 402, 403, 404].includes(upstream.status)) { console.error("eleven upstream", upstream.status); if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
     console.error("eleven upstream", upstream.status, (await upstream.text().catch(() => "")).slice(0, 240));
     return json({ error: "unavailable" }, 503);
   }

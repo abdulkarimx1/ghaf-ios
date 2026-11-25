@@ -226,6 +226,7 @@ final class GhafLiveCall: ObservableObject {
         let (data, response) = try await session.data(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw URLError(.badServerResponse) }
         if status == 429 { throw GhafCloudAI.Failure.dailyLimit }
+        if status == 410 { throw GhafCloudAI.Failure.voiceOff }
         if status == 401, Keychain.read(GhafCloudAI.accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
         guard status == 200, let token = try? JSONDecoder().decode(Token.self, from: data) else { throw GhafCloudAI.Failure.unavailable }
         return token

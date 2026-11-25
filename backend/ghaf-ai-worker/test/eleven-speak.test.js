@@ -34,3 +34,24 @@ test('over the monthly allowance is refused without calling ElevenLabs', async t
   assert.equal((await response.json()).scope, 'voice_month');
   assert.equal(fetchMock.mock.callCount(), 0);
 });
+
+test('without ElevenLabs there is no stand-in voice: speak and live-token answer voice_off', async t => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => new Response(new Uint8Array(4)));
+  const { env } = setup(0);
+  delete env.ELEVENLABS_API_KEY; env.GEMINI_API_KEY = 'g';
+  const response = await speak(env, 'hello');
+  assert.equal(response.status, 410);
+  assert.equal((await response.json()).error, 'voice_off');
+  const live = await worker.fetch(new Request('https://worker.test/live-token', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'pro_monthly' }, body: JSON.stringify({ tier: 'pro_monthly' }) }), env);
+  assert.equal(live.status, 410);
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('an unpaid ElevenLabs plan (402) turns speech off instead of failing over', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 402 }));
+  const { env, values } = setup(0);
+  const response = await speak(env, 'hello');
+  assert.equal(response.status, 410);
+  assert.equal(values.get(`vc:pro_monthly:${month}:${device}`), '0');
+});

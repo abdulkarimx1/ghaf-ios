@@ -5,7 +5,7 @@ import worker from '../worker.js';
 const device = '12345678-1234-1234-1234-123456789abc';
 function environment(initial = {}) {
   const values = new Map(Object.entries(initial));
-  return { GEMINI_API_KEY: 'test-key', LIVE_DAILY_CALLS: '1', LIVE_GLOBAL_DAILY_CALLS: '300',
+  return { GEMINI_API_KEY: 'test-key', LIVE_CALLS_ENABLED: '1', LIVE_DAILY_CALLS: '1', LIVE_GLOBAL_DAILY_CALLS: '300',
     USAGE: { get: async key => values.get(key) ?? null,
       put: async (key, value) => values.set(key, value) }, values };
 }

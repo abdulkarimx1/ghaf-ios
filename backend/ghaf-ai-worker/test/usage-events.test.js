@@ -6,7 +6,7 @@ const device = '12345678-1234-1234-1234-123456789abc';
 const prompt = 'PRIVATE_PROMPT_usage_event_test';
 function setup(initial = {}) {
   const values = new Map(Object.entries(initial)), points = [], pending = [];
-  const env = { GEMINI_API_KEY: 'test-key', AI_HASH_SALT: 'usage-test-salt', GEMINI_MODEL: 'gemini-3.5-flash-lite', REASONING_MODEL: 'gemini-3.8-flash', LIVE_MODEL: 'models/gemini-3.8-live', TTS_MODEL: 'gemini-3.1-flash-tts-preview',
+  const env = { GEMINI_API_KEY: 'test-key', LIVE_CALLS_ENABLED: '1', ELEVENLABS_API_KEY: 'el', ELEVEN_VOICE_HAMAD: 'h', ELEVEN_VOICE_MARIAM: 'm', AI_HASH_SALT: 'usage-test-salt', GEMINI_MODEL: 'gemini-3.5-flash-lite', REASONING_MODEL: 'gemini-3.8-flash', LIVE_MODEL: 'models/gemini-3.8-live', TTS_MODEL: 'gemini-3.1-flash-tts-preview',
     USAGE: { get: async (key, type) => values.get(key) ?? null, put: async (key, value) => values.set(key, value) },
     USAGE_EVENTS: { writeDataPoint: point => points.push(point) } };
   return { env, ctx: { waitUntil: promise => pending.push(promise) }, points, pending, values };
@@ -76,6 +76,7 @@ test('live-token and speak write their own endpoint and actual model', async t =
   let tokenRequest;
   globalThis.fetch = async (url, options) => String(url).includes('auth_tokens')
     ? (tokenRequest = JSON.parse(options.body), Response.json({ name: 'authTokens/test' }))
+    : String(url).includes('elevenlabs') ? new Response(new Uint8Array([1, 2]))
     : Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }], usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 4 } });
   const state = setup();
   const live = await invoke('/live-token', { language: 'ar', tier: 'pro_monthly' }, state);
@@ -92,9 +93,8 @@ test('live-token and speak write their own endpoint and actual model', async t =
   assert.equal(speak.status, 200);
   assert.equal(state.points.length, 2);
   assertShape(state.points[1], 'speak');
-  assert.equal(state.points[1].blobs[1], 'gemini-3.1-flash-tts-preview');
+  assert.equal(state.points[1].blobs[1], 'eleven_flash_v2_5');
   assert.equal(state.points[1].blobs[2], 'ok');
-  assert.deepEqual(state.points[1].doubles.slice(1), [12, 4, 0]);
 });
 
 test('health, tips and unmatched routes use fixed endpoint labels', async () => {

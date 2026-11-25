@@ -5,7 +5,7 @@ import AVFoundation
 /// Only used when the user has turned on Cloud AI; only reply text and the selected voice are sent.
 @MainActor
 final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
-    enum SpeechResult { case played, limitReached, unavailable }
+    enum SpeechResult { case played, limitReached, unavailable, voiceOff }
     static let shared = GhafCloudVoice()
     private static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/speak")!
 
@@ -69,6 +69,8 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
             (data, response, status) = (retry.0, retry.1, retryStatus)
         }
         if status == 429 { return .limitReached }
+        // Owner rule: only Hamad/Mariam may speak; the server answers 410 while their voices are off.
+        if status == 410 { return .voiceOff }
         if status == 401, Keychain.read(GhafCloudAI.accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
         guard status == 200, let player = try? AVAudioPlayer(data: data) else { return .unavailable }
         stop()

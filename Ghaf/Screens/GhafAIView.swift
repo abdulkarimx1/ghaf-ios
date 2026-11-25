@@ -91,6 +91,8 @@ struct GhafAIView: View {
     @State private var offerCloud = false
     @State private var offerLiveConsent = false
     @State private var voiceUnavailable = false
+    /// Live calls use stand-in voices; while the server keeps them off, the mic uses listen-then-answer instead.
+    @State private var liveVoiceOff = false
     @State private var showVoicePicker = false
     @State private var voiceUsage: GhafVoiceUsage?
     @State private var voiceLimitReached = false
@@ -865,7 +867,7 @@ struct GhafAIView: View {
     private func startVoice() {
         guard hasProAccess else { return }
         guard !voiceCharacter.isEmpty else { showVoicePicker = true; return }
-        if GhafCloudAI.isEnabled {
+        if GhafCloudAI.isEnabled, !liveVoiceOff {
             guard !liveCallActive else {
                 liveCall.end(reason: "user")
                 liveCallActive = false
@@ -1391,6 +1393,10 @@ struct GhafAIView: View {
             beginLiveUserTurn()
         } catch GhafCloudAI.Failure.dailyLimit {
             handleDailyLimit()
+        } catch GhafCloudAI.Failure.voiceOff {
+            tabRouter.isListening = false
+            liveVoiceOff = true
+            startVoice()
         } catch {
             tabRouter.isListening = false
             appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
@@ -1577,6 +1583,10 @@ struct GhafAIView: View {
             switch result {
             case .played: break
             case .limitReached: handleDailyLimit()
+            case .voiceOff:
+                // Text-only until Hamad/Mariam's voices are on; no error clip for every answer.
+                voiceUnavailable = true
+                if listenAfterSpeaking || voiceMode { listenAfterSpeaking = false; startVoice() }
             case .unavailable:
                 voiceUnavailable = true
                 playVoiceError()

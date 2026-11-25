@@ -81,7 +81,7 @@ enum GhafCloudAI {
         #endif
     }
 
-    enum Failure: Error { case dailyLimit, unavailable }
+    enum Failure: Error { case dailyLimit, unavailable, voiceOff }
     static let accessRevoked = Notification.Name("GhafProAccessCodeRevoked")
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
