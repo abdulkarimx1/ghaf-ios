@@ -1614,6 +1614,7 @@ struct GhafOnboardingView: View {
         }
         settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.userSex = userSex
+        GhafCloudVoice.matchVoice(toSex: userSex)
         settings.currency = currency
         settings.languageCode = languageCode
         settings.monthlyIncome = Decimal(string: income) ?? 0

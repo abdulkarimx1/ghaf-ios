@@ -28,8 +28,19 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     }
 
     @discardableResult
-    func playBundledSample(character: String, arabic: Bool, onFinish: @escaping () -> Void = {}) -> Bool {
-        playBundledClip(prefix: "sample", character: character, arabic: arabic, onFinish: onFinish)
+    func playBundledSample(character: String, arabic: Bool, userSex: String? = nil, onFinish: @escaping () -> Void = {}) -> Bool {
+        playBundledClip(prefix: "sample", character: character, arabic: arabic, userSex: userSex, onFinish: onFinish)
+    }
+
+    /// Owner 1.31: a man gets Hamad and a woman gets Mariam by default; once the user picks a voice themselves, it stays.
+    static func matchVoice(toSex sex: String?) {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "ghaf.ai.voiceChosenByUser") else { return }
+        switch sex {
+        case "male": defaults.set("Hamad", forKey: "ghaf.ai.voiceCharacter")
+        case "female": defaults.set("Mariam", forKey: "ghaf.ai.voiceCharacter")
+        default: break
+        }
     }
 
     @discardableResult

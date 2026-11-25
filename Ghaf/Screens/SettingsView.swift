@@ -349,7 +349,7 @@ struct GhafSettingsView: View {
                 .foregroundStyle(theme.secondaryText)
             GhafSegmented(options: [("male", ar ? "ذكر" : "Male"), ("female", ar ? "أنثى" : "Female")],
                           selection: Binding(get: { ["male", "female"].contains(settings.userSex ?? "") ? settings.userSex! : "" },
-                                             set: { settings.userSex = $0; try? modelContext.save() }),
+                                             set: { settings.userSex = $0; GhafCloudVoice.matchVoice(toSex: $0); try? modelContext.save() }),
                           theme: theme, languageCode: languageCode)
             Text(ar ? "يخاطبك غاف بالصيغة المناسبة." : "Ghaf speaks to you in the matching Arabic forms.")
                 .font(GhafTypography.body(12, languageCode: languageCode))

@@ -4,6 +4,7 @@ struct GhafAIVoiceSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var systemColorScheme
     @AppStorage("ghaf.ai.voiceCharacter") private var character = ""
+    @AppStorage("ghaf.ai.voiceChosenByUser") private var chosenByUser = false
     @State private var playingSample: String?
     let settings: GhafSettings
     var firstChoiceRequired = false
@@ -27,6 +28,7 @@ struct GhafAIVoiceSettingsView: View {
                     VStack(spacing: 10) {
                         Button {
                             character = name
+                            chosenByUser = true
                             if firstChoiceRequired { onChoose?(); dismiss() }
                         } label: {
                             HStack(spacing: 12) {
@@ -88,7 +90,7 @@ struct GhafAIVoiceSettingsView: View {
                 return
             }
             playingSample = sampleID
-            let started = GhafCloudVoice.shared.playBundledSample(character: name, arabic: language == "ar") {
+            let started = GhafCloudVoice.shared.playBundledSample(character: name, arabic: language == "ar", userSex: settings.userSex) {
                 playingSample = nil
             }
             if !started { playingSample = nil }

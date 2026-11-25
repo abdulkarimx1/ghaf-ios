@@ -416,6 +416,9 @@ async function speak(body, env, developer, device, usage) {
     return json({ error: "pro_required", code: "pro_required" }, 429);
   }
   if (!text) return json({ error: "missing_text" }, 400);
+  // Developer-only clip studio: records the app's bundled Hamad/Mariam clips (Gemini Orus/Kore) with a delivery note.
+  // Requires the private developer token, so no user request can reach it.
+  if (developer && body.studio === true) return studioSpeak(text, character, String(body.style || ""), env);
   // Owner rule (2026-11-25): users only ever hear Hamad or Mariam. Until ElevenLabs is paid for, answers are
   // text only ("voice_off"); there is no stand-in voice, and old stand-in audio in the cache is never served.
   if (!useEleven(env)) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
@@ -424,6 +427,20 @@ async function speak(body, env, developer, device, usage) {
   const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
   if (cached) { if (usage) { usage.model = env.ELEVEN_MODEL || "eleven_flash_v2_5"; usage.outcome = "ok"; } return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs", "X-Ghaf-Cache": "hit" } }); }
   return elevenSpeak(text, character, tier, env, developer, device, usage, cacheKey);
+}
+
+async function studioSpeak(text, character, style, env) {
+  if (!env.GEMINI_API_KEY) return json({ error: "upstream" }, 502);
+  const voice = character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus";
+  const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.TTS_MODEL || "gemini-3.1-flash-tts-preview"}:generateContent`, {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+    body: JSON.stringify({ contents: [{ parts: [{ text: `${style}\n\n${text}` }] }],
+      generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } })
+  });
+  if (!upstream.ok) return json({ error: "upstream", status: upstream.status }, upstream.status === 429 ? 429 : 502);
+  const b64 = (await upstream.json())?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+  if (!b64) return json({ error: "parse" }, 502);
+  return new Response(wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0))), { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "studio" } });
 }
 
 function useEleven(env) { return Boolean(env.ELEVENLABS_API_KEY && env.ELEVEN_VOICE_HAMAD && env.ELEVEN_VOICE_MARIAM); }
