@@ -497,7 +497,11 @@ async function elevenSpeak(text, character, tier, env, developer, device, usage,
     });
   } catch { return json({ error: "unavailable" }, 503); }
   if (upstream.status === 429) { if (usage) { usage.outcome = "limited_global"; usage.errorKind = "upstream_4xx"; } return json({ error: "limit" }, 429); }
-  if (!upstream.ok) { if (usage) usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx"; return json({ error: "unavailable" }, 503); }
+  if (!upstream.ok) {
+    if (usage) usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx";
+    console.error("eleven upstream", upstream.status, (await upstream.text().catch(() => "")).slice(0, 240));
+    return json({ error: "unavailable" }, 503);
+  }
   const audio = wav(new Uint8Array(await upstream.arrayBuffer()));
   // Charge the allowance only for audio actually produced; cached repeats stay free.
   if (!developer) await env.USAGE.put(key, String(used + text.length), { expirationTtl: 40 * 86400 });
