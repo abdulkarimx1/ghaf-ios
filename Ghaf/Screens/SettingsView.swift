@@ -685,7 +685,7 @@ struct GhafSettingsView: View {
                             .accessibilityLabel(ar ? "تعديل الاسم" : "Edit name")
                     }
                 }
-                .offset(x: isEditingProfileName ? 0 : (ar ? -22 : 22))
+                .offset(x: isEditingProfileName ? 0 : 22) // offset mirrors in RTL, so one value centres the name both ways
                 if isEditingProfileName {
                     TextField(ar ? "الاسم بالعربية (اختياري)" : "Name in Arabic (optional)", text: $draftArabicName)
                         .font(GhafTypography.body(16, languageCode: "ar")).foregroundStyle(theme.primaryText)
