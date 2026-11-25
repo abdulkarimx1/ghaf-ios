@@ -953,13 +953,10 @@ struct GhafQuickAddView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .interactiveDismissDisabled(isDirty)
-        .scaleEffect(showingSuccess ? 0.94 : 1)
-        .saturation(showingSuccess ? 0.7 : 1)
-        .blur(radius: showingSuccess ? 24 : 0)
-        .animation(.easeOut(duration: 0.35), value: showingSuccess)
         .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
-        .overlay {
-            if showingSuccess {
+        // Row 28: the splash lives in a full-screen cover, not an overlay, so the sheet's rounded frame no longer crops
+        // it, and the live 24 pt blur of the whole form (costly next to the 60 fps shader) is gone.
+        .fullScreenCover(isPresented: $showingSuccess) {
                 GhafSaveSplash(title: ar ? "تمت إضافة المعاملة" : "Transaction added",
                                amount: GhafFormat.money(Decimal(string: amount) ?? 0,
                                    currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency,
@@ -968,7 +965,7 @@ struct GhafQuickAddView: View {
                                         accounts.first(where: { $0.id == selectedAccountID })?.name ?? ""]
                                    .filter { !$0.isEmpty }.joined(separator: " · "),
                                theme: theme, languageCode: lang) { dismiss() }
-            }
+                .presentationBackground(.clear)
         }
         .sheet(isPresented: $showProForVoice) {
             GhafProSheet(settings: settings, feature: ("Voice entry", "الإدخال الصوتي")).ghafDirection(settings.languageCode)
@@ -991,7 +988,8 @@ struct GhafQuickAddView: View {
                 amount = "20.50"
                 successCategory = GhafLocalization.category("Food", languageCode: lang)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    showingSuccess = true
+                    var noAnimation = Transaction(); noAnimation.disablesAnimations = true
+                    withTransaction(noAnimation) { showingSuccess = true }
                 }
             }
 #endif
@@ -1226,7 +1224,8 @@ struct GhafQuickAddView: View {
             Task { [id = transaction.id, date = transaction.date] in await GhafPlaces.rememberCurrentLocation(transactionID: id, purchaseDate: date) }
             successCategory = GhafLocalization.category(finalCategory, languageCode: lang)
             router.isSaveSplashPresented = true
-            showingSuccess = true
+            var noAnimation = Transaction(); noAnimation.disablesAnimations = true
+            withTransaction(noAnimation) { showingSuccess = true }
         } catch {
             errorMessage = settings.languageCode == "ar" ? "تعذر حفظ العملية." : "Could not save transaction."
         }
