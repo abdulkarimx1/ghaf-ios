@@ -77,9 +77,9 @@ struct GhafProView: View {
     @State private var accessRevision = 0
     @State private var heroAppeared: Bool
     private enum VoiceAllowance {
-        // Keep aligned with backend/ghaf-ai-worker/worker.js voiceLimit().
-        static let monthlyDailyReplies = 3
-        static let yearlyDailyReplies = 10
+        // Keep aligned with backend/ghaf-ai-worker/worker.js voiceCharacterAllowance() (15k / 20k characters ≈ 250 per answer).
+        static let monthlySpokenAnswers = 60
+        static let yearlySpokenAnswers = 80
     }
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -201,9 +201,9 @@ struct GhafProView: View {
     }
 
     private func allowance(annual: Bool) -> String {
-        let count = annual ? VoiceAllowance.yearlyDailyReplies : VoiceAllowance.monthlyDailyReplies
+        let count = annual ? VoiceAllowance.yearlySpokenAnswers : VoiceAllowance.monthlySpokenAnswers
         let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
-        return ar ? "\(localizedCount) ردود صوتية يوميًا" : "\(count) voice replies a day"
+        return ar ? "نحو \(localizedCount) إجابة صوتية شهريًا" : "About \(count) spoken answers a month"
     }
 
     @ViewBuilder private var purchaseControls: some View {

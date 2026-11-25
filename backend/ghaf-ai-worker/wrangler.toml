@@ -11,6 +11,12 @@ LIVE_MODEL = "models/gemini-3.8-live"
 TTS_MODEL = "gemini-3.1-flash-tts-preview"
 VOICE_HAMAD = "Orus"
 VOICE_MARIAM = "Kore"
+# ElevenLabs voices for spoken answers (active once the ELEVENLABS_API_KEY secret is set).
+ELEVEN_VOICE_HAMAD = "ulJ49j1YlxrYnPoj5o12"
+ELEVEN_VOICE_MARIAM = "rUaPbzcZIu8df8iNL9WZ"
+ELEVEN_MODEL = "eleven_flash_v2_5"
+MONTHLY_VOICE_CHARS = "15000"
+YEARLY_VOICE_CHARS = "20000"
 # Pro-only AI; zero is also enforced in code if this var is omitted.
 FREE_DAILY_LIMIT = "0"
 ESSENTIALS_DAILY_VOICE_LIMIT = "3"
