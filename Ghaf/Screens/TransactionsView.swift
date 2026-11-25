@@ -274,7 +274,7 @@ struct GhafTransactionsView: View {
 
     private func monthSummary(_ totals: (spent: Decimal, income: Decimal)) -> some View {
         HStack(spacing: 0) {
-            summaryCell(ar ? "صرفت هذا الشهر" : "Spent this month", totals.spent, theme.debit,
+            summaryCell(ar ? "المصروف هذا الشهر" : "Spent this month", totals.spent, theme.debit,
                         identifier: "transactions.month.spent")
             Rectangle().fill(theme.outline).frame(width: 1, height: 40)
             summaryCell(ar ? "الدخل هذا الشهر" : "Income this month", totals.income, theme.credit,
@@ -330,7 +330,7 @@ struct GhafTransactionsView: View {
         HStack(spacing: 6) {
             filterButton("All", label: ar ? "الكل" : "All")
             filterButton("Expenses", label: ar ? "مصروفات" : "Expenses")
-            filterButton("Income", label: ar ? "دخل" : "Income")
+            filterButton("Income", label: ar ? "الدخل" : "Income")
             filterButton("Review", label: ar ? "مراجعة" : "Review")
 
         }
@@ -532,7 +532,7 @@ struct GhafTransactionEditor: View {
                         .accessibilityIdentifier("transaction-editor-merchant").lineLimit(1).submitLabel(.done)
 
                     editorLabel(languageCode == "ar" ? "النوع" : "TYPE")
-                    GhafSegmented(options: [("debit", languageCode == "ar" ? "مصروف" : "Expense"), ("credit", languageCode == "ar" ? "دخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
+                    GhafSegmented(options: [("debit", languageCode == "ar" ? "المصروف" : "Expense"), ("credit", languageCode == "ar" ? "الدخل" : "Income")], selection: $direction, theme: theme, languageCode: languageCode)
 
                     editorLabel(languageCode == "ar" ? "الفئة" : "CATEGORY")
                     GhafCategoryPicker(category: $category, subcategory: $subcategory, languageCode: languageCode, tint: theme.accent)

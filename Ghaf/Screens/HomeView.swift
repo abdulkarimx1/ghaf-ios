@@ -36,7 +36,6 @@ struct GhafHomeView: View {
     @State private var showSalaryCheckIn = false
     @State private var showAccounts = false
     @State private var showImportSheet = false
-    @State private var showInsights = false
     @State private var showInbox = false
 #if DEBUG
     @State private var showNotificationSettings = false
@@ -227,9 +226,6 @@ struct GhafHomeView: View {
             }
             .sheet(isPresented: $showSubscriptions) {
                 GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible)
-            }
-            .sheet(isPresented: $showInsights) {
-                GhafInsightsView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showInbox) {
                 GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
@@ -611,7 +607,8 @@ struct GhafHomeView: View {
     // MARK: Dark insight card
 
     private func insightCard(_ summary: Summary) -> some View {
-        Button { showInsights = true } label: {
+        // V4 (owner 1.31): no category breakdown here; Insights opens Statistics.
+        Button { router.selectedTab = 2 } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Label((ar ? "التحليلات · " : "Insights · ")
@@ -628,9 +625,18 @@ struct GhafHomeView: View {
                         .background(theme.accent, in: Circle())
                 }
                 if summary.spent > 0 {
-                    categoryBar(summary)
-                        .id(activityPeriodIndex)
-                        .transition(.opacity)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(ar ? "المصروف" : "Spent")
+                            .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                            .foregroundStyle(theme.inkText.opacity(0.65))
+                        GhafMoneyLabel(amount: summary.spent, currency: summary.mainCurrency, languageCode: lang, size: 30)
+                            .foregroundStyle(theme.inkText)
+                        Text(ar ? "افتح الإحصائيات لترى وين راحت فلوسك" : "Open Statistics to see where it went")
+                            .font(GhafTypography.body(13, languageCode: lang))
+                            .foregroundStyle(theme.inkText.opacity(0.65))
+                    }
+                    .id(activityPeriodIndex)
+                    .transition(.opacity)
                 } else {
                     GhafMoneyText.text(emptyInsight(summary), size: 17)
                         .font(GhafTypography.heading(17, languageCode: lang))
@@ -646,47 +652,6 @@ struct GhafHomeView: View {
         .buttonStyle(.ghafPress)
     }
 
-    /// Where the money went, as one bar with the categories named under it.
-    private func categoryBar(_ summary: Summary) -> some View {
-        let total = NSDecimalNumber(decimal: summary.spent).doubleValue
-        var slices = Array(summary.categories.prefix(3))
-        let rest = summary.categories.dropFirst(3).reduce(Decimal.zero) { $0 + $1.amount }
-        if rest > 0 { slices.append((ar ? "أخرى" : "Other", rest)) }
-        let shades: [Double] = [0.95, 0.62, 0.4, 0.22]
-        func share(_ amount: Decimal) -> Double { NSDecimalNumber(decimal: amount).doubleValue / total }
-        return VStack(alignment: .leading, spacing: 12) {
-            GeometryReader { proxy in
-                HStack(spacing: 3) {
-                    ForEach(Array(slices.enumerated()), id: \.offset) { index, slice in
-                        Capsule().fill(theme.inkText.opacity(shades[index]))
-                            .frame(width: max(6, (proxy.size.width - CGFloat(slices.count - 1) * 3) * share(slice.amount)))
-                    }
-                }
-            }
-            .frame(height: 10)
-            .accessibilityHidden(true)
-            VStack(spacing: 7) {
-                ForEach(Array(slices.enumerated()), id: \.offset) { index, slice in
-                    HStack(spacing: 8) {
-                        Circle().fill(theme.inkText.opacity(shades[index])).frame(width: 8, height: 8)
-                        Text(index == 3 && rest > 0 ? (lang == "ar" ? "أخرى" : "Other") : GhafLocalization.category(slice.name, languageCode: lang))
-                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.inkText)
-                            .lineLimit(1)
-                        Spacer()
-                        GhafMoneyLabel(amount: slice.amount, currency: summary.mainCurrency, languageCode: lang,
-                                       size: 13, hidden: hideBalances)
-                            .foregroundStyle(theme.inkText.opacity(0.7))
-                        Text("\(Int((share(slice.amount) * 100).rounded()))%")
-                            .font(GhafTypography.number(13, weight: .bold))
-                            .foregroundStyle(theme.inkText)
-                            .frame(minWidth: 38, alignment: .trailing)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-        }
-    }
 
     /// Nothing spent yet: say what the period before cost.
     private func emptyInsight(_ summary: Summary) -> String {
@@ -877,6 +842,8 @@ struct GhafQuickAddView: View {
     private var lang: String { settings.languageCode }
     @State private var subcategory: String?
     @State private var toAccountID: UUID?
+    @State private var showProForVoice = false
+    @State private var showSubscriptionAdd = false
     private var isTransfer: Bool { direction == "transfer" }
     private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
     private var presentAmountPadOnAppear: Bool {
@@ -967,10 +934,13 @@ struct GhafQuickAddView: View {
             .ghafKeyboardDone()
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 12) {
-                    NavigationLink { GhafVoiceEntryView(settings: settings) } label: {
-                        Image(systemName: "mic.fill").font(.system(size: 21, weight: .semibold))
-                            .foregroundStyle(theme.primaryText).frame(width: 60, height: 60)
-                            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
+                    // Owner 1.31: voice entry is Pro; without Pro the mic opens the paywall.
+                    Group {
+                        if GhafProAccess.hasAccess {
+                            NavigationLink { GhafVoiceEntryView(settings: settings) } label: { micIcon }
+                        } else {
+                            Button { showProForVoice = true } label: { micIcon }
+                        }
                     }.accessibilityLabel(ar ? "قلها بصوتك" : "Say it aloud")
                     Button(action: save) { Text(ar ? "حفظ العملية" : "Save transaction") }
                         .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: lang, role: .primary))
@@ -1001,6 +971,12 @@ struct GhafQuickAddView: View {
                                theme: theme, languageCode: lang) { dismiss() }
             }
         }
+        .sheet(isPresented: $showProForVoice) {
+            GhafProSheet(settings: settings, feature: ("Voice entry", "الإدخال الصوتي")).ghafDirection(settings.languageCode)
+        }
+        .sheet(isPresented: $showSubscriptionAdd) {
+            GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+        }
         .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
         .onAppear {
@@ -1026,14 +1002,28 @@ struct GhafQuickAddView: View {
         }
     }
 
+    private var micIcon: some View {
+        Image(systemName: "mic.fill").font(.system(size: 21, weight: .semibold))
+            .foregroundStyle(theme.primaryText).frame(width: 60, height: 60)
+            .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Circle())
+    }
+
     /// Expense or income, then the amount, large and centred like the rest of Ghaf's money.
     private var amountHeader: some View {
         let currency = accounts.first { $0.id == selectedAccountID }?.currency ?? settings.currency
         return VStack(spacing: 16) {
             GhafAmountField(value: $amount, currency: currency, label: ar ? "المبلغ" : "Amount",
                             theme: theme, languageCode: lang, fontSize: 48, chromeless: true, presentOnAppear: presentAmountPadOnAppear)
-            GhafSegmented(options: [("debit", ar ? "مصروف" : "Expense"), ("credit", ar ? "دخل" : "Income"), ("transfer", ar ? "تحويل" : "Transfer")],
+            GhafSegmented(options: [("debit", ar ? "المصروف" : "Expense"), ("credit", ar ? "الدخل" : "Income"), ("transfer", ar ? "تحويل" : "Transfer")],
                           selection: $direction, theme: theme, languageCode: lang)
+            // V21: a repeating payment belongs in Subscriptions, reachable from here.
+            Button { showSubscriptionAdd = true } label: {
+                Label(ar ? "دفعة متكررة؟ أضفها في الاشتراكات" : "Repeats? Add it to Subscriptions", systemImage: "repeat")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.top, 8)
         .frame(maxWidth: .infinity)

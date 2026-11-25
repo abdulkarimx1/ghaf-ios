@@ -105,7 +105,7 @@ struct GhafTrendsView: View {
             .accessibilityLabel(text(s, "\(c > 0 ? "Up" : "Down") \(Int((abs(c) * 100).rounded())) percent vs \(lastPeriodName(selected, s))",
                                      "\(c > 0 ? "أعلى" : "أقل") بنسبة \(Int((abs(c) * 100).rounded())) بالمئة عن \(lastPeriodName(selected, s))")))
         }
-        let title = text(s, "Spending", "الصرف")
+        let title = text(s, "Spending", "المصروف")
         let spoken = text(s, "Spending \(periodName(selected, s)): \(s.currency) \(s.whole(p.spent))",
                           "الصرف \(periodName(selected, s)): \(s.whole(p.spent)) \(s.currency)")
 

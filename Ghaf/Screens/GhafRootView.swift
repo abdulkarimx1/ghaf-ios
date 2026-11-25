@@ -1029,10 +1029,14 @@ struct GhafOnboardingView: View {
                         .font(GhafTypography.body(12, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                     primaryAction(localized("Continue", "متابعة")) { advance() }
+                    // V1: restoring is the secondary path, a small link under Continue.
                     Button { showImportSheet = true } label: {
-                        Label(localized("Import Ghaf backup", "استيراد نسخة غاف الاحتياطية"), systemImage: "arrow.down.doc")
+                        Text(localized("Restore from a Ghaf backup", "استعادة من نسخة غاف الاحتياطية"))
+                            .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
+                            .foregroundStyle(theme.secondaryText)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
-                    .ghafGlassButton(theme: theme, languageCode: languageCode)
                 } else if step == 7 {
                     primaryAction(localized("Start using Ghaf", "ابدأ استخدام غاف")) { advance() }
                     Button { showAutomationGuide = true } label: {

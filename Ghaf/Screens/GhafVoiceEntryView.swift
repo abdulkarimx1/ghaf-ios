@@ -139,7 +139,7 @@ struct GhafVoiceEntryView: View {
                                         }
                                     }
                                     Spacer()
-                                    GhafSegmented(options: [("debit", isArabic ? "مصروف" : "Expense"), ("credit", isArabic ? "دخل" : "Income")], selection: $draft.direction, theme: theme, languageCode: settings.languageCode)
+                                    GhafSegmented(options: [("debit", isArabic ? "المصروف" : "Expense"), ("credit", isArabic ? "الدخل" : "Income")], selection: $draft.direction, theme: theme, languageCode: settings.languageCode)
                                 }
                                 GhafDateRow(title: isArabic ? "التاريخ والوقت" : "Date and time", selection: $draft.date, components: [.date, .hourAndMinute], theme: theme, languageCode: settings.languageCode)
                                     .frame(minHeight: 56)

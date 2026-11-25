@@ -128,7 +128,7 @@ struct GhafInsightsView: View {
             GhafMoneyLabel(amount: net, currency: settings.currency, languageCode: settings.languageCode, size: 38)
                 .foregroundStyle(theme.inkText)
             HStack(spacing: 10) {
-                summaryCard(title: settings.languageCode == "ar" ? "المصروفات" : "Spent",
+                summaryCard(title: settings.languageCode == "ar" ? "المصروف" : "Spent",
                             amount: totalExpenses, color: theme.inkDebit, symbol: "arrow.down.right")
                 summaryCard(title: settings.languageCode == "ar" ? "الدخل" : "Income",
                             amount: totalIncome, color: theme.inkCredit, symbol: "arrow.up.right")

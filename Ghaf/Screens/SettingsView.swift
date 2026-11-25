@@ -1259,7 +1259,7 @@ HStack(spacing: 8) {
                 || ["Salary", "Other Income", "Income"].contains(name))
         }
         let expenses = settings.categories.filter { !transfers.contains($0) && !income.contains($0) }
-        return [(ar ? "المصروفات" : "Expenses", expenses), (ar ? "الدخل" : "Income", income), (ar ? "التحويلات" : "Transfers", transfers)]
+        return [(ar ? "المصروف" : "Expenses", expenses), (ar ? "الدخل" : "Income", income), (ar ? "التحويلات" : "Transfers", transfers)]
     }
 
     private func categoryEditor(_ category: String) -> some View {

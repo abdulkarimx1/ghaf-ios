@@ -623,7 +623,7 @@ struct GhafBudgetView: View {
         }
         let most = max(months.map(\.total).max() ?? 0, 1)
         return VStack(alignment: .center, spacing: 10) {
-            Text(ar ? "اتجاه الصرف" : "Spending trend")
+            Text(ar ? "اتجاه المصروف" : "Spending trend")
                 .font(GhafTypography.heading(20, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.center)

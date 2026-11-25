@@ -112,9 +112,9 @@ struct GhafWidgetGalleryView: View {
     }
 
     private func arabicTitle(_ value: String) -> String {
-        ["Balance":"الرصيد", "Spending":"الإنفاق", "Upcoming payments":"الدفعات القادمة", "Today":"اليوم", "Latest transaction":"آخر عملية", "Budget":"الميزانية", "Where it went":"أين صُرف المال", "Trends":"الاتجاهات", "Quick add":"إضافة سريعة", "Ask Ghaf":"اسأل غاف", "Money tip":"نصيحة مالية"][value] ?? value
+        ["Balance":"الرصيد", "Spending":"المصروف", "Upcoming payments":"الدفعات القادمة", "Today":"اليوم", "Latest transaction":"آخر عملية", "Budget":"الميزانية", "Where it went":"أين صُرف المال", "Trends":"الاتجاهات", "Quick add":"إضافة سريعة", "Ask Ghaf":"اسأل غاف", "Money tip":"نصيحة مالية"][value] ?? value
     }
     private func arabicDetail(_ value: String) -> String {
-        ["Balance":"إجمالي الأرصدة", "Spending":"إنفاق الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"إنفاق اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها"][value] ?? value
+        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها"][value] ?? value
     }
 }

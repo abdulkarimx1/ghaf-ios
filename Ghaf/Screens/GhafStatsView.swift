@@ -470,7 +470,7 @@ struct GhafStatsView: View {
             .frame(height: 200)
             .padding(.top, 14)
             .environment(\.layoutDirection, .leftToRight)
-            .accessibilityLabel(ar ? "اتجاه الصرف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
+            .accessibilityLabel(ar ? "اتجاه المصروف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
             if all.contains(where: { $0.forecast != nil }) {
                 HStack(spacing: 6) {
                     Canvas { context, size in
