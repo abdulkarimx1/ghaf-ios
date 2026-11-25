@@ -99,9 +99,13 @@ struct GhafProView: View {
             VStack(spacing: 16) {
                 VStack(spacing: 16) {
                     Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
-                    Text("Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
-                    Text(ar ? "تابع إنفاقك بتفاصيل أكثر" : "See where your money goes.")
+                    // Owner 1.31: the headline is a subscribe call to action.
+                    Text(ar ? "اشترك في غاف Pro" : "Subscribe to Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
+                        .multilineTextAlignment(.center)
+                    Text(ar ? "اشترك لتستمتع بغاف AI والإدخال الصوتي والإحصائيات المتقدمة وكل الودجات."
+                            : "Subscribe to enjoy Ghaf AI, voice entry, advanced statistics and every widget.")
                         .foregroundStyle(theme.secondaryText)
+                        .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .modifier(GhafProHeroEntrance(isActive: allowsHeroMotion && !reduceMotion, isVisible: heroAppeared))
@@ -224,6 +228,7 @@ struct GhafProView: View {
         } label: {
             Text(GhafProAccess.hasAccessCode ? (ar ? "Pro فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
+            .ghafLightSweep(GhafFeatureFlags.appStoreAccount && !active && !busy)
             .disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
         accessCodeControls
         do {

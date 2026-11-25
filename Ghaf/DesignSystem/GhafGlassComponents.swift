@@ -535,3 +535,31 @@ struct GhafUndoBar: View {
         .accessibilityElement(children: .contain)
     }
 }
+
+/// A soft band of light that crosses the view every few seconds. Owner 1.31: ONLY on Pro subscribe CTAs.
+struct GhafLightSweep: ViewModifier {
+    var active = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func body(content: Content) -> some View {
+        content.overlay {
+            if active && !reduceMotion {
+                GeometryReader { proxy in
+                    let w = proxy.size.width
+                    PhaseAnimator([false, true]) { on in
+                        LinearGradient(colors: [.clear, .white.opacity(0.38), .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: w * 0.35)
+                            .rotationEffect(.degrees(18))
+                            .offset(x: on ? w * 1.2 : -w * 0.6)
+                    } animation: { on in on ? .easeInOut(duration: 1.1).delay(2.4) : .linear(duration: 0) }
+                }
+                .allowsHitTesting(false)
+                .clipShape(Capsule())
+                .blendMode(.plusLighter)
+            }
+        }
+    }
+}
+
+extension View {
+    func ghafLightSweep(_ active: Bool = true) -> some View { modifier(GhafLightSweep(active: active)) }
+}
