@@ -49,6 +49,7 @@ struct GhafSettingsView: View {
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = Calendar.current.firstWeekday
     @AppStorage("ghaf.glass.enabled") private var glassEnabled = true
     @AppStorage("ghaf.glass.intensity") private var glassIntensity = "balanced"
+    @AppStorage(GhafBottomCard.styleKey) private var bottomCardStyle = "floating"
     @AppStorage("ghaf.glass.grain") private var glassGrain = true
     @AppStorage("ghaf.glass.glow") private var glassGlow = true
     @AppStorage("ghaf.glass.tilt") private var glassTilt = true
@@ -409,9 +410,7 @@ struct GhafSettingsView: View {
                 .foregroundStyle(theme.accent).frame(maxWidth: .infinity, minHeight: 44)
         }
         .padding(.horizontal, 20).padding(.bottom, 20)
-        .background(theme.background.ignoresSafeArea())
-        .presentationDetents([.height(hasPhoto ? 310 : 250)])
-        .presentationDragIndicator(.hidden)
+        .ghafBottomCard(theme: theme, languageCode: languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -435,8 +434,8 @@ struct GhafSettingsView: View {
                 Text(ar ? "تغيير الميزانية" : "Change in Budget").frame(maxWidth: .infinity)
             }.ghafProminentButton(theme: theme, languageCode: languageCode)
         }
-        .padding(24).background(theme.background.ignoresSafeArea())
-        .presentationDetents([.height(250)])
+        .padding(24)
+        .ghafBottomCard(theme: theme, languageCode: languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -846,11 +845,8 @@ struct GhafSettingsView: View {
           }
           .padding(24).frame(maxWidth: .infinity)
         }
-        .background(theme.background.ignoresSafeArea())
         .safeAreaPadding(.bottom, 12)
-        .presentationBackground { theme.background.ignoresSafeArea() }
-        .presentationDetents([.height(ar ? 330 : 310)])
-        .presentationCornerRadius(32)
+        .ghafBottomCard(theme: theme, languageCode: languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
@@ -1053,6 +1049,14 @@ HStack(spacing: 8) {
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
                 .disabled(!glassEnabled)
+                glassDivider
+                // 1.31: owner compares both bottom-card styles on the phone, then we keep one and remove this.
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(ar ? "البطاقات السفلية" : "Bottom cards").foregroundStyle(theme.primaryText)
+                    GhafSegmented(options: [("floating", ar ? "زجاجية" : "Glass"), ("edge", ar ? "صلبة" : "Solid")],
+                                  selection: $bottomCardStyle, theme: theme, languageCode: languageCode)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.frame(maxWidth: .infinity).padding(.vertical, 10)
             if reduceTransparency { Text(ar ? "الزجاج متوقف بسبب إعداد تسهيلات الاستخدام." : "Glass is off because Reduce Transparency is enabled.").font(.caption).foregroundStyle(theme.secondaryText) }
             if glassEnabled {
                 glassDivider

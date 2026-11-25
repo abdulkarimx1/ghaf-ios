@@ -977,8 +977,8 @@ struct GhafQuickAddView: View {
         .sheet(isPresented: $showSubscriptionAdd) {
             GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
         }
-        .sheet(isPresented: $showingDate) { dateSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
-        .sheet(isPresented: $showingTime) { timeSheet.presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible) }
+        .sheet(isPresented: $showingDate) { dateSheet.ghafBottomCard(theme: theme, languageCode: lang) }
+        .sheet(isPresented: $showingTime) { timeSheet.ghafBottomCard(theme: theme, languageCode: lang) }
         .onAppear {
             selectedAccountID = presetAccountID
                 ?? accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id

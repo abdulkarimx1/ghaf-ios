@@ -255,7 +255,7 @@ struct GhafTransactionsView: View {
             }
             .sheet(item: $categoryTransaction) { transaction in
                 GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
-                    .presentationDetents([.height(360)]).presentationDragIndicator(.visible).ghafSheetFrame(theme: theme)
+                    .ghafBottomCard(theme: theme, languageCode: lang)
             }
             .overlay(alignment: .bottom) {
                 if let pending = undoDelete {
@@ -669,13 +669,13 @@ struct GhafTransactionEditor: View {
                         editQuickDate(languageCode == "ar" ? "أمس" : "Yesterday", value: Calendar.current.date(byAdding: .day, value: -1, to: GhafClock.now) ?? GhafClock.now)
                     }
                     DatePicker(languageCode == "ar" ? "التاريخ" : "Date", selection: $date, displayedComponents: .date).datePickerStyle(.graphical).labelsHidden().tint(theme.accent)
-                }.padding(20).presentationDetents([.height(430)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)
+                }.padding(20).ghafBottomCard(theme: theme, languageCode: languageCode)
             }
             .sheet(isPresented: $showingTimePicker) {
                 VStack(spacing: 8) {
                     DatePicker(languageCode == "ar" ? "الوقت" : "Time", selection: $date, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().tint(theme.accent)
                     Button(languageCode == "ar" ? "تم" : "Done") { showingTimePicker = false }.buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: languageCode, role: .primary))
-                }.padding(20).presentationDetents([.height(300)]).ghafSheetFrame(theme: theme).presentationDragIndicator(.visible)
+                }.padding(20).ghafBottomCard(theme: theme, languageCode: languageCode)
             }
             .navigationTitle(languageCode == "ar" ? "تعديل" : "Edit")
             .navigationBarTitleDisplayMode(.inline)

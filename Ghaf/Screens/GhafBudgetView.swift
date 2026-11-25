@@ -65,9 +65,9 @@ struct GhafBudgetView: View {
         .sensoryFeedback(.selection, trigger: bucket)
         .sensoryFeedback(.selection, trigger: bucketSelected)
         .sensoryFeedback(.selection, trigger: selectedMonth)
-        .sheet(isPresented: $showPresetSheet) { presetSheet.presentationDetents([.height(430)]).ghafSheetFrame(theme: theme) }
+        .sheet(isPresented: $showPresetSheet) { presetSheet.ghafBottomCard(theme: theme, languageCode: lang) }
         .sheet(item: Binding(get: { editingCategory.map(EditCategory.init) }, set: { editingCategory = $0?.name })) { item in
-            budgetEditor(item.name).presentationDetents([.height(320)]).ghafSheetFrame(theme: theme)
+            budgetEditor(item.name).ghafBottomCard(theme: theme, languageCode: lang)
         }
         .onAppear {
 #if DEBUG
@@ -82,6 +82,7 @@ struct GhafBudgetView: View {
             if GhafScreenshotFixture.selection == "wants" { bucket = .wants; bucketSelected = true }
             if GhafScreenshotFixture.selection == "savings" { bucket = .savings; bucketSelected = true }
             if GhafScreenshotFixture.selection == "petal" { selectedCategory = "Dining" }
+            if GhafScreenshotFixture.selection == "preset-card" { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showPresetSheet = true } }
             if GhafScreenshotFixture.selection == "over" {
                 var budgets = settings.categoryBudgets; budgets["Subscriptions"] = 1; settings.categoryBudgets = budgets
             }
