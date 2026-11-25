@@ -201,11 +201,6 @@ struct GhafSettingsView: View {
                 subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
             }
         }  // Importer and alerts sit on the stack so they present from pushed pages too.
-            .overlay {
-                if selectedMilestone != nil {
-                    theme.background.ignoresSafeArea().allowsHitTesting(false)
-                }
-            }
             .onAppear {
                 loadSettings()
                 proUnlocked = GhafProAccess.hasAccess
@@ -894,7 +889,6 @@ struct GhafSettingsView: View {
     }
 
     private func milestoneSheet(days: Int, streak: Int) -> some View {
-        ScrollView {
           VStack(spacing: 16) {
             let locked = streak < days
             let previous = [7, 30, 90].last { $0 < days }
@@ -915,9 +909,7 @@ struct GhafSettingsView: View {
             Button(ar ? "تم" : "Done") { selectedMilestone = nil }
                 .ghafProminentButton(theme: theme, languageCode: languageCode)
           }
-          .padding(24).frame(maxWidth: .infinity)
-        }
-        .safeAreaPadding(.bottom, 12)
+          .padding(.horizontal, 24).padding(.bottom, 16).frame(maxWidth: .infinity)
         .ghafBottomCard(theme: theme, languageCode: languageCode)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
