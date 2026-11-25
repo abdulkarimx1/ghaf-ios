@@ -18,6 +18,7 @@ enum GhafScreenshotFixture {
     static var language: String { value("GhafLanguage") ?? "en" }
     static var tab: String { value("GhafTab") ?? (["ai-typing", "ai-conversation", "ai-subscription-answer"].contains(value("GhafScreen") ?? "") ? "ai" : "home") }
     static var selection: String? { value("GhafSelection") }
+    static var onboardingStep: Int? { enabled ? value("GhafOnboardingStep").flatMap(Int.init) : nil }
     static var period: String? { snapshotPeriodOverride ?? value("GhafPeriod") }
     private static var rawScreen: String? { snapshotScreenOverride ?? value("GhafScreen") }
     static var screen: String? {

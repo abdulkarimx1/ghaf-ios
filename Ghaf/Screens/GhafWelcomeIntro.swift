@@ -26,13 +26,12 @@ struct GhafWelcomeGlow: View {
     }
 }
 
-/// The animated hero for welcome pages 0–4. Content is illustrative only.
+/// The animated hero for welcome pages 0–3. Content is illustrative only.
 struct GhafWelcomeHero: View {
     let step: Int
     let theme: GhafTheme
     let languageCode: String
     let cards: [GhafCardDesign]
-    let drag: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
@@ -41,43 +40,16 @@ struct GhafWelcomeHero: View {
     var body: some View {
         Group {
             switch step {
-            case 0: cardFan
+            // Owner 1.31: four feature cards: auto-capture, accounts, Ghaf AI voice, subscriptions + budget petals.
+            case 0: capture
             case 1: accounts
-            case 2: capture
-            case 3: askGhaf
-            default: permissions
+            case 2: askGhaf
+            default: subscriptionsAndPetals
             }
         }
         .onAppear {
             shown = false
             withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(duration: 0.7, bounce: 0.22).delay(0.05)) { shown = true }
-        }
-    }
-
-    // MARK: Page 0 — cards fan out and tilt under the finger (inspo: card interaction video)
-
-    private var cardFan: some View {
-        GeometryReader { proxy in
-            let width = min(proxy.size.width * 0.72, 270)
-            let tilt = reduceMotion ? 0 : Double(drag) / 12
-            ZStack {
-                ForEach(Array(cards.prefix(3).enumerated()), id: \.offset) { index, card in
-                    let side = CGFloat(index - 1)
-                    card.image.resizable().scaledToFill()
-                        .frame(width: width, height: width / 1.586)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
-                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.18), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.35), radius: 18, y: 12)
-                        .rotation3DEffect(.degrees((shown ? side * 14 : 0) + tilt), axis: (x: 0.15, y: 1, z: 0), perspective: 0.6)
-                        .rotationEffect(.degrees(shown ? side * 6 : 0))
-                        .offset(x: shown ? side * width * 0.42 : 0, y: shown ? abs(side) * 18 : 40)
-                        .scaleEffect(index == 1 ? 1 : 0.88)
-                        .zIndex(index == 1 ? 3 : 1)
-                        .opacity(shown ? 1 : 0)
-                        .modifier(GhafFloat(amplitude: reduceMotion ? 0 : 6, period: 3.2 + Double(index) * 0.4))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -161,14 +133,14 @@ struct GhafWelcomeHero: View {
                     .scaleEffect(phase == 1 ? 1.08 : 1)
                 HStack {
                     Spacer(minLength: 30)
-                    Text(text("How much did I spend this week?", "كم أنفقت هذا الأسبوع؟"))
+                    Label(text("Lunch, 35 dirhams", "غدا بخمسة وثلاثين درهم"), systemImage: "waveform")
                         .font(GhafTypography.body(15, languageCode: languageCode, weight: .medium))
                         .foregroundStyle(theme.accentContrast)
                         .padding(14).background(theme.accent, in: RoundedRectangle(cornerRadius: 18))
                 }
                 .opacity(phase >= 1 ? 1 : 0).offset(y: phase >= 1 ? 0 : 16)
                 HStack {
-                    Text(text("You spent AED 842 this week.", "أنفقت ٨٤٢ درهماً هذا الأسبوع."))
+                    Text(text("Added: Lunch · AED 35.00", "تمت الإضافة: غداء · ٣٥٫٠٠ درهم"))
                         .font(GhafTypography.body(15, languageCode: languageCode))
                         .padding(14).background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
                         .overlay(RoundedRectangle(cornerRadius: 18).stroke(theme.outline, lineWidth: 1))
@@ -181,27 +153,45 @@ struct GhafWelcomeHero: View {
         }
     }
 
-    // MARK: Page 4 — permission tiles pop in, icons pulse
+    // MARK: Page 3 — budget petals fill, upcoming subscriptions slide in
 
-    private var permissions: some View {
-        HStack(spacing: 16) {
-            tile("mic.fill", text("Voice entry", "الإدخال الصوتي"), index: 0)
-            tile("bell.fill", text("Payment reminders", "تذكيرات الدفع"), index: 1)
+    private var subscriptionsAndPetals: some View {
+        let fills: [CGFloat] = [0.9, 0.55, 0.75, 0.35, 0.6, 0.45]
+        return VStack(spacing: 16) {
+            ZStack {
+                ForEach(fills.indices, id: \.self) { index in
+                    let start = Double(index) * 60 - 90 + 2, end = Double(index + 1) * 60 - 90 - 2
+                    GhafPetalSegment(start: start, end: end, inner: 0.22, outer: 1)
+                        .fill(theme.primaryText.opacity(0.07))
+                    GhafPetalSegment(start: start, end: end, inner: 0.22, outer: shown ? 0.22 + 0.78 * fills[index] : 0.24)
+                        .fill(index == 0 ? theme.over : theme.accent.opacity(0.55 + 0.07 * Double(index)))
+                        .animation(reduceMotion ? .none : .spring(duration: 0.9, bounce: 0.15).delay(0.08 * Double(index)), value: shown)
+                }
+            }
+            .frame(width: 150, height: 150)
+            VStack(spacing: 8) {
+                subscriptionRow("play.tv.fill", text("Streaming", "البث"), text("Due in 3 days", "بعد ٣ أيام"), 39, index: 0)
+                subscriptionRow("figure.run", text("Gym", "النادي"), text("Due next week", "الأسبوع القادم"), 250, index: 1)
+            }
         }
     }
 
-    private func tile(_ icon: String, _ caption: String, index: Int) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: 34, weight: .medium)).foregroundStyle(theme.accent)
-                .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
-            Text(caption).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+    private func subscriptionRow(_ icon: String, _ name: String, _ due: String, _ amount: Decimal, index: Int) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.accent)
+                .frame(width: 32, height: 32).background(theme.accent.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                Text(due).font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+            }
+            Spacer()
+            GhafMoneyLabel(amount: amount, currency: "AED", languageCode: languageCode, size: 15)
         }
-        .frame(maxWidth: .infinity).frame(height: 150)
-        .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).stroke(theme.outline, lineWidth: 1))
-        .rotation3DEffect(.degrees(shown ? 0 : (index == 0 ? -40 : 40)), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
-        .scaleEffect(shown ? 1 : 0.8).opacity(shown ? 1 : 0)
-        .animation(reduceMotion ? .none : .spring(duration: 0.7, bounce: 0.28).delay(0.1 * Double(index)), value: shown)
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(theme.outline, lineWidth: 1))
+        .offset(y: shown ? 0 : 24).opacity(shown ? 1 : 0)
+        .animation(reduceMotion ? .none : .spring(duration: 0.6, bounce: 0.2).delay(0.5 + 0.12 * Double(index)), value: shown)
     }
 }
 

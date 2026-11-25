@@ -82,6 +82,7 @@ private struct GhafSettingsBackup: Codable {
     var salaryReminderEnabled: Bool?
     var biometricLockEnabled: Bool?
     var createdAt: Date?
+    var userSex: String?
 }
 
 private struct GhafTransactionBackup: Codable {
@@ -202,7 +203,8 @@ enum GhafBackupService {
             lastSalaryDecisionKey: settings.lastSalaryDecisionKey,
             salaryReminderEnabled: settings.salaryReminderEnabled,
             biometricLockEnabled: settings.biometricLockEnabled,
-            createdAt: settings.createdAt
+            createdAt: settings.createdAt,
+            userSex: settings.userSex
         )
 
         let transactionBackups = transactions.map { transaction in
@@ -383,6 +385,7 @@ enum GhafBackupService {
         )
         settings.id = source.id ?? settings.id
         settings.createdAt = source.createdAt ?? settings.createdAt
+        settings.userSex = source.userSex
         // Tombstones first, so the category getters never merge a deleted default back in.
         if let deleted = source.deletedCategories { settings.deletedCategoryKeys = Set(deleted) }
         settings.categories = source.categories

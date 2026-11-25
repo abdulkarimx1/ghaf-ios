@@ -58,6 +58,8 @@ final class GhafSettings {
     var biometricLockEnabled: Bool?
     /// Maps app selected for directions. Defaults to Apple Maps on existing installs.
     var mapsAppPreference: String = "apple"
+    /// 1.31 (V16): "male", "female" or "unspecified"; picks the Arabic forms the voices use. nil = not asked yet.
+    var userSex: String? = nil
 
     init(
         userName: String = "",
