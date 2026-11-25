@@ -58,6 +58,7 @@ struct GhafSettingsView: View {
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
     @State private var showPhotoMenu = false
     @State private var showBudgetCharacterInfo = false
+    @State private var showBudgetFromCharacter = false
     @State private var showCameraPicker = false
     @State private var isEditingProfileName = false
     @State private var draftProfileName = ""
@@ -193,6 +194,7 @@ struct GhafSettingsView: View {
                 subpage(ar ? "النسخ الاحتياطي" : "Backup") { driveCard; backupCard }
             }
 #endif
+            .navigationDestination(isPresented: $showBudgetFromCharacter) { GhafBudgetView(settings: settings) }
             .navigationDestination(isPresented: $showPendingMilestoneProfile) {
                 subpage(ar ? "الملف الشخصي" : "Profile") { profilePage }
             }
@@ -459,7 +461,11 @@ struct GhafSettingsView: View {
                 .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             Text(ar ? "الاحتياجات / الرغبات / الادخار · \(split)٪" : "Needs / wants / savings · \(split)%")
                 .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
-            NavigationLink { GhafBudgetView(settings: settings) } label: {
+            // V13: a sheet is outside the parent's NavigationStack, so close it and push Budget from the parent.
+            Button {
+                showBudgetCharacterInfo = false
+                Task { try? await Task.sleep(for: .milliseconds(350)); showBudgetFromCharacter = true }
+            } label: {
                 Text(ar ? "تغيير الميزانية" : "Change in Budget").frame(maxWidth: .infinity)
             }.ghafProminentButton(theme: theme, languageCode: languageCode)
         }
@@ -703,7 +709,7 @@ struct GhafSettingsView: View {
                             .multilineTextAlignment(.center)
                     }
                     .padding(.vertical, 4)
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).accessibilityIdentifier("budget-character")
                 Text(ar ? "على هذا الـ iPhone فقط" : "Stored only on this iPhone")
                     .font(GhafTypography.body(13, languageCode: languageCode, weight: .medium))
                     .foregroundStyle(theme.secondaryText)
@@ -855,10 +861,14 @@ struct GhafSettingsView: View {
                 let days = item.element
                 let percent = [10, 25, 50][item.offset]
                 HStack(spacing: 10) {
-                    Image(systemName: streak >= days ? "checkmark.seal.fill" : "lock.circle")
-                        .foregroundStyle(streak >= days ? theme.accent : theme.secondaryText)
-                    Text(ar ? "\(GhafLocalization.arabicDays(days)) · خصم \(percent)٪" : "\(days) days · \(percent)% off")
-                        .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                    Button { selectedMilestone = days } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: streak >= days ? "checkmark.seal.fill" : "lock.circle")
+                                .foregroundStyle(streak >= days ? theme.accent : theme.secondaryText)
+                            Text(ar ? "\(GhafLocalization.arabicDays(days)) · خصم \(percent)٪" : "\(days) days · \(percent)% off")
+                                .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+                        }.contentShape(Rectangle())
+                    }.buttonStyle(.plain)
                     Spacer()
                     Button(ar ? "استرداد" : "Claim") { redeemingVoucher = true }
                         .font(GhafTypography.body(14, languageCode: languageCode, weight: .semibold))
@@ -876,12 +886,19 @@ struct GhafSettingsView: View {
     private func milestoneSheet(days: Int, streak: Int) -> some View {
         ScrollView {
           VStack(spacing: 16) {
-            Image(systemName: streak >= days ? "checkmark.seal.fill" : "sparkle")
+            let locked = streak < days
+            let previous = [7, 30, 90].last { $0 < days }
+            Image(systemName: locked ? "lock.circle.fill" : "checkmark.seal.fill")
                 .font(.system(size: 36)).foregroundStyle(theme.accent)
                     Text(ar ? "إنجاز \(GhafLocalization.arabicDays(days))" : "\(days)-day milestone")
                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-            Text(ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)). أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak))."
-                    : "You tracked your money for \(days) days in a row. Your streak is now \(streak) days.")
+            Text(locked
+                 ? (previous.map { ar ? "أكمل سلسلة \(GhafLocalization.arabicDays($0)) أولاً لتفتح خصماً أكبر. سلسلتك الآن \(GhafLocalization.arabicDays(streak))."
+                                      : "Finish the \($0)-day streak first to unlock a bigger discount. Your streak is now \(streak) days." }
+                    ?? (ar ? "سجّل عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)) لتفتح هذا الخصم. سلسلتك الآن \(GhafLocalization.arabicDays(streak))."
+                           : "Track your money \(days) days in a row to unlock this discount. Your streak is now \(streak) days."))
+                 : (ar ? "سجّلت عملية كل يوم لمدة \(GhafLocalization.arabicDays(days)). أنت الآن في سلسلة من \(GhafLocalization.arabicDays(streak))."
+                       : "You tracked your money for \(days) days in a row. Your streak is now \(streak) days."))
                 .font(GhafTypography.body(15, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
