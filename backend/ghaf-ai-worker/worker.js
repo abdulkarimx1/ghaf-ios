@@ -421,6 +421,8 @@ async function speak(body, env, developer, device, usage) {
   if (developer && body.studio === true) return studioSpeak(text, character, String(body.style || ""), env);
   // Developer-only ElevenLabs studio for marketing/onboarding narration: any voice ID, the higher-quality multilingual model.
   if (developer && body.studio === "eleven") return elevenStudio(text, String(body.voice || ""), body.settings, env);
+  // Developer-only background music / sound bed for the same narration (text is the music prompt).
+  if (developer && body.studio === "eleven-music") return elevenMusic(text, Number(body.seconds) || 30, body.kind === "sfx", env);
   // Owner rule (2026-11-25): users only ever hear Hamad or Mariam. Until ElevenLabs is paid for, answers are
   // text only ("voice_off"); there is no stand-in voice, and old stand-in audio in the cache is never served.
   if (!useEleven(env)) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
@@ -486,6 +488,19 @@ async function elevenSpeak(text, character, tier, env, developer, device, usage,
   await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
   if (usage) { usage.output = text.length; usage.outcome = "ok"; }
   return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs" } });
+}
+
+async function elevenMusic(prompt, seconds, sfx, env) {
+  if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_off" }, 410);
+  const length = Math.min(Math.max(seconds, 5), sfx ? 30 : 120);
+  const upstream = await fetch(sfx ? "https://api.elevenlabs.io/v1/sound-generation" : "https://api.elevenlabs.io/v1/music", {
+    method: "POST", headers: { "Content-Type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY },
+    body: JSON.stringify(sfx ? { text: prompt, duration_seconds: length, prompt_influence: 0.5 }
+                             : { prompt, music_length_ms: length * 1000, force_instrumental: true })
+  }).catch(() => null);
+  if (!upstream) return json({ error: "unavailable" }, 503);
+  if (!upstream.ok) return json({ error: "upstream", status: upstream.status, detail: (await upstream.text().catch(() => "")).slice(0, 300) }, 502);
+  return new Response(await upstream.arrayBuffer(), { headers: { "Content-Type": "audio/mpeg", "X-Ghaf-Voice": "eleven-music" } });
 }
 
 async function elevenStudio(text, voiceID, settings, env) {

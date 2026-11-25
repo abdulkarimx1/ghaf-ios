@@ -64,5 +64,10 @@ test('the ElevenLabs studio is developer-only: a user request never reaches it',
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'pro_monthly' },
     body: JSON.stringify({ text: 'hi', character: 'Hamad', tier: 'pro_monthly', studio: 'eleven', voice: 'abcdefghijklmnopqrst' }) }), env);
   assert.notEqual(response.headers.get('X-Ghaf-Voice'), 'eleven-studio');
+  const music = await worker.fetch(new Request('https://worker.test/speak', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'pro_monthly' },
+    body: JSON.stringify({ text: 'calm piano', tier: 'pro_monthly', studio: 'eleven-music' }) }), env);
+  assert.notEqual(music.headers.get('X-Ghaf-Voice'), 'eleven-music');
+  assert.ok(calls.every(url => !url.includes('/v1/music') && !url.includes('sound-generation')));
   assert.ok(calls.every(url => !url.includes('abcdefghijklmnopqrst')));
 });
