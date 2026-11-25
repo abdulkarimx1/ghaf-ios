@@ -53,7 +53,8 @@ struct GhafWalletStack: View {
             if selectedID == nil { selectedID = accounts.first?.id }
         }
         .sheet(item: $allFor) { account in
-            GhafAccountTransactionsSheet(account: account, transactions: transactions, theme: theme, languageCode: languageCode)
+            GhafTransactionListSheet(title: account.name, transactions: transactions.filter { $0.accountID == account.id },
+                                     theme: theme, languageCode: languageCode)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .ghafSheetFrame(theme: theme)
@@ -340,18 +341,18 @@ private struct GhafWalletCarousel: View {
     }
 }
 
-/// "View all transactions" for one card: a bottom card that pulls up to full screen.
-private struct GhafAccountTransactionsSheet: View {
-    let account: GhafAccount
+/// "View transactions" as a bottom card that pulls up to full screen (wallet card, stats bar).
+struct GhafTransactionListSheet: View {
+    let title: String
     let transactions: [GhafTransaction]
     let theme: GhafTheme
     let languageCode: String
 
     var body: some View {
-        let own = transactions.filter { $0.accountID == account.id }.sorted { $0.date > $1.date }
+        let own = transactions.sorted { $0.date > $1.date }
         ScrollView {
             LazyVStack(spacing: 0) {
-                Text(account.name)
+                Text(title)
                     .font(GhafTypography.body(17, languageCode: languageCode, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .padding(.vertical, 16)

@@ -249,7 +249,7 @@ struct GhafRootView: View {
             case "automation": GhafAutomationGuideView(settings: currentSettings)
             case "about": GhafAboutView(settings: currentSettings)
             case "wallet": NavigationStack { GhafAccountsView(settings: currentSettings) }
-            case "insights": GhafStatsView(settings: currentSettings).environment(fixtureRouter)
+            case "insights", "bar-sheet": GhafStatsView(settings: currentSettings).environment(fixtureRouter)
             case "transaction-detail": GhafFixtureTransactionDetailView(settings: currentSettings)
             case "subscriptions", "subscription-editor", "subscription-editor-filled": GhafSubscriptionsView(settings: currentSettings)
             case "settings-glass": GhafSettingsView(settings: currentSettings)

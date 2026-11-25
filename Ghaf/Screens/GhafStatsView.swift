@@ -35,6 +35,8 @@ struct GhafStatsView: View {
     @State private var selectedCategory: String?
     @State private var selectedBreakdownDay: Date?
     @State private var showProSheet = false
+    @State private var barTransactions: BarTransactions?
+    private struct BarTransactions: Identifiable { let id = UUID(); let title: String; let items: [GhafTransaction] }
     @State private var preparedStats = PreparedStats.empty
     @State private var cachedStatsID: String?
 
@@ -256,11 +258,28 @@ struct GhafStatsView: View {
                 .sensoryFeedback(.selection, trigger: period)
                 .sensoryFeedback(.selection, trigger: selectedCategory)
                 .sheet(isPresented: $showProSheet) { GhafProSheet(settings: settings, feature: ("Advanced statistics", "الإحصائيات المتقدمة")).ghafDirection(settings.languageCode) }
+                .sheet(item: $barTransactions) { bar in
+                    GhafTransactionListSheet(title: bar.title, transactions: bar.items, theme: theme, languageCode: lang)
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
+                        .ghafSheetFrame(theme: theme)
+                        .ghafDirection(lang)
+                }
                 .onAppear {
                 chartReady = true
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
                 if GhafScreenshotFixture.destination == "pro-popup" || GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
+                if GhafScreenshotFixture.selection == "bar" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        selectedLabel = preparedStats.buckets.last(where: { $0.total > 0 }).map { chartKey($0.start) }
+                        if GhafScreenshotFixture.destination == "bar-sheet", let key = selectedLabel,
+                           let bucket = preparedStats.buckets.first(where: { chartKey($0.start) == key }) {
+                            barTransactions = BarTransactions(title: bucketLabel(bucket.start),
+                                items: preparedStats.filtered.filter { $0.date >= bucket.start && $0.date < bucket.end })
+                        }
+                    }
+                }
                 if GhafScreenshotFixture.selection == "point" {
                     let date = calendar.dateInterval(of: .day, for: GhafClock.now.addingTimeInterval(-9 * 86_400))?.start ?? GhafClock.now
                     selectedLabel = chartKey(calendar.startOfDay(for: date))
@@ -368,6 +387,22 @@ struct GhafStatsView: View {
                     .font(GhafTypography.body(12, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
                     .padding(.vertical, 5)
+            }
+            // Owner 1.31: a tapped bar offers the transactions behind its number (the same list the bar sums).
+            if let selected {
+                let items = current.filter { $0.date >= selected.start && $0.date < selected.end }
+                Button {
+                    barTransactions = BarTransactions(title: bucketLabel(selected.start), items: items)
+                } label: {
+                    Label(ar ? "عرض العمليات" : "View transactions", systemImage: "list.bullet")
+                        .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.ghafPress)
+                .disabled(items.isEmpty)
+                .transition(.opacity)
             }
             Chart {
                 ForEach(plotted) { bucket in
