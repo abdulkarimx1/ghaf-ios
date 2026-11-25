@@ -309,9 +309,12 @@ struct GhafAIView: View {
 
     private var aiProPaywall: some View {
         VStack(spacing: 20) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 38, weight: .medium))
-                .foregroundStyle(theme.accent)
+            // Owner 1.31: free users see a blurred preview of the orb, with a lock on top.
+            GhafAIOrb(theme: theme, mood: .idle)
+                .frame(width: 150, height: 150)
+                .blur(radius: 2.5)
+                .overlay { Image(systemName: "lock.fill").font(.system(size: 26, weight: .semibold)).foregroundStyle(theme.primaryText) }
+                .accessibilityHidden(true)
             Text(ar ? "غاف AI لأعضاء Pro" : "Ghaf AI is for Pro members")
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .multilineTextAlignment(.center)
