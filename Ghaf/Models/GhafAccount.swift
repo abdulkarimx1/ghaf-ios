@@ -196,3 +196,18 @@ struct GhafCardDesign: Identifiable, Hashable, Decodable {
         ar: "صور البطاقات للتوضيح فقط. غاف غير مرتبط بأي بنك ولا يمثّله."
     )
 }
+
+extension GhafAccountType {
+    /// Shared EN/AR name; AccountsView and onboarding still have private copies to fold into this after 1.31 merges.
+    func title(languageCode: String) -> String {
+        guard languageCode == "ar" else { return titleKey }
+        switch self {
+        case .cash: return "محفظة نقدية"
+        case .debit: return "بطاقة خصم"
+        case .current: return "حساب جاري"
+        case .savings: return "حساب توفير"
+        case .credit: return "بطاقة ائتمان"
+        case .prepaid: return "بطاقة مسبقة الدفع"
+        }
+    }
+}
