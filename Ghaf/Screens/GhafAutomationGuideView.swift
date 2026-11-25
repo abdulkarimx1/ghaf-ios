@@ -145,7 +145,8 @@ struct GhafAutomationGuideView: View {
             ))
             .font(GhafTypography.body(13, languageCode: settings.languageCode))
             .foregroundStyle(theme.secondaryText)
-            .multilineTextAlignment(ar ? .trailing : .leading)
+            .multilineTextAlignment(.leading) // the view is already right-to-left in Arabic, so leading is the right edge
+            .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true) }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -183,7 +184,7 @@ struct GhafAutomationGuideView: View {
                       "اختر البنوك التي تريد أن يسجّل غاف رسائلها."))
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
-                .multilineTextAlignment(ar ? .trailing : .leading)
+                .multilineTextAlignment(.leading)
             if chosenBanks.isEmpty {
                 VStack(spacing: 16) {
                     Text(text("Choose the banks you get messages from", "اختر البنوك التي تصلك رسائل منها"))
@@ -369,7 +370,7 @@ struct GhafAutomationGuideView: View {
                 Text(text("If you already have automations, tap “+” at the top instead.", "إذا سبق أن أنشأت أتمتة، فاضغط على “+” أعلى الشاشة."))
                     .font(GhafTypography.body(12, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             TabView(selection: $automationPage) {
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
@@ -387,8 +388,8 @@ struct GhafAutomationGuideView: View {
                         Text(step.caption)
                             .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))
                             .foregroundStyle(theme.primaryText)
-                            .multilineTextAlignment(ar ? .trailing : .leading)
-                            .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .tag(index)
@@ -409,7 +410,7 @@ struct GhafAutomationGuideView: View {
                  : text("Test it with your next bank text message, then check Transactions.", "اختبره مع رسالة البنك النصية التالية، ثم راجع المعاملات."))
                 .font(GhafTypography.body(13, languageCode: settings.languageCode))
                 .foregroundStyle(theme.secondaryText)
-                .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: openShortcuts) {
                 Text(text("Open Shortcuts", "فتح الاختصارات"))
             }
