@@ -82,7 +82,7 @@ struct GhafAIOrbFace: View {
                         .fill(theme.accent)
                         .frame(width: side * 0.86, height: side * 0.86)
                         .blur(radius: side * 0.14)
-                        .opacity(mood == .idle ? 0.45 : 0.75)
+                        .opacity(mood == .idle ? 0.16 : 0.28) // soft, so the particles keep their contrast
                 }
                 orb
             }
@@ -90,73 +90,46 @@ struct GhafAIOrbFace: View {
         }
     }
 
+    /// 1200 points spread evenly over a sphere (Fibonacci lattice), computed once.
+    private static let points: [(x: Double, y: Double, z: Double)] = {
+        let n = 1200, golden = Double.pi * (3 - 5.0.squareRoot())
+        return (0..<n).map { i in
+            let y = 1 - (Double(i) + 0.5) / Double(n) * 2
+            let ring = (1 - y * y).squareRoot(), a = golden * Double(i)
+            return (cos(a) * ring, y, sin(a) * ring)
+        }
+    }()
+
+    /// Owner 1.31 AURA pick: particle sphere, 1200 particles, size 0.9, spin 0.55, react 0.6, theme tint + glow.
+    /// Particles use the theme accent at full strength so they stay visible on white as well as on dark.
     private var orb: some View {
         Canvas { context, size in
             let side = min(size.width, size.height)
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            // The halo needs room, so the sphere sits inside the frame.
             let radius = side * (halo ? 0.4 : 0.48)
-            let t = time
-            let speed: Double = switch mood { case .idle: 0.35; case .listening: 0.9; case .thinking: 2.1; case .speaking: 1.2 }
-            let energy: CGFloat = switch mood { case .idle: 0.0; case .listening: 0.35 + level * 0.65; case .thinking: 0.6; case .speaking: 0.3 + level * 0.7 }
-            let breathe = still ? 1 : 1 + 0.025 * sin(t * 1.9) + energy * 0.06
-            let r = radius * breathe
-
-            // Ripples leave the sphere while Ghaf speaks.
-            if mood == .speaking && !still {
-                for index in 0..<3 {
-                    let phase = (t * 0.7 + Double(index) / 3).truncatingRemainder(dividingBy: 1)
-                    let ring = r * (1 + CGFloat(phase) * (0.35 + level * 0.25))
-                    context.stroke(Circle().path(in: CGRect(x: center.x - ring, y: center.y - ring, width: ring * 2, height: ring * 2)),
-                                   with: .color(theme.glow.opacity((1 - phase) * 0.5)), lineWidth: max(1, side * 0.008))
+            let t = still ? 0.6 : time
+            let spin: Double = 0.55 * (mood == .thinking ? 3.2 : mood == .idle ? 1 : 1.6)
+            let react = 0.6 * Double(level)
+            let angle = t * spin, tilt = 0.35 + (mood == .thinking ? 0.25 * sin(t * 1.3) : 0)
+            let (ca, sa, ct, st) = (cos(angle), sin(angle), cos(tilt), sin(tilt))
+            let dot = max(0.6, side * 0.0075 * 0.9)
+            for p in Self.points {
+                // Spin about Y, then tilt about X so the poles read as a globe.
+                let x1 = p.x * ca + p.z * sa, z1 = -p.x * sa + p.z * ca
+                let y2 = p.y * ct - z1 * st, z2 = p.y * st + z1 * ct
+                var r = radius
+                switch mood {
+                case .idle: r *= 1 + 0.02 * sin(t * 1.6)
+                case .listening: r *= 1 + react * 0.18 + 0.015 * sin(t * 6 + p.y * 4)
+                case .thinking: r *= 1 + 0.04 * sin(t * 4 + p.x * 6)
+                case .speaking: r *= 1 + (0.05 + react * 0.2) * max(0, sin(t * 7 - (1 - p.y) * 5))
                 }
+                let depth = (z2 + 1) / 2 // 0 back … 1 front
+                let px = center.x + x1 * r, py = center.y + y2 * r
+                let d = dot * (0.55 + depth * 0.9)
+                context.fill(Circle().path(in: CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)),
+                             with: .color(theme.accent.opacity(0.18 + depth * 0.82)))
             }
-
-            let sphere = Circle().path(in: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
-            context.fill(sphere, with: .radialGradient(Gradient(colors: [theme.accent.opacity(0.55), GhafAIView.night]),
-                                                       center: center, startRadius: 0, endRadius: r))
-
-            // Liquid light: three blurred blobs on slow Lissajous paths, clipped to the glass.
-            context.drawLayer { layer in
-                layer.clip(to: sphere)
-                layer.addFilter(.blur(radius: r * 0.22))
-                let blobs: [(Color, Double, Double, CGFloat)] = [
-                    (theme.accent, 0.0, 1.0, 0.62),
-                    (theme.glow, 2.1, 1.3, 0.5),
-                    (.white.opacity(0.85), 4.2, 0.8, 0.3)
-                ]
-                for (color, offset, rate, size) in blobs {
-                    let a = t * speed * rate + offset
-                    let pos: CGPoint
-                    if mood == .thinking {
-                        // A turning swirl: the blobs chase each other round the inside of the rim.
-                        pos = CGPoint(x: center.x + cos(a) * r * 0.42, y: center.y + sin(a) * r * 0.42)
-                    } else {
-                        // Listening pulls them in towards the voice; idle lets them wander.
-                        let reach = r * (0.38 - energy * 0.22)
-                        pos = CGPoint(x: center.x + cos(a) * reach + sin(a * 0.7) * reach * 0.4,
-                                      y: center.y + sin(a * 1.3) * reach)
-                    }
-                    let br = r * size * (1 + energy * 0.25)
-                    layer.fill(Circle().path(in: CGRect(x: pos.x - br, y: pos.y - br, width: br * 2, height: br * 2)),
-                               with: .color(color))
-                }
-            }
-
-            // Rim light: a bright arc that turns, a comet while thinking.
-            let arc = Path { path in
-                path.addArc(center: center, radius: r * 0.97, startAngle: .radians(t * speed * 1.4),
-                            endAngle: .radians(t * speed * 1.4 + (mood == .thinking ? 2.4 : 1.4)), clockwise: false)
-            }
-            context.stroke(arc, with: .color(.white.opacity(0.55 + Double(energy) * 0.4)),
-                           style: StrokeStyle(lineWidth: max(1, side * 0.012), lineCap: .round))
-            context.stroke(sphere, with: .color(theme.glow.opacity(0.45)), lineWidth: max(0.6, side * 0.005))
-
-            // Glass highlight, fixed so the sphere keeps its shape while the light moves inside.
-            var shine = context
-            shine.addFilter(.blur(radius: r * 0.08))
-            shine.fill(Ellipse().path(in: CGRect(x: center.x - r * 0.55, y: center.y - r * 0.72, width: r * 0.5, height: r * 0.22)),
-                       with: .color(.white.opacity(0.45)))
         }
     }
 }

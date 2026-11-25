@@ -42,7 +42,6 @@ private struct GhafChatMessage: Identifiable {
 }
 
 struct GhafAIView: View {
-    static let night = Color(red: 0.02, green: 0.024, blue: 0.031)
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Environment(GhafTabRouter.self) private var tabRouter
@@ -105,7 +104,7 @@ struct GhafAIView: View {
     private var ar: Bool { settings.languageCode == "ar" }
     /// Ghaf AI is always the dark version of the user's city theme: near-black glass lit by the city's colours.
     private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
 
     var body: some View {
@@ -148,7 +147,7 @@ struct GhafAIView: View {
             }
             .background {
                 ZStack(alignment: .bottom) {
-                    GhafAIView.night.ignoresSafeArea()
+                    theme.background.ignoresSafeArea()
                     // Blue light rising from the bottom edge, brighter while Ghaf listens or thinks.
                     Ellipse()
                         .fill(RadialGradient(colors: [theme.glow.opacity(0.9), theme.accent.opacity(0.6), .clear],
@@ -163,7 +162,7 @@ struct GhafAIView: View {
                 .allowsHitTesting(false)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .environment(\.colorScheme, .dark)
+            .environment(\.colorScheme, theme.isDark ? .dark : .light) // owner 1.31: AI follows the theme
             .sensoryFeedback(.success, trigger: savedCount)
             .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
             .onChange(of: recorder.finishedSpeakingCount) { _, _ in finishVoice() }
@@ -335,7 +334,7 @@ struct GhafAIView: View {
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(GhafAIView.night)
+        .background(theme.background)
         .accessibilityIdentifier("ghaf.ai.pro-paywall")
     }
 
@@ -362,7 +361,7 @@ struct GhafAIView: View {
             .font(.system(size: 17, weight: .semibold))
             .foregroundStyle(tint ?? theme.primaryText)
             .frame(width: 44, height: 44)
-            .background(.white.opacity(0.06), in: Circle())
+            .background(theme.primaryText.opacity(0.06), in: Circle())
     }
 
     /// Engine, read-aloud and dictation; also reachable from the history sheet.
@@ -592,13 +591,13 @@ struct GhafAIView: View {
                         .font(GhafTypography.body(15, languageCode: settings.languageCode, weight: item.isUser ? .semibold : .regular))
                         .textSelection(.enabled)
                 }
-                .foregroundStyle(item.isUser ? GhafAIView.night : theme.primaryText)
+                .foregroundStyle(item.isUser ? theme.background : theme.primaryText)
                 .padding(.horizontal, 16).padding(.vertical, 12)
                 .background {
                     let shape = UnevenRoundedRectangle(topLeadingRadius: 22, bottomLeadingRadius: item.isUser ? 22 : 6,
                                                        bottomTrailingRadius: item.isUser ? 6 : 22, topTrailingRadius: 22, style: .continuous)
                     if item.isUser { shape.fill(theme.primaryText) }
-                    else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.04))).overlay(shape.stroke(.white.opacity(0.14))) }
+                    else { shape.fill(.ultraThinMaterial).overlay(shape.fill(theme.primaryText.opacity(0.04))).overlay(shape.stroke(theme.primaryText.opacity(0.14))) }
                 }
                 .contextMenu {
                     if item.isUser {
@@ -678,7 +677,7 @@ struct GhafAIView: View {
         .frame(maxWidth: 340, alignment: .leading)
         .background {
             if glassStyle.enabled { shape.fill(Color.clear) }
-            else { shape.fill(.ultraThinMaterial).overlay(shape.fill(.white.opacity(0.08))).overlay(shape.stroke(.white.opacity(0.14))) }
+            else { shape.fill(.ultraThinMaterial).overlay(shape.fill(theme.primaryText.opacity(0.08))).overlay(shape.stroke(theme.primaryText.opacity(0.14))) }
         }
         .ghafGlassHero(theme: theme, radius: 22, fallback: .clear)
         .contextMenu {
@@ -752,7 +751,7 @@ struct GhafAIView: View {
         .padding(16)
         .frame(maxWidth: 340)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.14)))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(theme.primaryText.opacity(0.14)))
     }
 
     private var thinkingDots: some View {
@@ -765,7 +764,7 @@ struct GhafAIView: View {
             }
         }
         .padding(GhafMetrics.cardPadding)
-        .background(.white.opacity(0.08), in: Capsule())
+        .background(theme.primaryText.opacity(0.08), in: Capsule())
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -801,7 +800,7 @@ struct GhafAIView: View {
         .ghafScreenPadding()
         .padding(.top, 8)
         .padding(.bottom, 8)
-        .background(GhafAIView.night)
+        .background(theme.background)
     }
 
     private var microphonePermissionHint: some View {
@@ -1591,7 +1590,7 @@ private struct GhafInlineBars: View {
                         .frame(width: 96, alignment: .leading)
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.1))
+                            Capsule().fill(theme.primaryText.opacity(0.1))
                             Capsule().fill(colors[point.label] ?? theme.accent)
                                 .frame(width: max(8, geometry.size.width * (grown ? point.value / top : 0)))
                         }
