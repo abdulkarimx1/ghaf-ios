@@ -22,7 +22,9 @@ struct GhafTransactionsView: View {
     @State private var transactionDetailHeight: CGFloat = 0
     @State private var transactionDetailDetent: PresentationDetent = .large
     @State private var transactionToDelete: GhafTransaction?
-    @State private var showDeleteConfirmation = false
+    /// Owner 1.31: delete hides the row with Undo for 5 s; the ledger delete only happens when Undo isn't used.
+    @State private var undoDelete: GhafTransaction?
+    @Environment(\.scenePhase) private var deleteScenePhase
     @State private var cachedSections: [(title: String, items: [GhafTransaction])] = []
     @State private var cachedMonthTotals: (spent: Decimal, income: Decimal) = (.zero, .zero)
     @State private var cachedPreparationID: String?
@@ -173,7 +175,7 @@ struct GhafTransactionsView: View {
                                 .listRowInsets(EdgeInsets(top: 8, leading: GhafMetrics.gutter, bottom: 2, trailing: GhafMetrics.gutter))
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
-                            ForEach(section.items) { transaction in
+                            ForEach(section.items.filter { $0.id != undoDelete?.id }) { transaction in
                                 Button { selectedTransaction = transaction } label: {
                                     GhafTransactionRow(transaction: transaction, theme: theme, languageCode: lang)
                                         .padding(.horizontal, 16)
@@ -193,8 +195,7 @@ struct GhafTransactionsView: View {
                                 .listRowSeparatorTint(theme.outline)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
-                                        transactionToDelete = transaction
-                                        showDeleteConfirmation = true
+                                        startDelete(transaction)
                                     } label: {
                                         Label(ar ? "حذف" : "Delete", systemImage: "trash.fill").labelStyle(.iconOnly)
                                     }
@@ -203,7 +204,7 @@ struct GhafTransactionsView: View {
                                 .contextMenu {
                                     Button { selectedTransaction = transaction } label: { Label(ar ? "تعديل" : "Edit", systemImage: "pencil") }
                                     Button { categoryTransaction = transaction } label: { Label(ar ? "تغيير الفئة" : "Change category", systemImage: "square.grid.2x2") }
-                                    Button(role: .destructive) { transactionToDelete = transaction; showDeleteConfirmation = true } label: { Label(ar ? "حذف" : "Delete", systemImage: "trash") }
+                                    Button(role: .destructive) { startDelete(transaction) } label: { Label(ar ? "حذف" : "Delete", systemImage: "trash") }
                                 } preview: {
                                     GhafTransactionPeek(transaction: transaction, account: accounts.first { $0.id == transaction.accountID }, theme: theme, languageCode: lang)
                                         .padding(16).frame(width: 330).ghafCard(theme: theme)
@@ -256,20 +257,20 @@ struct GhafTransactionsView: View {
                 GhafQuickCategoryEditor(transaction: transaction, categories: settings.categories, theme: theme, languageCode: lang)
                     .presentationDetents([.height(360)]).presentationDragIndicator(.visible).ghafSheetFrame(theme: theme)
             }
-            .confirmationDialog(
-                ar ? "حذف هذه العملية؟" : "Delete this transaction?",
-                isPresented: $showDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button(ar ? "حذف العملية" : "Delete transaction", role: .destructive) {
-                    deletePendingTransaction()
+            .overlay(alignment: .bottom) {
+                if let pending = undoDelete {
+                    GhafUndoBar(message: ar ? "حُذفت \(pending.merchant ?? "العملية")" : "Deleted \(pending.merchant ?? "transaction")", theme: theme, languageCode: lang,
+                                undo: { withAnimation(.easeOut(duration: 0.25)) { undoDelete = nil } },
+                                finished: { withAnimation { commitUndoDelete() } })
+                        .id(pending.id)
+                        .padding(.horizontal, GhafMetrics.gutter)
+                        .padding(.bottom, 96)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                Button(ar ? "إلغاء" : "Cancel", role: .cancel) {
-                    transactionToDelete = nil
-                }
-            } message: {
-                Text(ar ? "لا يمكن التراجع عن هذا الإجراء." : "This action cannot be undone.")
             }
+            // Leaving the app finishes the delete rather than keeping a hidden-but-alive row.
+            .onChange(of: deleteScenePhase) { _, phase in if phase != .active { commitUndoDelete() } }
+            .onDisappear { commitUndoDelete() }
         }
     }
 
@@ -367,6 +368,18 @@ struct GhafTransactionsView: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
+    }
+
+    private func startDelete(_ transaction: GhafTransaction) {
+        commitUndoDelete() // only one pending delete at a time
+        withAnimation(.easeOut(duration: 0.25)) { undoDelete = transaction }
+    }
+
+    private func commitUndoDelete() {
+        guard let pending = undoDelete else { return }
+        undoDelete = nil
+        transactionToDelete = pending
+        deletePendingTransaction()
     }
 
     private func deletePendingTransaction() {

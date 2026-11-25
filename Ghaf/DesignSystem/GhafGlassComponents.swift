@@ -500,7 +500,7 @@ struct GhafSplitDeleteButton: View {
     private var anim: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 1) }
 }
 
-/// After an edit or delete: a Done | Undo pair for 5 s, then it goes away. Undo must restore exactly what changed.
+/// After an edit or delete: Undo for 5 s. `undo` must remove this bar; `finished` runs only if 5 s pass untouched.
 struct GhafUndoBar: View {
     let message: String
     let theme: GhafTheme
@@ -517,7 +517,7 @@ struct GhafUndoBar: View {
                 .foregroundStyle(theme.primaryText)
                 .lineLimit(2)
             Spacer(minLength: 8)
-            Button(ar ? "تراجع" : "Undo") { undo(); finished() }
+            Button(ar ? "تراجع" : "Undo") { undo() }
                 .font(GhafTypography.body(15, languageCode: languageCode, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .frame(minWidth: 44, minHeight: 44)
@@ -530,7 +530,8 @@ struct GhafUndoBar: View {
         }
         .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
         .onAppear { withAnimation(.linear(duration: 5)) { remaining = 0 } }
-        .task { try? await Task.sleep(for: .seconds(5)); finished() }
+        // Undo removes this view, which cancels the sleep, so `finished` only runs when time runs out.
+        .task { do { try await Task.sleep(for: .seconds(5)); finished() } catch {} }
         .accessibilityElement(children: .contain)
     }
 }
