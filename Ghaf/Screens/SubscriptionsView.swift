@@ -469,13 +469,15 @@ struct GhafSubscriptionsView: View {
     }
 }
 
-private struct GhafSubscriptionEditor: View {
+struct GhafSubscriptionEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var colorScheme
     let settings: GhafSettings
     let accounts: [GhafAccount]
     let subscription: GhafSubscription?
+    var prefillName = ""
+    var prefillAmount = ""
     @State private var name = ""
     @State private var amount = ""
     @State private var currency = "AED"
@@ -653,7 +655,7 @@ private struct GhafSubscriptionEditor: View {
     }
 
     private func load() {
-        guard let subscription else { originalNextDate = nextDate; return }
+        guard let subscription else { originalNextDate = nextDate; name = prefillName; amount = prefillAmount; return }
         categoryPickedManually = true
         name = subscription.name; amount = NSDecimalNumber(decimal: subscription.amount).stringValue
         currency = subscription.currency; cycle = subscription.cycle; nextDate = subscription.nextPaymentDate

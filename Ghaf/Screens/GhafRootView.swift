@@ -397,6 +397,8 @@ final class GhafTabRouter {
     /// Bumped when Home is tapped while already open; Home cycles Daily, Weekly, Monthly.
     var homeReselects = 0
     var isListening = false
+    /// True while a tab's main list scrolls down (row 5); the tab bar compacts and the orb follows.
+    var tabBarCompact = false
     var startVoice: (() -> Void)?
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?
@@ -464,6 +466,9 @@ struct GhafTabView: View {
         activeInAppCard
 #endif
     }
+
+    /// iOS 26 draws the tab bar as a floating pill whose icon line sits lower than the classic bar's.
+    private static var floatingTabBar: Bool { if #available(iOS 26, *) { true } else { false } }
 
     var body: some View {
         let theme = GhafTheme.resolve(
@@ -598,18 +603,24 @@ struct GhafTabView: View {
                     }
                 }
                     .frame(width: 56, height: 56)
+                    // Row 5: the bar compacts on scroll down, so the orb steps aside (fade only under Reduce Motion).
+                    .opacity(router.tabBarCompact && !router.isListening ? 0 : 1)
+                    .scaleEffect(router.tabBarCompact && !reduceMotion && !router.isListening ? 0.95 : 1)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: router.tabBarCompact)
+                    .allowsHitTesting(!router.tabBarCompact || router.isListening)
                     .contentShape(Circle())
                     .modifier(GhafOrbPressGesture(onTap: handleAITabOrbTap, onHold: handleAITabOrbHold))
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
                     .accessibilityIdentifier("ghaf.ai.tab-orb")
                     .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
-                    .position(x: geometry.size.width / 2, y: geometry.size.height - 32)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height - (Self.floatingTabBar ? 16 : 32)) // row 3: centre line of the tab icons
             }
             // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
+        .modifier(GhafTabBarMinimize(enabled: !reduceMotion))
         .tint(theme.accent)
 #if DEBUG
         .onAppear {
@@ -864,6 +875,15 @@ struct GhafTabView: View {
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
+    }
+}
+
+/// iOS 26's own compact tab bar: shrinks while scrolling down, restores on scroll up.
+private struct GhafTabBarMinimize: ViewModifier {
+    let enabled: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26, *) { content.tabBarMinimizeBehavior(enabled ? .onScrollDown : .never) }
+        else { content }
     }
 }
 

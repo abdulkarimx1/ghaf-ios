@@ -5,6 +5,7 @@ import SwiftData
 struct GhafTransactionsView: View {
     @Environment(GhafTabRouter.self) private var router
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.modelContext) private var modelContext
     @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
 
@@ -189,7 +190,8 @@ struct GhafTransactionsView: View {
                                         }
                                 }
                                 .buttonStyle(.ghafPress)
-                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 4, trailing: GhafMetrics.gutter))
+                                // Row 30: the gap is list spacing, not a row inset, so the swipe button matches the card.
+                                .listRowInsets(EdgeInsets(top: 0, leading: GhafMetrics.gutter, bottom: 0, trailing: GhafMetrics.gutter))
                                 .listRowBackground(Color.clear)
                                 .background(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).fill(theme.surface))
                                 .listRowSeparatorTint(theme.outline)
@@ -214,6 +216,7 @@ struct GhafTransactionsView: View {
                     }
                 }
             }
+.ghafCompactsTabBar().listRowSpacing(4)
             .listStyle(.plain)
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
@@ -261,11 +264,11 @@ struct GhafTransactionsView: View {
                 if let pending = undoDelete {
                     GhafUndoBar(message: ar ? "حُذفت \(pending.merchant ?? "العملية")" : "Deleted \(pending.merchant ?? "transaction")", theme: theme, languageCode: lang,
                                 undo: { withAnimation(.easeOut(duration: 0.25)) { undoDelete = nil } },
-                                finished: { withAnimation { commitUndoDelete() } })
+                                finished: { withAnimation(.easeOut(duration: 0.25)) { commitUndoDelete() } })
                         .id(pending.id)
                         .padding(.horizontal, GhafMetrics.gutter)
-                        .padding(.bottom, 96)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 12) // the tab bar is already inside this view's bottom safe area
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
             }
             // Leaving the app finishes the delete rather than keeping a hidden-but-alive row.
@@ -467,6 +470,7 @@ struct GhafTransactionEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("ghaf.merchant.aliases") private var merchantAliases = Data()
 
     let transaction: GhafTransaction
@@ -651,8 +655,13 @@ struct GhafTransactionEditor: View {
                             .foregroundStyle(theme.over)
                     }
 
+                    if !nameOK {
+                        Text(languageCode == "ar" ? "أضف اسماً" : "Add a name")
+                            .font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                    }
                     Button(languageCode == "ar" ? "حفظ التغييرات" : "Save changes", action: save)
                         .ghafProminentButton(theme: theme, languageCode: languageCode)
+                        .disabled(!nameOK).opacity(nameOK ? 1 : 0.4)
                 }
                 .padding(22)
                 .frame(maxWidth: 560)
@@ -722,7 +731,10 @@ struct GhafTransactionEditor: View {
         GhafTextField(text: text, placeholder: placeholder, theme: theme, languageCode: languageCode)
     }
 
+    private var nameOK: Bool { transaction.direction == "transfer" || !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
     private func save() {
+        guard nameOK else { return }
         if transaction.bank != nil, let raw = transaction.rawMerchant ?? transaction.merchant,
            merchant != (GhafMerchantAliasStore.displayName(raw) ?? raw) {
             showingMerchantRenameScope = true

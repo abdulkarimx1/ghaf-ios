@@ -189,6 +189,7 @@ struct GhafHomeView: View {
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
             }
+.ghafCompactsTabBar()
             .scrollIndicators(.hidden)
             .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
@@ -603,7 +604,7 @@ struct GhafHomeView: View {
         .accessibilityValue(count > 0 ? (ar ? "يحتاج إلى انتباه" : "Needs attention") : "")
     }
 
-    // MARK: Dark insight card
+    // MARK: Insight card (follows the theme, owner 1.31)
 
     private func insightCard(_ summary: Summary) -> some View {
         // V4 (owner 1.31): no category breakdown here; Insights opens Statistics.
@@ -615,7 +616,7 @@ struct GhafHomeView: View {
                           systemImage: "chart.pie.fill")
                         .contentTransition(.opacity)
                         .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
-                        .foregroundStyle(theme.inkText.opacity(0.75))
+                        .foregroundStyle(theme.secondaryText)
                     Spacer()
                     Image(systemName: "arrow.up.forward")
                         .font(.system(size: 14, weight: .heavy))
@@ -627,26 +628,26 @@ struct GhafHomeView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(ar ? "المصروف" : "Spent")
                             .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                            .foregroundStyle(theme.inkText.opacity(0.65))
+                            .foregroundStyle(theme.secondaryText)
                         GhafMoneyLabel(amount: summary.spent, currency: summary.mainCurrency, languageCode: lang, size: 30)
-                            .foregroundStyle(theme.inkText)
+                            .foregroundStyle(theme.primaryText)
                         Text(ar ? "افتح الإحصائيات لترى وين راحت فلوسك" : "Open Statistics to see where it went")
                             .font(GhafTypography.body(13, languageCode: lang))
-                            .foregroundStyle(theme.inkText.opacity(0.65))
+                            .foregroundStyle(theme.secondaryText)
                     }
                     .id(activityPeriodIndex)
                     .transition(.opacity)
                 } else {
                     GhafMoneyText.text(emptyInsight(summary), size: 17)
                         .font(GhafTypography.heading(17, languageCode: lang))
-                        .foregroundStyle(theme.inkText)
+                        .foregroundStyle(theme.primaryText)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.ink, in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+            .ghafCard(theme: theme)
         }
         .buttonStyle(.ghafPress)
     }
@@ -674,7 +675,7 @@ struct GhafHomeView: View {
             GhafSectionHeader(title: ar ? "النشاط" : "Activity", theme: theme, languageCode: lang,
                               actionTitle: ar ? "عرض الكل" : "See all") { router.selectedTab = 3 }
             VStack(spacing: 0) {
-                let recent = Array(transactions.prefix(4))
+                let recent = Array(transactions.prefix(3))
                 if recent.isEmpty && automationLastRun == 0 {
                     GhafListRow(icon: "bolt.fill", tint: theme.accent,
                                 title: ar ? "اربط رسائل البنك" : "Connect your bank messages",
@@ -827,6 +828,7 @@ struct GhafQuickAddView: View {
     @State private var categoryWasManuallyPicked = false
     @State private var categorizationTask: Task<Void, Never>?
     @State private var noteExpanded = false
+    @FocusState private var noteFocused: Bool
     @State private var errorMessage = ""
 
     private var theme: GhafTheme {
@@ -855,6 +857,8 @@ struct GhafQuickAddView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
+            ScrollView {
             VStack(spacing: 6) {
                     ZStack {
                         Text(ar ? "عملية جديدة" : "New transaction")
@@ -914,10 +918,17 @@ struct GhafQuickAddView: View {
                                     .padding(16).frame(minHeight: 56, alignment: .leading)
                                     .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: RoundedRectangle(cornerRadius: 18))
                                     .padding(.leading, 52).padding(.bottom, 10)
+                                    .focused($noteFocused).id("note-field")
                             }
                         }
                     }
 
+                    if !nameOK {
+                        Text(ar ? "أضف اسماً" : "Add a name")
+                            .font(GhafTypography.body(13, languageCode: lang))
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                    Color.clear.frame(height: noteFocused ? 24 : 0).id("form-end") // lets the note clear the action bar
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
                             .font(GhafTypography.body(13, languageCode: lang))
@@ -929,8 +940,17 @@ struct GhafQuickAddView: View {
                 .frame(maxWidth: 580)
                 .frame(maxWidth: .infinity)
             }
-            .ghafBackground(theme: theme)
-            .ghafKeyboardDone()
+            .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.basedOnSize)
+            // Row 17: bring the focused note above the keyboard.
+            .onChange(of: noteFocused) { _, focused in
+                guard focused else { return }
+                // Wait for the keyboard to shrink the scroll area, then centre the field in what is left.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo("note-field", anchor: .bottom) }
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 12) {
                     // Owner 1.31: voice entry is Pro; without Pro the mic opens the paywall.
@@ -943,10 +963,15 @@ struct GhafQuickAddView: View {
                     }.accessibilityLabel(ar ? "قلها بصوتك" : "Say it aloud")
                     Button(action: save) { Text(ar ? "حفظ العملية" : "Save transaction") }
                         .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: lang, role: .primary))
+                        .disabled(!nameOK).opacity(nameOK ? 1 : 0.4)
                 }
                 .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 8)
                 .background(theme.background)
             }
+            }
+            }
+            .ghafBackground(theme: theme)
+            .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
         .background(GhafQuickAddDismissObserver { showingDiscard = true }.frame(width: 1, height: 1))
         .tint(theme.accent)
@@ -971,7 +996,8 @@ struct GhafQuickAddView: View {
             GhafProSheet(settings: settings, feature: ("Voice entry", "الإدخال الصوتي")).ghafDirection(settings.languageCode)
         }
         .sheet(isPresented: $showSubscriptionAdd) {
-            GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+            GhafSubscriptionEditor(settings: settings, accounts: accounts.filter { !$0.isArchived }, subscription: nil, prefillName: merchant.trimmingCharacters(in: .whitespacesAndNewlines), prefillAmount: amount)
+                .presentationDragIndicator(.visible).presentationDetents([.large]).ghafDirection(settings.languageCode)
         }
         .sheet(isPresented: $showingDate) { dateSheet.ghafBottomCard(theme: theme, languageCode: lang) }
         .sheet(isPresented: $showingTime) { timeSheet.ghafBottomCard(theme: theme, languageCode: lang) }
@@ -1015,7 +1041,7 @@ struct GhafQuickAddView: View {
                           selection: $direction, theme: theme, languageCode: lang)
             // V21: a repeating payment belongs in Subscriptions, reachable from here.
             Button { showSubscriptionAdd = true } label: {
-                Label(ar ? "دفعة متكررة؟ أضفها في الاشتراكات" : "Repeats? Add it to Subscriptions", systemImage: "repeat")
+                Label(ar ? "متكرر؟ اجعله اشتراكاً" : "Recurring? Make it a subscription", systemImage: "repeat")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.accent)
                     .frame(minHeight: 44)
@@ -1103,6 +1129,8 @@ struct GhafQuickAddView: View {
         }.padding(20).background(theme.background)
     }
 
+    /// Owner 1.31: a transaction needs a name (transfers have none).
+    private var nameOK: Bool { isTransfer || !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var isDirty: Bool { !amount.isEmpty || !merchant.isEmpty || !note.isEmpty || category != "Other" || abs(date.timeIntervalSinceNow) > 60 }
     private func requestDismiss() { if isDirty { showingDiscard = true } else { dismiss() } }
     private func suggestCategory() {
@@ -1180,6 +1208,7 @@ struct GhafQuickAddView: View {
     }
 
     private func save() {
+        guard nameOK else { return }
         guard let value = Decimal(string: amount), value > 0 else {
             errorMessage = settings.languageCode == "ar" ? "أدخل مبلغاً صحيحاً." : "Enter a valid amount."
             return
