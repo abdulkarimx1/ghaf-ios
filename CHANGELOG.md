@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.31 (45)
+
+### English
+- A new welcome and setup: four short cards, then your name, how Ghaf should address you, your currency, accounts and budget.
+- Ghaf AI is part of Ghaf Pro, with a new particle orb that listens, thinks and speaks. It follows your theme in light and dark, and in Arabic it addresses you as you chose in your profile. Have a code? Redeem it in Ghaf Pro.
+- The More tab opens your Profile; the gear opens Settings. Your budget character is shown under your name, and you can invite a friend.
+- Wallets & Cards: swipe through your cards, tap one to see its details, see the total for each currency, and open its transactions.
+- Statistics: tap a bar, then "View transactions" to see what made it up.
+- Delete a transaction and undo it within 5 seconds. Risky actions ask you to confirm in place.
+- Popups sit at the bottom as solid cards that fit their content, with a close button.
+- Tap anywhere on a row to open it, not only the arrow.
+- Three new widgets: Streak, Top places and Budget petals.
+- Subscriptions, About and Ghaf Pro pages redesigned. Locked streak rewards explain how to unlock them.
+- Fixes: amounts keep their decimals, budget petals fill correctly, and the Profile page no longer keeps working after you scroll.
+
+### العربية
+- ترحيب وإعداد جديدان: أربع بطاقات قصيرة، ثم اسمك وكيف يخاطبك غاف، وعملتك وحساباتك وميزانيتك.
+- أصبح ذكاء غاف جزءاً من غاف Pro، مع كرة جزيئات جديدة تستمع وتفكر وتتكلم. وتتبع ثيمك في الوضعين الفاتح والداكن، وتخاطبك بالعربية كما اخترت في ملفك. لديك رمز؟ فعّله من صفحة غاف Pro.
+- يفتح تبويب «المزيد» ملفك الشخصي، وزر الترس يفتح الإعدادات. وتظهر شخصية ميزانيتك تحت اسمك، ويمكنك دعوة صديق.
+- المحافظ والبطاقات: تنقّل بين بطاقاتك بالسحب، واضغط على البطاقة لترى تفاصيلها، وشاهد الإجمالي لكل عملة، وافتح عملياتها.
+- الإحصاءات: اضغط على أي عمود ثم «عرض العمليات» لترى ما يتكوّن منه.
+- احذف عملية وتراجع عن الحذف خلال ٥ ثوانٍ، وتطلب الإجراءات الحساسة تأكيدك في مكانها.
+- تظهر النوافذ المنبثقة في الأسفل كبطاقات بحجم محتواها مع زر إغلاق.
+- اضغط على أي مكان في الصف لفتحه، لا على السهم فقط.
+- ثلاث أدوات جديدة: الاستمرارية، وأكثر الأماكن، وبتلات الميزانية.
+- تصميم جديد لصفحات الاشتراكات وعن غاف وغاف Pro، وتشرح مكافآت الاستمرارية المقفلة كيف تفتحها.
+- إصلاحات: تحتفظ المبالغ بكسورها العشرية، وتمتلئ بتلات الميزانية بشكل صحيح، ولم تعد صفحة الملف الشخصي تستهلك الجهاز بعد التمرير.
+
 ## 1.29 (43)
 
 ### English
