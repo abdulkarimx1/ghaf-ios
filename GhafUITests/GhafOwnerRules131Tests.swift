@@ -83,4 +83,17 @@ final class GhafOwnerRules131Tests: XCTestCase {
         XCTAssertTrue(app2.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Finish the 30-day streak")).firstMatch.waitForExistence(timeout: 5),
                       "Locked tier must explain how to unlock")
     }
+
+    /// V17/V18: every widget is shown to free users, and the 14 widgets end on a full row (Top places beside Budget petals).
+    func testOwnerRule_WidgetGalleryShowsAllAndEndsOnFullRow() throws {
+        let app = launch(["-GhafScreen", "widgets", "-GhafAINonProTestAccess"], waitTabBar: false)
+        let petals = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Budget petals,")).firstMatch
+        for _ in 0..<8 where !(petals.exists && petals.isHittable) { app.swipeUp() }
+        XCTAssertTrue(petals.isHittable, "Budget petals preview missing")
+        let places = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Top places,")).firstMatch
+        XCTAssertTrue(places.exists, "Top places preview missing")
+        XCTAssertEqual(places.frame.minY, petals.frame.minY, accuracy: 2, "Last two widgets must share one row")
+        XCTAssertEqual(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Ghaf Pro")).count, 0,
+                       "Free users must see widgets, not a Pro mask")
+    }
 }

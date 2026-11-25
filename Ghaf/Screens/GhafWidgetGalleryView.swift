@@ -52,10 +52,12 @@ struct GhafWidgetGalleryView: View {
 
                 // Medium widgets get a full-width row, small ones pair up (LazyVGrid ignores gridCellColumns).
                 Grid(horizontalSpacing: 12, verticalSpacing: 14) {
-                    ForEach(Array(stride(from: 0, to: widgets.count, by: 3)), id: \.self) { start in
+                    // V18: 4 medium rows + 5 small pairs = 14, so no row is left half-empty.
+                    ForEach(Array(stride(from: 0, to: 12, by: 3)), id: \.self) { start in
                         GridRow { cell(start).gridCellColumns(2) }
-                        GridRow { cell(start + 1); if start + 2 < widgets.count { cell(start + 2) } else { Color.clear } }
+                        GridRow { cell(start + 1); cell(start + 2) }
                     }
+                    GridRow { cell(12); cell(13) }
                 }
             }
             .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 16)
@@ -69,7 +71,7 @@ struct GhafWidgetGalleryView: View {
 
     @ViewBuilder private func cell(_ index: Int) -> some View {
         let (name, detail, free) = widgets[index]
-        let family: WidgetFamily = index.isMultiple(of: 3) ? .systemMedium : .systemSmall
+        let family: WidgetFamily = index.isMultiple(of: 3) && index < 12 ? .systemMedium : .systemSmall
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 5) {
                 Text(ar ? arabicTitle(name) : name)
@@ -87,7 +89,7 @@ struct GhafWidgetGalleryView: View {
     }
 
     @ViewBuilder private func widgetPreview(_ name: String, family: WidgetFamily) -> some View {
-        let snapshot = GhafWidgetSnapshot.sample
+        let snapshot = { var s = GhafWidgetSnapshot.sample; s.arabic = ar; return s }() // previews speak the app language
         let config = GhafConfigEntry<GhafBalanceConfig>(date: GhafClock.now, snapshot: snapshot, config: GhafBalanceConfig())
         let proLocked = !["Balance", "Spending", "Upcoming payments"].contains(name) && !GhafProAccess.hasAccess
         let height: CGFloat = 158
@@ -115,6 +117,7 @@ struct GhafWidgetGalleryView: View {
         .padding(8)
         // Today, Latest transaction and Budget default to the theme-coloured tile (dark text), as on the Home Screen.
         .background { GhafWidgetBackground(tile: GhafTile(["Today", "Latest transaction", "Budget"].contains(name) ? .theme : .ink, snapshot), enabled: false) }
+        .environment(\.ghafWidgetPreview, true)
         // V17: everyone sees every widget; only using a Pro one needs Pro (lock on the title, tap opens Pro).
         .contentShape(Rectangle())
         .onTapGesture { if proLocked { showPro = true } }

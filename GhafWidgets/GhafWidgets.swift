@@ -34,10 +34,20 @@ enum GhafWidgetProAccess {
     }
 }
 
+/// True inside the in-app widget gallery: V17, everyone sees every widget; only using one on the Home Screen needs Pro.
+private struct GhafWidgetPreviewKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var ghafWidgetPreview: Bool {
+        get { self[GhafWidgetPreviewKey.self] }
+        set { self[GhafWidgetPreviewKey.self] = newValue }
+    }
+}
+
 struct GhafWidgetProLock: ViewModifier {
     let required: Bool
+    @Environment(\.ghafWidgetPreview) private var preview
     func body(content: Content) -> some View {
-        if required && !GhafWidgetProAccess.unlocked {
+        if required && !preview && !GhafWidgetProAccess.unlocked {
             content.blur(radius: 8).overlay {
                 Link(destination: URL(string: "ghaf://pro")!) {
                     GhafWidgetProMask()
