@@ -419,6 +419,8 @@ async function speak(body, env, developer, device, usage) {
   // Developer-only clip studio: records the app's bundled Hamad/Mariam clips (Gemini Orus/Kore) with a delivery note.
   // Requires the private developer token, so no user request can reach it.
   if (developer && body.studio === true) return studioSpeak(text, character, String(body.style || ""), env);
+  // Developer-only ElevenLabs studio for marketing/onboarding narration: any voice ID, the higher-quality multilingual model.
+  if (developer && body.studio === "eleven") return elevenStudio(text, String(body.voice || ""), body.settings, env);
   // Owner rule (2026-11-25): users only ever hear Hamad or Mariam. Until ElevenLabs is paid for, answers are
   // text only ("voice_off"); there is no stand-in voice, and old stand-in audio in the cache is never served.
   if (!useEleven(env)) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
@@ -484,6 +486,19 @@ async function elevenSpeak(text, character, tier, env, developer, device, usage,
   await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
   if (usage) { usage.output = text.length; usage.outcome = "ok"; }
   return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs" } });
+}
+
+async function elevenStudio(text, voiceID, settings, env) {
+  if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_off" }, 410);
+  if (!/^[A-Za-z0-9]{16,32}$/.test(voiceID)) return json({ error: "bad_voice" }, 400);
+  const voice_settings = settings && typeof settings === "object" ? settings : undefined;
+  const upstream = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceID}?output_format=pcm_24000`, {
+    method: "POST", headers: { "Content-Type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY },
+    body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings })
+  }).catch(() => null);
+  if (!upstream) return json({ error: "unavailable" }, 503);
+  if (!upstream.ok) return json({ error: "upstream", status: upstream.status, detail: (await upstream.text().catch(() => "")).slice(0, 300) }, 502);
+  return new Response(wav(new Uint8Array(await upstream.arrayBuffer())), { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "eleven-studio" } });
 }
 
 // Gemini returns raw 24 kHz 16-bit mono PCM; wrap it in a WAV header so iOS can play it directly.

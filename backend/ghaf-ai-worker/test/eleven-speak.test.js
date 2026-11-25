@@ -55,3 +55,14 @@ test('an unpaid ElevenLabs plan (402) turns speech off instead of failing over',
   assert.equal(response.status, 410);
   assert.equal(values.get(`vc:pro_monthly:${month}:${device}`), '0');
 });
+
+test('the ElevenLabs studio is developer-only: a user request never reaches it', async t => {
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async url => { calls.push(String(url)); return new Response(new Uint8Array(480)); });
+  const { env } = setup(0);
+  const response = await worker.fetch(new Request('https://worker.test/speak', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'pro_monthly' },
+    body: JSON.stringify({ text: 'hi', character: 'Hamad', tier: 'pro_monthly', studio: 'eleven', voice: 'abcdefghijklmnopqrst' }) }), env);
+  assert.notEqual(response.headers.get('X-Ghaf-Voice'), 'eleven-studio');
+  assert.ok(calls.every(url => !url.includes('abcdefghijklmnopqrst')));
+});
