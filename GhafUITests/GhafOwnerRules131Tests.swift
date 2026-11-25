@@ -62,4 +62,25 @@ final class GhafOwnerRules131Tests: XCTestCase {
         let app = launch(["-GhafScreen", "wallet"], waitTabBar: false)
         XCTAssertTrue(app.staticTexts["Total"].waitForExistence(timeout: 10))
     }
+
+    /// V13: Budget opens from the character sheet. V14: a locked streak tier opens an explanation card.
+    func testOwnerRule_CharacterSheetOpensBudgetAndLockedStreakExplains() throws {
+        let app = launch(["-GhafTab", "more"])
+        let character = app.buttons["budget-character"]
+        XCTAssertTrue(character.waitForExistence(timeout: 10), "Character button missing on Profile")
+        character.tap()
+        let changeBudget = app.buttons["Change in Budget"]
+        XCTAssertTrue(changeBudget.waitForExistence(timeout: 5), "Character sheet must offer Change in Budget")
+        changeBudget.tap()
+        XCTAssertTrue(app.navigationBars["Budget"].waitForExistence(timeout: 5) || app.staticTexts["Budget"].waitForExistence(timeout: 3),
+                      "Budget page must open")
+        XCTAssertFalse(character.isHittable, "Profile must be covered by the Budget page")
+
+        let app2 = launch(["-GhafTab", "more"])
+        let locked = app2.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "90 days")).firstMatch
+        for _ in 0..<5 where !(locked.exists && locked.isHittable) { app2.swipeUp() }
+        locked.tap()
+        XCTAssertTrue(app2.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Finish the 30-day streak")).firstMatch.waitForExistence(timeout: 5),
+                      "Locked tier must explain how to unlock")
+    }
 }
