@@ -1224,7 +1224,7 @@ struct GhafQuickAddView: View {
             if let merchant = transaction.merchant { try MerchantCategorizer.learn(merchant: merchant, category: finalCategory, subcategory: transaction.subcategory, context: modelContext) }
             try modelContext.save()
             GhafDigestNotifications.reschedule(context: modelContext)
-            Task { await GhafPlaces.rememberCurrentLocation(transactionID: transaction.id) }
+            Task { [id = transaction.id, date = transaction.date] in await GhafPlaces.rememberCurrentLocation(transactionID: id, purchaseDate: date) }
             successCategory = GhafLocalization.category(finalCategory, languageCode: lang)
             router.isSaveSplashPresented = true
             showingSuccess = true

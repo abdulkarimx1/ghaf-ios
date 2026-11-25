@@ -11,7 +11,19 @@ public enum PlaceSelection {
         return first.offset
     }
 
+    /// An area (neighbourhood) name tolerates an indoor fix; 50 m dropped most indoor saves (row 29).
     public static func acceptsAreaAccuracy(_ accuracy: Double) -> Bool {
+        accuracy.isFinite && accuracy >= 0 && accuracy <= 100
+    }
+
+    /// Inferring a shop needs a tighter fix than an area.
+    public static func acceptsShopAccuracy(_ accuracy: Double) -> Bool {
         accuracy.isFinite && accuracy >= 0 && accuracy <= 50
+    }
+
+    /// The phone's live position only describes a purchase dated within 30 minutes of now;
+    /// an entry dated yesterday, or opened later, must not get today's position.
+    public static func isLiveLocationValid(for purchaseDate: Date, now: Date = .now) -> Bool {
+        abs(now.timeIntervalSince(purchaseDate)) <= 30 * 60
     }
 }

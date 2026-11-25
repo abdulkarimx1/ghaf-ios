@@ -165,7 +165,8 @@ struct GhafMerchantDetailView: View {
             .filter { GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) == name }
         guard canHavePlace else { lookupDone = true; return }
         place = await GhafPlaces.place(for: merchant, transactionID: transaction.id,
-                                       isManual: transaction.fingerprint.hasPrefix("manual-"))
+                                       isManual: transaction.fingerprint.hasPrefix("manual-") || transaction.fingerprint.hasPrefix("voice-"),
+                                       purchaseDate: transaction.date)
         lookupDone = true
     }
 }

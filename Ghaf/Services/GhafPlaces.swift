@@ -165,8 +165,9 @@ enum GhafPlaces {
         }
     }
 
-    /// Stores the current place locally for a manual transaction when permission and a fix already exist.
-    static func rememberCurrentLocation(transactionID: UUID) async {
+    /// Stores the current area locally for a manual or spoken transaction dated about now.
+    static func rememberCurrentLocation(transactionID: UUID, purchaseDate: Date) async {
+        guard PlaceSelection.isLiveLocationValid(for: purchaseDate) else { return }
         guard locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways else { return }
         let location = await withCheckedContinuation { continuation in
             locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -185,7 +186,7 @@ enum GhafPlaces {
 
     /// Best automatic match: the user's saved place, else a search for business-like names whose
     /// result starts like the merchant ("Samuel Claude" is not "Claude"), closest to the user.
-    static func place(for merchant: String, transactionID: UUID, isManual: Bool = false) async -> MKMapItem? {
+    static func place(for merchant: String, transactionID: UUID, isManual: Bool = false, purchaseDate: Date = .now) async -> MKMapItem? {
         if isSuppressed(merchant: merchant, transactionID: transactionID) { return nil }
         if isManual {
             let savedChoice = load(transactionKey)[transactionID.uuidString]
@@ -193,7 +194,7 @@ enum GhafPlaces {
             if let saved = savedChoice, saved.isUserChosen == true {
                 return saved.isSuppressed == true ? nil : Self.mapItem(saved)
             }
-            return await manualPlace(merchant: merchant, transactionID: transactionID)
+            return await manualPlace(merchant: merchant, transactionID: transactionID, purchaseDate: purchaseDate)
         }
         if let saved = saved(merchant: merchant, transactionID: transactionID) { return saved }
         guard !isGeneric(merchant) else { return nil }
@@ -226,7 +227,7 @@ enum GhafPlaces {
 
     /// Manual entries use a strict location fix and only infer a shop when its nearest
     /// POI is uniquely separated. Otherwise just the reverse-geocoded area is retained.
-    private static func manualPlace(merchant: String, transactionID: UUID) async -> MKMapItem? {
+    private static func manualPlace(merchant: String, transactionID: UUID, purchaseDate: Date) async -> MKMapItem? {
         let prior = load(transactionKey)[transactionID.uuidString]
         let location: CLLocation
         if let prior, prior.isArea == true,
@@ -235,13 +236,14 @@ enum GhafPlaces {
                                   altitude: 0, horizontalAccuracy: accuracy, verticalAccuracy: -1, timestamp: .now)
             if isGeneric(merchant) { return Self.mapItem(prior) }
         } else {
-            guard locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways,
+            guard PlaceSelection.isLiveLocationValid(for: purchaseDate),
+                  locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways,
                   let fix = await accurateCurrentLocation(),
                   PlaceSelection.acceptsAreaAccuracy(fix.horizontalAccuracy) else { return nil }
             location = fix
         }
 
-        if !isGeneric(merchant) {
+        if !isGeneric(merchant), PlaceSelection.acceptsShopAccuracy(location.horizontalAccuracy) {
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = MerchantName.clean(merchant)
             request.resultTypes = .pointOfInterest

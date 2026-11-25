@@ -346,6 +346,7 @@ enum GhafDraftSaver {
         note: String
     ) throws -> [UUID] {
         var ids: [UUID] = []
+        var spoken: [(UUID, Date)] = []
         let settings = try context.fetch(FetchDescriptor<GhafSettings>()).first
         for draft in drafts {
             if draft.category != "Other", let settings { settings.addCategory(draft.category, subcategory: draft.subcategory) }
@@ -369,6 +370,7 @@ enum GhafDraftSaver {
             )
             transaction.note = note
             ids.append(transaction.id)
+            spoken.append((transaction.id, transaction.date))
             transaction.subcategory = category == draft.category ? draft.subcategory : nil
             context.insert(transaction)
             if let merchant = transaction.merchant, !merchant.isEmpty, category != "Other" {
@@ -376,6 +378,10 @@ enum GhafDraftSaver {
             }
         }
         try context.save()
+        // Spoken entries get the same area as typed ones (row 29); only when dated about now.
+        Task { @MainActor in
+            for (id, date) in spoken { await GhafPlaces.rememberCurrentLocation(transactionID: id, purchaseDate: date) }
+        }
         return ids
     }
 }

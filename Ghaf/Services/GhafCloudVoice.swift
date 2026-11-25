@@ -59,8 +59,15 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
         request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
         if let code = Keychain.read(GhafCloudAI.accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "language": arabic ? "ar" : "en", "character": character, "tier": GhafAITier.current])
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let status = (response as? HTTPURLResponse)?.statusCode else { return .unavailable }
+        guard var (data, response) = try? await URLSession.shared.data(for: request),
+              var status = (response as? HTTPURLResponse)?.statusCode else { return .unavailable }
+        // Row 15: the voice model is often briefly busy (503); one retry keeps Hamad/Mariam speaking.
+        if status == 503 {
+            try? await Task.sleep(for: .seconds(1))
+            guard let retry = try? await URLSession.shared.data(for: request),
+                  let retryStatus = (retry.1 as? HTTPURLResponse)?.statusCode else { return .unavailable }
+            (data, response, status) = (retry.0, retry.1, retryStatus)
+        }
         if status == 429 { return .limitReached }
         if status == 401, Keychain.read(GhafCloudAI.accessCodeKey) != nil { GhafProAccess.removeAccessCode() }
         guard status == 200, let player = try? AVAudioPlayer(data: data) else { return .unavailable }

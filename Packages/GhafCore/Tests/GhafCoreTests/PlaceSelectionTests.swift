@@ -13,9 +13,22 @@ final class PlaceSelectionTests: XCTestCase {
         XCTAssertNil(PlaceSelection.selectedCandidateIndex(distances: []))
     }
 
-    func testAreaRequiresAccurateFixAtMostFiftyMeters() {
-        XCTAssertTrue(PlaceSelection.acceptsAreaAccuracy(50))
-        XCTAssertFalse(PlaceSelection.acceptsAreaAccuracy(50.1))
+    func testAreaAcceptsIndoorFixUpToHundredMeters() {
+        XCTAssertTrue(PlaceSelection.acceptsAreaAccuracy(65))
+        XCTAssertTrue(PlaceSelection.acceptsAreaAccuracy(100))
+        XCTAssertFalse(PlaceSelection.acceptsAreaAccuracy(100.1))
         XCTAssertFalse(PlaceSelection.acceptsAreaAccuracy(-1))
+    }
+
+    func testShopRequiresFixAtMostFiftyMeters() {
+        XCTAssertTrue(PlaceSelection.acceptsShopAccuracy(50))
+        XCTAssertFalse(PlaceSelection.acceptsShopAccuracy(65))
+    }
+
+    func testLiveLocationOnlyForRecentPurchases() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertTrue(PlaceSelection.isLiveLocationValid(for: now.addingTimeInterval(-29 * 60), now: now))
+        XCTAssertFalse(PlaceSelection.isLiveLocationValid(for: now.addingTimeInterval(-31 * 60), now: now))
+        XCTAssertFalse(PlaceSelection.isLiveLocationValid(for: now.addingTimeInterval(-86_400), now: now))
     }
 }
