@@ -465,6 +465,9 @@ struct GhafTabView: View {
 #endif
     }
 
+    /// iOS 26 draws the tab bar as a floating pill whose icon line sits lower than the classic bar's.
+    private static var floatingTabBar: Bool { if #available(iOS 26, *) { true } else { false } }
+
     var body: some View {
         let theme = GhafTheme.resolve(
             name: settings.themeName,
@@ -604,7 +607,7 @@ struct GhafTabView: View {
                     .accessibilityLabel(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
                     .accessibilityIdentifier("ghaf.ai.tab-orb")
                     .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
-                    .position(x: geometry.size.width / 2, y: geometry.size.height - 32)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height - (Self.floatingTabBar ? 16 : 32)) // row 3: centre line of the tab icons
             }
             // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
             .ignoresSafeArea(.keyboard, edges: .bottom)
