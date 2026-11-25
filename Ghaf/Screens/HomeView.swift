@@ -955,7 +955,8 @@ struct GhafQuickAddView: View {
                     // Owner 1.31: voice entry is Pro; without Pro the mic opens the paywall.
                     Group {
                         if GhafProAccess.hasAccess {
-                            NavigationLink { GhafVoiceEntryView(settings: settings) } label: { micIcon }
+                            // Row 18: the mic hands over to Ghaf AI listening, which turns speech into transactions.
+                            Button { startAIVoice() } label: { micIcon }
                         } else {
                             Button { showProForVoice = true } label: { micIcon }
                         }
@@ -1021,6 +1022,18 @@ struct GhafQuickAddView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { locationPermission = GhafPlaces.locationPermission }
+        }
+    }
+
+    private func startAIVoice() {
+        dismiss()
+        router.selectedTab = 1
+        Task { @MainActor in
+            // The AI screen registers startVoice when it appears; wait briefly for it.
+            for _ in 0..<20 {
+                try? await Task.sleep(for: .milliseconds(100))
+                if let start = router.startVoice { start(); return }
+            }
         }
     }
 

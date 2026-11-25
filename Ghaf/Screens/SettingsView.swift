@@ -1853,6 +1853,7 @@ private struct GhafStreakRing: View {
     let ar: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown: Double = 0
+    @State private var sweep: Double = 0
 
     private var target: Double {
         let tiers = [0] + GhafLoggingStreak.milestones
@@ -1868,6 +1869,15 @@ private struct GhafStreakRing: View {
                         style: StrokeStyle(lineWidth: 5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .shadow(color: theme.accent.opacity(0.55), radius: 6)
+            // Row 10: a soft light travels round the filled arc so the ring feels alive (theme tint kept).
+            if !reduceMotion && streak > 0 {
+                Circle().trim(from: 0, to: 0.08)
+                    .stroke(Color.white.opacity(0.7), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .blur(radius: 1.5)
+                    .rotationEffect(.degrees(-90 + sweep * 360))
+                    .mask(Circle().trim(from: 0, to: max(shown, 0.02)).stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round)).rotationEffect(.degrees(-90)))
+                    .onAppear { withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) { sweep = 1 } }
+            }
         }
         .onAppear { set(target) }
         .onChange(of: target) { _, value in set(value) }
