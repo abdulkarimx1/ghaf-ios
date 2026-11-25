@@ -697,6 +697,8 @@ enum GhafBackupService {
             case .data(let value): UserDefaults.standard.set(value, forKey: key)
             }
         }
+        // Saved places were just replaced on disk; drop the in-memory copy.
+        Task { @MainActor in GhafPlaces.forgetDecoded() }
     }
 
     private static func restoreGlass(_ glass: GhafGlassBackup) {

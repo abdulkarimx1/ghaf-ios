@@ -33,6 +33,8 @@ enum GhafPlaces {
         var isSuppressed: Bool? = false
         var isArea: Bool? = false
         var horizontalAccuracy: Double? = nil
+        /// Set once the shop search near this area found nothing, so opening the transaction again doesn't search again.
+        var shopSearched: Bool? = nil
     }
 
     private static let merchantKey = "ghaf.places.byMerchant"
@@ -55,12 +57,20 @@ enum GhafPlaces {
 
     // MARK: Memory
 
+    /// Decoded maps kept in memory: lists ask per row, and decoding the whole map each time made places load slowly (#20).
+    private static var decoded: [String: [String: Saved]] = [:]
+
     private static func load(_ key: String) -> [String: Saved] {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return [:] }
-        return (try? JSONDecoder().decode([String: Saved].self, from: data)) ?? [:]
+        if let map = decoded[key] { return map }
+        let map = UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode([String: Saved].self, from: $0) } ?? [:]
+        decoded[key] = map
+        return map
     }
 
+    static func forgetDecoded() { decoded = [:] }
+
     private static func store(_ value: [String: Saved], _ key: String) {
+        decoded[key] = value
         UserDefaults.standard.set(try? JSONEncoder().encode(value), forKey: key)
     }
 
@@ -231,6 +241,8 @@ enum GhafPlaces {
     /// POI is uniquely separated. Otherwise just the reverse-geocoded area is retained.
     private static func manualPlace(merchant: String, transactionID: UUID, purchaseDate: Date) async -> MKMapItem? {
         let prior = load(transactionKey)[transactionID.uuidString]
+        // A saved shop, or an area whose shop search already ran, is the answer: no new fix, no new search (#20).
+        if let prior, prior.isSuppressed != true, prior.isArea != true || prior.shopSearched == true { return Self.mapItem(prior) }
         let location: CLLocation
         if let prior, prior.isArea == true,
            let accuracy = prior.horizontalAccuracy, PlaceSelection.acceptsAreaAccuracy(accuracy) {
@@ -268,7 +280,11 @@ enum GhafPlaces {
             }
         }
 
-        if let prior, prior.isArea == true { return Self.mapItem(prior) }
+        if var prior, prior.isArea == true {
+            prior.shopSearched = true
+            var map = load(transactionKey); map[transactionID.uuidString] = prior; store(map, transactionKey)
+            return Self.mapItem(prior)
+        }
         guard let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first,
               let area = placemark.subLocality ?? placemark.locality else { return nil }
         let saved = Saved(name: area, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
