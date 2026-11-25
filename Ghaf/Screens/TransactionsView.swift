@@ -651,8 +651,13 @@ struct GhafTransactionEditor: View {
                             .foregroundStyle(theme.over)
                     }
 
+                    if !nameOK {
+                        Text(languageCode == "ar" ? "أضف اسماً" : "Add a name")
+                            .font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
+                    }
                     Button(languageCode == "ar" ? "حفظ التغييرات" : "Save changes", action: save)
                         .ghafProminentButton(theme: theme, languageCode: languageCode)
+                        .disabled(!nameOK).opacity(nameOK ? 1 : 0.4)
                 }
                 .padding(22)
                 .frame(maxWidth: 560)
@@ -722,7 +727,10 @@ struct GhafTransactionEditor: View {
         GhafTextField(text: text, placeholder: placeholder, theme: theme, languageCode: languageCode)
     }
 
+    private var nameOK: Bool { transaction.direction == "transfer" || !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
     private func save() {
+        guard nameOK else { return }
         if transaction.bank != nil, let raw = transaction.rawMerchant ?? transaction.merchant,
            merchant != (GhafMerchantAliasStore.displayName(raw) ?? raw) {
             showingMerchantRenameScope = true

@@ -919,6 +919,11 @@ struct GhafQuickAddView: View {
                         }
                     }
 
+                    if !nameOK {
+                        Text(ar ? "أضف اسماً" : "Add a name")
+                            .font(GhafTypography.body(13, languageCode: lang))
+                            .foregroundStyle(theme.secondaryText)
+                    }
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
                             .font(GhafTypography.body(13, languageCode: lang))
@@ -944,6 +949,7 @@ struct GhafQuickAddView: View {
                     }.accessibilityLabel(ar ? "قلها بصوتك" : "Say it aloud")
                     Button(action: save) { Text(ar ? "حفظ العملية" : "Save transaction") }
                         .buttonStyle(GhafCapsuleButtonStyle(theme: theme, languageCode: lang, role: .primary))
+                        .disabled(!nameOK).opacity(nameOK ? 1 : 0.4)
                 }
                 .padding(.horizontal, GhafMetrics.gutter).padding(.vertical, 8)
                 .background(theme.background)
@@ -1107,6 +1113,8 @@ struct GhafQuickAddView: View {
         }.padding(20).background(theme.background)
     }
 
+    /// Owner 1.31: a transaction needs a name (transfers have none).
+    private var nameOK: Bool { isTransfer || !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var isDirty: Bool { !amount.isEmpty || !merchant.isEmpty || !note.isEmpty || category != "Other" || abs(date.timeIntervalSinceNow) > 60 }
     private func requestDismiss() { if isDirty { showingDiscard = true } else { dismiss() } }
     private func suggestCategory() {
@@ -1184,6 +1192,7 @@ struct GhafQuickAddView: View {
     }
 
     private func save() {
+        guard nameOK else { return }
         guard let value = Decimal(string: amount), value > 0 else {
             errorMessage = settings.languageCode == "ar" ? "أدخل مبلغاً صحيحاً." : "Enter a valid amount."
             return
