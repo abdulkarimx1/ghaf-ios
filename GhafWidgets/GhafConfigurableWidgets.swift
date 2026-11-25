@@ -308,7 +308,7 @@ struct GhafRecentView: View {
                     Caption(value: r.category)
                 }
                 .opacity(0.75)
-                Text("\(r.currency) \(amount)").font(.system(size: 22, weight: .bold)).minimumScaleFactor(0.6).lineLimit(1).privacySensitive()
+                Text("\(r.currency) \(amount)").font(ghafNumberFont(22, weight: .bold)).minimumScaleFactor(0.6).lineLimit(1).privacySensitive()
                 if !detail.isEmpty { Text(detail).font(.caption2).lineLimit(1).opacity(0.75).privacySensitive() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -322,7 +322,7 @@ struct GhafRecentView: View {
                     if !detail.isEmpty { Text(detail).font(.system(size: 12, weight: .semibold)).foregroundStyle(tile.dim).lineLimit(1).privacySensitive() }
                     Spacer(minLength: 0)
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
-                        Text(amount).font(.system(size: 34, weight: .heavy)).tracking(-1).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(amount).font(ghafNumberFont(34, weight: .heavy)).tracking(-1).lineLimit(1).minimumScaleFactor(0.5)
                             .contentTransition(.numericText()).privacySensitive()
                         Text(r.currency).font(.system(size: 13, weight: .bold)).foregroundStyle(tile.dim)
                         Spacer(minLength: 0)
@@ -344,7 +344,7 @@ struct GhafRecentView: View {
                 Spacer(minLength: 0)
                 Text(r.category).font(.system(size: 17, weight: .heavy)).lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(amount).font(.system(size: 30, weight: .heavy)).tracking(-1).lineLimit(1).minimumScaleFactor(0.5)
+                    Text(amount).font(ghafNumberFont(30, weight: .heavy)).tracking(-1).lineLimit(1).minimumScaleFactor(0.5)
                         .contentTransition(.numericText()).privacySensitive()
                     Text(r.currency).font(.system(size: 11, weight: .bold)).foregroundStyle(tile.dim)
                 }
@@ -402,7 +402,7 @@ struct GhafSpendingView: View {
         let headline = VStack(alignment: .leading, spacing: 3) {
             Caption(value: text(s, "Spent · ", "صرفت · ") + periodName(selected, s)).foregroundStyle(tile.dim)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(s.whole(p.spent)).font(.system(size: family == .systemSmall ? 34 : 38, weight: .heavy)).tracking(-1.2)
+                Text(s.whole(p.spent)).font(ghafNumberFont(family == .systemSmall ? 34 : 38, weight: .heavy)).tracking(-1.2)
                     .lineLimit(1).minimumScaleFactor(0.5).contentTransition(.numericText()).privacySensitive()
                 Text(s.currency).font(.system(size: 12, weight: .bold)).foregroundStyle(tile.dim)
             }
@@ -500,7 +500,7 @@ struct GhafBudgetWidgetView: View {
         case .accessoryRectangular:
             return AnyView(VStack(alignment: .leading, spacing: 2) {
                 Caption(value: caption).opacity(0.75)
-                Text(percent).font(.system(size: 20, weight: .bold))
+                Text(percent).font(ghafNumberFont(20, weight: .bold))
                 Gauge(value: min(max(share, 0), 1)) { EmptyView() }.gaugeStyle(.accessoryLinearCapacity)
                 Text(footer).font(.caption2).lineLimit(1).privacySensitive()
             }
@@ -584,7 +584,7 @@ struct GhafCategoriesView: View {
             HStack(alignment: .firstTextBaseline) {
                 Caption(value: text(s, "Where it went · ", "أين ذهبت · ") + periodName(selected, s)).foregroundStyle(tile.dim)
                 Spacer(minLength: 4)
-                if let p { Text("\(s.currency) \(s.whole(p.spent))").font(.system(size: 12, weight: .bold)).privacySensitive() }
+                if let p { Text("\(s.currency) \(s.whole(p.spent))").font(ghafNumberFont(12, weight: .bold)).privacySensitive() }
             }
             if rows.isEmpty {
                 Spacer(minLength: 0)
@@ -693,7 +693,7 @@ struct GhafBillsView: View {
                 HStack(alignment: .center) {
                     Caption(value: text(s, "Upcoming · ", "القادمة · ") + windowText).foregroundStyle(tile.dim)
                     Spacer(minLength: 4)
-                    if let total { Text(total).font(.system(size: 12, weight: .bold)).privacySensitive() }
+                    if let total { Text(total).font(ghafNumberFont(12, weight: .bold)).privacySensitive() }
                     RefreshButton(kind: GhafBillsWidget.kind, tile: tile, snapshot: s)
                 }
                 ForEach(Array(bills.prefix(3).enumerated()), id: \.offset) { _, b in

@@ -44,7 +44,7 @@ struct GhafStreakView: View {
                     AccessoryWidgetBackground()
                     VStack(spacing: 0) {
                         Image(systemName: "flame.fill").font(.system(size: 13, weight: .semibold))
-                        Text("\(days)").font(.system(size: 20, weight: .bold, design: .rounded)).minimumScaleFactor(0.6)
+                        Text("\(days)").font(ghafNumberFont(20, weight: .bold)).minimumScaleFactor(0.6)
                     }
                 }.accessibilityLabel(spoken)
             case .accessoryRectangular:
@@ -68,7 +68,7 @@ struct GhafStreakView: View {
                         Caption(value: text(s, "Streak", "السلسلة")).foregroundStyle(tile.dim)
                     }
                     Spacer(minLength: 0)
-                    Text("\(days)").font(.system(size: 44, weight: .heavy, design: .rounded)).tracking(-1)
+                    Text("\(days)").font(ghafNumberFont(44, weight: .heavy)).tracking(-1)
                         .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1)
                     Text(text(s, days == 1 ? "day" : "days", "يوم")).font(.system(size: 11, weight: .bold)).foregroundStyle(tile.highlight)
                     HStack(spacing: 4) {

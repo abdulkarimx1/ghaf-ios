@@ -114,7 +114,7 @@ struct GhafTrendsView: View {
             return AnyView(HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 1) {
                     Caption(value: title + " · " + periodName(selected, s)).opacity(0.75)
-                    amount.font(.system(size: 20, weight: .bold))
+                    amount.font(ghafNumberFont(20, weight: .bold))
                 }
                 GhafSparkline(values: values, line: .primary, fill: false).frame(width: 44, height: 28)
             }
@@ -127,7 +127,7 @@ struct GhafTrendsView: View {
                     Text(periodName(selected, s)).font(.system(size: 11, weight: .semibold)).foregroundStyle(tile.dim)
                     Spacer(minLength: 0)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        amount.font(.system(size: 32, weight: .bold))
+                        amount.font(ghafNumberFont(32, weight: .bold))
                         Text(s.currency).font(.system(size: 12, weight: .bold)).foregroundStyle(tile.dim)
                     }
                     if let pill { pill }
@@ -152,7 +152,7 @@ struct GhafTrendsView: View {
                 }
                 GhafSparkline(values: values, line: lineColor, fill: entry.config.showFill).frame(maxHeight: .infinity).padding(.vertical, 4)
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    amount.font(.system(size: 26, weight: .bold))
+                    amount.font(ghafNumberFont(26, weight: .bold))
                     Text(s.currency).font(.system(size: 10, weight: .bold)).foregroundStyle(tile.dim)
                 }
             }

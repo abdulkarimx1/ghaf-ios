@@ -92,6 +92,7 @@ targets:
           - IBMPlexSansArabic-Bold.ttf
           - ThmanyahSerifDisplay-Regular.otf
           - ThmanyahSerifDisplay-Black.otf
+          - Geist-Variable.ttf
         UILaunchScreen:
           UIColorName: GhafLaunchBackground
         UISupportedInterfaceOrientations:
@@ -137,6 +138,8 @@ targets:
         CFBundleDisplayName: Ghaf
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UIAppFonts:
+          - Geist-Variable.ttf
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
