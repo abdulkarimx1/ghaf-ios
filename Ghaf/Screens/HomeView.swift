@@ -871,6 +871,7 @@ struct GhafQuickAddView: View {
                         }
                     }
                     .frame(height: 44)
+                    .padding(.horizontal, 8).padding(.top, 14) // owner #46: header sat on the sheet's rounded edge
                     amountHeader
                     GhafFormCard(theme: theme) {
                       if isTransfer {
@@ -981,6 +982,7 @@ struct GhafQuickAddView: View {
         .preferredColorScheme(theme.isDark ? .dark : .light)
         .interactiveDismissDisabled(isDirty)
         .overlay { if showingDiscard { GhafConfirmCard(title: ar ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: ar ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: ar ? "متابعة التعديل" : "Keep editing", discardTitle: ar ? "تجاهل" : "Discard", theme: theme, languageCode: lang, keep: { showingDiscard = false; discardThenVoice = false }, discard: { showingDiscard = false; if discardThenVoice { startAIVoice() } else { dismiss() } }) } }
+        .animation(.spring(duration: 0.38, bounce: 0.12), value: showingDiscard)
         // Row 28: the splash lives in a full-screen cover, not an overlay, so the sheet's rounded frame no longer crops
         // it, and the live 24 pt blur of the whole form (costly next to the 60 fps shader) is gone.
         .fullScreenCover(isPresented: $showingSuccess) {

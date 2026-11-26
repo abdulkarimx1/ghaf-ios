@@ -331,7 +331,7 @@ struct GhafSettingsView: View {
                     }
                     .ghafDestructiveButton(theme: theme, languageCode: languageCode)
 
-                    Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone. لا يتصل غاف بخادم مالي." : "Your data stays on this iPhone. Ghaf does not connect to a financial server.")
+                    Text(languageCode == "ar" ? "تبقى بياناتك على هذا الـ iPhone.\nلا يتصل غاف بخادم مالي." : "Your data stays on this iPhone.\nGhaf does not connect to a financial server.")
                         .font(GhafTypography.body(12, languageCode: languageCode))
                         .foregroundStyle(theme.secondaryText)
                         .frame(maxWidth: 320, alignment: .center)
@@ -473,10 +473,11 @@ struct GhafSettingsView: View {
     private var budgetCharacterLine: String {
         let preset = BudgetAllocation.Preset(rawValue: settings.allocationPresetRaw) ?? .balanced
         return switch preset {
-        case .balanced: ar ? "توازن بين الاحتياجات والرغبات والادخار، مع مساحة لكل جانب." : "You balance essentials, everyday wants, and steady saving."
-        case .highRentCity: ar ? "تمنح الاحتياجات الأساسية حصة أكبر، مع استمرار الادخار." : "You prioritize essentials while keeping a steady savings share."
-        case .essentialsFirst: ar ? "تضع الاحتياجات أولاً وتخصص جزءًا واضحًا للادخار." : "You put essentials first and keep a clear portion for savings."
-        case .guardian: ar ? "تحمي الأساسيات والادخار قبل زيادة المصروفات الأخرى." : "You protect essentials and savings before expanding other spending."
+        // Owner #47: describe the character, not the split.
+        case .balanced: ar ? "هادي ومتّزن، تعطي كل شي حقّه بدون مبالغة." : "Calm and even-handed, you give everything its fair share."
+        case .highRentCity: ar ? "تخطّط قبل لا تصرف، وكل درهم يعرف مكانه." : "You plan before you spend, and every dirham knows its place."
+        case .essentialsFirst: ar ? "تحب التجربة وتعيش يومك، والادخار يمشي معك على مهله." : "You enjoy trying new things, and saving keeps pace at its own speed."
+        case .guardian: ar ? "حذر وثابت، تحمي الأساسيات قبل أي شي ثاني." : "Careful and steady, you protect the basics before anything else."
         }
     }
 
@@ -641,7 +642,6 @@ struct GhafSettingsView: View {
             VStack(spacing: 10) {
                 GhafAvatar(initials: initials, theme: theme, languageCode: languageCode, size: 104)
                     .overlay { GhafStreakRing(streak: streak, theme: theme, ar: ar).padding(-10).allowsHitTesting(false) }
-                    .padding(.top, 8)
                     .overlay(alignment: .bottomTrailing) {
                         Button { showPhotoMenu = true } label: {
                             Image(systemName: "camera.fill")
@@ -655,6 +655,8 @@ struct GhafSettingsView: View {
                         .accessibilityLabel(ar ? "صورة الملف الشخصي" : "Profile photo options")
                     }
                     .frame(width: 104, height: 104)
+                    .padding(10) // owner #48: room for the streak ring, which draws 10 pt outside the avatar
+                    .padding(.top, 14)
                     .accessibilityLabel(ar ? "صورة الملف الشخصي" : "Profile photo options")
                     .onChange(of: photoItem) { _, item in
                         Task {
@@ -676,6 +678,8 @@ struct GhafSettingsView: View {
                         Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
                             .font(GhafTypography.display(26, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                             .lineLimit(2).minimumScaleFactor(0.8)
+                            // The pencil hangs off the name's trailing edge so the name itself stays centred (mirrors in RTL).
+                            .overlay(alignment: .trailing) {
                         Button {
                             draftProfileName = name
                             draftArabicName = arabicName
@@ -684,9 +688,10 @@ struct GhafSettingsView: View {
                         } label: { Image(systemName: "pencil").font(.system(size: 13, weight: .semibold)) }
                             .foregroundStyle(theme.accent).frame(minWidth: 44, minHeight: 44)
                             .accessibilityLabel(ar ? "تعديل الاسم" : "Edit name")
+                            .alignmentGuide(.trailing) { d in d[.leading] + 6 }
+                            }
                     }
                 }
-                .offset(x: isEditingProfileName ? 0 : 22) // offset mirrors in RTL, so one value centres the name both ways
                 if isEditingProfileName {
                     TextField(ar ? "الاسم بالعربية (اختياري)" : "Name in Arabic (optional)", text: $draftArabicName)
                         .font(GhafTypography.body(16, languageCode: "ar")).foregroundStyle(theme.primaryText)
@@ -1873,7 +1878,6 @@ private struct GhafStreakRing: View {
     let ar: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown: Double = 0
-    @State private var sweep: Double = 0
 
     private var target: Double {
         let tiers = [0] + GhafLoggingStreak.milestones
@@ -1882,28 +1886,38 @@ private struct GhafStreakRing: View {
     }
 
     var body: some View {
-        ZStack {
-            Circle().stroke(theme.accent.opacity(0.14), lineWidth: 5)
-            Circle().trim(from: 0, to: max(shown, streak > 0 ? 0.02 : 0))
-                .stroke(AngularGradient(colors: [theme.accent.opacity(0.45), theme.accent], center: .center, startAngle: .zero, endAngle: .degrees(360 * max(shown, 0.02))),
-                        style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .shadow(color: theme.accent.opacity(0.55), radius: 6)
-            // Row 10: a soft light travels round the filled arc so the ring feels alive (theme tint kept).
-            if !reduceMotion && streak > 0 {
-                Circle().trim(from: 0, to: 0.08)
-                    .stroke(Color.white.opacity(0.7), style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                    .blur(radius: 1.5)
-                    .rotationEffect(.degrees(-90 + sweep * 360))
-                    .mask(Circle().trim(from: 0, to: max(shown, 0.02)).stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round)).rotationEffect(.degrees(-90)))
-                    .onAppear { withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) { sweep = 1 } }
-            }
+        // Owner #49: clock-driven so the motion never stops (an onAppear repeatForever froze after returning to Profile).
+        TimelineView(.animation(paused: reduceMotion || streak == 0)) { context in
+            ring(time: context.date.timeIntervalSinceReferenceDate)
         }
         .onAppear { set(target) }
         .onChange(of: target) { _, value in set(value) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ar ? "سلسلة \(streak) يوماً" : "\(streak) day streak")
         .accessibilityHidden(streak == 0)
+    }
+
+    private func ring(time: Double) -> some View {
+        let sweep = (time / 4.5).truncatingRemainder(dividingBy: 1)
+        let breath = reduceMotion ? 0.5 : 0.5 + 0.5 * sin(time * 2 * .pi / 3.2)
+        return ZStack {
+            Circle().stroke(theme.accent.opacity(0.14), lineWidth: 5)
+            Circle().trim(from: 0, to: max(shown, streak > 0 ? 0.02 : 0))
+                .stroke(AngularGradient(colors: [theme.accent.opacity(0.45), theme.accent], center: .center, startAngle: .zero, endAngle: .degrees(360 * max(shown, 0.02))),
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .shadow(color: theme.accent.opacity(0.35 + 0.3 * breath), radius: 4 + 5 * breath)
+            // Row 10: a soft light travels round the filled arc so the ring feels alive (theme tint kept).
+            if !reduceMotion && streak > 0 {
+                Circle().trim(from: 0, to: 0.12)
+                    .stroke(AngularGradient(colors: [.white.opacity(0), .white.opacity(0.85), .white.opacity(0)], center: .center,
+                                            startAngle: .zero, endAngle: .degrees(43)),
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .blur(radius: 1.2)
+                    .rotationEffect(.degrees(-90 + sweep * 360))
+                    .mask(Circle().trim(from: 0, to: max(shown, 0.02)).stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round)).rotationEffect(.degrees(-90)))
+            }
+        }
     }
 
     private func set(_ value: Double) {

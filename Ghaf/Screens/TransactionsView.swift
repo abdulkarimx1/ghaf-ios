@@ -672,6 +672,7 @@ struct GhafTransactionEditor: View {
             .ghafKeyboardDone()
             .interactiveDismissDisabled(isDirty)
             .overlay { if showingDiscard { GhafConfirmCard(title: languageCode == "ar" ? "هل تريد تجاهل هذه العملية؟" : "Discard this transaction?", message: languageCode == "ar" ? "ستفقد كل ما أدخلته." : "What you entered will be lost.", keepTitle: languageCode == "ar" ? "متابعة التعديل" : "Keep editing", discardTitle: languageCode == "ar" ? "تجاهل" : "Discard", theme: theme, languageCode: languageCode, keep: { showingDiscard = false }, discard: { showingDiscard = false; dismiss() }) } }
+        .animation(.spring(duration: 0.38, bounce: 0.12), value: showingDiscard)
             .sheet(isPresented: $showingDatePicker) {
                 VStack(spacing: 12) {
                     HStack(spacing: 10) {
