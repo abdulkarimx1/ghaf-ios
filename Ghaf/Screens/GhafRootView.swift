@@ -1672,16 +1672,20 @@ private struct GhafWelcomeLaunchScreen: View {
                 }
                 TimelineView(.animation(paused: reduceMotion)) { context in
                     GeometryReader { rowGeometry in
+                        // Owner #79: rows are 30% wider than the screen so the -6° tilt never shows their cut ends.
+                        let rowWidth = rowGeometry.size.width * 1.3
                         VStack(spacing: 12) {
-                            cardRow(rowA, genericCount: genericRows[0].count, seconds: context.date.timeIntervalSince(start), speed: 57, forward: true, width: rowGeometry.size.width)
-                            cardRow(rowB, genericCount: rowB.count, seconds: context.date.timeIntervalSince(start), speed: 46, forward: false, width: rowGeometry.size.width)
-                            cardRow(rowC, genericCount: rowC.count, seconds: context.date.timeIntervalSince(start), speed: 53, forward: true, width: rowGeometry.size.width)
+                            cardRow(rowA, genericCount: genericRows[0].count, seconds: context.date.timeIntervalSince(start), speed: 57, forward: true, width: rowWidth)
+                            cardRow(rowB, genericCount: rowB.count, seconds: context.date.timeIntervalSince(start), speed: 46, forward: false, width: rowWidth)
+                            cardRow(rowC, genericCount: rowC.count, seconds: context.date.timeIntervalSince(start), speed: 53, forward: true, width: rowWidth)
                         }
+                        .frame(width: rowWidth)
+                        .offset(x: -(rowWidth - rowGeometry.size.width) / 2)
                     }
                 }
                 .frame(height: geometry.size.height * 0.45, alignment: .bottom)
                 .frame(maxHeight: .infinity, alignment: .bottom)
-                .rotationEffect(.degrees(-6)).clipped()
+                .rotationEffect(.degrees(-6))
                 .environment(\.layoutDirection, .leftToRight).accessibilityHidden(true)
                 .opacity(shown ? 1 : 0).offset(y: shown || reduceMotion ? 0 : 14)
                 LinearGradient(stops: [.init(color: theme.background.opacity(0), location: 0),
