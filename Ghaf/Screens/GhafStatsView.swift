@@ -32,6 +32,7 @@ struct GhafStatsView: View {
     @State private var chartDrawProgress = 0.0
     @State private var chartReady = false
     @State private var selectedLabel: String?
+    @State private var scrubbedMonthDay: Date?
     @State private var selectedCategory: String?
     @State private var showProSheet = false
     @State private var barTransactions: BarTransactions?
@@ -309,6 +310,7 @@ struct GhafStatsView: View {
                 if GhafScreenshotFixture.selection == "point" {
                     let date = calendar.dateInterval(of: .day, for: GhafClock.now.addingTimeInterval(-9 * 86_400))?.start ?? GhafClock.now
                     selectedLabel = chartKey(calendar.startOfDay(for: date))
+                    if period == .month { scrubbedMonthDay = calendar.startOfDay(for: date) }
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
                 if GhafScreenshotFixture.autoSelect && !fixtureBudget { runAutoSelection(scrollProxy: scrollProxy) }
@@ -350,11 +352,29 @@ struct GhafStatsView: View {
         period = target
         // Changing period clears the selection, so select the day once that has run.
         guard let day = focus.day else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { withAnimation(.snappy) { selectedLabel = chartKey(calendar.startOfDay(for: day)) } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            withAnimation(.snappy) {
+                let selectedDay = calendar.startOfDay(for: day)
+                selectedLabel = chartKey(selectedDay)
+                scrubbedMonthDay = target == .month ? selectedDay : nil
+            }
+        }
     }
 
     private func chartKey(_ date: Date) -> String {
         String(Int(date.timeIntervalSince1970))
+    }
+
+    private var dailyMonthDomain: [String] {
+        guard period == .month else { return [] }
+        var keys: [String] = []
+        var day = calendar.startOfDay(for: interval.start)
+        while day < interval.end {
+            keys.append(chartKey(day))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return keys
     }
 
     private func bucketLabel(_ date: Date) -> String {
@@ -372,6 +392,18 @@ struct GhafStatsView: View {
         case .week: return date.formatted(.dateTime.weekday(.wide).locale(locale))
         case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
         }
+    }
+
+    private func dailyBucketLabel(_ date: Date) -> String {
+        date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
+    }
+
+    private func dailyTrendTransactions(on date: Date, current: [GhafTransaction]) -> [GhafTransaction] {
+        let start = calendar.startOfDay(for: date)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
+        let range = DateInterval(start: start, end: end)
+        if selectedCategory == "Transfers" { return outgoingTransfers(in: range) }
+        return current.filter { range.contains($0.date) && (selectedCategory == nil || $0.category == selectedCategory) }
     }
 
     @ChartContentBuilder
@@ -397,13 +429,17 @@ struct GhafStatsView: View {
         }()
         let selected = selectedLabel.flatMap { key in plotted.first { chartKey($0.start) == key } }
         let spent = total(current)
+        let scrubbedDayAmount = scrubbedMonthDay.map { total(dailyTrendTransactions(on: $0, current: current)) }
+        let selectedAmount = scrubbedDayAmount ?? selected.map { $0.total + ($0.forecast ?? 0) } ?? spent
+        let selectedDate = scrubbedMonthDay ?? selected?.start
         let before = total(previous)
         let change = before > 0 ? (spent - before) / before : nil
         let comparisonVisible = hasPreviousCoverage
         let accent = theme.accent
         let periods = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["W", "M", "3M", "Y"]
         let periodNames = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]
-        let heading = selected.map { bucketLabel($0.start) }
+        let heading = scrubbedMonthDay.map(dailyBucketLabel)
+            ?? selected.map { bucketLabel($0.start) }
             ?? selectedCategory.map { GhafLocalization.category($0, languageCode: lang) }
             ?? (ar ? "المصروف · \(periodNames[period.rawValue])" : "Spent · \(periodNames[period.rawValue])")
         return VStack(spacing: 8) {
@@ -411,12 +447,12 @@ struct GhafStatsView: View {
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1).frame(height: 20)
-            GhafRollingNumber(amount: Decimal(selected.map { $0.total + ($0.forecast ?? 0) } ?? spent), currency: currency, languageCode: lang, size: 40)
+            GhafRollingNumber(amount: Decimal(selectedAmount), currency: currency, languageCode: lang, size: 40)
                 .foregroundStyle(theme.primaryText)
                 .environment(\.layoutDirection, .leftToRight)
                 .accessibilityIdentifier("stats.period.spent")
             Group {
-            if let change, comparisonVisible, selected == nil, selectedCategory == nil {
+            if let change, comparisonVisible, selected == nil, scrubbedMonthDay == nil, selectedCategory == nil {
                 Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
                       + (ar ? " عن الفترة السابقة" : " vs previous"),
                       systemImage: change > 0 ? "arrow.up.right" : "arrow.down.right")
@@ -425,7 +461,7 @@ struct GhafStatsView: View {
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background((change > 0 ? theme.over : theme.credit).opacity(0.16), in: Capsule())
             } else {
-                Text(selected != nil || selectedCategory != nil ? (ar ? "اضغط مرة أخرى لرؤية المجموع" : "Tap again for the total")
+                Text(selected != nil || scrubbedMonthDay != nil || selectedCategory != nil ? (ar ? "اضغط مرة أخرى لرؤية المجموع" : "Tap again for the total")
                                      : (ar ? "لا توجد بيانات للفترة السابقة" : "No data for the previous period"))
                     .font(GhafTypography.body(12, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
@@ -435,11 +471,13 @@ struct GhafStatsView: View {
             .frame(height: 30)
             // Owner 1.31: a tapped point offers the transactions behind its number. The slot is always there
             // (hidden when nothing is selected) so the card never changes height.
-            let items = selected.map { sel in current.filter { $0.date >= sel.start && $0.date < sel.end } } ?? []
+            let items = scrubbedMonthDay.map { dailyTrendTransactions(on: $0, current: current) }
+                ?? selected.map { sel in current.filter { $0.date >= sel.start && $0.date < sel.end } } ?? []
             do {
                 Button {
-                    guard let selected else { return }
-                    barTransactions = BarTransactions(title: bucketLabel(selected.start), items: items)
+                    guard let selectedDate else { return }
+                    let title = scrubbedMonthDay.map(dailyBucketLabel) ?? bucketLabel(selectedDate)
+                    barTransactions = BarTransactions(title: title, items: items)
                 } label: {
                     Label(ar ? "عرض العمليات" : "View transactions", systemImage: "list.bullet")
                         .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
@@ -449,13 +487,13 @@ struct GhafStatsView: View {
                 }
                 .buttonStyle(.ghafPress)
                 .disabled(items.isEmpty)
-                .opacity(selected == nil ? 0 : 1)
-                .allowsHitTesting(selected != nil)
-                .accessibilityHidden(selected == nil)
+                .opacity(selectedDate == nil ? 0 : 1)
+                .allowsHitTesting(selectedDate != nil)
+                .accessibilityHidden(selectedDate == nil)
             }
             Chart {
                 ForEach(plotted) { bucket in
-                let isSelected = selected?.id == bucket.id
+                let isSelected = scrubbedMonthDay == nil && selected?.id == bucket.id
                 let pointOpacity = isSelected ? 1.0 : 0.0
                 RuleMark(x: .value("Date", chartKey(bucket.start)))
                     .foregroundStyle(theme.secondaryText.opacity(0.5))
@@ -483,6 +521,15 @@ struct GhafStatsView: View {
                     }
                 }
             }
+                if let scrubbedMonthDay, let scrubbedDayAmount {
+                    RuleMark(x: .value("Date", chartKey(scrubbedMonthDay)))
+                        .foregroundStyle(theme.secondaryText.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                        .annotation(position: .top, spacing: 0,
+                                    overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                            selectionBubble(amount: scrubbedDayAmount, date: scrubbedMonthDay, exactDay: true)
+                        }
+                }
                 ForEach(Array(forecastPoints.enumerated()), id: \.offset) { entry in
                     let (bucket, amount) = entry.element
                     AreaMark(x: .value("Date", chartKey(bucket.start)), yStart: .value("Baseline", 0), yEnd: .value(currency, amount), series: .value("Series", "Forecast"))
@@ -502,6 +549,7 @@ struct GhafStatsView: View {
             .environment(\.layoutDirection, .leftToRight)
             // Fixed headroom: the curve never runs off the top and the pinned pill has room above the highest point.
             .chartYScale(domain: 0...max(1, (plotted.map(\.total) + forecastPoints.map(\.1)).max() ?? 1) * 1.3)
+            .chartXScale(domain: period == .month ? dailyMonthDomain : plotted.map { chartKey($0.start) })
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -512,8 +560,20 @@ struct GhafStatsView: View {
                         .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { value in
                             guard let anchor = proxy.plotFrame, let label: String = proxy.value(atX: value.location.x - geometry[anchor].minX) else { return }
                             // Short spring so the pill and dot glide between points while scrubbing, still tracking the finger.
-                            guard label != selectedLabel else { return }
-                            withAnimation(reduceMotion ? nil : .interactiveSpring(duration: 0.18)) { selectedLabel = label }
+                            if period == .month, let timestamp = TimeInterval(label) {
+                                let day = calendar.startOfDay(for: Date(timeIntervalSince1970: timestamp))
+                                guard day != scrubbedMonthDay else { return }
+                                withAnimation(reduceMotion ? nil : .interactiveSpring(duration: 0.18)) {
+                                    scrubbedMonthDay = day
+                                    selectedLabel = label
+                                }
+                            } else {
+                                guard label != selectedLabel else { return }
+                                withAnimation(reduceMotion ? nil : .interactiveSpring(duration: 0.18)) {
+                                    scrubbedMonthDay = nil
+                                    selectedLabel = label
+                                }
+                            }
                         })
                 }
             }
@@ -599,6 +659,7 @@ struct GhafStatsView: View {
                 .transaction { $0.animation = nil }
             .onChange(of: period) { _, _ in
                 selectedLabel = nil
+                scrubbedMonthDay = nil
                 selectedCategory = nil
                 guard chartReady else { return }
                 animateTrendChartIn()
@@ -612,6 +673,13 @@ struct GhafStatsView: View {
     private func selectBucket(at location: CGPoint, plotFrame: CGRect, proxy: ChartProxy, data: [Bucket]) {
         let relativeX = location.x - plotFrame.minX
         let key: String? = proxy.value(atX: relativeX, as: String.self)
+        if period == .month, let key, let timestamp = TimeInterval(key) {
+            let day = calendar.startOfDay(for: Date(timeIntervalSince1970: timestamp))
+            if let bucket = data.first(where: { $0.start <= day && day < $0.end }) {
+                tapTrendBucket(chartKey(bucket.start))
+                return
+            }
+        }
         guard let key, data.contains(where: { chartKey($0.start) == key }) else {
             withAnimation(.snappy) { selectedLabel = nil }
             return
@@ -621,7 +689,10 @@ struct GhafStatsView: View {
 
     private func tapTrendBucket(_ key: String) {
         // Select/unselect fades the dot, guide line and pill in or out instead of popping.
-        withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .snappy(duration: 0.28)) { selectedLabel = selectedLabel == key ? nil : key }
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .snappy(duration: 0.28)) {
+            scrubbedMonthDay = nil
+            selectedLabel = selectedLabel == key ? nil : key
+        }
     }
 
 #if DEBUG
@@ -643,10 +714,11 @@ struct GhafStatsView: View {
     }
 #endif
 
-    private func selectionBubble(amount: Double, date: Date) -> some View {
+    private func selectionBubble(amount: Double, date: Date, exactDay: Bool = false) -> some View {
         HStack(spacing: 4) {
             GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
-            Text("· \(bucketLabel(date))").font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+            Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
+                .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
         }
         .foregroundStyle(theme.primaryText).padding(.horizontal, 10).padding(.vertical, 6)
         .background(theme.surface, in: Capsule())
@@ -761,7 +833,11 @@ struct GhafStatsView: View {
     }
 
     private func toggle(_ category: String) {
-        withAnimation(.snappy) { selectedCategory = selectedCategory == category ? nil : category; selectedLabel = nil }
+        withAnimation(.snappy) {
+            selectedCategory = selectedCategory == category ? nil : category
+            selectedLabel = nil
+            scrubbedMonthDay = nil
+        }
     }
 
     // MARK: Tiles and merchants
