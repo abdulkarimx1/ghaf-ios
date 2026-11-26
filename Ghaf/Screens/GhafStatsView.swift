@@ -29,7 +29,7 @@ struct GhafStatsView: View {
 #endif
     }
     @State private var period: Period
-    @State private var chartDrawProgress = 1.0
+    @State private var chartDrawProgress = 0.0
     @State private var chartReady = false
     @State private var selectedLabel: String?
     @State private var selectedCategory: String?
@@ -91,6 +91,18 @@ struct GhafStatsView: View {
         preparedStats = prepareStats()
 #endif
         cachedStatsID = currentID
+    }
+
+    private func animateTrendChartIn() {
+        var immediate = Transaction()
+        immediate.disablesAnimations = true
+        withTransaction(immediate) { chartDrawProgress = 0 }
+        Task { @MainActor in
+            await Task.yield()
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .easeOut(duration: 0.6)) {
+                chartDrawProgress = 1
+            }
+        }
     }
 
     private var interval: DateInterval {
@@ -280,6 +292,7 @@ struct GhafStatsView: View {
                 .onAppear {
                 chartReady = true
                 applyStatsFocus()
+                animateTrendChartIn()
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
                 if GhafScreenshotFixture.destination == "pro-popup" || GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
@@ -489,7 +502,6 @@ struct GhafStatsView: View {
             .environment(\.layoutDirection, .leftToRight)
             // Fixed headroom: the curve never runs off the top and the pinned pill has room above the highest point.
             .chartYScale(domain: 0...max(1, (plotted.map(\.total) + forecastPoints.map(\.1)).max() ?? 1) * 1.3)
-            .animation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28), value: period)
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -547,6 +559,20 @@ struct GhafStatsView: View {
                 }
             }
             .frame(height: 200)
+            .mask(alignment: .leading) {
+                if reduceMotion {
+                    Rectangle()
+                } else {
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            Rectangle().frame(width: geometry.size.width * chartDrawProgress)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                    }
+                }
+            }
+            .opacity(chartDrawProgress)
             .padding(.top, 14)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityLabel(ar ? "اتجاه المصروف، اسحب لقراءة كل نقطة" : "Spending trend; drag to read each point")
@@ -575,8 +601,7 @@ struct GhafStatsView: View {
                 selectedLabel = nil
                 selectedCategory = nil
                 guard chartReady else { return }
-                chartDrawProgress = 0
-                withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28)) { chartDrawProgress = 1 }
+                animateTrendChartIn()
             }
         }
         .frame(maxWidth: .infinity)
