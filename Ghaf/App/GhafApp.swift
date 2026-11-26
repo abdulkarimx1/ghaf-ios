@@ -51,12 +51,11 @@ struct GhafApp: App {
             GhafRootView()
                 .modifier(GhafTiltLifecycle())
                 .onAppear { DispatchQueue.main.async { GhafKeyboardDismisser.shared.install() } }
-                // Widgets and Live Activities show purchase details, so they follow the hide toggle at once.
+                // Widgets and Live Activities show purchase details, so they follow the hide toggle (owner 2026-11-26: ~0.8 s later is fine).
                 .onChange(of: hideBalances) { _, hidden in
-                    // Let the eye and in-app amounts paint in the tap's frame before doing
-                    // SwiftData snapshot work and asking WidgetKit to reload its timelines.
                     Task { @MainActor in
-                        await Task.yield()
+                        // SwiftData snapshot work blocks the main thread; run it after the ~0.7 s amount roll so the roll stays smooth.
+                        try? await Task.sleep(for: .seconds(0.8))
                         GhafWidgetSync.refresh(context: modelContainer.mainContext)
                         if hidden { await GhafWidgetSync.endAll() }
                     }

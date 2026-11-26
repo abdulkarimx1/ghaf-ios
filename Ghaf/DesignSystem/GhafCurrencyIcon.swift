@@ -180,11 +180,11 @@ private struct GhafMoneyGlyph: View {
         var still = Transaction(); still.disablesAnimations = true
         withTransaction(still) { if !spinning { shownHidden = old }; spinning = true }
         DispatchQueue.main.async {
-            withAnimation(GhafMoneyLabel.hideAnimation(false)) { shownHidden = new }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            guard token == spinToken else { return }
-            withTransaction(still) { spinning = false; shownHidden = nil; restHidden = new }
+            // End on the animation's own completion: a fixed timer fired mid-roll when the main thread was busy, snapping the digits.
+            withAnimation(GhafMoneyLabel.hideAnimation(false)) { shownHidden = new } completion: {
+                guard token == spinToken else { return }
+                withTransaction(still) { spinning = false; shownHidden = nil; restHidden = new }
+            }
         }
     }
 
