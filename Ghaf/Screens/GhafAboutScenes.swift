@@ -279,7 +279,8 @@ struct GhafAboutLogScene: View {
     }
 
     private var island: some View {
-        ZStack {
+        // Owner #41: content sits below the hardware island's band (like a real expanded Live Activity), so the cutout never crops it.
+        ZStack(alignment: .bottom) {
             Color.black
             HStack(spacing: 12) {
                 Image(systemName: "cart.fill").resizable().scaledToFit().frame(width: 20, height: 20).foregroundStyle(Color.black)
@@ -294,9 +295,9 @@ struct GhafAboutLogScene: View {
                     .frame(width: 24, height: 24).background(env.theme.inkCredit, in: Circle())
                     .scaleEffect(done ? 1 : 0.6).opacity(done ? 1 : 0)
             }
-            .foregroundStyle(Color.white).padding(.horizontal, 20).opacity(islandOpen ? 1 : 0)
+            .foregroundStyle(Color.white).padding(.horizontal, 20).padding(.bottom, 16).opacity(islandOpen ? 1 : 0)
         }
-        .frame(width: islandOpen ? min(360, env.size.width * 0.92) : 124, height: islandOpen ? 96 : 36)
+        .frame(width: islandOpen ? min(360, env.size.width * 0.92) : 124, height: islandOpen ? 112 : 36)
         .clipShape(RoundedRectangle(cornerRadius: islandOpen ? 40 : 20, style: .continuous))
     }
 

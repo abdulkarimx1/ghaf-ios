@@ -49,3 +49,34 @@ extension View {
         modifier(GhafBottomCard(theme: theme, languageCode: languageCode))
     }
 }
+
+/// Owner #42/#50: pages that carry their own NavigationStack (Transactions, Statistics) get no system back button
+/// when pushed from Profile or About, so the pushing screen adds this one. `dismiss` here pops the pushed page.
+private struct GhafPushedBack: ViewModifier {
+    let theme: GhafTheme
+    let languageCode: String
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content
+            .navigationBarBackButtonHidden()
+            .overlay(alignment: .topLeading) {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.backward")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .buttonStyle(.ghafPress)
+                .padding(.leading, 16).padding(.top, 2)
+                .accessibilityLabel(languageCode == "ar" ? "رجوع" : "Back")
+            }
+    }
+}
+
+extension View {
+    func ghafPushedBack(theme: GhafTheme, languageCode: String) -> some View {
+        modifier(GhafPushedBack(theme: theme, languageCode: languageCode))
+    }
+}

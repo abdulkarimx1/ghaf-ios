@@ -75,7 +75,7 @@ struct GhafAboutView: View {
                 theme.ink
                 scenes(env)
                 overlay(bottomInset: bottom)
-                Button { dismiss() } label: {
+                Button { router.fullScreenPage = false; dismiss() } label: {
                     Image(systemName: "chevron.backward").resizable().scaledToFit().frame(width: 12, height: 20)
                         .foregroundStyle(theme.inkText).frame(width: 44, height: 44).background(Color.white.opacity(0.14), in: Circle())
                 }
@@ -94,6 +94,8 @@ struct GhafAboutView: View {
         .modifier(GhafHideTabBar())
         .onAppear { router.fullScreenPage = true }
         .onDisappear { router.fullScreenPage = false }
+        // Leave dark mode before a linked page slides in, so it doesn't flash dark first.
+        .onChange(of: destination) { _, value in if value != nil { router.fullScreenPage = false } }
         .environment(\.locale, Locale(identifier: lang))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .sensoryFeedback(.selection, trigger: active)
@@ -107,7 +109,7 @@ struct GhafAboutView: View {
             case .privacy: GhafPrivacyPolicyView(settings: settings)
             case .automation: GhafAutomationGuideView(settings: settings)
             case .learned: GhafLearnedRulesView(settings: settings)
-            case .stats: GhafStatsView(settings: settings)
+            case .stats: GhafStatsView(settings: settings).ghafPushedBack(theme: theme, languageCode: lang)
             case .whyPaid: GhafWhyPaidPage(settings: settings)
             case .terms: GhafTermsView(settings: settings)
             }

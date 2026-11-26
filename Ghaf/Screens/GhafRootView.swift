@@ -790,7 +790,8 @@ struct GhafTabView: View {
         }
         .sensoryFeedback(.success, trigger: streakHapticToken)
         .preferredColorScheme(
-            settings.appearanceMode == "Dark" || router.selectedTab == 1 ? .dark :
+            // router.fullScreenPage: About is always dark, so the status bar icons must be light there (owner #41).
+            settings.appearanceMode == "Dark" || router.selectedTab == 1 || router.fullScreenPage ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
     }

@@ -731,7 +731,7 @@ struct GhafSettingsView: View {
 
             HStack(spacing: 8) {
                 profileMetric(value: "\(streak)", title: ar ? "أيام متتالية" : "Logging streak")
-                NavigationLink { GhafTransactionsView(settings: settings) } label: {
+                NavigationLink { GhafTransactionsView(settings: settings).ghafPushedBack(theme: theme, languageCode: languageCode) } label: {
                     profileMetric(value: "\(transactions.count)", title: ar ? "العمليات" : "Transactions")
                 }.buttonStyle(.plain)
                 NavigationLink { GhafAccountsView(settings: settings) } label: {
