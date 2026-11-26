@@ -408,7 +408,8 @@ final class GhafTabRouter {
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?
     var isSaveSplashPresented = false
-    /// True while iOS 26 shows the shrunken tab bar (no centre tab, so the orb hides). No public API: inferred from scroll direction.
+    /// Scroll-derived mirror of iOS 26's native bar state for the separately overlaid AI orb.
+    /// SwiftUI exposes the minimize behavior but no public readback of the bar's actual state.
     var isTabBarMinimized = false
 }
 
@@ -437,15 +438,18 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content
-                // x = offset from the top, y = scrollable distance. Observed on iOS 26.2: iOS leaves the bar full
-                // unless the content scrolls further than about one screen, so short screens never report minimized.
                 .onScrollGeometryChange(for: CGPoint.self) {
                     CGPoint(x: $0.contentOffset.y + $0.contentInsets.top,
                             y: $0.contentSize.height - $0.containerSize.height)
                 } action: { old, new in
+                    // The native bar minimizes after downward scrolling starts and restores on upward scroll.
+                    // Track the same direction/threshold; short content cannot trigger native minimization.
                     let delta = new.x - old.x
-                    if new.x <= 20 || delta < -8 || new.y < UIScreen.main.bounds.height { if router.isTabBarMinimized { router.isTabBarMinimized = false } }
-                    else if delta > 8 { if !router.isTabBarMinimized { router.isTabBarMinimized = true } }
+                    if new.x <= 20 || delta <= -8 || new.y < UIScreen.main.bounds.height {
+                        if router.isTabBarMinimized { router.isTabBarMinimized = false }
+                    } else if delta > 8, !router.isTabBarMinimized {
+                        router.isTabBarMinimized = true
+                    }
                 }
                 .onChange(of: router.selectedTab) { _, _ in router.isTabBarMinimized = false }
         } else {
@@ -531,7 +535,7 @@ struct GhafTabView: View {
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 3) }
 #endif
     }
-    private var aiTab: some View { GhafAIView(settings: settings) }
+    private var aiTab: some View { GhafAIView(settings: settings).ghafReportsTabBarMinimize() }
     private var statsTab: some View {
         GhafStatsView(settings: settings)
 #if DEBUG
