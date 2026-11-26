@@ -391,7 +391,11 @@ private struct GhafFixtureTransactionDetailView: View {
 
 @Observable
 final class GhafTabRouter {
-    var selectedTab = 0
+    var selectedTab = 0 {
+        didSet { if oldValue != 1 { tabBeforeAI = oldValue } }
+    }
+    /// Ghaf AI hides the tab bar; its back button returns here.
+    var tabBeforeAI = 0
     /// Bumped after ledger edits so cached tab summaries refresh only when their inputs change.
     var ledgerRevision = 0
     /// Bumped when Home is tapped while already open; Home cycles Daily, Weekly, Monthly.
@@ -687,8 +691,8 @@ struct GhafTabView: View {
             }
             // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            .opacity(router.fullScreenPage ? 0 : 1)
-            .allowsHitTesting(!router.fullScreenPage)
+            .opacity(router.fullScreenPage || router.selectedTab == 1 ? 0 : 1)
+            .allowsHitTesting(!router.fullScreenPage && router.selectedTab != 1)
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
         .tint(theme.accent)
@@ -798,7 +802,7 @@ struct GhafTabView: View {
         .sensoryFeedback(.success, trigger: streakHapticToken)
         .preferredColorScheme(
             // router.fullScreenPage: About is always dark, so the status bar icons must be light there (owner #41).
-            settings.appearanceMode == "Dark" || router.selectedTab == 1 || router.fullScreenPage ? .dark :
+            settings.appearanceMode == "Dark" || router.fullScreenPage ? .dark :
                 settings.appearanceMode == "Light" ? .light : nil
         )
     }

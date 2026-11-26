@@ -166,6 +166,7 @@ struct GhafAIView: View {
                 .allowsHitTesting(false)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .modifier(GhafHideTabBar(forceDark: false))
             .environment(\.colorScheme, theme.isDark ? .dark : .light) // owner 1.31: AI follows the theme
             .sensoryFeedback(.success, trigger: savedCount)
             .sensoryFeedback(.impact(weight: .medium), trigger: recorder.isRecording)
@@ -421,9 +422,12 @@ struct GhafAIView: View {
     private var header: some View {
         VStack(spacing: 6) {
             HStack {
-                optionsMenu
+                // Owner 1.31: Ghaf AI is full screen (no tab bar); back returns to the tab it was opened from.
+                Button { tabRouter.selectedTab = tabRouter.tabBeforeAI } label: { glassCircle("chevron.backward") }
+                    .accessibilityLabel(ar ? "رجوع" : "Back")
+                    .accessibilityIdentifier("ghaf.ai.back")
                 Spacer()
-                Color.clear.frame(width: 44, height: 44)
+                optionsMenu
             }
             .overlay {
                 Text("Ghaf AI")

@@ -95,7 +95,7 @@ struct GhafAboutView: View {
         .background(theme.ink.ignoresSafeArea())
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
-        .modifier(GhafHideTabBar())
+        .modifier(GhafHideTabBar(forceDark: true))
         .onAppear { router.fullScreenPage = true }
         .onDisappear { router.fullScreenPage = false }
         // Leave dark mode before a linked page slides in, so it doesn't flash dark first.
@@ -368,15 +368,18 @@ private struct GhafWhyPaidPage: View {
 
 /// Full-screen pages hide the tab bar and show a light status bar. The SwiftUI modifiers do not reach the
 /// app's root TabView and colour scheme here, so this reaches the UIKit objects directly and restores them on exit.
-private struct GhafHideTabBar: ViewModifier {
-    func body(content: Content) -> some View { content.background(Hider().frame(width: 0, height: 0)) }
+struct GhafHideTabBar: ViewModifier {
+    let forceDark: Bool
+    func body(content: Content) -> some View { content.background(Hider(forceDark: forceDark).frame(width: 0, height: 0)) }
 
     private struct Hider: UIViewControllerRepresentable {
-        func makeUIViewController(context: Context) -> Controller { Controller() }
+        let forceDark: Bool
+        func makeUIViewController(context: Context) -> Controller { let c = Controller(); c.forceDark = forceDark; return c }
         func updateUIViewController(_ controller: Controller, context: Context) {}
     }
 
     private final class Controller: UIViewController {
+        var forceDark = true
         private var savedStyle: UIUserInterfaceStyle = .unspecified
         private var tabBar: UITabBar? {
             func find(_ vc: UIViewController?) -> UITabBarController? {
@@ -389,14 +392,16 @@ private struct GhafHideTabBar: ViewModifier {
         }
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
-            savedStyle = view.window?.overrideUserInterfaceStyle ?? .unspecified
-            view.window?.overrideUserInterfaceStyle = .dark
+            if forceDark {
+                savedStyle = view.window?.overrideUserInterfaceStyle ?? .unspecified
+                view.window?.overrideUserInterfaceStyle = .dark
+            }
             UIView.animate(withDuration: 0.2) { self.tabBar?.alpha = 0 }
             tabBar?.isHidden = true
         }
         override func viewWillDisappear(_ animated: Bool) {
             super.viewWillDisappear(animated)
-            view.window?.overrideUserInterfaceStyle = savedStyle
+            if forceDark { view.window?.overrideUserInterfaceStyle = savedStyle }
             tabBar?.isHidden = false
             UIView.animate(withDuration: 0.2) { self.tabBar?.alpha = 1 }
         }
