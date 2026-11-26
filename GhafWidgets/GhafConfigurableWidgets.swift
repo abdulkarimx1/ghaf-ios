@@ -266,7 +266,11 @@ struct GhafRecentWidget: Widget {
     static let kind = "GhafRecent"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafRecentConfig.self, provider: GhafConfigProvider<GhafRecentConfig>(kind: Self.kind)) { entry in
-            GhafRecentView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+            GhafRecentView(entry: entry).ghafTap(GhafRecentWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+                .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafRecentView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic), config: entry.config))
+                })
         }
         .configurationDisplayName("Latest transaction")
         .description("The last purchase or deposit Ghaf recorded, from a bank message, a shortcut or by hand.")
@@ -447,7 +451,11 @@ struct GhafBudgetWidget: Widget {
     static let kind = "GhafBudget"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBudgetConfig.self, provider: GhafConfigProvider<GhafBudgetConfig>(kind: Self.kind)) { entry in
-            GhafBudgetWidgetView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+            GhafBudgetWidgetView(entry: entry).ghafTap(GhafBudgetWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+                .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafBudgetWidgetView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic), config: entry.config))
+                })
         }
         .configurationDisplayName("Budget")
         .description("How much of your budget is left, from your Budget settings in Ghaf.")
@@ -557,7 +565,11 @@ struct GhafCategoriesWidget: Widget {
     static let kind = "GhafCategories"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafCategoriesConfig.self, provider: GhafConfigProvider<GhafCategoriesConfig>(kind: Self.kind)) { entry in
-            GhafCategoriesView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design).containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+            GhafCategoriesView(entry: entry).ghafTap(GhafCategoriesWidget.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+                .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.config.glass) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafCategoriesView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic), config: entry.config))
+                })
         }
         .configurationDisplayName("Where it went")
         .description("Your top spending categories. Tap Day, Week or Month to switch.")
@@ -581,10 +593,34 @@ struct GhafCategoriesView: View {
         let large = family == .systemLarge
 
         return AnyView(VStack(alignment: .leading, spacing: large ? 12 : 7) {
-            HStack(alignment: .firstTextBaseline) {
-                Caption(value: text(s, "Where it went · ", "أين ذهبت · ") + periodName(selected, s)).foregroundStyle(tile.dim)
-                Spacer(minLength: 4)
-                if let p { Text("\(s.currency) \(s.whole(p.spent))").font(ghafNumberFont(12, weight: .bold)).privacySensitive() }
+            if family == .systemSmall {
+                HStack(alignment: .center, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Caption(value: text(s, "Spending", "المصروف")).foregroundStyle(tile.dim)
+                        Text(periodName(selected, s)).font(.system(size: 8, weight: .medium)).foregroundStyle(tile.dim)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 2)
+                    if let p {
+                        Text("\(s.currency) \(s.whole(p.spent))")
+                            .font(ghafNumberFont(12, weight: .bold))
+                            .lineLimit(1).minimumScaleFactor(0.5)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .privacySensitive()
+                    }
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Caption(value: text(s, "Where it went · ", "أين ذهبت · ") + periodName(selected, s)).foregroundStyle(tile.dim)
+                    Spacer(minLength: 4)
+                    if let p {
+                        Text("\(s.currency) \(s.whole(p.spent))")
+                            .font(ghafNumberFont(12, weight: .bold))
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .privacySensitive()
+                    }
+                }
             }
             if rows.isEmpty {
                 Spacer(minLength: 0)

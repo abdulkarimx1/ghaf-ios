@@ -43,37 +43,118 @@ extension EnvironmentValues {
     }
 }
 
-struct GhafWidgetProLock: ViewModifier {
+struct GhafWidgetProLock<Peek: View>: ViewModifier {
     let required: Bool
+    let isArabic: Bool?
+    @ViewBuilder let peek: () -> Peek
     @Environment(\.ghafWidgetPreview) private var preview
+
+    init(required: Bool, isArabic: Bool? = nil, @ViewBuilder peek: @escaping () -> Peek) {
+        self.required = required
+        self.isArabic = isArabic
+        self.peek = peek
+    }
+
     func body(content: Content) -> some View {
         if required && !preview && !GhafWidgetProAccess.unlocked {
-            content.blur(radius: 8).overlay {
+            ZStack {
+                peek()
+                    .blur(radius: 12)
+                    .opacity(0.3)
+                    .accessibilityHidden(true)
+                GhafWidgetProMask(isArabic: isArabic)
+                    .environment(\.layoutDirection, isArabic == true ? .rightToLeft : .leftToRight)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .containerBackground(for: .widget) { GhafWidgetProSurface() }
+            .overlay {
                 Link(destination: URL(string: "ghaf://pro")!) {
-                    GhafWidgetProMask()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Color.clear.contentShape(ContainerRelativeShape())
                 }
+                .accessibilityLabel(isArabic == true ? "افتح غاف برو" : "Unlock Ghaf Pro")
             }
         } else { content }
     }
 }
 
-/// Shared, legible lock treatment used by the in-app gallery and Home Screen widgets.
-struct GhafWidgetProMask: View {
-    @Environment(\.locale) private var locale
-    private var isArabic: Bool { locale.language.languageCode?.identifier == "ar" }
+private struct GhafWidgetProSurface: View {
+    @Environment(\.colorScheme) private var colorScheme
+    private var dark: Bool { colorScheme == .dark }
+    private var surface: Color { dark ? ink : paper }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "lock.fill").font(.system(size: 20, weight: .semibold))
-            Text("Ghaf Pro").font(.system(size: 18, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.8)
-            Text(isArabic ? "افتحها من التطبيق" : "Unlock in the app")
-                .font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
+        GeometryReader { geometry in
+            let radius = hypot(geometry.size.width, geometry.size.height) * 0.7
+            ZStack {
+                ContainerRelativeShape().fill(surface)
+                RadialGradient(colors: [
+                    (dark ? Color.white : Color.gray).opacity(0.08),
+                    .clear
+                ], center: .topLeading, startRadius: 0, endRadius: radius)
+                ContainerRelativeShape()
+                    .strokeBorder((dark ? Color.white : Color.black).opacity(dark ? 0.10 : 0.06), lineWidth: 0.5)
+            }
+            .clipShape(ContainerRelativeShape())
         }
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial)
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.16), lineWidth: 1))
+    }
+}
+
+/// Shared, legible lock treatment used on every Pro-gated widget.
+struct GhafWidgetProMask: View {
+    @Environment(\.locale) private var locale
+    @Environment(\.widgetFamily) private var family
+    @Environment(\.colorScheme) private var colorScheme
+    let isArabic: Bool?
+    private var arabic: Bool { isArabic ?? (locale.language.languageCode?.identifier == "ar") }
+
+    private var badge: some View {
+        Image(systemName: "lock.fill")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.primary)
+            .frame(width: 36, height: 36)
+            .background(.primary.opacity(colorScheme == .dark ? 0.12 : 0.06), in: Circle())
+            .overlay(Circle().strokeBorder(.primary.opacity(colorScheme == .dark ? 0.10 : 0.06), lineWidth: 0.5))
+            .widgetAccentable()
+    }
+
+    private var labels: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Ghaf Pro")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .widgetAccentable()
+            Text(arabic ? "افتحها من التطبيق" : "Unlock in the app")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+        .fontDesign(.default)
+    }
+
+    var body: some View {
+        Group {
+            if family == .systemMedium {
+                HStack(spacing: 12) {
+                    badge
+                    labels
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                VStack(spacing: 8) {
+                    badge
+                    labels
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+        }
+        .foregroundStyle(.primary)
+        .fontDesign(.default)
+        .padding(.horizontal, family == .systemMedium ? 16 : 8)
+        .environment(\.layoutDirection, arabic ? .rightToLeft : .leftToRight)
         .contentShape(Rectangle())
     }
 }
@@ -136,6 +217,13 @@ extension GhafWidgetSnapshot {
                       .init(name: "iCloud+", amount: 10.99, currency: "AED", date: now.addingTimeInterval(5 * 86_400), symbol: "icloud.fill")]
         return s
     }
+
+    static func proPreview(arabic: Bool?) -> GhafWidgetSnapshot {
+        var sample = Self.sample
+        sample.arabic = arabic ?? (Locale.current.language.languageCode?.identifier == "ar")
+        sample.hidden = false
+        return sample
+    }
 }
 
 // Near-black tiles lit by the user's city theme (sent by the app); sand-gold until the app has written one.
@@ -184,8 +272,14 @@ func text(_ snapshot: GhafWidgetSnapshot?, _ en: String, _ ar: String) -> String
 /// Small caps caption used on every tile.
 struct Caption: View {
     let value: String
+    private var isArabic: Bool {
+        value.unicodeScalars.contains { (0x0600...0x06FF).contains(Int($0.value)) || (0x0750...0x077F).contains(Int($0.value)) }
+    }
     var body: some View {
-        Text(value.uppercased()).font(.system(size: 10, weight: .bold)).tracking(0.6).lineLimit(1)
+        Text(isArabic ? value : value.uppercased())
+            .font(.system(size: 10, weight: .bold))
+            .tracking(isArabic ? 0 : 0.6)
+            .lineLimit(1)
     }
 }
 
@@ -308,8 +402,11 @@ struct GhafTodayWidget: Widget {
     static let kind = "GhafToday"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>(kind: Self.kind)) { entry in
-            GhafTodayView(entry: entry).modifier(GhafWidgetProLock(required: true)).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+            GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
                 .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.snapshot?.glass ?? false) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafTodayView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic), config: entry.config))
+                })
         }
         .configurationDisplayName("Today")
         .description("What you spent today, by category.")

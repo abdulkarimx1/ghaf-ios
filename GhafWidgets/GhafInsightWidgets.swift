@@ -12,9 +12,12 @@ private func insightBackground(_ entry: GhafEntry) -> some View {
 struct GhafStreakWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafStreak", provider: GhafProvider()) { entry in
-            GhafStreakView(entry: entry).modifier(GhafWidgetProLock(required: true))
+            GhafStreakView(entry: entry)
                 .widgetURL(URL(string: "ghaf://home"))
                 .containerBackground(for: .widget) { insightBackground(entry) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafStreakView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic)))
+                })
         }
         .configurationDisplayName("Streak")
         .description("Your logging streak and the last 7 days.")
@@ -92,9 +95,12 @@ struct GhafStreakView: View {
 struct GhafTopPlacesWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafTopPlaces", provider: GhafProvider()) { entry in
-            GhafTopPlacesView(entry: entry).modifier(GhafWidgetProLock(required: true))
+            GhafTopPlacesView(entry: entry)
                 .widgetURL(URL(string: "ghaf://transactions"))
                 .containerBackground(for: .widget) { insightBackground(entry) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafTopPlacesView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic)))
+                })
         }
         .configurationDisplayName("Top places")
         .description("The areas you spent the most in this month.")
@@ -149,9 +155,12 @@ struct GhafTopPlacesView: View {
 struct GhafBudgetPetalsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafBudgetPetals", provider: GhafProvider()) { entry in
-            GhafBudgetPetalsView(entry: entry).modifier(GhafWidgetProLock(required: true))
+            GhafBudgetPetalsView(entry: entry)
                 .widgetURL(URL(string: "ghaf://insights"))
                 .containerBackground(for: .widget) { insightBackground(entry) }
+                .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
+                    GhafBudgetPetalsView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic)))
+                })
         }
         .configurationDisplayName("Budget petals")
         .description("Category budgets as petals, filled by what you spent.")
