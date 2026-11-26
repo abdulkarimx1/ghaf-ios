@@ -243,7 +243,7 @@ private struct GhafWalletCarousel: View {
                     let projected = start - value.predictedEndTranslation.width * direction / step
                     let flick = (value.predictedEndTranslation.width - value.translation.width) * direction / step
                     let target = abs(flick) > 0.65
-                        ? start.rounded() + (flick < 0 ? 1 : -1)
+                        ? (flick < 0 ? floor(pagePosition) + 1 : ceil(pagePosition) - 1)
                         : projected.rounded()
                     let boundedTarget = min(max(target, 0), CGFloat(accounts.count - 1))
                     // Change the selected account while the drag guard is still active. Otherwise
