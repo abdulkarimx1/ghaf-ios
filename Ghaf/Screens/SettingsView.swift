@@ -52,6 +52,7 @@ struct GhafSettingsView: View {
     @AppStorage("ghaf.glass.grain") private var glassGrain = true
     @AppStorage("ghaf.glass.glow") private var glassGlow = true
     @AppStorage("ghaf.glass.tilt") private var glassTilt = true
+    @AppStorage("ghaf.glass.rim") private var glassRim = "thick"
     @AppStorage("ghaf.inAppSounds") private var inAppSounds = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
@@ -1151,6 +1152,12 @@ HStack(spacing: 8) {
                 glassDivider
                 Toggle(ar ? "يتحرك مع ميل الجهاز" : "Move with tilt", isOn: $glassTilt)
                     .frame(minHeight: 56)
+                glassDivider
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(ar ? "سماكة الحافة" : "Edge").foregroundStyle(theme.primaryText)
+                    GhafSegmented(options: [("thin", ar ? "رفيعة" : "Thin"), ("medium", ar ? "متوسطة" : "Medium"), ("thick", ar ? "سميكة" : "Thick")], selection: $glassRim, theme: theme, languageCode: languageCode)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.frame(maxWidth: .infinity).padding(.vertical, 10)
             }
             }
             .padding(16)

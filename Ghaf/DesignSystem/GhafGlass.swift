@@ -14,6 +14,9 @@ struct GhafGlassStyle: Equatable {
     var grain = true
     var ambientGlow = true
     var tilt = true
+    /// Owner #58: thickness of the tilt-lit rim, chosen in Customization (thin / medium / thick).
+    var rimWidth: CGFloat = 2.5
+    static func rimWidth(_ key: String) -> CGFloat { key == "thin" ? 1 : key == "medium" ? 1.75 : 2.5 }
     static let off = GhafGlassStyle(enabled: false, intensity: .balanced, grain: false, ambientGlow: false, tilt: false)
 }
 
@@ -180,7 +183,7 @@ struct GhafGlassSurface: ViewModifier {
                     }
                     if glass.grain { Image(uiImage: GhafGlassGrain.image).resizable(resizingMode: .tile).opacity(theme.isDark ? 0.05 : 0.035).blendMode(.overlay).allowsHitTesting(false).clipShape(shape) }
                 }
-                .overlay { GhafGlassRim(theme: theme, shape: shape) }
+                .overlay { GhafGlassRim(theme: theme, shape: shape, width: glass.rimWidth) }
             } else {
                 shape.fill(fallback ?? theme.surface).shadow(color: theme.shadow, radius: 14, x: 0, y: 6)
                     .overlay { if theme.isDark { shape.stroke(theme.outline, lineWidth: 1) } }
@@ -192,6 +195,7 @@ struct GhafGlassSurface: ViewModifier {
 private struct GhafGlassRim: View {
     let theme: GhafTheme
     let shape: RoundedRectangle
+    let width: CGFloat
     private var motion: GhafTiltMotion { .shared }
     var body: some View {
         let tilt = motion.tilt
@@ -204,8 +208,8 @@ private struct GhafGlassRim: View {
         let gradient = LinearGradient(colors: [light.opacity(0.22), light.opacity(0.10),
                                                light.opacity(0.025), light.opacity(0.07)],
                                       startPoint: start, endPoint: end)
-        shape.strokeBorder(gradient, lineWidth: 2.5)
-            .blur(radius: 1.2)
+        shape.strokeBorder(gradient, lineWidth: width)
+            .blur(radius: width * 0.48)
             .clipShape(shape)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -227,6 +231,7 @@ struct GhafTiltLifecycle: ViewModifier {
     @AppStorage("ghaf.glass.grain") private var grain = true
     @AppStorage("ghaf.glass.glow") private var glow = true
     @AppStorage("ghaf.glass.tilt") private var tilt = true
+    @AppStorage("ghaf.glass.rim") private var rim = "thick"
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -243,5 +248,6 @@ struct GhafTiltLifecycle: ViewModifier {
             .onChange(of: reduceTransparency) { _, _ in refresh() }
     }
     private func refresh() { GhafTiltMotion.shared.update(enabled: enabled && tilt && scenePhase == .active && !reduceMotion && !reduceTransparency) }
-    private var style: GhafGlassStyle { GhafGlassStyle(enabled: enabled && !reduceTransparency, intensity: .init(rawValue: intensity) ?? .balanced, grain: grain, ambientGlow: glow, tilt: tilt && !reduceMotion && !reduceTransparency) }
+    private var style: GhafGlassStyle { GhafGlassStyle(enabled: enabled && !reduceTransparency, intensity: .init(rawValue: intensity) ?? .balanced, grain: grain, ambientGlow: glow, tilt: tilt && !reduceMotion && !reduceTransparency,
+                                                rimWidth: GhafGlassStyle.rimWidth(rim)) }
 }
