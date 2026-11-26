@@ -67,6 +67,8 @@ struct GhafWidgetProLock<Peek: View>: ViewModifier {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(for: .widget) { GhafWidgetProSurface() }
+            // Small widgets ignore Link; the whole tile opens Pro.
+            .widgetURL(URL(string: "ghaf://pro"))
             .overlay {
                 Link(destination: URL(string: "ghaf://pro")!) {
                     Color.clear.contentShape(ContainerRelativeShape())

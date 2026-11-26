@@ -597,7 +597,7 @@ struct GhafCategoriesView: View {
                 HStack(alignment: .center, spacing: 4) {
                     VStack(alignment: .leading, spacing: 1) {
                         Caption(value: text(s, "Spending", "المصروف")).foregroundStyle(tile.dim)
-                        Text(periodName(selected, s)).font(.system(size: 8, weight: .medium)).foregroundStyle(tile.dim)
+                        Text(periodName(selected, s)).font(.system(size: 10, weight: .medium)).foregroundStyle(tile.dim)
                             .lineLimit(1).minimumScaleFactor(0.8)
                     }
                     Spacer(minLength: 2)
