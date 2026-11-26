@@ -40,7 +40,7 @@ test('user speech uses approved Gemini TTS voice and style, then caches under gt
   assert.equal(calls[0][1].contents[0].parts[0].text,
     'Read this in a calm, relaxed, low-key voice with a natural Emirati Gulf accent. Measured pace, gentle and composed, not cheerful, not excited, no smile in the voice:\n\nمرحبا');
   assert.equal(calls[0][1].generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Kore');
-  const cacheKey = await hash(`gemini-tts-v1\ngemini-3.1-flash-tts-preview\nKore\nRead this in a calm, relaxed, low-key voice with a natural Emirati Gulf accent. Measured pace, gentle and composed, not cheerful, not excited, no smile in the voice:\nمرحبا`);
+  const cacheKey = await hash(`gemini-tts-v2\ngemini-3.1-flash-tts-preview\nKore\nRead this in a calm, relaxed, low-key voice with a natural Emirati Gulf accent. Measured pace, gentle and composed, not cheerful, not excited, no smile in the voice:\nمرحبا`);
   assert.ok(values.has(cacheKey));
   assert.equal(values.get(allowanceKey), String(text.length));
   const cached = await speak(env, text);
@@ -48,17 +48,17 @@ test('user speech uses approved Gemini TTS voice and style, then caches under gt
   assert.equal(calls.length, 1);
 });
 
-test('English Hamad uses approved EN style and Orus without changing the text', async t => {
+test('English Hamad says his name as حمد with the approved EN style and Orus', async t => {
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     calls.push(JSON.parse(init.body));
     return Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }] });
   });
   const { env } = setup();
-  const response = await speak(env, "Hi, I'm Hahmad, your financial voice assistant.", 'Hamad', 'en');
+  const response = await speak(env, "Hi, I'm Hamad, your financial voice assistant.", 'Hamad', 'en');
   assert.equal(response.status, 200);
   assert.equal(calls[0].contents[0].parts[0].text,
-    "Read this in a calm, relaxed, low-key voice. Measured pace, soft and composed, not cheerful, not excited:\nPronounce “Hamad” as “HAH-mad,” with a clear Arabic H and stress on the first syllable, matching حمد.\n\nHi, I'm Hahmad, your financial voice assistant.");
+    "Read this in a calm, relaxed, low-key voice. Measured pace, soft and composed, not cheerful, not excited:\n\nHi, I'm حمد, your financial voice assistant.");
   assert.equal(calls[0].generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Orus');
 });
 

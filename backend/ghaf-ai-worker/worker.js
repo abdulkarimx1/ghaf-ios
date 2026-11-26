@@ -425,13 +425,13 @@ async function speak(body, env, developer, device, usage) {
   if (developer && body.studio === "eleven-api") return elevenAPI(String(body.path || ""), body.payload, env);
   if (developer && body.studio === "eleven-music") return elevenMusic(text, Number(body.seconds) || 30, body.kind === "sfx", env);
 
-  const style = arabic ? SAMPLE_STYLE_AR : character === "Hamad"
-    ? SAMPLE_STYLE_EN + "\nPronounce “Hamad” as “HAH-mad,” with a clear Arabic H and stress on the first syllable, matching حمد."
-    : SAMPLE_STYLE_EN;
+  const style = arabic ? SAMPLE_STYLE_AR : SAMPLE_STYLE_EN;
+  // Owner 2026-11-26: in English, Hamad says his name exactly as in Arabic, so the speech uses «حمد» itself.
+  const spoken = !arabic && character === "Hamad" ? text.replace(/\bHamad\b/g, "حمد") : text;
   const model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview";
   if (!env.GEMINI_API_KEY) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
   const cacheDigest = await crypto.subtle.digest("SHA-256",
-    new TextEncoder().encode("gemini-tts-v1\n" + model + "\n" + voice + "\n" + style + "\n" + text));
+    new TextEncoder().encode("gemini-tts-v2\n" + model + "\n" + voice + "\n" + style + "\n" + spoken));
   const cacheKey = "gtts:" + Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("");
   const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
   if (cached) {
@@ -459,7 +459,7 @@ async function speak(body, env, developer, device, usage) {
   try {
     upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
       method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({ contents: [{ parts: [{ text: style + "\n\n" + text }] }],
+      body: JSON.stringify({ contents: [{ parts: [{ text: style + "\n\n" + spoken }] }],
         generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } })
     });
   } catch {
