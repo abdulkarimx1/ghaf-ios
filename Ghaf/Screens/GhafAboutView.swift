@@ -74,7 +74,6 @@ struct GhafAboutView: View {
             ZStack {
                 theme.ink
                 scenes(env)
-                scrim
                 overlay(bottomInset: bottom)
                 Button { dismiss() } label: {
                     Image(systemName: "chevron.backward").resizable().scaledToFit().frame(width: 12, height: 20)
@@ -145,16 +144,6 @@ struct GhafAboutView: View {
         }
     }
 
-    private var scrim: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: Color.black.opacity(0.7), location: 0.3),
-                                   .init(color: Color.black.opacity(0.96), location: 0.54)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 440)
-        }
-        .allowsHitTesting(false)
-    }
-
     // MARK: Paging
 
     private func go(_ index: Int, manual: Bool = true) {
@@ -206,7 +195,7 @@ struct GhafAboutView: View {
 
     private func overlay(bottomInset: CGFloat) -> some View {
         let page = pages[active]
-        return VStack(spacing: 12) {
+        return VStack(spacing: 14) {
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 6) {
                 Text(page.title).font(GhafTypography.heading(28, languageCode: lang)).foregroundStyle(theme.inkText)
@@ -216,6 +205,7 @@ struct GhafAboutView: View {
             .id(active)
             .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 8)))
             .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .padding(.bottom, 4)
             .accessibilityElement(children: .combine)
             .accessibilityAdjustableAction { direction in
                 go(direction == .increment ? active + 1 : active - 1)
@@ -231,9 +221,10 @@ struct GhafAboutView: View {
                 Text(verbatim: version).font(GhafTypography.number(12, weight: .medium))
                     .foregroundStyle(theme.inkText.opacity(0.5)).environment(\.layoutDirection, .leftToRight)
             }
+            .padding(.bottom, 14) // owner: dots sat too close to the button
             Button { destination = page.destination } label: {
                 Text(page.cta).font(GhafTypography.body(17, languageCode: lang, weight: .semibold)).foregroundStyle(theme.ink)
-                    .frame(maxWidth: .infinity, minHeight: 58).background(theme.inkText, in: Capsule())
+                    .frame(maxWidth: .infinity, minHeight: 54).background(theme.inkText, in: Capsule())
             }
             .id("cta-\(active)")
             .transition(.opacity)
@@ -252,10 +243,11 @@ struct GhafAboutView: View {
                 social(t("Website", "الموقع"), "globe", GhafLinks.website)
             }
             .padding(.horizontal, 6)
+            .padding(.top, 4)
         }
         .animation(reduceMotion ? .easeOut(duration: 0.2) : .easeOut(duration: 0.25), value: active)
         .buttonStyle(.ghafPress)
-        .padding(.horizontal, 22).padding(.bottom, max(bottomInset, 16) + 6)
+        .padding(.horizontal, 24).padding(.bottom, max(bottomInset, 16) + 12)
     }
 
     private var dots: some View {
@@ -291,7 +283,7 @@ struct GhafAboutView: View {
                 Image(systemName: symbol).resizable().scaledToFit().frame(width: 17, height: 17)
                 Text(title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
             }
-            .foregroundStyle(theme.inkText).frame(maxWidth: .infinity, minHeight: 52)
+            .foregroundStyle(theme.inkText).frame(maxWidth: .infinity, minHeight: 48)
             .background(Color.white.opacity(0.12), in: Capsule())
         }
         .disabled(url == GhafLinks.appStore && isPlaceholder(url)).opacity(url == GhafLinks.appStore && isPlaceholder(url) ? 0.4 : 1)

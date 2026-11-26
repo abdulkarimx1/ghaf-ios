@@ -207,7 +207,7 @@ struct GhafAboutPrivateScene: View {
             .padding(.horizontal, 20)
             Spacer(minLength: 0)
         }
-        .padding(.top, env.top + 56)
+        .padding(.top, env.top + 58)
         .frame(width: env.size.width, height: env.size.height)
         .scaleEffect(open ? 1 : 0.94).opacity(open ? 1 : 0)
         .accessibilityHidden(true)
@@ -270,7 +270,7 @@ struct GhafAboutLogScene: View {
                     .clipped()
                 }
             }
-            .padding(.horizontal, 16).padding(.top, env.top + 56)
+            .padding(.horizontal, 16).padding(.top, env.top + 58)
             island.padding(.top, 12)
         }
         .frame(width: env.size.width, height: env.size.height, alignment: .top)
@@ -349,7 +349,7 @@ struct GhafAboutLearnScene: View {
                     .opacity(shown > i ? 1 : 0).offset(y: shown > i ? 0 : -14)
                 }
             }
-            .padding(.horizontal, 16).padding(.top, env.top + 56)
+            .padding(.horizontal, 16).padding(.top, env.top + 58)
         }
         .frame(width: env.size.width, height: env.size.height, alignment: .top)
         .aboutLoop(active: active, reduce: env.reduce, reset: { picked = false; tapping = false; shown = 0 },
@@ -417,7 +417,7 @@ struct GhafAboutForecastScene: View {
                         AboutMoney(currency: "AED", amount: "4,820", size: 14, weight: .bold, color: env.theme.secondaryText, ar: env.ar)
                     }
                     .font(GhafTypography.body(14, languageCode: env.lang, weight: .medium)).foregroundStyle(env.theme.secondaryText).padding(.top, 4)
-                    plot.frame(height: 84).padding(.top, 10)
+                    plot.frame(height: 56).padding(.top, 10)
                     HStack {
                         ForEach(["1–8", "9–16", "17–23", "24–30"], id: \.self) { Text(verbatim: $0).frame(maxWidth: .infinity) }
                     }
@@ -434,7 +434,7 @@ struct GhafAboutForecastScene: View {
                 }
                 .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 14)
             }
-            .padding(.horizontal, 16).padding(.top, env.top + 56)
+            .padding(.horizontal, 16).padding(.top, env.top + 58)
         }
         .frame(width: env.size.width, height: env.size.height, alignment: .top)
         .aboutLoop(active: active, reduce: env.reduce, reset: { draw = 0; extras = 0 }, final: { draw = 1; extras = 1 }, play: play)
