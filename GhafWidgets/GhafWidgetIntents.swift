@@ -31,6 +31,8 @@ enum GhafWidgetFont: String, AppEnum {
     var design: Font.Design {
         switch self { case .standard: .default; case .rounded: .rounded; case .serif: .serif; case .mono: .monospaced }
     }
+    /// Monospaced pulls Arabic letters apart (no joining), so Arabic widgets fall back to the standard design.
+    func design(arabic: Bool?) -> Font.Design { arabic == true && self == .mono ? .default : design }
 }
 
 /// What tapping the widget does: open Ghaf, or flip the widget to its next view (period, display, window) in place.

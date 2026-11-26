@@ -331,7 +331,7 @@ struct GhafBalanceWidget: Widget {
     static let kind = "GhafBalance"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafBalanceConfig.self, provider: GhafConfigProvider<GhafBalanceConfig>(kind: Self.kind)) { entry in
-            GhafBalanceView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+            GhafBalanceView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design(arabic: entry.snapshot?.arabic))
                 .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.snapshot?.glass ?? false) }
         }
         .configurationDisplayName("Balance")
@@ -404,7 +404,7 @@ struct GhafTodayWidget: Widget {
     static let kind = "GhafToday"
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: Self.kind, intent: GhafTodayConfig.self, provider: GhafConfigProvider<GhafTodayConfig>(kind: Self.kind)) { entry in
-            GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design)
+            GhafTodayView(entry: entry).ghafTap(Self.kind, entry.config.onTap).fontDesign(entry.config.font.design(arabic: entry.snapshot?.arabic))
                 .containerBackground(for: .widget) { GhafWidgetBackground(tile: GhafTile(entry.config.style, entry.snapshot), enabled: entry.snapshot?.glass ?? false) }
                 .modifier(GhafWidgetProLock(required: true, isArabic: entry.snapshot?.arabic) {
                     GhafTodayView(entry: .init(date: entry.date, snapshot: .proPreview(arabic: entry.snapshot?.arabic), config: entry.config))
