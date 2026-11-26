@@ -545,6 +545,24 @@ struct GhafStatsView: View {
                             .symbol { Circle().fill(accent).frame(width: 10, height: 10).overlay(Circle().stroke(theme.surface, lineWidth: 2)) }
                     }
                 }
+                if interval.start <= GhafClock.now, GhafClock.now < interval.end,
+                   let todayBucket = plotted.last(where: { $0.start <= GhafClock.now }) {
+                    PointMark(x: .value("Date", chartKey(todayBucket.start)), y: .value(currency, todayBucket.total))
+                        .symbol {
+                            Circle().fill(accent).frame(width: 9, height: 9)
+                                .overlay(Circle().stroke(theme.surface, lineWidth: 2))
+                        }
+                        .annotation(position: .bottom, spacing: 7,
+                                    overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                            Text(ar ? "اليوم" : "Today")
+                                .font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
+                                .foregroundStyle(theme.primaryText)
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(theme.surface, in: Capsule())
+                        }
+                        .accessibilityLabel(ar ? "اليوم" : "Today")
+                        .accessibilityValue(GhafFormat.shownMoney(Decimal(todayBucket.total), currency: currency, languageCode: lang))
+                }
             }
             .environment(\.layoutDirection, .leftToRight)
             // Fixed headroom: the curve never runs off the top and the pinned pill has room above the highest point.
