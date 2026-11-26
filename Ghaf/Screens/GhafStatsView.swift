@@ -499,7 +499,9 @@ struct GhafStatsView: View {
                         })
                         .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { value in
                             guard let anchor = proxy.plotFrame, let label: String = proxy.value(atX: value.location.x - geometry[anchor].minX) else { return }
-                            selectedLabel = label
+                            // Short spring so the pill and dot glide between points while scrubbing, still tracking the finger.
+                            guard label != selectedLabel else { return }
+                            withAnimation(reduceMotion ? nil : .interactiveSpring(duration: 0.18)) { selectedLabel = label }
                         })
                 }
             }
@@ -593,7 +595,8 @@ struct GhafStatsView: View {
     }
 
     private func tapTrendBucket(_ key: String) {
-        selectedLabel = selectedLabel == key ? nil : key
+        // Select/unselect fades the dot, guide line and pill in or out instead of popping.
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .snappy(duration: 0.28)) { selectedLabel = selectedLabel == key ? nil : key }
     }
 
 #if DEBUG
