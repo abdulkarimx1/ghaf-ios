@@ -51,7 +51,10 @@ struct GhafSaveSplash: View {
                 : segment(t, blurEnd - 0.05, blurEnd + 0.25) * (1 - easeInOut(segment(t, surgeEnd - 0.15, fadeEnd)))
 
             ZStack {
-                Color.clear
+                // The splash is presented from a sheet; a clear cover background lets that
+                // sheet show through during the shader's partial-alpha entrance.
+                theme.background
+                    .ignoresSafeArea()
                 if t < endTime {
                     Color(theme.isDark ? UIColor(red: 0.031, green: 0.035, blue: 0.043, alpha: 1)
                                        : UIColor(red: 0.949, green: 0.953, blue: 0.961, alpha: 1))

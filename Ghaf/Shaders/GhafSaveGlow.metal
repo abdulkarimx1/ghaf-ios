@@ -14,7 +14,9 @@ static float ghafNoise(float2 p) {
 
 static float ghafFbm(float2 p) {
     float value = 0.0, amplitude = 0.5;
-    for (int i = 0; i < 5; ++i) {
+    // This full-screen shader runs every frame. Three octaves preserve the layered texture
+    // while reducing the per-pixel work for mobile GPUs.
+    for (int i = 0; i < 3; ++i) {
         value += amplitude * ghafNoise(p);
         p = p * 2.03 + float2(1.7, 9.2);
         amplitude *= 0.5;

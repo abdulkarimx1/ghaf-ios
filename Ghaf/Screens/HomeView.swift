@@ -992,7 +992,7 @@ struct GhafQuickAddView: View {
                                         accounts.first(where: { $0.id == selectedAccountID })?.name ?? ""]
                                    .filter { !$0.isEmpty }.joined(separator: " · "),
                                theme: theme, languageCode: lang) { router.isSaveSplashPresented = false; dismiss() }
-                .presentationBackground(.clear)
+                .presentationBackground(theme.background)
         }
         .sheet(isPresented: $showProForVoice) {
             GhafProSheet(settings: settings, feature: ("Voice entry", "الإدخال الصوتي")).ghafDirection(settings.languageCode)
