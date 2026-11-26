@@ -49,7 +49,6 @@ struct GhafHomeView: View {
     /// Observed so the weekly figures redraw as soon as the week start changes.
     @AppStorage(GhafCalendar.weekStartKey) private var weekStart = 0
     @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
-    @State private var eyeLidClosed = false
     @State private var showSubscriptions = false
     /// Weekly used to be the calendar week; tell the user once that it's now the last 7 days.
     @AppStorage("ghaf.seenRollingWeekNote") private var seenRollingWeekNote = false
@@ -396,21 +395,15 @@ struct GhafHomeView: View {
             }
             .frame(maxWidth: .infinity)
             Button {
-                if reduceMotion {
-                    withAnimation(.easeInOut(duration: 0.15)) { hideBalances.toggle() }
-                } else {
-                    withAnimation(.easeInOut(duration: 0.11)) { eyeLidClosed = true }
-                    withAnimation(GhafMoneyLabel.hideAnimation(false)) { hideBalances.toggle() }
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(110))
-                        withAnimation(.easeOut(duration: 0.11)) { eyeLidClosed = false }
-                    }
-                }
+                // Update the eye and privacy mask in the tap's transaction. Each amount owns
+                // its own reveal animation, so this toggle doesn't animate the whole dashboard.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { hideBalances.toggle() }
             } label: {
                 Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 15, weight: .bold))
                     .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace.downUp))
-                    .scaleEffect(y: eyeLidClosed ? 0.15 : 1)
                     .foregroundStyle(theme.primaryText)
                     .frame(width: 44, height: 44)
                     .background(theme.surface, in: Circle())

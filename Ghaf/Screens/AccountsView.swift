@@ -76,7 +76,9 @@ struct GhafAccountsView: View {
 
     private var eyeButton: some View {
         Button {
-            withAnimation(GhafMoneyLabel.hideAnimation(reduceMotion)) { hideBalances.toggle() }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { hideBalances.toggle() }
         } label: {
             Image(systemName: hideBalances ? "eye.slash.fill" : "eye.fill")
                 .font(.system(size: 17, weight: .bold))

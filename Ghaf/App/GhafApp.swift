@@ -53,8 +53,13 @@ struct GhafApp: App {
                 .onAppear { DispatchQueue.main.async { GhafKeyboardDismisser.shared.install() } }
                 // Widgets and Live Activities show purchase details, so they follow the hide toggle at once.
                 .onChange(of: hideBalances) { _, hidden in
-                    GhafWidgetSync.refresh(context: modelContainer.mainContext)
-                    if hidden { Task { await GhafWidgetSync.endAll() } }
+                    // Let the eye and in-app amounts paint in the tap's frame before doing
+                    // SwiftData snapshot work and asking WidgetKit to reload its timelines.
+                    Task { @MainActor in
+                        await Task.yield()
+                        GhafWidgetSync.refresh(context: modelContainer.mainContext)
+                        if hidden { await GhafWidgetSync.endAll() }
+                    }
                 }
                 .onAppear {
 #if DEBUG
