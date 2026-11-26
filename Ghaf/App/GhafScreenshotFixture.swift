@@ -28,6 +28,7 @@ enum GhafScreenshotFixture {
     static var importSheetRoute: Bool { enabled && destination == "importSheet" }
     static var automationExpanded: String { value("GhafAutomationExpanded") ?? "bank" }
     static var automationPage: Int? { value("GhafAutomationPage").flatMap(Int.init) }
+    static var hiddenBalanceProof: Bool { arguments.contains("-GhafHiddenBalanceProof") }
     static var automationButtonProof: Bool { value("GhafAutomationButtonProof") == "1" }
     static var automationState: String { ["none", "waiting", "working"].contains(value("GhafAutomationState") ?? "none") ? (value("GhafAutomationState") ?? "none") : "none" }
 
@@ -66,6 +67,8 @@ enum GhafScreenshotFixture {
     }
 
     static func makeContainer() throws -> ModelContainer {
+        if hiddenBalanceProof { UserDefaults.standard.set(true, forKey: GhafFormat.hideBalancesKey) }
+        else if enabled { UserDefaults.standard.set(false, forKey: GhafFormat.hideBalancesKey) }
         let schema = Schema([GhafTransaction.self, GhafSettings.self, GhafAccount.self,
                              MerchantCategoryRule.self, GhafSubscription.self, GhafChat.self, GhafMemory.self])
         // -GhafFixtureOnDisk: keep the fixture in a temp file so a UI test can prove state survives relaunch;
@@ -98,13 +101,14 @@ enum GhafScreenshotFixture {
     private static func seed(_ context: ModelContext) {
         let settings = GhafSettings(languageCode: language, currency: "AED", monthlyIncome: 12000, themeName: theme,
                                     appearanceMode: appearance, hasCompletedOnboarding: !launchNewUser)
-        if !launchNewUser { settings.userName = "Amina" }
+        if !launchNewUser { settings.userName = language == "ar" ? "أمينة" : "Amina" }
         context.insert(settings)
         if launchNewUser { try? context.save(); return }
-        let mashreq = GhafAccount(name: "Mashreq Current", institution: "Mashreq", accountType: .current,
-                                  currency: "AED", openingBalance: 8500, isPrimary: true, sortOrder: 0)
-        let cash = GhafAccount(name: "Cash wallet", accountType: .cash, currency: "AED",
-                               openingBalance: 650, sortOrder: 1)
+        let mashreq = GhafAccount(name: language == "ar" ? "حساب المشرق الجاري" : "Mashreq Current",
+                                  institution: "Mashreq", accountType: .current, currency: "AED",
+                                  openingBalance: 8500, isPrimary: true, sortOrder: 0)
+        let cash = GhafAccount(name: language == "ar" ? "المحفظة النقدية" : "Cash wallet",
+                               accountType: .cash, currency: "AED", openingBalance: 650, sortOrder: 1)
         context.insert(mashreq); context.insert(cash)
         let samples: [(String, Decimal, String, String, Int)] = [
             ("Carrefour", 184.50, "Groceries", "debit", 1), ("Local Cafe", 32, "Dining", "debit", 2),

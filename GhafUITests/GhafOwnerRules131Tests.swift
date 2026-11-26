@@ -97,3 +97,51 @@ final class GhafOwnerRules131Tests: XCTestCase {
                        "Free users must see widgets, not a Pro mask")
     }
 }
+
+final class Ghaf43CorrectionProofTests: XCTestCase {
+    private let matrix = [("Light", "en"), ("Light", "ar"), ("Dark", "en"), ("Dark", "ar")]
+
+    private func capture(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    func testRealHomeScrollScalesVisibleTabBarAndOrb() throws {
+        for (appearance, language) in matrix {
+            let app = XCUIApplication()
+            app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite",
+                                   "-GhafAppearance", appearance, "-GhafLanguage", language]
+            app.launch()
+            let homeLabel = language == "ar" ? "الرئيسية" : "Home"
+            let transactionLabel = language == "ar" ? "العمليات" : "Transactions"
+            XCTAssertTrue(app.tabBars.buttons[homeLabel].waitForExistence(timeout: 30))
+            let scroll = app.scrollViews.firstMatch
+            XCTAssertTrue(scroll.waitForExistence(timeout: 15), "Home scroll view missing")
+            sleep(1)
+            capture("43-rest-\(appearance)-\(language)")
+
+            let upStart = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.68))
+            let upEnd = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.52))
+            upStart.press(forDuration: 0.3, thenDragTo: upEnd)
+            sleep(1)
+            capture("43-scrolled-\(appearance)-\(language)")
+
+            let downStart = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
+            let downEnd = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.53))
+            downStart.press(forDuration: 0.3, thenDragTo: downEnd)
+            sleep(1)
+            capture("43-small-up-\(appearance)-\(language)")
+
+            upStart.press(forDuration: 0.3, thenDragTo: upEnd)
+            sleep(1)
+            let transactions = app.tabBars.buttons[transactionLabel]
+            XCTAssertTrue(transactions.exists && transactions.isHittable, "Scaled tab must remain hittable")
+            transactions.tap()
+            XCTAssertTrue(transactions.isSelected, "Scaled tab must respond to tap")
+            app.terminate()
+        }
+    }
+}
+
