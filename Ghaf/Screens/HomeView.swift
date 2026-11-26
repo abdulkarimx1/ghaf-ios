@@ -608,7 +608,12 @@ struct GhafHomeView: View {
 
     private func insightCard(_ summary: Summary) -> some View {
         // V4 (owner 1.31): no category breakdown here; Insights opens Statistics.
-        Button { router.selectedTab = 2 } label: {
+        Button {
+            // Daily and Weekly open the week chart (today selected for Daily); Monthly opens the month.
+            router.statsFocus = .init(period: activityPeriodIndex == 2 ? GhafStatsView.Period.month.rawValue : GhafStatsView.Period.week.rawValue,
+                                      day: activityPeriodIndex == 0 ? GhafCalendar.current.startOfDay(for: GhafClock.now) : nil)
+            router.selectedTab = 2
+        } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Label((ar ? "التحليلات · " : "Insights · ")

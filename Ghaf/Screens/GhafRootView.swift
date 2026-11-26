@@ -401,6 +401,9 @@ final class GhafTabRouter {
     var voiceLevel: Float = 0
     /// Set by full-screen pages (About) so the orb and tab dots drawn over the native tab bar hide with it.
     var fullScreenPage = false
+    /// Owner #59: Home's Insights card asks Statistics to open on its period (Daily also selects today on the graph).
+    struct StatsFocus: Equatable { let period: Int; let day: Date? }
+    var statsFocus: StatsFocus?
     var startVoice: (() -> Void)?
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?

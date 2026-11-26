@@ -274,8 +274,10 @@ struct GhafStatsView: View {
                         .ghafSheetFrame(theme: theme)
                         .ghafDirection(lang)
                 }
+                .onChange(of: router.statsFocus) { _, _ in applyStatsFocus() }
                 .onAppear {
                 chartReady = true
+                applyStatsFocus()
 #if DEBUG
                 guard GhafScreenshotFixture.enabled else { return }
                 if GhafScreenshotFixture.destination == "pro-popup" || GhafScreenshotFixture.destination == "pro-sheet" { showProSheet = true }
@@ -325,6 +327,15 @@ struct GhafStatsView: View {
         case .year:
             return date.formatted(.dateTime.month(ar ? .wide : .abbreviated).locale(locale))
         }
+    }
+
+    private func applyStatsFocus() {
+        guard let focus = router.statsFocus, let target = Period(rawValue: focus.period) else { return }
+        router.statsFocus = nil
+        period = target
+        // Changing period clears the selection, so select the day once that has run.
+        guard let day = focus.day else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { withAnimation(.snappy) { selectedLabel = chartKey(calendar.startOfDay(for: day)) } }
     }
 
     private func chartKey(_ date: Date) -> String {
