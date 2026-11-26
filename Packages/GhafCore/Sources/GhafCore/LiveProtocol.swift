@@ -45,20 +45,19 @@ public struct LiveToolCall: Equatable {
 
 public struct LiveSetup {
     public var model: String
-    public var voice: String
     public var systemInstruction: String
     public var tools: [LiveFunctionDeclaration]
     public var resumptionHandle: String?
 
-    public init(model: String = "models/gemini-3.8-live", voice: String, systemInstruction: String,
+    public init(model: String = "models/gemini-3.8-live", systemInstruction: String,
                 tools: [LiveFunctionDeclaration], resumptionHandle: String? = nil) {
-        self.model = model; self.voice = voice; self.systemInstruction = systemInstruction
+        self.model = model; self.systemInstruction = systemInstruction
         self.tools = tools; self.resumptionHandle = resumptionHandle
     }
 
     public func encoded(responseModalitiesInGenerationConfig: Bool = true) throws -> Data {
-        var generationConfig: [String: Any] = ["speechConfig": ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": voice]]]]
-        if responseModalitiesInGenerationConfig { generationConfig["responseModalities"] = ["AUDIO"] }
+        var generationConfig: [String: Any] = [:]
+        if responseModalitiesInGenerationConfig { generationConfig["responseModalities"] = ["TEXT"] }
         var setup: [String: Any] = [
             "model": model,
             "generationConfig": generationConfig,
@@ -78,7 +77,7 @@ public struct LiveSetup {
             ],
             "contextWindowCompression": ["slidingWindow": [:]], "sessionResumption": [:]
         ]
-        if !responseModalitiesInGenerationConfig { setup["responseModalities"] = ["AUDIO"] }
+        if !responseModalitiesInGenerationConfig { setup["responseModalities"] = ["TEXT"] }
         if let resumptionHandle { setup["sessionResumption"] = ["handle": resumptionHandle] }
         return try JSONSerialization.data(withJSONObject: ["setup": setup])
     }
@@ -95,9 +94,11 @@ public enum LiveServerEvent {
         if root["setupComplete"] != nil { events.append(.setupComplete) }
         if let content = root["serverContent"] as? [String: Any] {
             if let transcript = (content["inputTranscription"] as? [String: Any])?["text"] as? String { events.append(.inputTranscript(transcript)) }
-            if let transcript = (content["outputTranscription"] as? [String: Any])?["text"] as? String { events.append(.outputTranscript(transcript)) }
+            let outputText = (content["outputTranscription"] as? [String: Any])?["text"] as? String
+            if let outputText, !outputText.isEmpty { events.append(.outputTranscript(outputText)) }
             if let parts = (content["modelTurn"] as? [String: Any])?["parts"] as? [[String: Any]] {
                 for part in parts {
+                    if (outputText?.isEmpty ?? true), let text = part["text"] as? String, !text.isEmpty { events.append(.outputTranscript(text)) }
                     if let inline = part["inlineData"] as? [String: Any], let b64 = inline["data"] as? String,
                        let audio = Data(base64Encoded: b64) { events.append(.audio(audio)) }
                 }

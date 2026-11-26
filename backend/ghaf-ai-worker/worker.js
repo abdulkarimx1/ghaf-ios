@@ -31,8 +31,7 @@ export default {
       }
       if (response.status === 429) {
         if (!usage.outcome.startsWith("limited_")) usage.outcome = "limited_global";
-      } else if (response.status >= 400) usage.outcome = "error";
-      else if (usage.outcome === "error") usage.outcome = "ok";
+      } else if (response.status < 400 && usage.outcome === "error") usage.outcome = "ok";
       return response;
     } catch (error) {
       usage.errorKind = error?.name === "AbortError" ? "timeout" : error instanceof SyntaxError ? "parse" : "upstream_5xx";
@@ -92,7 +91,9 @@ async function handle(request, env, usage) {
     }
     if (path === "/speak") {
       if (usage) usage.lang = detectLanguage(String(body.text || ""));
-      if (!developer) {
+      // Live chunks use the /voice-turn reservation already made for this user turn.
+      // Non-Live speech keeps its existing one-reply counter.
+      if (!developer && body.liveSession !== true) {
         const tier = normalizeTier(body.tier);
         const reservation = await incrementVoiceUsage(env, device, tier);
         if (!reservation.allowed) {
@@ -274,7 +275,7 @@ async function liveToken(body, env, developer, device, usage) {
     headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
     body: JSON.stringify({
       uses: 1, expireTime: expires, newSessionExpireTime: new Date(Date.now() + 60_000).toISOString(),
-      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["AUDIO"] }, sessionResumption: {} },
+      bidiGenerateContentSetup: { model: env.LIVE_MODEL || "models/gemini-3.8-live", generationConfig: { responseModalities: ["TEXT"] }, sessionResumption: {} },
       // Without a field mask Google ignores the app's whole setup (instructions, tools, voice). Lock only these.
       fieldMask: "model,generationConfig.responseModalities,sessionResumption"
     })
@@ -403,8 +404,10 @@ async function incrementVoiceUsage(env, device, tier) {
   return { allowed: true, usage: { ...before, used: before.used + 1 } };
 }
 
-// Text to speech for Ghaf AI's voice mode. Gemini's speech model first (Arabic and English);
-// Deepgram Aura on Workers AI for English when Gemini is unavailable. Returns audio bytes.
+const SAMPLE_STYLE_EN = "Read this in a calm, relaxed, low-key voice. Measured pace, soft and composed, not cheerful, not excited:";
+const SAMPLE_STYLE_AR = "Read this in a calm, relaxed, low-key voice with a natural Emirati Gulf accent. Measured pace, gentle and composed, not cheerful, not excited, no smile in the voice:";
+
+// User replies use the same Gemini TTS voice and exact delivery note as the approved picker samples.
 async function speak(body, env, developer, device, usage) {
   const text = String(body.text || "").trim().slice(0, 700);
   const arabic = body.language === "ar";
@@ -416,25 +419,70 @@ async function speak(body, env, developer, device, usage) {
     return json({ error: "pro_required", code: "pro_required" }, 429);
   }
   if (!text) return json({ error: "missing_text" }, 400);
-  // Developer-only clip studio: records the app's bundled Hamad/Mariam clips (Gemini Orus/Kore) with a delivery note.
-  // Requires the private developer token, so no user request can reach it.
+  // Developer-only studios are retained; user speech below always uses Gemini TTS.
   if (developer && body.studio === true) return studioSpeak(text, character, String(body.style || ""), env);
-  // Developer-only ElevenLabs studio for marketing/onboarding narration: any voice ID, the higher-quality multilingual model.
   if (developer && body.studio === "eleven") return elevenStudio(text, String(body.voice || ""), body.settings, env);
-  // Developer-only background music / sound bed for the same narration (text is the music prompt).
-  // Developer-only ElevenLabs voice design (design a voice from a description, then save it) for onboarding narration.
   if (developer && body.studio === "eleven-api") return elevenAPI(String(body.path || ""), body.payload, env);
   if (developer && body.studio === "eleven-music") return elevenMusic(text, Number(body.seconds) || 30, body.kind === "sfx", env);
-  // Owner rule (2026-11-25): users only ever hear Hamad or Mariam. Until ElevenLabs is paid for, answers are
-  // text only ("voice_off"); there is no stand-in voice, and old stand-in audio in the cache is never served.
-  if (!useEleven(env)) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
-  const cacheDigest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`eleven\n${character}\n${text}`));
-  const cacheKey = `tts:${Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("")}`;
-  const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
-  if (cached) { if (usage) { usage.model = env.ELEVEN_MODEL || "eleven_flash_v2_5"; usage.outcome = "ok"; } return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs", "X-Ghaf-Cache": "hit" } }); }
-  return elevenSpeak(text, character, tier, env, developer, device, usage, cacheKey);
-}
 
+  const style = arabic ? SAMPLE_STYLE_AR : character === "Hamad"
+    ? SAMPLE_STYLE_EN + "\nPronounce “Hamad” as “HAH-mad,” with a clear Arabic H and stress on the first syllable, matching حمد."
+    : SAMPLE_STYLE_EN;
+  const model = env.TTS_MODEL || "gemini-3.1-flash-tts-preview";
+  if (!env.GEMINI_API_KEY) { if (usage) usage.outcome = "voice_off"; return json({ error: "voice_off" }, 410); }
+  const cacheDigest = await crypto.subtle.digest("SHA-256",
+    new TextEncoder().encode("gemini-tts-v1\n" + model + "\n" + voice + "\n" + style + "\n" + text));
+  const cacheKey = "gtts:" + Array.from(new Uint8Array(cacheDigest), b => b.toString(16).padStart(2, "0")).join("");
+  const cached = await env.USAGE.get(cacheKey, "arrayBuffer");
+  if (cached) {
+    if (usage) { usage.model = model; usage.output = text.length; usage.outcome = "ok"; }
+    return new Response(cached, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini-tts", "X-Ghaf-Cache": "hit" } });
+  }
+
+  const month = new Date().toISOString().slice(0, 7);
+  const allowanceKey = "vc:" + tier + ":" + month + ":" + device;
+  const used = developer ? 0 : Number(await env.USAGE.get(allowanceKey) || 0);
+  const allowance = voiceCharacterAllowance(tier, env);
+  if (!developer && used + text.length > allowance) {
+    if (usage) usage.outcome = "limited_device";
+    return json({ error: "limit", scope: "voice_month", used, limit: allowance }, 429);
+  }
+  if (!developer) {
+    const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 10));
+    if (limited) { if (usage) usage.outcome = "limited_" + limited; return json({ error: "limit", scope: "speak_" + limited }, 429); }
+  }
+
+  if (usage) usage.model = model;
+  let upstream;
+  try {
+    upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({ contents: [{ parts: [{ text: style + "\n\n" + text }] }],
+        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } })
+    });
+  } catch {
+    if (usage) { usage.outcome = "voice_off"; usage.errorKind = "upstream_5xx"; }
+    return json({ error: "voice_off" }, 410);
+  }
+  if (!upstream.ok) {
+    if (usage) { usage.outcome = "voice_off"; usage.errorKind = upstream.status < 500 ? "upstream_4xx" : "upstream_5xx"; }
+    console.error("gemini tts upstream", upstream.status);
+    return json({ error: "voice_off" }, 410);
+  }
+  const b64 = (await upstream.json().catch(() => null))?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+  if (!b64) {
+    if (usage) { usage.outcome = "voice_off"; usage.errorKind = "parse"; }
+    return json({ error: "voice_off" }, 410);
+  }
+
+  const audio = wav(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+  if (!developer) {
+    await env.USAGE.put(allowanceKey, String(used + text.length), { expirationTtl: 40 * 86400 });
+    await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
+  }
+  if (usage) { usage.output = text.length; usage.outcome = "ok"; }
+  return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "gemini-tts" } });
+}
 async function studioSpeak(text, character, style, env) {
   if (!env.GEMINI_API_KEY) return json({ error: "upstream" }, 502);
   const voice = character === "Mariam" ? env.VOICE_MARIAM || "Kore" : env.VOICE_HAMAD || "Orus";

@@ -17,6 +17,7 @@ final class GhafLiveCall: ObservableObject {
     var onToolCall: ((LiveToolCall) async -> [String: LiveJSON])?
     var onToolCancellation: (([String]) -> Void)?
     var onTurnFinished: (() -> Void)?
+    var onSpeechLimit: (() -> Void)?
 
     private let session = URLSession.shared
     private var socket: URLSessionWebSocketTask?
@@ -47,6 +48,13 @@ final class GhafLiveCall: ObservableObject {
     private var cancelledToolIDs = Set<String>()
     private var queuedOutputBuffers = 0
     private var turnCompleteReceived = false
+    private var speechTextBuffer = ""
+    private var speechChunks: [String] = []
+    private var speechRequestTask: Task<Void, Never>?
+    private var speechRequestActive = false
+    private var speechDisabledForTurn = false
+    private var speechTurnID = 0
+    private var turnFinishNotified = false
     private var inputContinuation: AsyncStream<Data>.Continuation?
     private var inputSenderTask: Task<Void, Never>?
     private var capturingUserTurn = false
@@ -60,6 +68,7 @@ final class GhafLiveCall: ObservableObject {
         guard GhafCloudAI.isEnabled else { throw GhafCloudAI.Failure.unavailable }
         self.language = language; self.character = character; self.tier = tier; instruction = systemInstruction; self.tools = tools
         stopping = false; reconnects = 0; startedAt = Date(); turnCompleteReceived = false; phase = .connecting
+        clearSpeechQueue(disableTurn: false)
         capturingUserTurn = false; audioGateOpen = false; userRequestedTurn = false
         let stream = AsyncStream<Data>.makeStream()
         inputContinuation = stream.continuation
@@ -122,7 +131,8 @@ final class GhafLiveCall: ObservableObject {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop(); player.stop()
         onInputTranscript = nil; onOutputTranscript = nil
-        onToolCall = nil; onToolCancellation = nil; onTurnFinished = nil
+        onToolCall = nil; onToolCancellation = nil; onTurnFinished = nil; onSpeechLimit = nil
+        clearSpeechQueue(disableTurn: true)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         try? AVAudioSession.sharedInstance().setCategory(priorCategory, mode: priorMode, options: priorOptions)
         phase = .ended(reason)
@@ -140,6 +150,8 @@ final class GhafLiveCall: ObservableObject {
         guard !stopping, phase != .connecting, !capturingUserTurn else { return }
         userRequestedTurn = true
         turnCompleteReceived = false
+        turnFinishNotified = false
+        clearSpeechQueue(disableTurn: false)
         capturingUserTurn = true
         audioGateOpen = true
         phase = .listening
@@ -186,7 +198,7 @@ final class GhafLiveCall: ObservableObject {
             }
             Task { [weak self] in
                 guard let self else { return }
-                do { try await self.send(LiveSetup(model: token.model, voice: token.voice, systemInstruction: self.instruction,
+                do { try await self.send(LiveSetup(model: token.model, systemInstruction: self.instruction,
                                                     tools: self.tools, resumptionHandle: handle)
                                             .encoded(responseModalitiesInGenerationConfig: responseModalitiesInGenerationConfig)) }
                 catch { self.setupWaiter?.resume(throwing: error); self.setupWaiter = nil }
@@ -212,7 +224,7 @@ final class GhafLiveCall: ObservableObject {
         } }
     }
 
-    private struct Token: Decodable { let token: String; let model: String; let voice: String }
+    private struct Token: Decodable { let token: String; let model: String }
 
     private func fetchToken() async throws -> Token {
         if GhafCloudAI.fixtureNetworkIsDisabledForRequests { throw GhafCloudAI.Failure.unavailable }
@@ -251,16 +263,18 @@ final class GhafLiveCall: ObservableObject {
         switch event {
         case .setupComplete:
             setupWaiter?.resume(); setupWaiter = nil
-        case .audio(let pcm):
-            finishTurnLimit()
-            capturingUserTurn = false
-            audioGateOpen = false
-            inputLevel = 0
-            phase = .speaking; play(pcm)
+        case .audio:
+            // The server token is locked to TEXT; speaking is always done with approved Gemini TTS below.
+            break
         case .inputTranscript(let text): onInputTranscript?(text, false)
-        case .outputTranscript(let text): finishTurnLimit(); onOutputTranscript?(text, false)
+        case .outputTranscript(let text):
+            finishTurnLimit()
+            onOutputTranscript?(text, false)
+            if !text.isEmpty { appendSpeechText(text) }
         case .interrupted where userRequestedTurn:
-            player.stop(); player.reset(); queuedOutputBuffers = 0; outputLevel = 0; phase = .listening
+            player.stop(); player.reset(); queuedOutputBuffers = 0; outputLevel = 0
+            clearSpeechQueue(disableTurn: true)
+            phase = .listening
             onOutputTranscript?("", true)
         case .interrupted: break
         case .turnComplete:
@@ -271,11 +285,9 @@ final class GhafLiveCall: ObservableObject {
             onInputTranscript?("", true); onOutputTranscript?("", true)
             turnCompleteReceived = true
             userRequestedTurn = false
-            if queuedOutputBuffers == 0 {
-                phase = .listening
-                onTurnFinished?()
-                if let pendingEndReason { endNow(reason: pendingEndReason) }
-            }
+            flushSpeechText()
+            startNextSpeechRequest()
+            finishSpeechTurnIfReady()
         case .toolCalls(let calls):
             phase = .thinking
             for call in calls {
@@ -331,7 +343,10 @@ final class GhafLiveCall: ObservableObject {
             if cancelledToolIDs.remove(call.id) == nil { replies.append((call.id, call.name, result)) }
         }
         if !replies.isEmpty, let data = try? LiveEncoder.toolResponse(replies) { try? await send(data) }
-        if toolTasks.isEmpty && !stopping { phase = .listening }
+        if toolTasks.isEmpty && !stopping {
+            phase = .listening
+            finishSpeechTurnIfReady()
+        }
     }
 
     private func send(_ data: Data) async throws {
@@ -376,17 +391,109 @@ final class GhafLiveCall: ObservableObject {
         continuation?.yield(data)
     }
 
-    private func play(_ pcm: Data) {
+    private func appendSpeechText(_ text: String) {
+        speechTextBuffer += text
+        extractSpeechChunks(flush: false)
+    }
+
+    private func flushSpeechText() {
+        extractSpeechChunks(flush: true)
+    }
+
+    private func extractSpeechChunks(flush: Bool) {
+        while !speechTextBuffer.isEmpty {
+            let characters = Array(speechTextBuffer)
+            let boundary = characters.indices.first { index in
+                let character = characters[index]
+                return (character == "." || character == "!" || character == "?" || character == "؟" || character == "\n")
+                    && index + 1 >= 25
+            }
+            var length: Int?
+            if let boundary { length = boundary + 1 }
+            else if flush { length = characters.count }
+            else if characters.count > 680 {
+                length = characters[..<min(680, characters.count)].lastIndex(where: { $0.isWhitespace }).map { $0 + 1 } ?? 680
+            }
+            guard let length else { break }
+            let raw = String(characters.prefix(length))
+            let chunk = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            speechTextBuffer = String(characters.dropFirst(length))
+            if !chunk.isEmpty { speechChunks.append(chunk) }
+        }
+        startNextSpeechRequest()
+    }
+
+    private func startNextSpeechRequest() {
+        guard !stopping, !speechDisabledForTurn, !speechRequestActive, !speechChunks.isEmpty else {
+            finishSpeechTurnIfReady()
+            return
+        }
+        let text = speechChunks.removeFirst()
+        speechRequestActive = true
+        let requestTurn = speechTurnID
+        speechRequestTask = Task { [weak self] in
+            guard let self else { return }
+            let result = await self.fetchSpeech(text)
+            guard !Task.isCancelled, self.speechTurnID == requestTurn else { return }
+            self.speechRequestTask = nil
+            self.speechRequestActive = false
+            switch result {
+            case .audio(let wav):
+                guard wav.count > 44, String(data: wav.prefix(4), encoding: .ascii) == "RIFF" else {
+                    self.stopSpeechForTurn()
+                    return
+                }
+                self.playPCM(wav.subdata(in: 44..<wav.count))
+                // Start the next fetch immediately while the current chunk plays.
+                self.startNextSpeechRequest()
+            case .limit:
+                self.stopSpeechForTurn()
+                self.phase = .listening
+                self.onSpeechLimit?()
+            case .unavailable:
+                self.stopSpeechForTurn()
+            }
+            self.finishSpeechTurnIfReady()
+        }
+    }
+
+    private enum SpeechFetchResult { case audio(Data), limit, unavailable }
+
+    private func fetchSpeech(_ text: String) async -> SpeechFetchResult {
+        guard GhafCloudAI.isEnabled, !GhafCloudAI.fixtureNetworkIsDisabledForRequests else { return .unavailable }
+        var request = URLRequest(url: GhafCloudAI.workerURL("speak"), timeoutInterval: 30)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        GhafCloudAI.setBuildHeader(on: &request)
+        request.setValue(GhafCloudAI.deviceID, forHTTPHeaderField: "X-Ghaf-Device")
+        if let code = Keychain.read(GhafCloudAI.accessCodeKey) { request.setValue(code, forHTTPHeaderField: "X-Ghaf-Code") }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "text": text, "language": language, "character": character, "tier": tier, "liveSession": true
+        ])
+        guard let (data, response) = try? await session.data(for: request),
+              let status = (response as? HTTPURLResponse)?.statusCode else { return .unavailable }
+        if status == 429 { return .limit }
+        guard status == 200, response.mimeType == "audio/wav" else { return .unavailable }
+        return .audio(data)
+    }
+
+    private func playPCM(_ pcm: Data) {
         guard let outputFormat, pcm.count.isMultiple(of: 2),
               let buffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: AVAudioFrameCount(pcm.count / 2)),
-              let channels = buffer.int16ChannelData else { return }
+              let channels = buffer.int16ChannelData else {
+            stopSpeechForTurn()
+            return
+        }
         buffer.frameLength = AVAudioFrameCount(pcm.count / 2)
         pcm.withUnsafeBytes { raw in
-            if let source = raw.baseAddress?.assumingMemoryBound(to: Int16.self) { channels[0].update(from: source, count: pcm.count / 2) }
+            if let source = raw.baseAddress?.assumingMemoryBound(to: Int16.self) {
+                channels[0].update(from: source, count: pcm.count / 2)
+            }
         }
         let samples = UnsafeBufferPointer(start: channels[0], count: pcm.count / 2)
         let rms = sqrt(samples.reduce(Float.zero) { $0 + pow(Float($1) / 32768, 2) } / max(1, Float(samples.count)))
         outputLevel = min(1, rms * 3)
+        phase = .speaking
         queuedOutputBuffers += 1
         player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
             Task { @MainActor in
@@ -394,15 +501,45 @@ final class GhafLiveCall: ObservableObject {
                 self.queuedOutputBuffers = max(0, self.queuedOutputBuffers - 1)
                 if self.queuedOutputBuffers == 0 {
                     self.outputLevel = 0
-                    self.phase = .listening
-                    if self.turnCompleteReceived {
-                        self.onTurnFinished?()
-                        if let pendingEndReason = self.pendingEndReason { self.endNow(reason: pendingEndReason) }
-                    }
+                    self.phase = .thinking
+                    self.finishSpeechTurnIfReady()
                 }
             }
         }
         if !player.isPlaying { player.play() }
+    }
+
+    private func stopSpeechForTurn() {
+        speechDisabledForTurn = true
+        speechChunks.removeAll()
+        speechTextBuffer = ""
+        speechRequestTask?.cancel()
+        speechRequestTask = nil
+        speechRequestActive = false
+        speechTurnID &+= 1
+        player.stop(); player.reset()
+        queuedOutputBuffers = 0
+        outputLevel = 0
+        finishSpeechTurnIfReady()
+    }
+
+    private func clearSpeechQueue(disableTurn: Bool) {
+        speechRequestTask?.cancel()
+        speechRequestTask = nil
+        speechRequestActive = false
+        speechChunks.removeAll()
+        speechTextBuffer = ""
+        speechDisabledForTurn = disableTurn
+        speechTurnID &+= 1
+    }
+
+    private func finishSpeechTurnIfReady() {
+        guard !stopping, turnCompleteReceived, !speechRequestActive, speechChunks.isEmpty,
+              queuedOutputBuffers == 0, toolTasks.isEmpty, !turnFinishNotified else { return }
+        turnFinishNotified = true
+        phase = .listening
+        onTurnFinished?()
+        if let pendingEndReason { endNow(reason: pendingEndReason) }
     }
 
     @objc private func audioInterrupted(_ notification: Notification) {

@@ -76,7 +76,6 @@ test('live-token and speak write their own endpoint and actual model', async t =
   let tokenRequest;
   globalThis.fetch = async (url, options) => String(url).includes('auth_tokens')
     ? (tokenRequest = JSON.parse(options.body), Response.json({ name: 'authTokens/test' }))
-    : String(url).includes('elevenlabs') ? new Response(new Uint8Array([1, 2]))
     : Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }], usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 4 } });
   const state = setup();
   const live = await invoke('/live-token', { language: 'ar', tier: 'pro_monthly' }, state);
@@ -93,8 +92,21 @@ test('live-token and speak write their own endpoint and actual model', async t =
   assert.equal(speak.status, 200);
   assert.equal(state.points.length, 2);
   assertShape(state.points[1], 'speak');
-  assert.equal(state.points[1].blobs[1], 'eleven_flash_v2_5');
+  assert.equal(state.points[1].blobs[1], 'gemini-3.1-flash-tts-preview');
   assert.equal(state.points[1].blobs[2], 'ok');
+});
+
+test('Gemini TTS upstream failure records voice_off in anonymous usage events', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response('provider details', { status: 503 });
+  const state = setup();
+  const response = await invoke('/speak', { text: 'hello', language: 'en', tier: 'pro_monthly' }, state);
+  assert.equal(response.status, 410);
+  await Promise.all(state.pending);
+  assert.equal(state.points.length, 1);
+  assertShape(state.points[0], 'speak');
+  assert.equal(state.points[0].blobs[2], 'voice_off');
 });
 
 test('health, tips and unmatched routes use fixed endpoint labels', async () => {

@@ -20,7 +20,8 @@ test('live token authorization, quota, response and upstream privacy', async t =
   const denied = await worker.fetch(request(), env);
   assert.equal(denied.status, 401);
 
-  globalThis.fetch = async () => Response.json({ name: 'authTokens/test' });
+  let tokenRequest;
+  globalThis.fetch = async (_url, options) => (tokenRequest = JSON.parse(options.body), Response.json({ name: 'authTokens/test' }));
   const key = `v:pro_monthly:${new Date().toISOString().slice(0, 10)}:${device}`;
   env.values.set(key, '2'); // A session needs a turn left; opening one does not consume a turn.
   const success = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'ar', tier: 'pro_monthly' }), env);
@@ -29,6 +30,7 @@ test('live token authorization, quota, response and upstream privacy', async t =
   assert.equal(payload.token, 'authTokens/test');
   assert.equal(payload.voice, 'Orus');
   assert.equal(payload.model, 'models/gemini-3.8-live');
+  assert.deepEqual(tokenRequest.bidiGenerateContentSetup.generationConfig.responseModalities, ['TEXT']);
   assert.equal(env.values.get(key), '2');
 
   const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'pro_monthly' }), env);

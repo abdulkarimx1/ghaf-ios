@@ -63,7 +63,19 @@ enum GhafCloudAI {
     static let enabledKey = "ghaf.ai.cloudEnabled"
     private static let deviceKey = "ghaf.ai.deviceID"   // Keychain
     static let accessCodeKey = "ghaf.pro.accessCode"
-    static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/chat")!
+    private static let productionWorkerBaseURL = URL(string: "https://ghaf-ai.ghafapp.workers.dev")!
+    static var workerBaseURL: URL {
+        #if DEBUG
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-GhafAIWorkerURL=") }),
+           let candidate = URL(string: String(argument.dropFirst("-GhafAIWorkerURL=".count))),
+           candidate.scheme != nil, candidate.host != nil {
+            return candidate
+        }
+        #endif
+        return productionWorkerBaseURL
+    }
+    static var endpoint: URL { workerURL("chat") }
+    static func workerURL(_ path: String) -> URL { workerBaseURL.appendingPathComponent(path) }
 
     #if DEBUG
     @MainActor static var fixtureNetworkIsDisabledForRequests: Bool { GhafScreenshotFixture.enabled }
@@ -90,7 +102,7 @@ enum GhafCloudAI {
 
     static func voiceUsage() async -> GhafVoiceUsage? {
         if await fixtureNetworkIsDisabledForRequests { return nil }
-        guard let url = URL(string: "/voice-usage", relativeTo: endpoint.deletingLastPathComponent()) else { return nil }
+        let url = workerURL("voice-usage")
         var request = URLRequest(url: url, timeoutInterval: 8)
         setBuildHeader(on: &request)
         request.setValue(deviceID, forHTTPHeaderField: "X-Ghaf-Device")
@@ -105,7 +117,7 @@ enum GhafCloudAI {
 
     static func reserveVoiceTurn(languageCode: String) async -> (usage: GhafVoiceUsage, allowed: Bool)? {
         if await fixtureNetworkIsDisabledForRequests { return nil }
-        guard let url = URL(string: "/voice-turn", relativeTo: endpoint.deletingLastPathComponent()) else { return nil }
+        let url = workerURL("voice-turn")
         var request = URLRequest(url: url, timeoutInterval: 8)
         setBuildHeader(on: &request)
         request.httpMethod = "POST"
@@ -124,7 +136,7 @@ enum GhafCloudAI {
 
     static func redeemAccessCode(_ code: String) async -> RedeemResult {
         if await fixtureNetworkIsDisabledForRequests { return .unavailable }
-        guard let url = URL(string: "/redeem", relativeTo: endpoint.deletingLastPathComponent()) else { return .unavailable }
+        let url = workerURL("redeem")
         var request = URLRequest(url: url, timeoutInterval: 12)
         setBuildHeader(on: &request)
         request.httpMethod = "POST"
@@ -163,7 +175,7 @@ enum GhafCloudAI {
 
     static func prewarm() async {
         if await fixtureNetworkIsDisabledForRequests { return }
-        guard let url = URL(string: "/health", relativeTo: endpoint.deletingLastPathComponent()) else { return }
+        let url = workerURL("health")
         var request = URLRequest(url: url)
         setBuildHeader(on: &request)
         _ = try? await URLSession.shared.data(for: request)

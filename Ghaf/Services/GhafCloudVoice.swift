@@ -7,7 +7,6 @@ import AVFoundation
 final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
     enum SpeechResult { case played, limitReached, unavailable, voiceOff }
     static let shared = GhafCloudVoice()
-    private static let endpoint = URL(string: "https://ghaf-ai.ghafapp.workers.dev/speak")!
 
     private var player: AVAudioPlayer?
     private var meter: Timer?
@@ -68,7 +67,7 @@ final class GhafCloudVoice: NSObject, AVAudioPlayerDelegate {
 
     func speak(_ text: String, arabic: Bool, character: String, onStart: @escaping () -> Void, onFinish: @escaping () -> Void) async -> SpeechResult {
         if GhafCloudAI.fixtureNetworkIsDisabledForRequests { return .unavailable }
-        var request = URLRequest(url: Self.endpoint, timeoutInterval: 12)
+        var request = URLRequest(url: GhafCloudAI.workerURL("speak"), timeoutInterval: 12)
         request.httpMethod = "POST"
         GhafCloudAI.setBuildHeader(on: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

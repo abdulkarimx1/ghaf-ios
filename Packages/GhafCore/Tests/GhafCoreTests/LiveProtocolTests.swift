@@ -4,11 +4,11 @@ import XCTest
 
 final class LiveProtocolTests: XCTestCase {
     func testSetupShape() throws {
-        let setup = LiveSetup(voice: "Orus", systemInstruction: "Ghaf", tools: [], resumptionHandle: "resume")
+        let setup = LiveSetup(systemInstruction: "Ghaf", tools: [], resumptionHandle: "resume")
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: setup.encoded()) as? [String: Any])
         let value = try XCTUnwrap(object["setup"] as? [String: Any])
         XCTAssertEqual(value["model"] as? String, "models/gemini-3.8-live")
-        XCTAssertEqual((value["generationConfig"] as? [String: Any])?["responseModalities"] as? [String], ["AUDIO"])
+        XCTAssertEqual((value["generationConfig"] as? [String: Any])?["responseModalities"] as? [String], ["TEXT"])
         XCTAssertEqual((value["sessionResumption"] as? [String: Any])?["handle"] as? String, "resume")
         XCTAssertNotNil(value["inputAudioTranscription"])
         let realtime = try XCTUnwrap(value["realtimeInputConfig"] as? [String: Any])
@@ -21,7 +21,7 @@ final class LiveProtocolTests: XCTestCase {
         XCTAssertNotNil(value["contextWindowCompression"])
         let rawModalities = try XCTUnwrap(JSONSerialization.jsonObject(with: setup.encoded(responseModalitiesInGenerationConfig: false)) as? [String: Any])
         let rawSetup = try XCTUnwrap(rawModalities["setup"] as? [String: Any])
-        XCTAssertEqual(rawSetup["responseModalities"] as? [String], ["AUDIO"])
+        XCTAssertEqual(rawSetup["responseModalities"] as? [String], ["TEXT"])
         XCTAssertNil((rawSetup["generationConfig"] as? [String: Any])?["responseModalities"])
     }
 
@@ -43,6 +43,16 @@ final class LiveProtocolTests: XCTestCase {
         XCTAssertTrue(ending.contains { if case .turnComplete = $0 { true } else { false } })
         XCTAssertTrue(parse(#"{"toolCallCancellation":{"ids":["1"]}}"#).contains { if case .toolCancellation(["1"]) = $0 { true } else { false } })
         XCTAssertTrue(parse(#"{"error":{"message":"bad"}}"#).contains { if case .error("bad") = $0 { true } else { false } })
+    }
+
+    func testModelTurnTextIsUsedWhenOutputTranscriptionIsAbsent() {
+        let parsed = LiveServerEvent.parse(Data(#"{"serverContent":{"modelTurn":{"parts":[{"text":"Hello there."}]}}}"#.utf8))
+        XCTAssertTrue(parsed.contains { if case .outputTranscript("Hello there.") = $0 { true } else { false } })
+    }
+
+    func testModelTurnTextIsUsedWhenOutputTranscriptionIsEmpty() {
+        let parsed = LiveServerEvent.parse(Data(#"{"serverContent":{"outputTranscription":{"text":""},"modelTurn":{"parts":[{"text":"A useful reply."}]}}}"#.utf8))
+        XCTAssertTrue(parsed.contains { if case .outputTranscript("A useful reply.") = $0 { true } else { false } })
     }
 
     func testToolResponseRoundTrip() throws {

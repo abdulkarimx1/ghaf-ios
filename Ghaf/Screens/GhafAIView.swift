@@ -1424,6 +1424,7 @@ struct GhafAIView: View {
     }
 
     private func configureLiveCallbacks() {
+        liveCall.onSpeechLimit = { handleDailyLimit() }
         liveCall.onTurnFinished = {
             guard liveCallActive else { return }
             tabRouter.isListening = false
