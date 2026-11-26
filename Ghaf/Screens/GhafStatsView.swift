@@ -153,10 +153,12 @@ struct GhafStatsView: View {
     /// Points on the trend line: one per day for week, month and 3 months; one per month for the year.
     private func bucketWindows() -> [SpendingForecast.Window] {
         guard period == .month || period == .quarter else { return groupWindows() }
+        // Owner #51: daily points made Month/3M spiky and condensed. Like Year (~12 points): 3-day steps for Month, weekly for 3M.
+        let step = period == .month ? 3 : 7
         var windows: [SpendingForecast.Window] = []
         var day = interval.start
-        while day < interval.end, let next = calendar.date(byAdding: .day, value: 1, to: day) {
-            windows.append(.init(start: day, end: next)); day = next
+        while day < interval.end, let next = calendar.date(byAdding: .day, value: step, to: day) {
+            windows.append(.init(start: day, end: min(next, interval.end))); day = next
         }
         return windows
     }
@@ -345,7 +347,15 @@ struct GhafStatsView: View {
     private func bucketLabel(_ date: Date) -> String {
         let locale = Locale(identifier: lang)
         switch period {
-        case .month, .quarter: return date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        case .month, .quarter:
+            // A point now covers several days, so name its range: "4–6 Nov", or "30 Oct – 5 Nov" across months.
+            let window = bucketWindows().first(where: { $0.start <= date && date < $0.end })
+            let last = calendar.date(byAdding: .day, value: -1, to: window?.end ?? date) ?? date
+            if calendar.isDate(date, inSameDayAs: last) { return date.formatted(.dateTime.day().month(.abbreviated).locale(locale)) }
+            if calendar.isDate(date, equalTo: last, toGranularity: .month) {
+                return "\(date.formatted(.dateTime.day().locale(locale)))–\(last.formatted(.dateTime.day().locale(locale))) \(last.formatted(.dateTime.month(.abbreviated).locale(locale)))"
+            }
+            return "\(date.formatted(.dateTime.day().month(.abbreviated).locale(locale))) – \(last.formatted(.dateTime.day().month(.abbreviated).locale(locale)))"
         case .week: return date.formatted(.dateTime.weekday(.wide).locale(locale))
         case .year: return date.formatted(.dateTime.month(.wide).locale(locale))
         }
@@ -434,6 +444,14 @@ struct GhafStatsView: View {
                 ForEach(plotted) { bucket in
                 let isSelected = selected?.id == bucket.id
                 let pointOpacity = isSelected ? 1.0 : 0.0
+                RuleMark(x: .value("Date", chartKey(bucket.start)))
+                    .foregroundStyle(theme.secondaryText.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    // Owner: the pill keeps one height (top of the chart) and only slides sideways.
+                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                        selectionBubble(amount: bucket.total + (bucket.forecast ?? 0), date: bucket.start).opacity(isSelected ? 1 : 0)
+                    }
+                    .opacity(isSelected ? 1 : 0)
                 if bucket.start <= GhafClock.now {
                     actualTrendMark(bucket)
                     PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
@@ -442,18 +460,11 @@ struct GhafStatsView: View {
                         .opacity(pointOpacity)
                         .accessibilityLabel(bucketLabel(bucket.start))
                         .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total), currency: currency, languageCode: lang))
-                    RuleMark(x: .value("Date", chartKey(bucket.start)))
-                        .foregroundStyle(theme.secondaryText.opacity(0.5))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                        .opacity(isSelected ? 1 : 0)
                     if bucket.forecast == nil {
                         PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, bucket.total))
                             .symbol {
                                 Circle().fill(accent).frame(width: isSelected ? 10 : 0, height: isSelected ? 10 : 0)
                                     .overlay(Circle().stroke(theme.surface, lineWidth: isSelected ? 2 : 0))
-                            }
-                            .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                                selectionBubble(amount: bucket.total, date: bucket.start).opacity(isSelected ? 1 : 0)
                             }
                             .opacity(isSelected ? 1 : 0)
                     }
@@ -472,13 +483,12 @@ struct GhafStatsView: View {
                     if bucket.forecast != nil, selected?.id == bucket.id {
                         PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, amount))
                             .symbol { Circle().fill(accent).frame(width: 10, height: 10).overlay(Circle().stroke(theme.surface, lineWidth: 2)) }
-                            .annotation(position: .top, spacing: 5, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                                selectionBubble(amount: amount, date: bucket.start)
-                            }
                     }
                 }
             }
             .environment(\.layoutDirection, .leftToRight)
+            // Fixed headroom: the curve never runs off the top and the pinned pill has room above the highest point.
+            .chartYScale(domain: 0...max(1, (plotted.map(\.total) + forecastPoints.map(\.1)).max() ?? 1) * 1.3)
             .animation(reduceMotion ? .easeInOut(duration: 0.15) : .timingCurve(0.25, 1, 0.5, 1, duration: 0.28), value: period)
             .chartOverlay { proxy in
                 GeometryReader { geometry in

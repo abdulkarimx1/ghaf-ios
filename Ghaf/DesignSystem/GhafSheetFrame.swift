@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 extension View {
     /// Gives compact custom sheets a single clipped surface and keeps their content clear of the home indicator.
@@ -78,5 +79,24 @@ private struct GhafPushedBack: ViewModifier {
 extension View {
     func ghafPushedBack(theme: GhafTheme, languageCode: String) -> some View {
         modifier(GhafPushedBack(theme: theme, languageCode: languageCode))
+    }
+}
+
+/// Owner: every page with a back button also closes with the native edge swipe. Hiding the system back button
+/// (About, Statistics, Transactions from Profile…) turns that swipe off, so keep it on whenever there is a page to go back to.
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
+    }
+
+    /// Pages with their own horizontal drag (About's pager) would otherwise swallow the edge swipe.
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                                  shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        gestureRecognizer === interactivePopGestureRecognizer
     }
 }
