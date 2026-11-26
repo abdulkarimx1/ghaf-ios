@@ -806,9 +806,9 @@ extension GhafWalkthroughTests {
 
 extension GhafWalkthroughTests {
     func testSessionG1WhyPaidProof() {
-        launch(["-GhafScreen", "about-proof", "-GhafTab", "more"])
-        XCTAssertTrue(app.buttons["Why is Ghaf paid?"].waitForExistence(timeout: 8))
-        app.buttons["Why is Ghaf paid?"].tap()
+        launch(["-GhafScreen", "about-proof", "-GhafTab", "more", "-GhafAboutPage", "4"])
+        XCTAssertTrue(app.buttons["Why is Pro paid?"].waitForExistence(timeout: 8))
+        app.buttons["Why is Pro paid?"].tap()
         XCTAssertTrue(app.buttons["See Ghaf Pro"].waitForExistence(timeout: 5))
         snap("g1-why-paid-after")
         app.buttons["See Ghaf Pro"].tap()
@@ -1313,8 +1313,8 @@ extension GhafWalkthroughTests {
         snap("d-keypad-setting")
         app.terminate()
 
-        launch(["-GhafTab", "more", "-GhafScreen", "about-proof"])
-        let whyPaid = app.buttons["Why is Ghaf paid?"]
+        launch(["-GhafTab", "more", "-GhafScreen", "about-proof", "-GhafAboutPage", "4"])
+        let whyPaid = app.buttons["Why is Pro paid?"]
         for _ in 0..<5 where !whyPaid.exists { swipeUp() }
         XCTAssertTrue(whyPaid.waitForExistence(timeout: 5))
         whyPaid.tap()

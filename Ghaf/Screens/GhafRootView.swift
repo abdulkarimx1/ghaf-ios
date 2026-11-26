@@ -399,6 +399,8 @@ final class GhafTabRouter {
     var isListening = false
     /// Live voice loudness 0…1 from Ghaf AI, so the tab-bar orb moves with the user's voice. Read only by GhafRouterLevelOrb.
     var voiceLevel: Float = 0
+    /// Set by full-screen pages (About) so the orb and tab dots drawn over the native tab bar hide with it.
+    var fullScreenPage = false
     var startVoice: (() -> Void)?
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?
@@ -678,6 +680,8 @@ struct GhafTabView: View {
             }
             // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            .opacity(router.fullScreenPage ? 0 : 1)
+            .allowsHitTesting(!router.fullScreenPage)
         }
         .modifier(GhafTabBarGlass(enabled: glass.enabled))
         .tint(theme.accent)

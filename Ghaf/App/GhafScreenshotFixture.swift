@@ -164,6 +164,13 @@ enum GhafScreenshotFixture {
 
 #if DEBUG
 extension GhafScreenshotFixture {
+    /// -GhafAboutPage N opens the About page on scene N (0-4).
+    static var aboutPage: Int? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let index = args.firstIndex(of: "-GhafAboutPage"), args.indices.contains(index + 1) else { return nil }
+        return Int(args[index + 1])
+    }
+
     static var progressStageFixture: String? {
         let args = ProcessInfo.processInfo.arguments
         guard enabled, let index = args.firstIndex(of: "-GhafAIStage"), args.indices.contains(index + 1) else { return nil }

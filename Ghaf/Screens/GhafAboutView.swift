@@ -10,12 +10,25 @@ enum GhafLinks {
     static let appStore = URL(string: "https://apps.apple.com/")!
 }
 
+/// Full-screen story pages: each page is a looping scene with its text and one action over it.
+/// Swipe follows the finger, a flick moves exactly one page, dots jump, auto-advance stops on touch.
 struct GhafAboutView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dismiss) private var dismiss
+    @Environment(GhafTabRouter.self) private var router
     let settings: GhafSettings
-    @State private var appeared = false
 
+    private enum Destination: Hashable { case privacy, automation, learned, stats, whyPaid, terms }
+
+    @State private var pos = 0.0
+    @State private var active = 0
+    @State private var dragStart: Double?
+    @State private var touching = false
+    @State private var autoAdvance = true
+    @State private var destination: Destination?
+
+    private let count = 5
     private var ar: Bool { settings.languageCode == "ar" }
     private var lang: String { settings.languageCode }
     private var theme: GhafTheme {
@@ -25,200 +38,263 @@ struct GhafAboutView: View {
         let info = Bundle.main.infoDictionary
         return "\(info?["CFBundleShortVersionString"] as? String ?? "") (\(info?["CFBundleVersion"] as? String ?? ""))"
     }
+    private func t(_ en: String, _ arabic: String) -> String { ar ? arabic : en }
 
-    private struct Feature { let symbol: String; let title: String; let body: String }
-    private var features: [Feature] {
+    private struct Page { let title: String; let body: String; let cta: String; let destination: Destination }
+    private var pages: [Page] {
         [
-            Feature(symbol: "lock.shield.fill", title: ar ? "خاص منذ البداية" : "Private from the start",
-                    body: ar ? "بياناتك على جهازك. لا حساب ولا تسجيل دخول بنكي." : "Your data lives on your iPhone. No account, no bank login."),
-            Feature(symbol: "bolt.fill", title: ar ? "يسجّل وحده" : "Logs itself",
-                    body: ar ? "رسائل البنك وApple Pay تتحول إلى عمليات دون أن تكتب شيئاً." : "Bank messages and Apple Pay become transactions without typing."),
-            Feature(symbol: "sparkles", title: ar ? "يتعلم منك" : "Learns from you",
-                    body: ar ? "صحّح الفئة مرة، ويتذكر غاف في كل مرة بعدها." : "Fix a category once and Ghaf remembers every time after."),
-            Feature(symbol: "chart.line.uptrend.xyaxis", title: ar ? "يرى ما هو قادم" : "Sees what's coming",
-                    body: ar ? "توقع نهاية الشهر وتنبيه عند أي عملية غير معتادة." : "A month-end forecast and a heads-up on unusual charges.")
+            Page(title: t("Private from the start", "خصوصيتك من أول يوم"),
+                 body: t("Your money stays on your iPhone, behind Face ID. No account, no bank login.",
+                         "فلوسك تبقى على جهازك، محمية بـ Face ID. بدون حساب، وبدون تسجيل دخول للبنك."),
+                 cta: t("Read the privacy policy", "اقرأ سياسة الخصوصية"), destination: .privacy),
+            Page(title: t("Logs itself", "يسجّل لحاله"),
+                 body: t("A bank alert arrives and it's recorded for you. You don't type a thing.",
+                         "يوصلك تنبيه البنك، ويتسجّل لك. ما تكتب شي."),
+                 cta: t("Set up automation", "فعّل التسجيل التلقائي"), destination: .automation),
+            Page(title: t("Learns from you", "يتعلّم منك"),
+                 body: t("Pick a category once; every visit after is sorted for you.",
+                         "اختر التصنيف مرة وحدة، والزيارات الجاية تتصنّف لحالها."),
+                 cta: t("See what it learned", "شوف وش تعلّم"), destination: .learned),
+            Page(title: t("Sees what's coming", "يعرف وين بيوصل شهرك"),
+                 body: t("Where the month will land, before it does.", "وين بيوصل صرفك هالشهر، قبل لا يوصل."),
+                 cta: t("Open Statistics", "افتح الإحصائيات"), destination: .stats),
+            Page(title: t("Why we built it", "ليش سوّيناه"),
+                 body: t("Calm, private money tracking for the Gulf. With gratitude to the UAE.",
+                         "متابعة هادية وخاصة لفلوسك في الخليج. مع الامتنان لدولة الإمارات."),
+                 cta: t("Why is Pro paid?", "ليش برو مدفوع؟"), destination: .whyPaid)
         ]
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-            VStack(spacing: 14) {
-                hero
-                featureList.ghafEntrance(1)
-                story.ghafEntrance(2)
-                actions.ghafEntrance(3).id("about-actions")
-                socials.ghafEntrance(4)
-                footer
+        GeometryReader { geo in
+            // Read the insets here, then draw edge to edge: scenes sit behind the status bar and home indicator.
+            let top = geo.safeAreaInsets.top, bottom = geo.safeAreaInsets.bottom
+            let size = CGSize(width: geo.size.width, height: geo.size.height + top + bottom)
+            let env = GhafAboutSceneEnv(theme: theme, lang: lang, reduce: reduceMotion, size: size, top: top)
+            ZStack {
+                theme.ink
+                scenes(env)
+                scrim
+                overlay(bottomInset: bottom)
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.backward").resizable().scaledToFit().frame(width: 12, height: 20)
+                        .foregroundStyle(theme.inkText).frame(width: 44, height: 44).background(Color.white.opacity(0.14), in: Circle())
+                }
+                .accessibilityLabel(t("Back", "رجوع"))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.top, top + 6).padding(.horizontal, 18)
             }
-            .ghafScreenPadding()
-            .padding(.top, 8).padding(.bottom, 28)
-            .frame(maxWidth: 620).frame(maxWidth: .infinity)
+            .frame(width: size.width, height: size.height)
+            .offset(y: -top)
+            .contentShape(Rectangle())
+            .simultaneousGesture(pager(width: size.width))
         }
-        .ghafBackground(theme: theme)
-        .ghafPageTitle(ar ? "عن غاف" : "About Ghaf", languageCode: lang, theme: theme)
+        .background(theme.ink.ignoresSafeArea())
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+        .modifier(GhafHideTabBar())
+        .onAppear { router.fullScreenPage = true }
+        .onDisappear { router.fullScreenPage = false }
         .environment(\.locale, Locale(identifier: lang))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
-        .onAppear { withAnimation(.spring(duration: 0.8, bounce: 0.3)) { appeared = true } }
+        .sensoryFeedback(.selection, trigger: active)
+        .task(id: "\(active)-\(touching)-\(autoAdvance)") {
+            guard autoAdvance, !touching, !reduceMotion else { return }
+            try? await Task.sleep(for: .seconds(7.6))
+            if !Task.isCancelled { go((active + 1) % count, manual: false) }
+        }
+        .navigationDestination(item: $destination) { dest in
+            switch dest {
+            case .privacy: GhafPrivacyPolicyView(settings: settings)
+            case .automation: GhafAutomationGuideView(settings: settings)
+            case .learned: GhafLearnedRulesView(settings: settings)
+            case .stats: GhafStatsView(settings: settings)
+            case .whyPaid: GhafWhyPaidPage(settings: settings)
+            case .terms: GhafTermsView(settings: settings)
+            }
+        }
 #if DEBUG
-            .task {
-                if GhafScreenshotFixture.enabled, GhafScreenshotFixture.destination == "about-proof" {
-                    await Task.yield()
-                    proxy.scrollTo("about-actions", anchor: .bottom)
-                }
-            }
+        .onAppear {
+            if GhafScreenshotFixture.enabled, let page = GhafScreenshotFixture.aboutPage, (0..<count).contains(page) { pos = Double(page); active = page }
+        }
 #endif
-        }
     }
 
-    private var hero: some View {
-        VStack(spacing: 10) {
-            Text(ar ? "غاف" : "Ghaf")
-                .font(GhafTypography.display(36, languageCode: lang))
-                .opacity(appeared || reduceMotion ? 1 : 0)
-            Text(ar ? "أموالك، بوضوح." : "Your money, clearly.")
-                .font(GhafTypography.body(16, languageCode: lang, weight: .medium))
-                .opacity(0.85)
-            Text((ar ? "الإصدار " : "Version ") + version)
-                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(theme.accentContrast.opacity(0.15), in: Capsule())
-        }
-        .foregroundStyle(theme.primaryText)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-    }
+    // MARK: Pages
 
-    @State private var featureID: Int? = 0
-
-    /// Owner 1.31 (V19): full-bleed feature cards in a cover flow that advances every 3 s; swipe to browse.
-    private var featureList: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 12) {
-                ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                    featureCard(feature, index: index)
-                        .containerRelativeFrame(.horizontal) { width, _ in width * 0.84 }
-                        .scrollTransition(axis: .horizontal) { view, phase in
-                            view.scaleEffect(phase.isIdentity ? 1 : 0.9).opacity(phase.isIdentity ? 1 : 0.7)
-                        }
-                        .id(index)
-                }
+    private func scenes(_ env: GhafAboutSceneEnv) -> some View {
+        let dir: Double = ar ? -1 : 1
+        return ZStack {
+            ForEach(0..<count, id: \.self) { i in
+                let d = Double(i) - pos
+                scene(i, env)
+                    .offset(x: reduceMotion ? 0 : dir * d * env.size.width)
+                    .opacity(reduceMotion ? max(0, 1 - abs(d)) : (abs(d) > 1.01 ? 0 : 1))
             }
-            .scrollTargetLayout()
-        }
-        .contentMargins(.horizontal, 28, for: .scrollContent)
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: $featureID)
-        .padding(.horizontal, -GhafMetrics.gutter)
-        .frame(height: 330)
-        .task(id: featureID) {
-            guard !reduceMotion else { return }
-            try? await Task.sleep(for: .seconds(3))
-            withAnimation(.easeInOut(duration: 0.6)) { featureID = ((featureID ?? 0) + 1) % features.count }
         }
     }
 
-    private func featureCard(_ feature: Feature, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: feature.symbol)
-                .font(.system(size: 30, weight: .bold))
-                .foregroundStyle(.white)
-            Spacer(minLength: 0)
-            GhafOutlinedText(text: feature.title, font: GhafTypography.display(30, languageCode: lang))
-            Text(feature.body).font(GhafTypography.body(15, languageCode: lang, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
-                .fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder private func scene(_ i: Int, _ env: GhafAboutSceneEnv) -> some View {
+        let on = i == active
+        switch i {
+        case 0: GhafAboutPrivateScene(env: env, active: on)
+        case 1: GhafAboutLogScene(env: env, active: on)
+        case 2: GhafAboutLearnScene(env: env, active: on)
+        case 3: GhafAboutForecastScene(env: env, active: on)
+        default: GhafAboutWhyScene(env: env, active: on)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background { GhafAboutShader(theme: theme, seed: Double(index), animate: !reduceMotion) }
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 
-    private var story: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(ar ? "لماذا غاف؟" : "Why Ghaf?", systemImage: "questionmark.circle")
-                .font(GhafTypography.body(13, languageCode: lang, weight: .bold)).foregroundStyle(theme.accent)
-            Text(ar ? "سمّينا غاف تيمّناً بشجرة الغاف التي تمنح الظل لمن حولها. ونشكر دولة الإمارات على دعمها لكل من يعيش على أرضها."
-                    : "Ghaf is named for the ghaf tree, which offers shade to everyone around it. We’re grateful to the UAE for supporting everyone who lives here.")
-                .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(18).frame(maxWidth: .infinity, alignment: .leading).ghafCard(theme: theme)
-    }
-
-    private var actions: some View {
+    private var scrim: some View {
         VStack(spacing: 0) {
-            ShareLink(item: GhafLinks.appStore, message: Text(ar ? "جرّب غاف لمتابعة أموالك" : "Try Ghaf to keep track of your money")) {
-                row(ar ? "شارك غاف" : "Share Ghaf", "square.and.arrow.up")
-            }
-            // Until Ghaf has an App Store listing the link is a bare placeholder: shown, but inactive (owner rule).
-            .disabled(GhafLinks.appStore.path.count <= 1).opacity(GhafLinks.appStore.path.count <= 1 ? 0.4 : 1)
-            Divider().overlay(theme.outline).padding(.leading, 58)
-            Link(destination: GhafLinks.appStore) { row(ar ? "قيّم غاف" : "Rate Ghaf", "star.fill") }
-                .disabled(GhafLinks.appStore.path.count <= 1).opacity(GhafLinks.appStore.path.count <= 1 ? 0.4 : 1)
-            Divider().overlay(theme.outline).padding(.leading, 58)
-            Link(destination: GhafLinks.feedback) { row(ar ? "أرسل ملاحظاتك" : "Send feedback", "bubble.left.and.text.bubble.right.fill") }
-            Divider().overlay(theme.outline).padding(.leading, 58)
-            NavigationLink { GhafWhyPaidPage(settings: settings) } label: {
-                row(ar ? "لماذا غاف مدفوع؟" : "Why is Ghaf paid?", "heart.text.square.fill")
-            }
-            Divider().overlay(theme.outline).padding(.leading, 58)
-            NavigationLink { GhafTermsView(settings: settings) } label: { row(ar ? "شروط الاشتراك" : "Terms of subscription", "doc.text.fill") }
-            Divider().overlay(theme.outline).padding(.leading, 58)
-            NavigationLink { GhafPrivacyPolicyView(settings: settings) } label: { row(ar ? "سياسة الخصوصية" : "Privacy policy", "hand.raised.fill") }
+            Spacer()
+            LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: Color.black.opacity(0.7), location: 0.3),
+                                   .init(color: Color.black.opacity(0.96), location: 0.54)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 440)
         }
+        .allowsHitTesting(false)
+    }
+
+    // MARK: Paging
+
+    private func go(_ index: Int, manual: Bool = true) {
+        if manual { autoAdvance = false }
+        let target = max(0, min(count - 1, index))
+        withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.5, dampingFraction: 0.86)) { pos = Double(target) }
+        active = target
+    }
+
+    private func pager(width: CGFloat) -> some Gesture {
+        let dir: CGFloat = ar ? -1 : 1
+        return DragGesture(minimumDistance: 12)
+            .onChanged { v in
+                touching = true
+                if dragStart == nil {
+                    guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                    dragStart = Double(active)
+                }
+                guard let start = dragStart, !reduceMotion else { return }
+                var raw = start - Double(v.translation.width * dir / width)
+                raw = min(start + 1, max(start - 1, raw))
+                if raw < 0 { raw *= 0.3 }
+                if raw > Double(count - 1) { raw = Double(count - 1) + (raw - Double(count - 1)) * 0.3 }
+                var tx = Transaction(); tx.disablesAnimations = true
+                withTransaction(tx) { pos = raw }
+            }
+            .onEnded { v in
+                touching = false
+                guard let start = dragStart else { return }
+                dragStart = nil
+                let travel = Double(-v.translation.width * dir / width)
+                let flick = Double(-v.velocity.width * dir)
+                var step = 0
+                if travel > 0.2 || flick > 500 { step = 1 } else if travel < -0.2 || flick < -500 { step = -1 }
+                let target = max(0, min(count - 1, Int(start) + step))
+                autoAdvance = false
+                // The spring starts at the finger's speed so a flick carries on instead of restarting.
+                let remaining = max(1, abs(Double(target) - pos)) * Double(width)
+                let toward = (Double(target) - pos) >= 0 ? flick : -flick
+                withAnimation(reduceMotion ? .easeOut(duration: 0.2)
+                              : .interpolatingSpring(mass: 1, stiffness: 190, damping: 24, initialVelocity: max(0, toward) / remaining)) {
+                    pos = Double(target)
+                }
+                active = target
+            }
+    }
+
+    // MARK: Overlay
+
+    private func overlay(bottomInset: CGFloat) -> some View {
+        let page = pages[active]
+        return VStack(spacing: 12) {
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(page.title).font(GhafTypography.heading(28, languageCode: lang)).foregroundStyle(theme.inkText)
+                Text(page.body).font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.inkText.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .id(active)
+            .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 8)))
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .accessibilityElement(children: .combine)
+            .accessibilityAdjustableAction { direction in
+                go(direction == .increment ? active + 1 : active - 1)
+            }
+            HStack(spacing: 0) {
+                dots
+                Spacer(minLength: 8)
+                Button { destination = .terms } label: {
+                    Text(t("Terms", "الشروط")).font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.inkText.opacity(0.72)).frame(minHeight: 44)
+                }
+                Text(verbatim: "\u{00B7}").foregroundStyle(theme.inkText.opacity(0.5)).padding(.horizontal, 6)
+                Text(verbatim: version).font(GhafTypography.number(12, weight: .medium))
+                    .foregroundStyle(theme.inkText.opacity(0.5)).environment(\.layoutDirection, .leftToRight)
+            }
+            Button { destination = page.destination } label: {
+                Text(page.cta).font(GhafTypography.body(17, languageCode: lang, weight: .semibold)).foregroundStyle(theme.ink)
+                    .frame(maxWidth: .infinity, minHeight: 58).background(theme.inkText, in: Capsule())
+            }
+            .id("cta-\(active)")
+            .transition(.opacity)
+            HStack(spacing: 10) {
+                pill(t("Rate", "قيّم"), "star.fill", GhafLinks.appStore)
+                pill(t("Feedback", "ملاحظات"), "bubble.left.fill", GhafLinks.feedback)
+            }
+            HStack {
+                ShareLink(item: GhafLinks.appStore, message: Text(t("Try Ghaf to keep track of your money", "جرّب غاف لمتابعة أموالك"))) { circle("square.and.arrow.up") }
+                    .disabled(isPlaceholder(GhafLinks.appStore)).opacity(isPlaceholder(GhafLinks.appStore) ? 0.4 : 1)
+                    .accessibilityLabel(t("Share", "مشاركة"))
+                Spacer(minLength: 0)
+                social("Instagram", "camera.fill", GhafLinks.instagram); Spacer(minLength: 0)
+                social("X", "xmark", GhafLinks.x); Spacer(minLength: 0)
+                social("TikTok", "music.note", GhafLinks.tiktok); Spacer(minLength: 0)
+                social(t("Website", "الموقع"), "globe", GhafLinks.website)
+            }
+            .padding(.horizontal, 6)
+        }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : .easeOut(duration: 0.25), value: active)
         .buttonStyle(.ghafPress)
-        .padding(.horizontal, 16).padding(.vertical, 4)
-        .ghafCard(theme: theme)
+        .padding(.horizontal, 22).padding(.bottom, max(bottomInset, 16) + 6)
     }
 
-    private func row(_ title: String, _ symbol: String) -> some View {
-        GhafListRow(icon: symbol, tint: theme.accent, title: title, theme: theme, languageCode: lang, chevron: true) { EmptyView() }
-    }
-
-    private var socials: some View {
-        HStack(spacing: 12) {
-            social("Instagram", "camera.fill", GhafLinks.instagram)
-            social("X", "xmark", GhafLinks.x)
-            social("TikTok", "music.note", GhafLinks.tiktok)
-            social(ar ? "الموقع" : "Website", "globe", GhafLinks.website)
+    private var dots: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<count, id: \.self) { i in
+                Button { go(i) } label: {
+                    Capsule().fill(theme.inkText.opacity(i == active ? 1 : 0.28)).frame(width: i == active ? 22 : 7, height: 7)
+                        .padding(.horizontal, 3).frame(minWidth: 26, minHeight: 44)
+                }
+                .accessibilityLabel(t("Page ", "الصفحة ") + "\(i + 1)")
+            }
         }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.85), value: active)
+    }
+
+    private func isPlaceholder(_ url: URL) -> Bool { url.path.count <= 1 || url.host == "example.com" }
+
+    private func circle(_ symbol: String) -> some View {
+        Image(systemName: symbol).resizable().scaledToFit().frame(width: 19, height: 19).foregroundStyle(theme.inkText)
+            .frame(width: 48, height: 48).background(Color.white.opacity(0.12), in: Circle())
     }
 
     private func social(_ name: String, _ symbol: String, _ url: URL) -> some View {
-        Link(destination: url) {
-            VStack(spacing: 6) {
-                Image(systemName: symbol)
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 52, height: 52)
-                    .ghafGlassShape(theme: theme, shape: Circle(), fallback: theme.surface)
-                    .foregroundStyle(theme.primaryText)
-                Text(name)
-                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
-                    .foregroundStyle(theme.secondaryText)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.ghafPress)
-        .disabled(url.path.count <= 1 || url.host == "example.com")
-        .opacity(url.path.count <= 1 || url.host == "example.com" ? 0.4 : 1)
-        .accessibilityLabel(name)
+        Link(destination: url) { circle(symbol) }
+            .disabled(isPlaceholder(url)).opacity(isPlaceholder(url) ? 0.4 : 1)
+            .accessibilityLabel(name)
     }
 
-    private var footer: some View {
-        VStack(spacing: 4) {
-            Text(ar ? "بامتنان لدولة الإمارات" : "With gratitude to the UAE")
-                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
-                .foregroundStyle(theme.secondaryText)
-            Text("© 2026 Abdulkarim Bayassi")
-                .font(GhafTypography.body(11, languageCode: lang))
-                .foregroundStyle(theme.secondaryText.opacity(0.8))
+    private func pill(_ title: String, _ symbol: String, _ url: URL) -> some View {
+        // Until there is an App Store listing the link is a bare placeholder: shown, but inactive (owner rule).
+        Link(destination: url) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).resizable().scaledToFit().frame(width: 17, height: 17)
+                Text(title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
+            }
+            .foregroundStyle(theme.inkText).frame(maxWidth: .infinity, minHeight: 52)
+            .background(Color.white.opacity(0.12), in: Capsule())
         }
-        .padding(.top, 4)
+        .disabled(url == GhafLinks.appStore && isPlaceholder(url)).opacity(url == GhafLinks.appStore && isPlaceholder(url) ? 0.4 : 1)
     }
 }
 
@@ -292,43 +368,39 @@ private struct GhafWhyPaidPage: View {
     }
 }
 
-/// Owner pick "outline titles": white outline, see-through middle.
-private struct GhafOutlinedText: View {
-    let text: String
-    let font: Font
-    var body: some View {
-        ZStack {
-            ForEach(0..<8, id: \.self) { i in
-                let a = Double(i) * .pi / 4
-                Text(text).font(font).foregroundStyle(.white)
-                    .offset(x: cos(a) * 1.2, y: sin(a) * 1.2)
-            }
-            Text(text).font(font).foregroundStyle(.black.opacity(0.55)).blendMode(.destinationOut)
-        }
-        .compositingGroup()
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityLabel(text)
-    }
-}
+/// Full-screen pages hide the tab bar and show a light status bar. The SwiftUI modifiers do not reach the
+/// app's root TabView and colour scheme here, so this reaches the UIKit objects directly and restores them on exit.
+private struct GhafHideTabBar: ViewModifier {
+    func body(content: Content) -> some View { content.background(Hider().frame(width: 0, height: 0)) }
 
-/// Owner pick "shaders": a slow-moving colour field in the theme's accent, drawn live.
-private struct GhafAboutShader: View {
-    let theme: GhafTheme
-    let seed: Double
-    let animate: Bool
-    var body: some View {
-        TimelineView(.animation(paused: !animate)) { context in
-            let t = animate ? context.date.timeIntervalSinceReferenceDate * 0.25 + seed * 1.7 : seed
-            // Graphite's accent is pure black/white, which would wash out the white text; use steel instead.
-            let glow = theme.name == "Graphite" ? Color(red: 0.42, green: 0.46, blue: 0.52) : theme.accent
-            ZStack {
-                Color.black
-                RadialGradient(colors: [glow, .clear], center: UnitPoint(x: 0.5 + 0.35 * cos(t), y: 0.4 + 0.3 * sin(t * 1.3)),
-                               startRadius: 0, endRadius: 320)
-                RadialGradient(colors: [glow.opacity(0.6), .clear], center: UnitPoint(x: 0.5 + 0.4 * sin(t * 0.8), y: 0.8 + 0.2 * cos(t)),
-                               startRadius: 0, endRadius: 260)
-                    .blendMode(.screen)
+    private struct Hider: UIViewControllerRepresentable {
+        func makeUIViewController(context: Context) -> Controller { Controller() }
+        func updateUIViewController(_ controller: Controller, context: Context) {}
+    }
+
+    private final class Controller: UIViewController {
+        private var savedStyle: UIUserInterfaceStyle = .unspecified
+        private var tabBar: UITabBar? {
+            func find(_ vc: UIViewController?) -> UITabBarController? {
+                guard let vc else { return nil }
+                if let tab = vc as? UITabBarController { return tab }
+                for child in vc.children { if let tab = find(child) { return tab } }
+                return find(vc.presentedViewController)
             }
+            return find(view.window?.rootViewController)?.tabBar
+        }
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            savedStyle = view.window?.overrideUserInterfaceStyle ?? .unspecified
+            view.window?.overrideUserInterfaceStyle = .dark
+            UIView.animate(withDuration: 0.2) { self.tabBar?.alpha = 0 }
+            tabBar?.isHidden = true
+        }
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            view.window?.overrideUserInterfaceStyle = savedStyle
+            tabBar?.isHidden = false
+            UIView.animate(withDuration: 0.2) { self.tabBar?.alpha = 1 }
         }
     }
 }
