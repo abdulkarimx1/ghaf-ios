@@ -657,22 +657,14 @@ extension GhafWalkthroughTests {
         app.launch()
         // The cold-launch cover sits over onboarding for ten seconds; tap its own surface to skip it.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        for page in 0..<8 {
-            let next = app.buttons["Continue"].firstMatch
-            let skip = app.buttons["Skip for now"].firstMatch
-            let finish = app.buttons["Start using Ghaf"].firstMatch
-            let button = page == 7 ? finish : (page == 1 && skip.exists ? skip : next)
-            XCTAssertTrue(button.waitForExistence(timeout: 25))
+        XCTAssertTrue(app.buttons["Get started"].waitForExistence(timeout: 25))
+        snap("first-run-0")
+        app.buttons["Get started"].tap()
+        for page in 1..<4 {
+            XCTAssertTrue(app.buttons[page == 3 ? "Set up" : "Continue"].waitForExistence(timeout: 10))
             snap("first-run-\(page)")
-            if page == 7 { break }
-            button.tap()
-            Thread.sleep(forTimeInterval: 0.45)
-            if page == 4 {
-                for _ in 0..<3 {
-                    let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
-                    if alert.waitForExistence(timeout: 2) { alert.buttons.firstMatch.tap() }
-                }
-            }
+            app.buttons[page == 3 ? "Set up" : "Continue"].tap()
+            Thread.sleep(forTimeInterval: 0.5)
         }
 
         app.terminate()
@@ -682,7 +674,7 @@ extension GhafWalkthroughTests {
                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility5"]
         app.launch()
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 25))
+        XCTAssertTrue(app.buttons["Get started"].waitForExistence(timeout: 25))
         snap("first-run-1-largest-type")
 
         // Keep this locale-switch sweep on the lightweight fixture so accessibility
@@ -796,7 +788,7 @@ extension GhafWalkthroughTests {
         app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1", "-GhafAppearance", "Dark"]
         app.launch()
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let importButton = app.buttons["Import Ghaf backup"].firstMatch
+        let importButton = app.buttons["Restore a backup"].firstMatch
         XCTAssertTrue(importButton.waitForExistence(timeout: 15))
         importButton.tap()
         XCTAssertTrue(app.staticTexts["Bring your data into Ghaf"].waitForExistence(timeout: 5))

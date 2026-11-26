@@ -82,7 +82,7 @@ final class GhafImportFlowTests: XCTestCase {
         app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1", "-GhafAppearance", "Dark"]
         app.launch()
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let importButton = app.buttons["Import Ghaf backup"].firstMatch
+        let importButton = app.buttons["Restore a backup"].firstMatch
         XCTAssertTrue(importButton.waitForExistence(timeout: 15))
         let title = app.staticTexts["Bring your data into Ghaf"]
         for _ in 0..<3 where !title.exists { importButton.tap(); _ = title.waitForExistence(timeout: 3) }

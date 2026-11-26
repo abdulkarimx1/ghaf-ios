@@ -48,18 +48,11 @@ final class GhafD2MotionEvidenceTests: XCTestCase {
                 launch(["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafLaunchNewUser", "1",
                         "-GhafTheme", "Graphite", "-GhafAppearance", appearance, "-GhafLanguage", language])
                 app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-                XCTAssertTrue(app.buttons[language == "ar" ? "متابعة" : "Continue"].waitForExistence(timeout: 25))
+                let start = app.buttons[language == "ar" ? "ابدأ" : "Get started"]
+                XCTAssertTrue(start.waitForExistence(timeout: 25))
                 capture("onboarding-before-\(appearance)-\(language)")
-
-                let heroPoint = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.33))
-                heroPoint.press(forDuration: 0.6)
-                let start = app.coordinate(withNormalizedOffset: CGVector(dx: language == "ar" ? 0.22 : 0.78, dy: 0.33))
-                let end = app.coordinate(withNormalizedOffset: CGVector(dx: language == "ar" ? 0.78 : 0.22, dy: 0.33))
-                start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.15)
-                let nextStep = language == "ar" ? "الخطوة 2 من 8" : "Step 2 of 8"
-                let pageLabel = app.descendants(matching: .any)
-                    .matching(NSPredicate(format: "label CONTAINS %@", nextStep)).firstMatch
-                XCTAssertTrue(pageLabel.waitForExistence(timeout: 5), "The swipe should advance one onboarding page")
+                start.tap()
+                XCTAssertTrue(app.buttons[language == "ar" ? "متابعة" : "Continue"].waitForExistence(timeout: 5), "Get started should open the first feature card")
                 Thread.sleep(forTimeInterval: 0.7)
                 capture("onboarding-after-swipe-\(appearance)-\(language)")
                 app.terminate()
