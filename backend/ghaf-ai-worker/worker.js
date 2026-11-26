@@ -447,7 +447,9 @@ async function speak(body, env, developer, device, usage) {
     if (usage) usage.outcome = "limited_device";
     return json({ error: "limit", scope: "voice_month", used, limit: allowance }, 429);
   }
-  if (!developer) {
+  // A live reply is spoken sentence by sentence; counting each chunk would silence Hamad after 3-4 answers.
+  // Live turns are already capped by /voice-turn, and every chunk still counts toward the monthly characters.
+  if (!developer && body.liveSession !== true) {
     const limited = await overLimit(env, device, "s", Number(env.SPEAK_DAILY_LIMIT || 10));
     if (limited) { if (usage) usage.outcome = "limited_" + limited; return json({ error: "limit", scope: "speak_" + limited }, 429); }
   }

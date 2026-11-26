@@ -67,7 +67,8 @@ test('live TTS chunks rely on existing voice-turn reservation while standard spe
   const live = setup();
   assert.equal((await speak(live.env, 'hello there from Ghaf.', 'Hamad', 'en', true)).status, 200);
   assert.equal(live.values.get(`v:pro_monthly:${day}:${device}`), undefined);
-  assert.equal(live.values.get(`s:${day}:${device}`), '1');
+  // Live chunks skip the per-clip daily counter (a reply is several chunks); the monthly characters still apply.
+  assert.equal(live.values.get(`s:${day}:${device}`), undefined);
 
   const standard = setup();
   assert.equal((await speak(standard.env, 'hello there from Ghaf.', 'Hamad', 'en')).status, 200);
