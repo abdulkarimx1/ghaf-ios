@@ -264,7 +264,7 @@ final class GhafLiveCall: ObservableObject {
         case .setupComplete:
             setupWaiter?.resume(); setupWaiter = nil
         case .audio:
-            // The server token is locked to TEXT; speaking is always done with approved Gemini TTS below.
+            // Native-audio live models only answer in AUDIO (Gemini docs); its audio is ignored and the reply transcript is spoken with the approved sample TTS voice.
             break
         case .inputTranscript(let text): onInputTranscript?(text, false)
         case .outputTranscript(let text):

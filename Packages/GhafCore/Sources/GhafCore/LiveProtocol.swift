@@ -57,7 +57,7 @@ public struct LiveSetup {
 
     public func encoded(responseModalitiesInGenerationConfig: Bool = true) throws -> Data {
         var generationConfig: [String: Any] = [:]
-        if responseModalitiesInGenerationConfig { generationConfig["responseModalities"] = ["TEXT"] }
+        if responseModalitiesInGenerationConfig { generationConfig["responseModalities"] = ["AUDIO"] }
         var setup: [String: Any] = [
             "model": model,
             "generationConfig": generationConfig,
@@ -77,7 +77,7 @@ public struct LiveSetup {
             ],
             "contextWindowCompression": ["slidingWindow": [:]], "sessionResumption": [:]
         ]
-        if !responseModalitiesInGenerationConfig { setup["responseModalities"] = ["TEXT"] }
+        if !responseModalitiesInGenerationConfig { setup["responseModalities"] = ["AUDIO"] }
         if let resumptionHandle { setup["sessionResumption"] = ["handle": resumptionHandle] }
         return try JSONSerialization.data(withJSONObject: ["setup": setup])
     }

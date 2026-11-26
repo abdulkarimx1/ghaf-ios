@@ -30,7 +30,7 @@ test('live token authorization, quota, response and upstream privacy', async t =
   assert.equal(payload.token, 'authTokens/test');
   assert.equal(payload.voice, 'Orus');
   assert.equal(payload.model, 'models/gemini-3.8-live');
-  assert.deepEqual(tokenRequest.bidiGenerateContentSetup.generationConfig.responseModalities, ['TEXT']);
+  assert.deepEqual(tokenRequest.bidiGenerateContentSetup.generationConfig.responseModalities, ['AUDIO']);
   assert.equal(env.values.get(key), '2');
 
   const mariam = await worker.fetch(request({ 'X-Ghaf-Device': device }, { language: 'en', character: 'Mariam', tier: 'pro_monthly' }), env);

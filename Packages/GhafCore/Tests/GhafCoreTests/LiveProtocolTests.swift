@@ -8,7 +8,7 @@ final class LiveProtocolTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: setup.encoded()) as? [String: Any])
         let value = try XCTUnwrap(object["setup"] as? [String: Any])
         XCTAssertEqual(value["model"] as? String, "models/gemini-3.8-live")
-        XCTAssertEqual((value["generationConfig"] as? [String: Any])?["responseModalities"] as? [String], ["TEXT"])
+        XCTAssertEqual((value["generationConfig"] as? [String: Any])?["responseModalities"] as? [String], ["AUDIO"])
         XCTAssertEqual((value["sessionResumption"] as? [String: Any])?["handle"] as? String, "resume")
         XCTAssertNotNil(value["inputAudioTranscription"])
         let realtime = try XCTUnwrap(value["realtimeInputConfig"] as? [String: Any])
@@ -21,7 +21,7 @@ final class LiveProtocolTests: XCTestCase {
         XCTAssertNotNil(value["contextWindowCompression"])
         let rawModalities = try XCTUnwrap(JSONSerialization.jsonObject(with: setup.encoded(responseModalitiesInGenerationConfig: false)) as? [String: Any])
         let rawSetup = try XCTUnwrap(rawModalities["setup"] as? [String: Any])
-        XCTAssertEqual(rawSetup["responseModalities"] as? [String], ["TEXT"])
+        XCTAssertEqual(rawSetup["responseModalities"] as? [String], ["AUDIO"])
         XCTAssertNil((rawSetup["generationConfig"] as? [String: Any])?["responseModalities"])
     }
 
