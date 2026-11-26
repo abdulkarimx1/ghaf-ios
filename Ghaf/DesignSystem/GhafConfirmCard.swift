@@ -31,6 +31,14 @@ struct GhafConfirmCard: View {
             .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 34)
             .frame(maxWidth: .infinity)
             .background(theme.background, in: UnevenRoundedRectangle(topLeadingRadius: 40, topTrailingRadius: 40, style: .continuous))
+            // Owner 2026-11-26: in dark mode a faint edge separates the card from the dimmed screen.
+            .overlay {
+                if theme.isDark {
+                    UnevenRoundedRectangle(topLeadingRadius: 40, topTrailingRadius: 40, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+                        .ignoresSafeArea(edges: .bottom)
+                }
+            }
             .shadow(color: .black.opacity(0.18), radius: 24, y: -4)
             .transition(reduceMotion ? .opacity : .move(edge: .bottom))
         }
