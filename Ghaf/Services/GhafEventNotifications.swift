@@ -195,6 +195,9 @@ enum GhafEventNotifications {
         (try? JSONDecoder().decode([GhafInboxEvent].self, from: UserDefaults.standard.data(forKey: eventsKey) ?? Data())) ?? []
     }
 
+    // Main actor: the async delegate methods otherwise finish off the main thread, and UIKit aborts the app
+    // when a tapped notification's completion runs there (owner #78: tapping a notification crashed Ghaf).
+    @MainActor
     private final class InboxNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
             await MainActor.run { NotificationCenter.default.post(name: GhafEventNotifications.inboxUpdated, object: nil) }
