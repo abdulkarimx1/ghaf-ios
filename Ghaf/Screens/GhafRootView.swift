@@ -411,79 +411,12 @@ final class GhafTabRouter {
     /// Scroll-derived mirror of iOS 26's native bar state for the separately overlaid AI orb.
     /// SwiftUI exposes the minimize behavior but no public readback of the bar's actual state.
     var isTabBarMinimized = false
-    /// True only once the native bar has really been scaled, so the orb never shrinks on its own.
-    var isTabBarScaled = false
 }
 
-/// Keep every native tab available, and scale the native bar as one view when scroll direction requests it.
+/// Native minimize-on-scroll, iOS 26 only.
 private struct GhafTabBarMinimize: ViewModifier {
-    @Environment(GhafTabRouter.self) private var router
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     func body(content: Content) -> some View {
-        Group {
-            if #available(iOS 26, *) {
-                content.tabBarMinimizeBehavior(.never)
-            } else {
-                content
-            }
-        }
-        .overlay {
-            GhafTabBarScaleBridge(isScaled: router.isTabBarMinimized && !reduceMotion, reduceMotion: reduceMotion) { router.isTabBarScaled = $0 }
-                .frame(width: 0, height: 0)
-                .accessibilityHidden(true)
-        }
-    }
-}
-
-private struct GhafTabBarScaleBridge: UIViewRepresentable {
-    let isScaled: Bool
-    let reduceMotion: Bool
-    let onApplied: (Bool) -> Void
-
-    func makeUIView(context: Context) -> UIView { UIView(frame: .zero) }
-
-    func updateUIView(_ view: UIView, context: Context) {
-        DispatchQueue.main.async {
-            guard let (tabBar, root) = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .flatMap(\.windows)
-                .compactMap({ findTabBar(in: $0.rootViewController) })
-                .first,
-                  let scaleTarget = platter(around: tabBar, below: root) else { onApplied(false); return }
-            let scale: CGFloat = isScaled ? 0.88 : 1
-            var transform = CGAffineTransform(scaleX: scale, y: scale)
-            transform = transform.translatedBy(x: 0, y: scaleTarget.bounds.height * (1 - scale) / (2 * scale))
-            guard !reduceMotion else { scaleTarget.transform = .identity; return }
-            UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.85,
-                           initialSpringVelocity: 0, options: [.beginFromCurrentState, .allowUserInteraction], animations: {
-                scaleTarget.transform = transform
-            })
-            onApplied(isScaled)
-        }
-    }
-
-    /// iOS 26 draws the floating glass platter in a wrapper above UITabBar; scaling UITabBar alone leaves the platter.
-    /// The wrapper's private name differs between iOS builds (device showed only the orb shrinking), so pick the
-    /// highest ancestor that is still bar-sized instead of matching a class name.
-    private func platter(around tabBar: UITabBar, below root: UIView) -> UIView? {
-        var best: UIView?
-        var view = tabBar.superview
-        while let current = view, current !== root {
-            if current.bounds.height <= max(tabBar.bounds.height * 2.5, 140) { best = current }
-            view = current.superview
-        }
-        return best
-    }
-
-    private func findTabBar(in controller: UIViewController?) -> (UITabBar, UIView)? {
-        guard let controller else { return nil }
-        if let tabController = controller as? UITabBarController { return (tabController.tabBar, tabController.view) }
-        for child in controller.children {
-            if let result = findTabBar(in: child) { return result }
-        }
-        if let presented = controller.presentedViewController { return findTabBar(in: presented) }
-        return nil
+        if #available(iOS 26, *) { content.tabBarMinimizeBehavior(.onScrollDown) } else { content }
     }
 }
 
@@ -505,15 +438,17 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content
-                // The adjusted content offset is the scroll distance from the top; <40 pt is the top restore zone.
-                .onScrollGeometryChange(for: CGFloat.self) {
-                    $0.contentOffset.y + $0.contentInsets.top
+                .onScrollGeometryChange(for: CGPoint.self) {
+                    CGPoint(x: $0.contentOffset.y + $0.contentInsets.top,
+                            y: $0.contentSize.height - $0.containerSize.height)
                 } action: { old, new in
-                    let delta = new - old
-                    if delta < -8 || new < 40 {
+                    // The native bar minimizes after downward scrolling starts and restores on upward scroll.
+                    // Track the same direction/threshold; short content cannot trigger native minimization.
+                    let delta = new.x - old.x
+                    if new.x <= 20 || delta <= -8 || new.y < UIScreen.main.bounds.height {
                         if router.isTabBarMinimized { router.isTabBarMinimized = false }
-                    } else if delta > 8 && new >= 40 {
-                        if !router.isTabBarMinimized { router.isTabBarMinimized = true }
+                    } else if delta > 8, !router.isTabBarMinimized {
+                        router.isTabBarMinimized = true
                     }
                 }
                 .onChange(of: router.selectedTab) { _, _ in router.isTabBarMinimized = false }
@@ -744,8 +679,10 @@ struct GhafTabView: View {
                     .accessibilityLabel(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
                     .accessibilityIdentifier("ghaf.ai.tab-orb")
                     .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
-                    .scaleEffect(router.isTabBarScaled ? 0.88 : 1, anchor: .bottom)
-                    .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.1), value: router.isTabBarScaled)
+                    .opacity(router.isTabBarMinimized ? 0 : 1)
+                    .allowsHitTesting(!router.isTabBarMinimized)
+                    .accessibilityHidden(router.isTabBarMinimized)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: router.isTabBarMinimized)
                     .position(x: geometry.size.width / 2, y: geometry.size.height - (Self.floatingTabBar ? 16 : 32)) // row 3: centre line of the tab icons
             }
             // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
