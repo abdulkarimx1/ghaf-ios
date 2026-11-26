@@ -246,16 +246,19 @@ private struct GhafWalletCarousel: View {
                         ? start.rounded() + (flick < 0 ? 1 : -1)
                         : projected.rounded()
                     let boundedTarget = min(max(target, 0), CGFloat(accounts.count - 1))
-                    dragStartPosition = nil
-                    withAnimation(deckAnimation) {
-                        pagePosition = boundedTarget
-                    }
-                    // Keep the spring on the card deck; the balance and rows swap without riding it.
+                    // Change the selected account while the drag guard is still active. Otherwise
+                    // onChange writes pagePosition a second time as the release spring begins.
                     var selectionTransaction = Transaction()
                     selectionTransaction.disablesAnimations = true
                     withTransaction(selectionTransaction) {
                         selectedID = accounts[Int(boundedTarget)].id
                     }
+                    let travel = max(abs(boundedTarget - pagePosition), 0.25)
+                    let springVelocity = min(1.25, abs(flick) / travel)
+                    withAnimation(releaseAnimation(initialVelocity: springVelocity)) {
+                        pagePosition = boundedTarget
+                    }
+                    dragStartPosition = nil
                 })
         }
         .frame(height: Self.layout(width: min(UIScreen.main.bounds.width, 620) - 2 * GhafMetrics.gutter).card / 1.586 + 24)
@@ -340,8 +343,12 @@ private struct GhafWalletCarousel: View {
     }
 
     private var deckAnimation: Animation {
-        // Owner pick: no bounce.
-        reduceMotion ? .linear(duration: 0) : .spring(response: 0.4, dampingFraction: 1)
+        reduceMotion ? .linear(duration: 0) : .spring(duration: 0.45, bounce: 0.15)
+    }
+
+    private func releaseAnimation(initialVelocity: CGFloat) -> Animation {
+        reduceMotion ? .linear(duration: 0)
+            : .interpolatingSpring(duration: 0.45, bounce: 0.15, initialVelocity: Double(initialVelocity))
     }
 }
 
