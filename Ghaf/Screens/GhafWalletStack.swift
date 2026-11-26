@@ -343,12 +343,12 @@ private struct GhafWalletCarousel: View {
     }
 
     private var deckAnimation: Animation {
-        reduceMotion ? .linear(duration: 0) : .spring(duration: 0.45, bounce: 0.15)
+        reduceMotion ? .linear(duration: 0) : .spring(duration: 0.45, bounce: 0)
     }
 
     private func releaseAnimation(initialVelocity: CGFloat) -> Animation {
         reduceMotion ? .linear(duration: 0)
-            : .interpolatingSpring(duration: 0.45, bounce: 0.15, initialVelocity: Double(initialVelocity))
+            : .interpolatingSpring(duration: 0.45, bounce: 0, initialVelocity: Double(initialVelocity))
     }
 }
 
