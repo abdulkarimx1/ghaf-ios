@@ -246,11 +246,23 @@ enum GhafWidgetSync {
             attributes: GhafPurchaseAttributes(arabic: arabic, accent: hex(theme.accent), glow: hex(theme.glow)),
             content: .init(state: state, staleDate: expires)
         ) else { return }
-        // R4: ending it here (even with .after) removed it from the Dynamic Island at once.
-        // Keep it live; end it when it expires (best effort while running; the stale date covers suspension).
-        Task {
-            try? await Task.sleep(for: .seconds(max(1, expires.timeIntervalSinceNow)))
-            await activity.end(.init(state: state, staleDate: expires), dismissalPolicy: .immediate)
+        // R4: ending it here (even with .after) removed it from the Dynamic Island at once, so keep it live.
+        // Owner #81: started from a Shortcut, Ghaf was suspended before the timer fired and the activity never left.
+        // shortcut: iOS gives a background app ~30 s and no local API can end an activity later; ending it by push needs
+        // the paid developer account (#71). Until then: stay alive as long as iOS allows, then end it with .after(expires)
+        // so the Lock Screen card still goes away on time (the Dynamic Island clears at that point).
+        Task { @MainActor in
+            let app = UIApplication.shared
+            var backgroundTask = UIBackgroundTaskIdentifier.invalid
+            backgroundTask = app.beginBackgroundTask {
+                app.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
+            let content = ActivityContent(state: state, staleDate: expires)
+            let allowed = app.applicationState == .active ? .infinity : app.backgroundTimeRemaining - 5
+            try? await Task.sleep(for: .seconds(max(1, min(expires.timeIntervalSinceNow, allowed))))
+            await activity.end(content, dismissalPolicy: expires.timeIntervalSinceNow <= 1 ? .immediate : .after(expires))
+            if backgroundTask != .invalid { app.endBackgroundTask(backgroundTask) }
         }
     }
 
