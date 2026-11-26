@@ -520,9 +520,11 @@ struct GhafStatsView: View {
                 }
                 case .year: plotted.enumerated().compactMap { $0.offset.isMultiple(of: 2) ? chartKey($0.element.start) : nil }
                 }
+                let shown = Set(labels)
                 AxisMarks(values: labels) { value in
                     AxisValueLabel(anchor: .top) {
-                        if let key = value.as(String.self), let bucket = plotted.first(where: { chartKey($0.start) == key }) {
+                        // Owner #51: on device every day got a label (piling into a smear); draw only the chosen ones.
+                        if let key = value.as(String.self), shown.contains(key), let bucket = plotted.first(where: { chartKey($0.start) == key }) {
                             Text(axisLabel(bucket.start)).font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
                                 .lineLimit(1).minimumScaleFactor(0.75)
                                 .contentTransition(.opacity)

@@ -68,13 +68,17 @@ struct GhafAboutView: View {
     var body: some View {
         GeometryReader { geo in
             // Read the insets here, then draw edge to edge: scenes sit behind the status bar and home indicator.
+            // Owner #41: on device the hidden tab bar still counts in the bottom inset (~83 pt), leaving an empty band.
+            // Use the window's own inset (home indicator only) instead.
+            let windowBottom = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom
             let top = geo.safeAreaInsets.top, bottom = geo.safeAreaInsets.bottom
+            let homeIndicator = min(bottom, windowBottom ?? bottom)
             let size = CGSize(width: geo.size.width, height: geo.size.height + top + bottom)
             let env = GhafAboutSceneEnv(theme: theme, lang: lang, reduce: reduceMotion, size: size, top: top)
             ZStack {
                 theme.ink
                 scenes(env)
-                overlay(bottomInset: bottom)
+                overlay(bottomInset: homeIndicator)
                 Button { router.fullScreenPage = false; dismiss() } label: {
                     Image(systemName: "chevron.backward").resizable().scaledToFit().frame(width: 12, height: 20)
                         .foregroundStyle(theme.inkText).frame(width: 44, height: 44).background(Color.white.opacity(0.14), in: Circle())

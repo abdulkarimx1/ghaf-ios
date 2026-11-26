@@ -121,6 +121,17 @@ struct GhafSettingsView: View {
                         .buttonStyle(.ghafPress)
                         .accessibilityLabel(ar ? "الإعدادات" : "Settings")
                     }
+                    // Owner #54: the wallet, in the same spot and style as Home's header button.
+                    .overlay(alignment: .topLeading) {
+                        NavigationLink { GhafAccountsView(settings: settings) } label: {
+                            Image(systemName: "wallet.bifold.fill")
+                                .foregroundStyle(theme.primaryText)
+                                .frame(width: 44, height: 44)
+                                .background(theme.surface, in: Circle())
+                        }
+                        .buttonStyle(.ghafPress)
+                        .accessibilityLabel(ar ? "الحسابات" : "Accounts")
+                    }
 
                     if proUnlocked {
                         HStack(spacing: 12) {
