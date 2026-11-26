@@ -422,6 +422,8 @@ async function speak(body, env, developer, device, usage) {
   // Developer-only ElevenLabs studio for marketing/onboarding narration: any voice ID, the higher-quality multilingual model.
   if (developer && body.studio === "eleven") return elevenStudio(text, String(body.voice || ""), body.settings, env);
   // Developer-only background music / sound bed for the same narration (text is the music prompt).
+  // Developer-only ElevenLabs voice design (design a voice from a description, then save it) for onboarding narration.
+  if (developer && body.studio === "eleven-api") return elevenAPI(String(body.path || ""), body.payload, env);
   if (developer && body.studio === "eleven-music") return elevenMusic(text, Number(body.seconds) || 30, body.kind === "sfx", env);
   // Owner rule (2026-11-25): users only ever hear Hamad or Mariam. Until ElevenLabs is paid for, answers are
   // text only ("voice_off"); there is no stand-in voice, and old stand-in audio in the cache is never served.
@@ -488,6 +490,16 @@ async function elevenSpeak(text, character, tier, env, developer, device, usage,
   await env.USAGE.put(cacheKey, audio, { expirationTtl: 604800 });
   if (usage) { usage.output = text.length; usage.outcome = "ok"; }
   return new Response(audio, { headers: { "Content-Type": "audio/wav", "X-Ghaf-Voice": "elevenlabs" } });
+}
+
+async function elevenAPI(path, payload, env) {
+  if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_off" }, 410);
+  if (!["/v1/text-to-voice/design", "/v1/text-to-voice"].includes(path)) return json({ error: "bad_path" }, 400);
+  const upstream = await fetch(`https://api.elevenlabs.io${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY }, body: JSON.stringify(payload || {})
+  }).catch(() => null);
+  if (!upstream) return json({ error: "unavailable" }, 503);
+  return new Response(await upstream.text(), { status: upstream.ok ? 200 : 502, headers: { "Content-Type": "application/json" } });
 }
 
 async function elevenMusic(prompt, seconds, sfx, env) {
