@@ -131,3 +131,49 @@ final class GhafSweepTests: XCTestCase {
         }
     }
 }
+final class TmpWidgetProbe: XCTestCase {
+    let out = "/Users/abdulkarim/orca/workspaces/Ghaf budget app/HANDOFF-1.31/proof-widgets/v2"
+    let sb = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    func snap(_ n: String) { try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(out)/\(n).png")) }
+    func openGallery(first: Bool) {
+        if first {
+            XCUIDevice.shared.press(.home); sleep(1)
+            sb.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7)).press(forDuration: 1.5); sleep(1)
+        }
+        sb.buttons["Edit"].firstMatch.tap(); sleep(1)
+        sb.buttons["Add Widget"].firstMatch.tap(); sleep(2)
+        let s = sb.searchFields.firstMatch
+        if s.waitForExistence(timeout: 5) { s.tap(); s.typeText("Ghaf"); sleep(1) }
+        sb.cells.matching(NSPredicate(format: "label CONTAINS 'Ghaf'")).firstMatch.tap(); sleep(2)
+    }
+    func add(_ idx: Int) {
+        for _ in 0..<idx {
+            let b = sb.buttons.matching(NSPredicate(format: "value BEGINSWITH 'Widget'")).allElementsBoundByIndex.first(where: { $0.isHittable })!
+            b.swipeLeft(); usleep(600000)
+        }
+        sb.buttons.matching(NSPredicate(format: "label ENDSWITH 'Add Widget'")).firstMatch.tap(); sleep(2)
+    }
+    func testAdd() {
+        for (n, i) in [7, 3, 15, 24, 27, 33].enumerated() { openGallery(first: n == 0); add(i) }
+        sb.buttons["Done"].firstMatch.tap(); sleep(2)
+    }
+    func testShots() {
+        let tag = ProcessInfo.processInfo.environment["TAG"] ?? "x"
+        XCUIDevice.shared.press(.home); sleep(2)
+        for p in 0..<6 {
+            snap("\(tag)-page\(p)")
+            sb.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.78)).press(forDuration: 0.05, thenDragTo: sb.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.78))); sleep(1)
+        }
+    }
+    func testFull() {
+        let e = ProcessInfo.processInfo.environment
+        let lang = e["LANG2"] ?? "en", dark = e["DARK"] == "1", pro = e["PRO"] == "1"
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", dark ? "Dark" : "Light", "-GhafLanguage", lang, "-AppleLanguages", "(\(lang))"] + (pro ? ["-GhafAIProTestAccess"] : [])
+        app.launch(); sleep(8)
+        let adds = (e["ADDS"] ?? "").split(separator: ",").compactMap { Int($0) }
+        for (n, i) in adds.enumerated() { openGallery(first: n == 0); add(i) }
+        if !adds.isEmpty { sb.buttons["Done"].firstMatch.tap(); sleep(3) }
+        testShots()
+    }
+}

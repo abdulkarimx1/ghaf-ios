@@ -119,8 +119,8 @@ struct GhafWidgetProMask: View {
             .widgetAccentable()
     }
 
-    private var labels: some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func labels(_ alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
             Text("Ghaf Pro")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.primary)
@@ -140,13 +140,13 @@ struct GhafWidgetProMask: View {
             if family == .systemMedium {
                 HStack(spacing: 12) {
                     badge
-                    labels
+                    labels(.leading)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 VStack(spacing: 8) {
                     badge
-                    labels
+                    labels(.center)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                 }
