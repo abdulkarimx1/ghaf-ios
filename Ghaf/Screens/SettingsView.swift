@@ -966,6 +966,7 @@ struct GhafSettingsView: View {
         .frame(maxWidth: .infinity, minHeight: 68)
         .padding(.horizontal, 5)
         .background(theme.surface, in: Capsule())
+        .overlay { if theme.isDark { Capsule().stroke(theme.outline, lineWidth: 1) } }
         .accessibilityElement(children: .combine)
     }
 
