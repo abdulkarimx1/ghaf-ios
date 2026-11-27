@@ -1292,19 +1292,19 @@ struct GhafAIView: View {
             let kind = intent.isName ? "name" : "fact"
             do {
                 let memory = try GhafMemoryStore.remember(text, kind: kind, source: source, in: modelContext)
-                var answer = GhafChatMessage(isUser: false, text: ar ? "تمام، بحفظ هالمعلومة." : "Got it. I’ll remember that.")
+                var answer = GhafChatMessage(isUser: false, text: ar ? "حسناً، سأحفظ هذه المعلومة." : "Got it. I’ll remember that.")
                 answer.memoryID = memory.id
                 messages.append(answer)
             } catch {
                 Logger(subsystem: "com.ghaf.app", category: "ai").error("Saving memory failed: \(String(describing: error), privacy: .public)")
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر حفظها. حاول مرة ثانية." : "I couldn't save that memory. Try again."))
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذّر حفظ هذه المعلومة. حاول مرة أخرى." : "I couldn't save that memory. Try again."))
             }
         case .forget(let text):
             do {
                 try GhafMemoryStore.forget(text, in: modelContext)
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تم، نسيت هالمعلومة." : "Done. I’ve forgotten that."))
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تم، حذفت هذه المعلومة." : "Done. I’ve forgotten that."))
             } catch {
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر نسيانها. حاول مرة ثانية." : "I couldn't forget that. Try again."))
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذّر حذف هذه المعلومة. حاول مرة أخرى." : "I couldn't forget that. Try again."))
             }
         }
         if voiceMode && !liveCallActive, let reply = messages.last(where: { !$0.isUser })?.text {
@@ -1364,7 +1364,7 @@ struct GhafAIView: View {
                 ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: "ar"))" } ?? "") }.joined(separator: "، ") + "."
                 : "Saved. I'll remember " + learned.map { "\($0.merchant) → \(GhafLocalization.category($0.category, languageCode: settings.languageCode))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: settings.languageCode))" } ?? "") }.joined(separator: ", ") + ".")
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: note)) }
-            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?", force: liveCallActive)
+            speak(ar ? "تم الحفظ. هل تريد شيئاً آخر؟" : "Saved. Anything else?", force: liveCallActive)
         } catch {
             withAnimation(.snappy) {
                 messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."))
@@ -1518,7 +1518,7 @@ struct GhafAIView: View {
             guard memoryEnabled else { response = ar ? "الذاكرة متوقفة." : "Memory is disabled."; return ["result": .string(response)] }
             do {
                 let memory = try GhafMemoryStore.remember(value("fact"), source: "confirmed", in: modelContext)
-                var message = GhafChatMessage(isUser: false, text: ar ? "تمام، بحفظ هالمعلومة." : "Got it. I’ll remember that.")
+                var message = GhafChatMessage(isUser: false, text: ar ? "حسناً، سأحفظ هذه المعلومة." : "Got it. I’ll remember that.")
                 message.memoryID = memory.id; messages.append(message)
                 response = ar ? "انحفظت على هذا الجهاز." : "Saved on this iPhone."
             } catch { response = ar ? "تعذر الحفظ." : "Could not save memory." }

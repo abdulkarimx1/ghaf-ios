@@ -8,13 +8,13 @@ import FoundationModels
 
 /// Deterministic numbers the assistant may quote. The language model never calculates money itself.
 enum GhafFinanceFacts {
-    /// V16 (owner 1.31): how Ghaf addresses the user in Arabic. Male → ك forms, female → ج forms, else neutral.
+    /// V16 (owner 1.31): how Ghaf addresses the user in Arabic using clear, neutral Fus-ha.
     /// Goes first in FACTS so the cloud, on-device and live voice replies all follow it.
     static func addressLine(sex: String?) -> String {
         switch sex {
-        case "male": return "ADDRESS: The user is male. In Arabic, address him with masculine Gulf forms (e.g. عندك، صرفت، تبي)."
-        case "female": return "ADDRESS: The user is female. In Arabic, address her with feminine Gulf forms using ج (e.g. عندج، صرفتي، تبين)."
-        default: return "ADDRESS: The user's sex is not given. In Arabic, use neutral wording that avoids masculine and feminine forms."
+        case "male": return "ADDRESS: The user is male. In Arabic, address him with masculine Fus-ha forms."
+        case "female": return "ADDRESS: The user is female. In Arabic, address her with feminine Fus-ha forms."
+        default: return "ADDRESS: The user's sex is not given. In Arabic, use neutral Fus-ha wording where possible."
         }
     }
 
