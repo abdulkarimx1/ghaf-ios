@@ -52,23 +52,23 @@ struct GhafAboutView: View {
         [
             Page(title: t("Private from the start", "خصوصيتك من أول يوم"),
                  body: t("Your money stays on your iPhone, behind Face ID. No account, no bank login.",
-                         "فلوسك تبقى على جهازك، محمية بـ Face ID. بدون حساب، وبدون تسجيل دخول للبنك."),
+                         "تبقى أموالك على جهازك، محميةً بـ Face ID، من دون حساب أو تسجيل دخول إلى البنك."),
                  cta: t("Read the privacy policy", "اقرأ سياسة الخصوصية"), destination: .privacy),
-            Page(title: t("Logs itself", "يسجّل لحاله"),
+            Page(title: t("Logs itself", "يسجّل تلقائياً"),
                  body: t("A bank alert arrives and it's recorded for you. You don't type a thing.",
-                         "يوصلك تنبيه البنك، ويتسجّل لك. ما تكتب شي."),
+                         "يصل تنبيه البنك، ويسجّل غاف العملية. لا حاجة إلى إدخالها يدوياً."),
                  cta: t("Set up automation", "فعّل التسجيل التلقائي"), destination: .automation),
             Page(title: t("Learns from you", "يتعلّم منك"),
                  body: t("Pick a category once; every visit after is sorted for you.",
-                         "اختر التصنيف مرة وحدة، والزيارات الجاية تتصنّف لحالها."),
-                 cta: t("See what it learned", "شوف وش تعلّم"), destination: .learned),
-            Page(title: t("Sees what's coming", "يعرف وين بيوصل شهرك"),
-                 body: t("Where the month will land, before it does.", "وين بيوصل صرفك هالشهر، قبل لا يوصل."),
+                         "اختر التصنيف مرة واحدة، وستُصنّف الزيارات اللاحقة تلقائياً."),
+                 cta: t("See what it learned", "اطّلع على ما تعلّمه"), destination: .learned),
+            Page(title: t("Sees what's coming", "يعرض توقّعات الشهر"),
+                 body: t("Where the month will land, before it does.", "تعرّف إلى المسار المتوقع لمصروفاتك قبل نهاية الشهر."),
                  cta: t("Open Statistics", "افتح الإحصائيات"), destination: .stats),
-            Page(title: t("Why we built it", "ليش سوّيناه"),
+            Page(title: t("Why we built it", "لماذا أنشأناه؟"),
                  body: t("Calm, private money tracking for the Gulf. With gratitude to the UAE.",
-                         "متابعة هادية وخاصة لفلوسك في الخليج. مع الامتنان لدولة الإمارات."),
-                 cta: t("Why is Pro paid?", "ليش برو مدفوع؟"), destination: .whyPaid)
+                         "متابعة مالية هادئة وخاصة في الخليج، مع الامتنان لدولة الإمارات."),
+                 cta: t("Why is Pro paid?", "لماذا غاف برو مدفوع؟"), destination: .whyPaid)
         ]
     }
 
@@ -335,7 +335,7 @@ private struct GhafWhyPaidPage: View {
                            ar ? "تبقى تجربتك هادئة وخالية من الإعلانات." : "Your experience stays calm and ad-free.")
                 Divider().overlay(theme.outline).padding(.leading, 56)
                 paidReason("lock.shield", ar ? "مستقل ويحترم خصوصيتك" : "Independent and private",
-                           ar ? "يدعم Pro التطوير، لا بيع بياناتك." : "Pro supports development, not the sale of your data.")
+                           ar ? "يدعم غاف برو تطوير التطبيق، لا بيع بياناتك." : "Pro supports development, not the sale of your data.")
                 Divider().overlay(theme.outline).padding(.leading, 56)
                 paidReason("checkmark.seal", ar ? "يبقى الإصدار المجاني مفيداً" : "Free stays useful",
                            ar ? "ستبقى الميزانيات والحسابات والتنبيهات البنكية مجانية." : "Budgets, accounts and bank alerts stay free.")
