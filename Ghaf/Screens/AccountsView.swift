@@ -40,6 +40,8 @@ struct GhafAccountsView: View {
             ScrollView { walletContent(balances) }
                 .scrollIndicators(.hidden)
         }
+        // Owner #90: fill the screen so the themed background reaches under the bar when the content fits without scrolling.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ghafBackground(theme: theme)
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
