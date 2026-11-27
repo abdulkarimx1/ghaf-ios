@@ -435,8 +435,8 @@ struct GhafStatsView: View {
         let change = before > 0 ? (spent - before) / before : nil
         let comparisonVisible = hasPreviousCoverage
         let accent = theme.accent
-        let periods = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["W", "M", "3M", "Y"]
-        let periodNames = ar ? ["أسبوع", "شهر", "٣ أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]
+        let periods = ar ? ["أسبوع", "شهر", "3 أشهر", "سنة"] : ["W", "M", "3M", "Y"]
+        let periodNames = ar ? ["أسبوع", "شهر", "3 أشهر", "سنة"] : ["Week", "Month", "3 months", "Year"]
         let heading = scrubbedMonthDay.map(dailyBucketLabel)
             ?? selected.map { bucketLabel($0.start) }
             ?? selectedCategory.map { GhafLocalization.category($0, languageCode: lang) }
@@ -662,7 +662,7 @@ struct GhafStatsView: View {
                         context.stroke(path, with: .color(accent.opacity(theme.isDark ? 0.55 : 0.45)), style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
                     }
                     .frame(width: 16, height: 8)
-                    Text(ar ? "توقع · بناءً على آخر ٩٠ يوماً" : "Forecast · based on your last 90 days")
+                    Text(ar ? "توقع · بناءً على آخر 90 يوماً" : "Forecast · based on your last 90 days")
                         .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
                 .frame(maxWidth: .infinity, minHeight: 18, alignment: .center)
@@ -750,7 +750,7 @@ struct GhafStatsView: View {
                     .frame(width: 40, height: 40).background(theme.accent, in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ar ? "الميزانية" : "Budget").font(GhafTypography.body(15, languageCode: lang, weight: .bold)).foregroundStyle(theme.primaryText)
-                    Text(ar ? "الراتب والتوزيع ٥٠/٣٠/٢٠ والوتيرة" : "Salary, 50/30/20 split and pace")
+                    Text(ar ? "الراتب والتوزيع 50/30/20 والوتيرة" : "Salary, 50/30/20 split and pace")
                         .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
                 Spacer(minLength: 4)
@@ -861,7 +861,7 @@ struct GhafStatsView: View {
 
     private func tiles(_ items: [GhafTransaction]) -> some View {
         let days = max(1, calendar.dateComponents([.day], from: interval.start, to: min(GhafClock.now, interval.end)).day ?? 1)
-        let units = ar ? ["هذا الأسبوع", "هذا الشهر", "آخر ٣ أشهر", "هذه السنة"] : ["this week", "this month", "these 3 months", "this year"]
+        let units = ar ? ["هذا الأسبوع", "هذا الشهر", "آخر 3 أشهر", "هذه السنة"] : ["this week", "this month", "these 3 months", "this year"]
         return HStack(spacing: 10) {
             VStack(spacing: 8) {
                 Text(ar ? "متوسط اليوم" : "Daily average")

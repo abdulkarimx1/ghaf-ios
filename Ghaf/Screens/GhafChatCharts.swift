@@ -113,7 +113,7 @@ enum GhafChatChartBuilder {
                 return .init(label: day.formatted(.dateTime.weekday(.narrow).locale(GhafLocale.locale(identifier: languageCode))),
                              value: total(calendar.dateInterval(of: .day, for: day)), highlight: offset == 0)
             }
-            return GhafChatChart(kind: .week, style: requested ?? .bar, title: ar ? "آخر ٧ أيام" : "Last 7 days",
+            return GhafChatChart(kind: .week, style: requested ?? .bar, title: ar ? "آخر 7 أيام" : "Last 7 days",
                                  currency: currency, points: points)
         }
         if requested != nil || has(q, ["categor", "where", "most", "chart", "graph", "breakdown", "stats", "spend",

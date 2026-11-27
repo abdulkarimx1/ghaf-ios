@@ -138,7 +138,7 @@ extension GhafWidgetSnapshot {
 
     /// Whole-number amount for big type, stars while balances are hidden.
     func whole(_ value: Decimal) -> String {
-        hidden ? "✦✦✦" : value.formatted(.number.precision(.fractionLength(0)).locale(locale))
+        hidden ? "✦✦✦" : GhafLocale.decimalString(value, identifier: arabic ? "ar_AE" : "en_AE", fractionDigits: 0)
     }
 }
 
@@ -296,7 +296,7 @@ struct GhafRecentView: View {
             ? GhafWidgetSnapshot.Recent(merchant: nil, category: text(s, "Spent today", "صرف اليوم"), symbol: "calendar", amount: s.spentToday,
                                         currency: s.currency, date: s.updated, isCredit: false, account: nil, bank: nil, needsReview: false)
             : latest
-        let amount = (r.isCredit ? "+" : "") + (s.hidden ? "✦✦✦" : r.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: r.currency))).locale(s.locale)))
+        let amount = (r.isCredit ? "+" : "") + (s.hidden ? "✦✦✦" : GhafLocale.decimalString(r.amount, identifier: s.arabic ? "ar_AE" : "en_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: r.currency)))
         let detail = [entry.config.showMerchant ? r.merchant : nil, entry.config.showAccount ? r.account : nil]
             .compactMap { $0 }.joined(separator: " · ")
         let label = text(s, "Latest: \(r.category), \(r.currency) \(amount)", "آخر عملية: \(r.category)، \(amount) \(r.currency)")
@@ -651,7 +651,7 @@ struct GhafCategoriesView: View {
                         Text(c.name).font(.system(size: large ? 15 : 12, weight: .semibold)).lineLimit(1)
                         Spacer(minLength: 4)
                         if entry.config.showAmounts {
-                            Text(s.hidden ? "✦✦✦" : c.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency))).locale(s.locale)))
+                            Text(s.hidden ? "✦✦✦" : GhafLocale.decimalString(c.amount, identifier: s.arabic ? "ar_AE" : "en_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: s.currency)))
                                 .font(ghafNumberFont(large ? 14 : 12, weight: .semibold)).privacySensitive()
                         } else {
                             Text((NSDecimalNumber(decimal: c.amount / total).doubleValue).formatted(.percent.precision(.fractionLength(0)).locale(s.locale)))
@@ -712,7 +712,7 @@ struct GhafBillsView: View {
             }
             .foregroundStyle(tile.foreground).ghafLayout(s))
         }
-        let amount = { (b: GhafWidgetSnapshot.Bill) in s.hidden ? "✦✦✦" : b.amount.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: b.currency))).locale(s.locale)) }
+        let amount = { (b: GhafWidgetSnapshot.Bill) in s.hidden ? "✦✦✦" : GhafLocale.decimalString(b.amount, identifier: s.arabic ? "ar_AE" : "en_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: b.currency)) }
 
         switch family {
         case .accessoryRectangular:

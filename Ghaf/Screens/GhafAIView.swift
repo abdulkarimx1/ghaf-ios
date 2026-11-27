@@ -339,11 +339,11 @@ struct GhafAIView: View {
                 .foregroundStyle(theme.secondaryText)
             VStack(spacing: 12) {
                 Button { showProSheet = true } label: {
-                    Text(ar ? "الأساسية · ٣ ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
+                    Text(ar ? "الأساسية · 3 ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
                         .frame(maxWidth: .infinity)
                 }.ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 Button { showProSheet = true } label: {
-                    Text(ar ? "الكاملة · ١٠ ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
+                    Text(ar ? "الكاملة · 10 ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
                         .frame(maxWidth: .infinity)
                 }.ghafGlassButton(theme: theme, languageCode: settings.languageCode)
             }

@@ -975,7 +975,7 @@ struct GhafSettingsView: View {
                     choiceButton(title, detail: nil, selected: weekStart == day) { weekStart = day }
                 }
             }
-            Text(ar ? "يحدد «هذا الأسبوع» و«الأسبوع الماضي» في غاف AI والرسوم، وموعد الملخص الأسبوعي. الرئيسية تعرض آخر ٧ أيام."
+            Text(ar ? "يحدد «هذا الأسبوع» و«الأسبوع الماضي» في غاف AI والرسوم، وموعد الملخص الأسبوعي. الرئيسية تعرض آخر 7 أيام."
                     : "Sets \"this week\" and \"last week\" in Ghaf AI and charts, and when the weekly summary arrives. Home shows the last 7 days.")
                 .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
@@ -1247,10 +1247,10 @@ HStack(spacing: 8) {
 
             if budgetMode == "Daily" {
                 settingsLabel(languageCode == "ar" ? "الدخل الشهري" : "Monthly income")
-                settingsField(languageCode == "ar" ? "مثال: ٥٠٠٠" : "e.g. 5000", text: $income, numeric: true)
+                settingsField(languageCode == "ar" ? "مثال: 5000" : "e.g. 5000", text: $income, numeric: true)
 
                 settingsLabel(languageCode == "ar" ? "الالتزامات الشهرية الثابتة" : "Fixed monthly commitments")
-                settingsField(languageCode == "ar" ? "مثال: ١٥٠٠" : "e.g. 1500", text: $commitments, numeric: true)
+                settingsField(languageCode == "ar" ? "مثال: 1500" : "e.g. 1500", text: $commitments, numeric: true)
 
                 Text(languageCode == "ar" ? "الميزانية اليومية = (الدخل − الالتزامات) ÷ عدد أيام الشهر." : "Daily budget = (income − commitments) ÷ days in month.")
                     .font(GhafTypography.body(12, languageCode: languageCode))

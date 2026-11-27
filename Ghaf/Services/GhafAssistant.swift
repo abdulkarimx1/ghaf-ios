@@ -307,7 +307,7 @@ final class GhafAssistant: ObservableObject {
 
         if q.contains("subscri") || q.contains("اشتراك") {
             let due = pick("Subscriptions due")
-            return due.first ?? (ar ? "لا توجد اشتراكات مستحقة خلال ٣٠ يوماً." : "No subscriptions are due in the next 30 days.")
+            return due.first ?? (ar ? "لا توجد اشتراكات مستحقة خلال 30 يوماً." : "No subscriptions are due in the next 30 days.")
         }
         if q.contains("balance") || q.contains("do i have") || q.contains("رصيد") || q.contains("عندي") {
             let start = lines.firstIndex { $0.hasPrefix("Accounts") }

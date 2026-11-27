@@ -368,7 +368,7 @@ struct GhafBalanceView: View {
                         Caption(value: caption + s.currency).foregroundStyle(tile.dim)
                         Spacer(minLength: 0)
                         if family == .systemSmall, entry.config.showWeek, let week = s.lastSevenDays { WeekBars(days: week, base: tile.foreground.opacity(0.14), highlight: tile.highlight) }
-                        Text(hero.map { s.hidden ? "✦✦✦✦" : $0.formatted(.number.precision(.fractionLength(0)).locale(GhafLocale.locale(identifier: s.arabic ? "ar_AE" : "en_AE"))) } ?? "—")
+                        Text(hero.map { s.hidden ? "✦✦✦✦" : GhafLocale.decimalString($0, identifier: s.arabic ? "ar_AE" : "en_AE", fractionDigits: 0) } ?? "—")
                             .font(.system(size: family == .systemSmall ? 30 : 36, weight: .bold))
                             .tracking(-0.8)
                             .foregroundStyle(tile.foreground)
@@ -383,7 +383,7 @@ struct GhafBalanceView: View {
                     }
                     if family == .systemMedium, entry.config.showWeek, let week = s.lastSevenDays {
                         VStack(alignment: .leading, spacing: 6) {
-                            Caption(value: text(s, "Last 7 days", "آخر ٧ أيام")).foregroundStyle(tile.dim)
+                            Caption(value: text(s, "Last 7 days", "آخر 7 أيام")).foregroundStyle(tile.dim)
                             Spacer(minLength: 0)
                             WeekBars(days: week, base: tile.foreground.opacity(0.14), highlight: tile.highlight).frame(height: 60)
                         }
@@ -443,7 +443,7 @@ struct GhafTodayView: View {
                 Text(s?.currency ?? "AED")
             } currentValueLabel: {
                 Text(used.map { $0.formatted(.percent.precision(.fractionLength(0)).locale(GhafLocale.locale(identifier: s?.arabic == true ? "ar_AE" : "en_AE"))) }
-                     ?? s.map { $0.hidden ? "✦✦" : $0.spentToday.formatted(.number.precision(.fractionLength(0)).locale(GhafLocale.locale(identifier: $0.arabic ? "ar_AE" : "en_AE"))) } ?? "—")
+                     ?? s.map { $0.hidden ? "✦✦" : GhafLocale.decimalString($0.spentToday, identifier: $0.arabic ? "ar_AE" : "en_AE", fractionDigits: 0) } ?? "—")
                     .minimumScaleFactor(0.5)
                     .privacySensitive()
             }
@@ -468,7 +468,7 @@ struct GhafTodayView: View {
     private func small(_ s: GhafWidgetSnapshot, _ tile: GhafTile, _ caption: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Caption(value: caption).foregroundStyle(tile.dim)
-            Text(s.hidden ? "✦✦✦" : s.spentToday.formatted(.number.precision(.fractionLength(0)).locale(s.locale)))
+            Text(s.hidden ? "✦✦✦" : GhafLocale.decimalString(s.spentToday, identifier: s.arabic ? "ar_AE" : "en_AE", fractionDigits: 0))
                 .font(.system(size: 40, weight: .heavy)).tracking(-1.2)
                 .foregroundStyle(tile.foreground).minimumScaleFactor(0.5).lineLimit(1)
                 .privacySensitive()
@@ -590,7 +590,7 @@ private struct GhafActivityStatus: View {
             .font(.caption.weight(.semibold)).foregroundStyle(paper.opacity(0.62))
             Spacer(minLength: 4)
             if let balance = s.balance {
-                Text(ar ? "الرصيد · \(s.currency) \(balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))" : "Balance · \(s.currency) \(balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency)))))")
+                Text(ar ? "الرصيد · \(s.currency) \(GhafLocale.decimalString(balance, identifier: "ar_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: s.currency)))" : "Balance · \(s.currency) \(GhafLocale.decimalString(balance, identifier: "en_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: s.currency)))")
                     .lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
             }
             if let url = s.transactionURL {
@@ -712,7 +712,7 @@ struct GhafPurchaseLockView: View {
                 }
                 Spacer(minLength: 6)
                 if let balance = s.balance {
-                    Text((a.arabic ? "الرصيد · " : "Balance · ") + s.currency + " " + balance.formatted(.number.precision(.fractionLength(GhafCurrencyDigits.fractionDigits(for: s.currency))).locale(GhafLocale.locale(identifier: a.arabic ? "ar_AE" : "en_AE"))))
+                    Text((a.arabic ? "الرصيد · " : "Balance · ") + s.currency + " " + GhafLocale.decimalString(balance, identifier: a.arabic ? "ar_AE" : "en_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: s.currency)))
                         .font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
                 }
                 if let url = s.transactionURL { Link(a.arabic ? "فتح" : "Open", destination: url).font(.caption.weight(.bold)).foregroundStyle(a.glowColor) }

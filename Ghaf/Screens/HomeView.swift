@@ -356,7 +356,7 @@ struct GhafHomeView: View {
                 Button(ar ? "إصلاح الإعداد" : "Fix setup") { showAutomationGuide = true }
                     .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 Spacer()
-                Button(ar ? "إخفاء ٧ أيام" : "Dismiss for 7 days") {
+                Button(ar ? "إخفاء 7 أيام" : "Dismiss for 7 days") {
                     automationWarningDismissedUntil = GhafClock.now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970
                 }
                 .font(GhafTypography.body(12, languageCode: lang))
@@ -425,13 +425,13 @@ struct GhafHomeView: View {
     // MARK: Balance card: tap to switch Day / Week / Month
 
     private var periodName: String {
-        ar ? ["اليوم", "آخر ٧ أيام", "هذا الشهر"][activityPeriodIndex]
+        ar ? ["اليوم", "آخر 7 أيام", "هذا الشهر"][activityPeriodIndex]
            : ["Today", "Last 7 days", "This month"][activityPeriodIndex]
     }
 
     /// The period inside a sentence: "your biggest spend in the last 7 days".
     private var periodPhrase: String {
-        ar ? ["اليوم", "في آخر ٧ أيام", "هذا الشهر"][activityPeriodIndex]
+        ar ? ["اليوم", "في آخر 7 أيام", "هذا الشهر"][activityPeriodIndex]
            : ["today", "in the last 7 days", "this month"][activityPeriodIndex]
     }
 
@@ -448,7 +448,7 @@ struct GhafHomeView: View {
         Button { withAnimation(.snappy) { seenRollingWeekNote = true } } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "info.circle.fill")
-                Text(ar ? "تغيّر الأسبوعي: يعرض الآن آخر ٧ أيام بدلاً من أسبوع التقويم."
+                Text(ar ? "تغيّر الأسبوعي: يعرض الآن آخر 7 أيام بدلاً من أسبوع التقويم."
                         : "Weekly has changed: it now shows the last 7 days instead of the calendar week.")
                     .multilineTextAlignment(.leading)
                 Image(systemName: "xmark")
@@ -653,7 +653,7 @@ struct GhafHomeView: View {
     /// Nothing spent yet: say what the period before cost.
     private func emptyInsight(_ summary: Summary) -> String {
         let text = ar
-            ? ["لا مصروفات اليوم حتى الآن.", "لا مصروفات في آخر ٧ أيام.", "لا مصروفات هذا الشهر حتى الآن."][activityPeriodIndex]
+            ? ["لا مصروفات اليوم حتى الآن.", "لا مصروفات في آخر 7 أيام.", "لا مصروفات هذا الشهر حتى الآن."][activityPeriodIndex]
             : activityPeriodIndex == 1 ? "Nothing spent in the last 7 days." : "Nothing spent \(periodPhrase) yet."
         guard summary.previousSpent > 0 else {
             return text + (ar ? " يوم بلا مصروفات." : " A good day for your wallet.")

@@ -110,7 +110,7 @@ struct GhafInsightsView: View {
                         .font(GhafTypography.body(13, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
-                Text(ar ? "تقدير من وتيرة هذا الشهر وآخر ٣ أشهر." : "Estimate from this month's pace and your last 3 months.")
+                Text(ar ? "تقدير من وتيرة هذا الشهر وآخر 3 أشهر." : "Estimate from this month's pace and your last 3 months.")
                     .font(GhafTypography.body(11, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
             }

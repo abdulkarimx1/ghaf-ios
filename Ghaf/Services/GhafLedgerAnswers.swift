@@ -86,7 +86,7 @@ enum GhafLedgerAnswers {
             let monthly = subscriptions.filter { $0.isActive && $0.currency == currency }
                 .reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }
             guard !due.isEmpty else {
-                return ar ? "لا تجديدات خلال ٣٠ يوماً. اشتراكاتك تكلّف تقريباً \(money(monthly)) شهرياً."
+                return ar ? "لا تجديدات خلال 30 يوماً. اشتراكاتك تكلّف تقريباً \(money(monthly)) شهرياً."
                           : "Nothing renews in the next 30 days. Your subscriptions cost about \(money(monthly)) a month."
             }
             let locale = GhafLocale.locale(identifier: languageCode)
@@ -94,7 +94,7 @@ enum GhafLedgerAnswers {
                 let date = item.nextPaymentDate.formatted(.dateTime.day().month(.wide).locale(locale))
                 return "• \(item.name) · \(money(item.amount, item.currency)) · \(date)"
             }.joined(separator: "\n")
-            return ar ? "القادم خلال ٣٠ يوماً:\n\(list)\nالمجموع الشهري التقريبي: \(money(monthly))."
+            return ar ? "القادم خلال 30 يوماً:\n\(list)\nالمجموع الشهري التقريبي: \(money(monthly))."
                       : "Coming up in the next 30 days:\n\(list)\nAbout \(money(monthly)) a month in total."
         }
 
@@ -241,7 +241,7 @@ enum GhafLedgerAnswers {
         }
         if let top = thisMonth.filter({ $0.value > 0 }).max(by: { $0.value < $1.value }) {
             let name = GhafLocalization.category(top.key, languageCode: languageCode)
-            return ar ? "أكبر فئة عندك \(name) بـ \(money(top.value)) هذا الشهر. تقليلها ١٠٪ يوفّر \(money(top.value / 10)) شهرياً."
+            return ar ? "أكبر فئة عندك \(name) بـ \(money(top.value)) هذا الشهر. تقليلها 10٪ يوفّر \(money(top.value / 10)) شهرياً."
                       : "Your biggest category is \(name) at \(money(top.value)) this month. Trimming it by 10% saves \(money(top.value / 10)) a month."
         }
         let monthly = subscriptions.filter { $0.isActive && $0.currency == currency }.reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }

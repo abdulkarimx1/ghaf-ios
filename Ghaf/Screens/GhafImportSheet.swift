@@ -219,7 +219,7 @@ struct GhafImportSheet: View {
             return ar ? "صيغة الملف غير مدعومة. اختر ملف CSV أو JSON للمعاملات."
                 : "This file format isn't supported. Choose a CSV or transaction JSON file."
         case GhafCore.ImportFileSizeError.tooLarge:
-            return ar ? "الملف كبير جداً للاستيراد (أكبر من ٢٥ ميغابايت)."
+            return ar ? "الملف كبير جداً للاستيراد (أكبر من 25 ميغابايت)."
                 : "This file is too large to import (over 25 MB)."
         case GhafFileImportError.noTransactions:
             return ar ? "لم نعثر على معاملات بتاريخ ومبلغ ووصف صالح."

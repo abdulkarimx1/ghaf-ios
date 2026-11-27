@@ -159,6 +159,10 @@ enum GhafFormat {
         formatter.numberStyle = .currency
         formatter.currencyCode = currency.uppercased()
         formatter.locale = locale(for: currency, languageCode: languageCode)
+        formatter.decimalSeparator = "."
+        formatter.groupingSeparator = ","
+        formatter.currencyDecimalSeparator = "."
+        formatter.currencyGroupingSeparator = ","
         formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
 

@@ -19,7 +19,7 @@ struct GhafPrivacyPolicyView: View {
             VStack(alignment: .leading, spacing: 18) {
                 GhafScreenTitle(
                     title: isArabic ? "سياسة الخصوصية" : "Privacy policy",
-                    subtitle: isArabic ? "تاريخ السريان: ٢٥ نوفمبر ٢٠٢٦" : "Effective date: 25 November 2026",
+                    subtitle: isArabic ? "تاريخ السريان: 25 نوفمبر 2026" : "Effective date: 25 November 2026",
                     languageCode: settings.languageCode,
                     theme: theme
                 )

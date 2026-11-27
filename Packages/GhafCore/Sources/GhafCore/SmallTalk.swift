@@ -93,7 +93,7 @@ public enum GhafSmallTalk {
     public static func notUnderstood(_ message: String, languageCode: String, avoiding: Set<String> = []) -> String {
         let quoted = String(message.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
         let options = languageCode == "ar" ? [
-            "ما فهمت «\(quoted)» تماماً. جرّب: «كم صرفت هالشهر؟» أو «٣٥ درهم غداء».",
+            "ما فهمت «\(quoted)» تماماً. جرّب: «كم صرفت هالشهر؟» أو «35 درهم غداء».",
             "«\(quoted)» خارج اختصاصي شوي. أقدر أعطيك رصيدك، أكثر فئة صرفت فيها، أو الاشتراكات القادمة.",
             "سؤال حلو، بس ما عندي بيانات عن «\(quoted)». اسألني عن مصروفك أو دخلك أو اشتراكاتك.",
             "خلني أركز على فلوسك 😄 بدل «\(quoted)»: تبي مقارنة هالشهر بالشهر الماضي؟"

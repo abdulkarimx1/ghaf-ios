@@ -266,7 +266,7 @@ struct GhafAccountEditorView: View {
                     }
                     if !isCash {
                         GhafFormDivider(theme: theme)
-                        fieldRow(ar ? "آخر ٤ أرقام للبطاقة" : "Card ending") {
+                        fieldRow(ar ? "آخر 4 أرقام للبطاقة" : "Card ending") {
                             GhafAmountField(value: $lastFourDigits, currency: nil, label: "", theme: theme, languageCode: lang, integerMode: true, maxDigits: 4, fontSize: 20, chromeless: true)
                                 .onChange(of: lastFourDigits) { _, value in lastFourDigits = String(value.filter(\.isNumber).suffix(4)) }
                         }
@@ -495,7 +495,7 @@ struct GhafAccountEditorView: View {
         case "Currency", "العملة": "dollarsign.circle"
         case "Available right now", "الرصيد المتاح الآن": "wallet.pass"
         case "Credit limit", "الحد الائتماني": "creditcard"
-        case "Card ending", "آخر ٤ أرقام للبطاقة": "number"
+        case "Card ending", "آخر 4 أرقام للبطاقة": "number"
         default: "square.grid.2x2"
         }
     }

@@ -124,7 +124,7 @@ final class GhafAppDelegate: NSObject, UIApplicationDelegate {
                                       localizedSubtitle: ar ? "أرسل ملاحظاتك قبل الحذف" : "Send feedback before you delete",
                                       icon: UIApplicationShortcutIcon(systemImageName: "square.and.pencil"), userInfo: nil),
             UIApplicationShortcutItem(type: "com.ghaf.app.goodbye-offer", localizedTitle: ar ? "هدية قبل الرحيل" : "A gift before you go",
-                                      localizedSubtitle: ar ? "خصم ٢٥٪ لمرة واحدة على Pro" : "One-time 25% off Pro",
+                                      localizedSubtitle: ar ? "خصم 25٪ لمرة واحدة على Pro" : "One-time 25% off Pro",
                                       icon: UIApplicationShortcutIcon(systemImageName: "gift"), userInfo: nil)
         ]
         return true

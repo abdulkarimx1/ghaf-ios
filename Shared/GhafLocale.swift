@@ -7,4 +7,15 @@ enum GhafLocale {
         }
         return Locale(identifier: identifier + "@numbers=latn")
     }
+
+    static func decimalString(_ value: Decimal, identifier: String, fractionDigits: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = locale(identifier: identifier)
+        formatter.decimalSeparator = "."
+        formatter.groupingSeparator = ","
+        formatter.minimumFractionDigits = fractionDigits
+        formatter.maximumFractionDigits = fractionDigits
+        return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+    }
 }
