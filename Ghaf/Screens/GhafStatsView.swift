@@ -876,11 +876,13 @@ struct GhafStatsView: View {
                     .contentTransition(.opacity)
                     .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 34)
                 Text(ar ? "\(currency) يومياً" : "\(currency) a day")
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 16)
             }
-            .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
+            .frame(maxWidth: .infinity).frame(height: 96).padding(GhafMetrics.cardPadding)
             .ghafStatsCard(theme: theme, radius: 22)
             VStack(spacing: 8) {
                 Text(ar ? "المشتريات" : "Purchases")
@@ -889,11 +891,13 @@ struct GhafStatsView: View {
                 Text(items.count.formatted(.number.locale(Locale(identifier: lang))))
                     .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 34)
                 Text(units[period.rawValue])
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 16)
             }
-            .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
+            .frame(maxWidth: .infinity).frame(height: 96).padding(GhafMetrics.cardPadding)
             .ghafStatsCard(theme: theme, radius: 22)
         }
     }
