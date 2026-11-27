@@ -691,7 +691,8 @@ struct GhafStatsView: View {
                 .opacity(all.contains(where: { $0.forecast != nil }) ? 1 : 0)
                 .accessibilityHidden(!all.contains(where: { $0.forecast != nil }))
 
-            GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme, languageCode: lang)
+            GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme,
+                          languageCode: lang, identifierPrefix: "stats.period")
                 .scaleEffect(x: 1, y: 52.0 / 56.0)
                 .frame(height: 52)
                 .padding(.top, 8)
