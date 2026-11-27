@@ -120,7 +120,7 @@ struct GhafTransactionsView: View {
         let style: Date.FormatStyle = sameYear
             ? .dateTime.weekday(.wide).day().month(.wide)
             : .dateTime.day().month(.wide).year()
-        return day.formatted(style.locale(Locale(identifier: lang)))
+        return day.formatted(style.locale(GhafLocale.locale(identifier: lang)))
     }
 
     /// This month's totals in the preferred currency only.
@@ -452,7 +452,7 @@ private struct GhafTransactionPeek: View {
             }
             peekRow(ar ? "الفئة" : "Category", GhafLocalization.category(transaction.category, languageCode: languageCode))
             peekRow(ar ? "الحساب" : "Account", account.map { "\($0.name) · \($0.currency)" } ?? (ar ? "غير محدد" : "Unassigned"))
-            peekRow(ar ? "التاريخ" : "Date", transaction.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute().locale(Locale(identifier: languageCode))))
+            peekRow(ar ? "التاريخ" : "Date", transaction.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute().locale(GhafLocale.locale(identifier: languageCode))))
             if let note = transaction.note, !note.isEmpty { peekRow(ar ? "ملاحظة" : "Note", note) }
             if let place = GhafPlaces.saved(merchant: transaction.merchant ?? "", transactionID: transaction.id) { peekRow(ar ? "المكان" : "Place", place.name ?? "") }
         }
@@ -640,7 +640,7 @@ struct GhafTransactionEditor: View {
                                 .background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                         }.buttonStyle(.plain)
                         Button { showingTimePicker = true } label: {
-                            Label(date.formatted(.dateTime.hour().minute().locale(Locale(identifier: languageCode))), systemImage: "clock")
+                            Label(date.formatted(.dateTime.hour().minute().locale(GhafLocale.locale(identifier: languageCode))), systemImage: "clock")
                                 .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
                                 .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
                         }.buttonStyle(.plain)
@@ -710,7 +710,7 @@ struct GhafTransactionEditor: View {
     private var editDateLabel: String {
         if Calendar.current.isDateInToday(date) { return languageCode == "ar" ? "اليوم" : "Today" }
         if Calendar.current.isDateInYesterday(date) { return languageCode == "ar" ? "أمس" : "Yesterday" }
-        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: languageCode)))
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(GhafLocale.locale(identifier: languageCode)))
     }
     private func editQuickDate(_ title: String, value: Date) -> some View {
         Button(title) {

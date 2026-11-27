@@ -205,7 +205,7 @@ struct GhafProView: View {
 
     private func allowance(annual: Bool) -> String {
         let count = annual ? VoiceAllowance.yearlySpokenAnswers : VoiceAllowance.monthlySpokenAnswers
-        let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
+        let localizedCount = count.formatted(.number.locale(GhafLocalization.locale(languageCode: lang)))
         return ar ? "نحو \(localizedCount) إجابة صوتية شهريًا" : "About \(count) spoken answers a month"
     }
 
@@ -388,7 +388,7 @@ struct GhafProView: View {
 
     private func trialText(_ period: Product.SubscriptionPeriod) -> String {
         let count = period.value
-        let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
+        let localizedCount = count.formatted(.number.locale(GhafLocalization.locale(languageCode: lang)))
         let unit: (String, String)
         switch period.unit {
         case .day: unit = ("day", count == 1 ? "يوم واحد" : count == 2 ? "يومين" : "أيام")

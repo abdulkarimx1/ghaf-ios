@@ -107,7 +107,7 @@ struct GhafAboutView: View {
         .onDisappear { router.fullScreenPage = false }
         // Leave dark mode before a linked page slides in, so it doesn't flash dark first.
         .onChange(of: destination) { _, value in if value != nil { router.fullScreenPage = false } }
-        .environment(\.locale, Locale(identifier: lang))
+        .environment(\.locale, GhafLocale.locale(identifier: lang))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .sensoryFeedback(.selection, trigger: active)
         .task(id: "\(active)-\(touching)-\(autoAdvance)") {
