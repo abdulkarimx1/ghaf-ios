@@ -46,6 +46,23 @@ final class GhafOwnerRules131Tests: XCTestCase {
         }
     }
 
+    func testOwnerRule_FastChartScrubsKeepStatsLayoutStill() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "insights", "-GhafPeriod", "M",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en"]
+        app.launch()
+        let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 30))
+        let amountY = amount.frame.minY
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.54))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.54))
+        for _ in 0..<3 {
+            start.press(forDuration: 0.05, thenDragTo: right)
+            right.press(forDuration: 0.05, thenDragTo: start)
+        }
+        XCTAssertEqual(amount.frame.minY, amountY, accuracy: 2, "Scrubbing must not move the stats card")
+    }
+
     /// Swipe-deletes the first Carrefour row; returns the Carrefour match count before deleting.
     private func swipeDeleteCarrefour(_ app: XCUIApplication) -> Int {
         app.tabBars.buttons["Transactions"].tap()
