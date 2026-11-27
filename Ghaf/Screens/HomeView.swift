@@ -238,7 +238,6 @@ struct GhafHomeView: View {
             }
             .sheet(isPresented: $showInbox) {
                 GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID)
-                    .refreshable { GhafEventNotifications.configure() }
                     .presentationDragIndicator(.visible)
                     .ghafDirection(settings.languageCode)
             }
