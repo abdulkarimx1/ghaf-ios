@@ -221,6 +221,7 @@ struct GhafTransactionsView: View {
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
+            .refreshable { prepareVisibleTransactions() }
             .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()

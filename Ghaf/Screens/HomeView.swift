@@ -188,6 +188,13 @@ struct GhafHomeView: View {
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
             }
+            .refreshable {
+                summary = makeSummary()
+                cachedSummaryID = summaryTaskID
+                summaryPrepared = true
+                GhafEventNotifications.configure()
+                GhafWidgetSync.refresh(context: modelContext)
+            }
             .scrollIndicators(.hidden)
             .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
@@ -227,7 +234,10 @@ struct GhafHomeView: View {
                 GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showInbox) {
-                GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+                GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID)
+                    .refreshable { GhafEventNotifications.configure() }
+                    .presentationDragIndicator(.visible)
+                    .ghafDirection(settings.languageCode)
             }
 #if DEBUG
             .sheet(isPresented: $showNotificationSettings) {
