@@ -71,8 +71,8 @@ struct GhafAmountField: View {
                     .lineLimit(1).minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
                 }
-                .frame(maxWidth: .infinity, alignment: trailingAligned ? .trailing : .center)
-                .multilineTextAlignment(trailingAligned ? .trailing : .center)
+                .frame(maxWidth: .infinity, alignment: trailingAligned ? (languageCode == "ar" ? .leading : .trailing) : .center)
+                .multilineTextAlignment(trailingAligned ? (languageCode == "ar" ? .leading : .trailing) : .center)
                 .environment(\.layoutDirection, .leftToRight)
             }
             .padding(.horizontal, chromeless ? 0 : 16)
