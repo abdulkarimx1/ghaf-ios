@@ -737,6 +737,9 @@ struct GhafStatsView: View {
             Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
                 .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(width: 190, height: 32)
         .foregroundStyle(theme.primaryText).padding(.horizontal, 10).padding(.vertical, 6)
         .background(theme.surface, in: Capsule())
     }
