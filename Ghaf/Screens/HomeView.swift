@@ -188,7 +188,6 @@ struct GhafHomeView: View {
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
             }
-            .ghafReportsTabBarMinimize()
             .scrollIndicators(.hidden)
             .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)

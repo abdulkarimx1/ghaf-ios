@@ -216,7 +216,6 @@ struct GhafTransactionsView: View {
                     }
                 }
             }
-            .ghafReportsTabBarMinimize()
             .listRowSpacing(4)
             .listStyle(.plain)
             .listSectionSpacing(14)

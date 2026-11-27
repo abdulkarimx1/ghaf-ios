@@ -415,12 +415,19 @@ final class GhafTabRouter {
     /// Scroll-derived mirror of iOS 26's native bar state for the separately overlaid AI orb.
     /// SwiftUI exposes the minimize behavior but no public readback of the bar's actual state.
     var isTabBarMinimized = false
+    /// A brief public `.never` interval expands the native bar after an upward drag.
+    var isForcingTabBarExpanded = false
+    var tabBarExpansionGeneration = 0
 }
 
 /// Native minimize-on-scroll, iOS 26 only.
 private struct GhafTabBarMinimize: ViewModifier {
+    @Environment(GhafTabRouter.self) private var router
+
     func body(content: Content) -> some View {
-        if #available(iOS 26, *) { content.tabBarMinimizeBehavior(.onScrollDown) } else { content }
+        if #available(iOS 26, *) {
+            content.tabBarMinimizeBehavior(router.isForcingTabBarExpanded ? .never : .onScrollDown)
+        } else { content }
     }
 }
 
@@ -438,24 +445,74 @@ private struct GhafRouterLevelOrb: View {
 
 private struct GhafReportsTabBarMinimize: ViewModifier {
     @Environment(GhafTabRouter.self) private var router
+    @State private var lastDirection = 0
+    @State private var directionTravel: CGFloat = 0
+
+    private struct ScrollMetrics: Equatable {
+        var verticalOffset: CGFloat
+        var verticalRange: CGFloat
+        var horizontalRange: CGFloat
+    }
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content
-                .onScrollGeometryChange(for: CGPoint.self) {
-                    CGPoint(x: $0.contentOffset.y + $0.contentInsets.top,
-                            y: $0.contentSize.height - $0.containerSize.height)
+                .onScrollGeometryChange(for: ScrollMetrics.self) {
+                    ScrollMetrics(verticalOffset: $0.contentOffset.y + $0.contentInsets.top,
+                                  verticalRange: max(0, $0.contentSize.height - $0.containerSize.height),
+                                  horizontalRange: max(0, $0.contentSize.width - $0.containerSize.width))
                 } action: { old, new in
-                    // The native bar minimizes after downward scrolling starts and restores on upward scroll.
-                    // Track the same direction/threshold; short content cannot trigger native minimization.
-                    let delta = new.x - old.x
-                    if new.x <= 20 || delta <= -8 || new.y < UIScreen.main.bounds.height {
-                        if router.isTabBarMinimized { router.isTabBarMinimized = false }
-                    } else if delta > 8, !router.isTabBarMinimized {
-                        router.isTabBarMinimized = true
+                    guard router.selectedTab != 1 else { return }
+                    // A horizontal carousel can be the first descendant scroll view on a screen;
+                    // leave the bar state alone while its horizontal range dominates.
+                    guard new.horizontalRange <= new.verticalRange else { return }
+                    if new.verticalRange <= 0 || new.verticalOffset <= 20 {
+                        lastDirection = 0
+                        directionTravel = 0
+                        router.tabBarExpansionGeneration += 1
+                        router.isForcingTabBarExpanded = false
+                        router.isTabBarMinimized = false
+                        return
+                    }
+                    let delta = new.verticalOffset - old.verticalOffset
+                    guard abs(delta) > 0.1 else { return }
+                    let direction = delta > 0 ? 1 : -1
+                    if direction == lastDirection {
+                        directionTravel += abs(delta)
+                    } else {
+                        lastDirection = direction
+                        directionTravel = abs(delta)
+                    }
+
+                    // The native bar starts minimizing on the first downward movement. Measurements
+                    // on Transactions show the bar collapsed between 8 and 20 pt of initial travel.
+                    if directionTravel >= 8, direction > 0 {
+                        if router.isForcingTabBarExpanded {
+                            router.tabBarExpansionGeneration += 1
+                            router.isForcingTabBarExpanded = false
+                        }
+                        if router.isTabBarMinimized == false { router.isTabBarMinimized = true }
+                    } else if directionTravel >= 8, direction < 0, !router.isForcingTabBarExpanded {
+                        // `.onScrollDown` on iOS 26 stays minimized during upward movement until the
+                        // scroll reaches the top. Temporarily switching to `.never` expands it publicly.
+                        router.tabBarExpansionGeneration += 1
+                        let generation = router.tabBarExpansionGeneration
+                        router.isForcingTabBarExpanded = true
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(280))
+                            guard router.tabBarExpansionGeneration == generation else { return }
+                            router.isForcingTabBarExpanded = false
+                            router.isTabBarMinimized = false
+                        }
                     }
                 }
-                .onChange(of: router.selectedTab) { _, _ in router.isTabBarMinimized = false }
+                .onChange(of: router.selectedTab) { _, _ in
+                    lastDirection = 0
+                    directionTravel = 0
+                    router.tabBarExpansionGeneration += 1
+                    router.isForcingTabBarExpanded = false
+                    router.isTabBarMinimized = false
+                }
         } else {
             content
         }
@@ -528,26 +585,26 @@ struct GhafTabView: View {
     private static var floatingTabBar: Bool { if #available(iOS 26, *) { true } else { false } }
 
     private var homeTab: some View {
-        GhafHomeView(settings: settings)
+        GhafHomeView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 0) }
 #endif
     }
     private var transactionsTab: some View {
-        GhafTransactionsView(settings: settings)
+        GhafTransactionsView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 3) }
 #endif
     }
-    private var aiTab: some View { GhafAIView(settings: settings).ghafReportsTabBarMinimize() }
+    private var aiTab: some View { GhafAIView(settings: settings) }
     private var statsTab: some View {
-        GhafStatsView(settings: settings)
+        GhafStatsView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 2) }
 #endif
     }
     private var moreTab: some View {
-        GhafSettingsView(settings: settings)
+        GhafSettingsView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 4) }
 #endif
