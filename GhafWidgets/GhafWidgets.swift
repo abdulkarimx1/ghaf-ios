@@ -659,7 +659,7 @@ struct GhafPurchaseLiveActivity: Widget {
                     .foregroundStyle(a.gradient)
                     .accessibilityLabel(s.category)
             } compactTrailing: {
-                Text(s.shortAmount)
+                Text(s.shortAmount(arabic: a.arabic))
                     .font(ghafNumberFont(14, weight: .heavy))
                     .monospacedDigit()
                     .foregroundStyle(s.isCredit ? Color.green : a.glowColor)
