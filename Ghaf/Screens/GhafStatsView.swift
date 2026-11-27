@@ -35,6 +35,7 @@ struct GhafStatsView: View {
     @State private var scrubbedMonthDay: Date?
     @State private var selectedCategory: String?
     @State private var showProSheet = false
+    @State private var showTransfersExplanation = false
     @State private var barTransactions: BarTransactions?
     private struct BarTransactions: Identifiable { let id = UUID(); let title: String; let items: [GhafTransaction] }
     @State private var preparedStats = PreparedStats.empty
@@ -292,6 +293,11 @@ struct GhafStatsView: View {
                         .ghafSheetFrame(theme: theme)
                         .ghafDirection(lang)
                 }
+                .alert(ar ? "تحويلات لأشخاص آخرين" : "Sent to others", isPresented: $showTransfersExplanation) {
+                    Button(ar ? "حسنًا" : "OK", role: .cancel) {}
+                } message: {
+                    Text(ar ? "الأموال التي حولتها إلى أشخاص آخرين. لا تُحتسب التحويلات بين حساباتك." : "Money you transferred to other people. Transfers between your own accounts aren't counted.")
+                }
                 .onChange(of: router.statsFocus) { _, _ in applyStatsFocus() }
                 .onAppear {
                 chartReady = true
@@ -323,6 +329,11 @@ struct GhafStatsView: View {
                     }
                 }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
+                if GhafScreenshotFixture.selection == "transfers-explanation" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if preparedStats.transferTotal > 0 { showTransfersExplanation = true }
+                    }
+                }
                 if GhafScreenshotFixture.autoSelect && !fixtureBudget { runAutoSelection(scrollProxy: scrollProxy) }
                 if GhafScreenshotFixture.selection == "category" {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("category-chart", anchor: .center) }
@@ -830,14 +841,17 @@ struct GhafStatsView: View {
                 }
             }
             if transferTotal > 0 {
-                Button { toggle("Transfers") } label: {
+                Button {
+                    toggle("Transfers")
+                    showTransfersExplanation = true
+                } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(theme.accent)
                             .frame(width: 36, height: 36)
                             .background(theme.accent.opacity(0.12), in: Circle())
-                        Text(ar ? "تحويلات خارجية" : "Outgoing transfers")
+                        Text(ar ? "تحويلات لأشخاص آخرين" : "Sent to others")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .lineLimit(1)
@@ -852,7 +866,7 @@ struct GhafStatsView: View {
                     .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(ar ? "تحويلات خارجية" : "Outgoing transfers") \(GhafFormat.shownMoney(transferTotal, currency: currency, languageCode: lang))")
+                .accessibilityLabel("\(ar ? "تحويلات لأشخاص آخرين" : "Sent to others") \(GhafFormat.shownMoney(transferTotal, currency: currency, languageCode: lang))")
                 .accessibilityAddTraits(selectedCategory == "Transfers" ? .isSelected : [])
             }
         }
