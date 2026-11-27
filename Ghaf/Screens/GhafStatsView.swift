@@ -755,9 +755,17 @@ struct GhafStatsView: View {
 
     private func selectionBubble(amount: Double, date: Date, exactDay: Bool = false) -> some View {
         HStack(spacing: 4) {
-            GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
-            Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
-                .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+            if date > GhafClock.now {
+                Text(ar ? "متوقع" : "Forecast")
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
+            } else {
+                GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
+                Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+            }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
