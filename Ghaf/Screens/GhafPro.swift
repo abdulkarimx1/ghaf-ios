@@ -423,26 +423,31 @@ struct GhafTermsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text(ar ? "شروط اشتراك غاف Pro" : "Ghaf Pro terms")
-                    .font(GhafTypography.display(28, languageCode: lang))
+                Text(ar ? "شروط اشتراك غاف برو" : "Ghaf Pro terms")
+                    .font(GhafTypography.body(24, languageCode: lang, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .frame(maxWidth: .infinity)
                 ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("\(index + 1). \(section.0)")
-                            .font(GhafTypography.heading(16, languageCode: lang))
-                            .foregroundStyle(theme.primaryText)
-                        Text(section.1)
-                            .font(GhafTypography.body(14, languageCode: lang))
+                        HStack(spacing: 6) {
+                            Text("\(index + 1).\u{00a0}").font(.system(size: 16, weight: .bold))
+                            Text(section.0).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                        }.foregroundStyle(theme.primaryText)
+                            .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                        legalParagraph(section.1)
                             .foregroundStyle(theme.secondaryText)
                             .lineSpacing(3)
+                            .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+                            .multilineTextAlignment(ar ? .trailing : .leading)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .ghafStatsCard(theme: theme, radius: 18)
                 }
-                Text(ar ? "آخر تحديث: نوفمبر ٢٠٢٦" : "Last updated: November 2026")
-                    .font(GhafTypography.body(12, languageCode: lang))
+                Group {
+                    if ar { HStack { Text("آخر تحديث: نوفمبر"); Text("2026").font(.system(size: 12)); }.font(GhafTypography.body(12, languageCode: lang)) }
+                    else { Text("Last updated: November 2026").font(GhafTypography.body(12, languageCode: lang)) }
+                }
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity)
             }
@@ -456,13 +461,13 @@ struct GhafTermsView: View {
 
     private var sections: [(String, String)] {
         ar ? [
-            ("الخطط", "يتوفر غاف Pro باشتراك شهري أو سنوي يتجدد تلقائياً."),
-            ("الدفع والتجديد", "يتم الدفع عبر حساب Apple الخاص بك عند تأكيد الشراء. يتجدد الاشتراك تلقائياً بنفس السعر ما لم يُوقف التجديد قبل نهاية الفترة الحالية بـ ٢٤ ساعة على الأقل. يمكنك إدارة الاشتراك وإلغاؤه من الإعدادات › حساب Apple › الاشتراكات. الإلغاء يوقف التجديد القادم فقط، ويبقى Pro فعّالاً حتى نهاية الفترة المدفوعة."),
-            ("لا استرداد ولا إرجاع", "كل المبيعات نهائية. لا يقدّم غاف أي استرداد أو إرجاع أو تعويض بعد الشراء، بما في ذلك الفترات الجزئية أو الوقت غير المستخدم أو المزايا التي لم تُستخدم. المدفوعات تتم عبر Apple، وأي طلب استرداد يُقدّم إلى Apple وحدها وتقرّر فيه وفق سياساتها، وغاف لا يستطيع إصدار استرداد بنفسه."),
-            ("المزايا", "قد تُضاف مزايا Pro أو تُعدّل أو تُحسّن مع الوقت. لا يضمن الاشتراك توفر ميزة بعينها في كل جهاز أو إصدار من iOS."),
-            ("ليس نصيحة مالية", "غاف أداة لتنظيم سجلك المالي الشخصي. الأرقام من سجلاتك ومن رسائل البنك وقد تحتوي على أخطاء. غاف ليس بنكاً ولا مستشاراً مالياً، ولا يُعدّ أي محتوى فيه نصيحة مالية أو استثمارية. أنت المسؤول عن قراراتك المالية."),
-            ("حدود المسؤولية", "يُقدَّم غاف كما هو. إلى أقصى حد يسمح به القانون، لا يتحمل المطوّر أي مسؤولية عن خسائر أو أضرار مباشرة أو غير مباشرة ناتجة عن استخدام التطبيق أو تعذّر استخدامه، ولا تتجاوز مسؤوليته في كل الأحوال المبلغ الذي دفعته خلال الأشهر الاثني عشر السابقة."),
-            ("التعديل والقانون", "قد تُحدَّث هذه الشروط، ويعني استمرار الاستخدام قبولها. تخضع هذه الشروط لقوانين دولة الإمارات العربية المتحدة، مع شروط Apple القياسية لاستخدام التطبيقات (EULA).")
+            ("الخطط", "يتوفر غاف برو باشتراك شهري أو سنوي يتجدد تلقائياً."),
+            ("الدفع والتجديد", "يتم الدفع عبر حساب آبل عند تأكيد الشراء. يتجدد الاشتراك تلقائياً بالسعر نفسه ما لم يُوقف التجديد قبل نهاية الفترة الحالية بـ 24 ساعة على الأقل. يمكنك إدارة الاشتراك أو إلغاؤه من الإعدادات › حساب آبل › الاشتراكات. يوقف الإلغاء التجديد القادم فقط، ويبقى غاف برو فعّالاً حتى نهاية الفترة المدفوعة."),
+            ("لا استرداد ولا إرجاع", "كل المبيعات نهائية. لا يقدّم غاف أي استرداد أو إرجاع أو تعويض بعد الشراء، بما في ذلك الفترات الجزئية أو الوقت غير المستخدم أو المزايا التي لم تُستخدم. تتم المدفوعات عبر آبل، ويُقدّم طلب الاسترداد إلى آبل وحدها لتقرّر فيه وفق سياساتها. لا يستطيع غاف إصدار الاسترداد بنفسه."),
+            ("المزايا", "قد تُضاف مزايا غاف برو أو تُعدّل أو تُحسّن مع الوقت. لا يضمن الاشتراك توفر ميزة بعينها على كل جهاز أو إصدار من iOS."),
+            ("إخلاء مسؤولية مالية", "غاف أداة لتنظيم سجلك المالي الشخصي. تستند الأرقام إلى سجلاتك ورسائل البنك، وقد تحتوي على أخطاء. غاف ليس بنكاً ولا مستشاراً مالياً، ولا يُعدّ أي محتوى فيه نصيحة مالية أو استثمارية. أنت مسؤول عن قراراتك المالية."),
+            ("حدود المسؤولية", "يُقدَّم غاف كما هو. إلى أقصى حد يسمح به القانون، لا يتحمل المطوّر مسؤولية الخسائر أو الأضرار المباشرة أو غير المباشرة الناتجة عن استخدام التطبيق أو تعذّر استخدامه. وفي جميع الأحوال، لا تتجاوز مسؤوليته المبلغ الذي دفعته خلال الأشهر الاثني عشر السابقة."),
+            ("التعديل والقانون", "قد تُحدَّث هذه الشروط، ويعني استمرار الاستخدام قبولها. تخضع هذه الشروط لقوانين دولة الإمارات العربية المتحدة، إلى جانب اتفاقية ترخيص التطبيقات القياسية من آبل (EULA).")
         ] : [
             ("Plans", "Monthly and yearly subscriptions renew automatically."),
             ("Payment and renewal", "Payment is charged to your Apple Account when you confirm the purchase. Subscriptions renew automatically at the same price unless auto-renew is turned off at least 24 hours before the current period ends. Manage or cancel in Settings › Apple Account › Subscriptions. Cancelling stops the next renewal only; Pro stays active until the end of the paid period."),
@@ -472,6 +477,35 @@ struct GhafTermsView: View {
             ("Limitation of liability", "Ghaf is provided as is. To the fullest extent the law allows, the developer is not liable for any direct or indirect loss or damage arising from using, or being unable to use, the app, and in any case liability is limited to the amount you paid in the previous twelve months."),
             ("Changes and law", "These terms may be updated; continued use means you accept them. They are governed by the laws of the United Arab Emirates, together with Apple's standard Licensed Application End User License Agreement (EULA).")
         ]
+    }
+
+    private func legalParagraph(_ value: String) -> Text {
+        enum Script { case arabic, latin, number }
+        func script(_ character: Character) -> Script? {
+            guard let scalar = character.unicodeScalars.first else { return nil }
+            if CharacterSet.decimalDigits.contains(scalar) { return .number }
+            if (0x0600...0x06FF).contains(scalar.value) || (0x0750...0x077F).contains(scalar.value) || (0x08A0...0x08FF).contains(scalar.value) { return .arabic }
+            if (0x0041...0x005A).contains(scalar.value) || (0x0061...0x007A).contains(scalar.value) { return .latin }
+            return nil
+        }
+        func font(_ script: Script) -> Font {
+            switch script {
+            case .arabic: GhafTypography.body(14, languageCode: "ar")
+            case .latin: .custom("IBMPlexSans-Regular", size: 14)
+            case .number: .system(size: 14)
+            }
+        }
+        var runs: [(Script, String)] = []
+        var current: Script = ar ? .arabic : .latin
+        var text = ""
+        for character in value {
+            if let next = script(character), next != current, !text.isEmpty {
+                runs.append((current, text)); text = ""; current = next
+            }
+            text.append(character)
+        }
+        if !text.isEmpty { runs.append((current, text)) }
+        return runs.reduce(Text("")) { $0 + Text($1.1).font(font($1.0)) }
     }
 }
 
