@@ -434,7 +434,7 @@ enum GhafBackupService {
             let transaction = GhafTransaction(
                 fingerprint: item.fingerprint,
                 parsed: parsed,
-                category: item.category,
+                category: CategoryTaxonomy.currentCategoryName(for: item.category, available: settings.categories),
                 needsReview: item.needsReview,
                 isReversal: item.isReversal,
                 accountID: {
