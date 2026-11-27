@@ -5,6 +5,21 @@ import Foundation
 /// when none of their own categories fits.
 public enum CategoryTaxonomy {
 
+    /// Normalizes legacy built-in labels only when the user has the corresponding category.
+    public static func currentCategoryName(for name: String, available: [String]) -> String {
+        let normalized = CategoryMatcher.normalize(name)
+        guard let category = all.first(where: { category in
+            ([category.name] + category.aliases).contains { CategoryMatcher.normalize($0) == normalized }
+        }) else { return name }
+        let userAlias = available.first { candidate in
+            category.aliases.contains { CategoryMatcher.normalize($0) == CategoryMatcher.normalize(candidate) }
+        }
+        if let userAlias { return userAlias }
+        return available.first { candidate in
+            ([category.name] + category.aliases).contains { CategoryMatcher.normalize($0) == CategoryMatcher.normalize(candidate) }
+        } ?? name
+    }
+
     public struct Subcategory {
         public let name: String
         public let arabic: String
