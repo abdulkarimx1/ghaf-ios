@@ -44,9 +44,7 @@ struct GhafAccountsView: View {
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
-        .toolbarBackground(theme.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(theme.isDark ? .dark : .light, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
