@@ -569,7 +569,7 @@ struct GhafSettingsView: View {
                 HStack {
                     Text(ar ? "آخر نسخة احتياطية" : "Last backup")
                     Spacer()
-                    Text(drive.lastBackupDate?.formatted(.dateTime.date(.abbreviated).time(.shortened).locale(GhafLocale.locale(identifier: languageCode))) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
+                    Text(drive.lastBackupDate?.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(GhafLocale.locale(identifier: languageCode))) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
                 }.font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 Button { driveBackup() } label: {
                     settingsActionRow(ar ? "نسخ احتياطي الآن" : "Back up now", detail: ar ? "رفع نسخة جديدة إلى Drive" : "Upload a fresh copy to Drive", icon: "icloud.and.arrow.up")

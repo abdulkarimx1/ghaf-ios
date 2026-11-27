@@ -27,7 +27,7 @@ enum GhafFinanceFacts {
         now: Date = .now
     ) -> String {
         let calendar = GhafCalendar.current
-        var lines: [String] = ["Today is \(now.formatted(.dateTime.date(.complete).locale(GhafLocale.locale(identifier: languageCode))))."]
+        var lines: [String] = ["Today is \(now.formatted(Date.FormatStyle(date: .complete, time: .omitted).locale(GhafLocale.locale(identifier: languageCode))))."]
 
         let open = accounts.filter { !$0.isArchived }
         if open.isEmpty {
@@ -90,7 +90,7 @@ enum GhafFinanceFacts {
             .sorted { $0.nextPaymentDate < $1.nextPaymentDate }
         if !upcoming.isEmpty {
             lines.append("Subscriptions due in 30 days: " + upcoming.map {
-                "\($0.name) \(fmt($0.amount, currency: $0.currency)) \($0.currency) on \($0.nextPaymentDate.formatted(.dateTime.date(.abbreviated).locale(GhafLocale.locale(identifier: languageCode))))"
+                "\($0.name) \(fmt($0.amount, currency: $0.currency)) \($0.currency) on \($0.nextPaymentDate.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(GhafLocale.locale(identifier: languageCode))))"
             }.joined(separator: "; ") + ".")
         }
         let suggested = subscriptions.filter(\.needsConfirmation).map(\.name)
@@ -110,7 +110,7 @@ enum GhafFinanceFacts {
             lines.append("Latest transactions:")
             for item in recent {
                 let sign = item.direction == "credit" ? "+" : "-"
-                lines.append("- \(item.date.formatted(.dateTime.date(.abbreviated).locale(GhafLocale.locale(identifier: languageCode)))) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? GhafLocalization.category(item.category, languageCode: languageCode)) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(GhafLocalization.category(item.category, languageCode: languageCode))]")
+                lines.append("- \(item.date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(GhafLocale.locale(identifier: languageCode)))) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? GhafLocalization.category(item.category, languageCode: languageCode)) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(GhafLocalization.category(item.category, languageCode: languageCode))]")
             }
         }
         return lines.joined(separator: "\n")
