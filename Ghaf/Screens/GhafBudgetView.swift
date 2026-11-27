@@ -315,6 +315,10 @@ struct GhafBudgetView: View {
                                     .foregroundStyle(theme.accent)
                             }
                         }
+                        Text(ar ? presetArabic(item) : item.description)
+                            .font(GhafTypography.body(13, languageCode: lang))
+                            .foregroundStyle(theme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         GeometryReader { proxy in
                             HStack(spacing: 3) {
                                 ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { bucket in
