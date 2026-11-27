@@ -119,7 +119,9 @@ final class GhafTiltMotion {
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.sample() }
         }
-        RunLoop.main.add(timer, forMode: .common)
+        // Owner #86: default mode only, so tilt never fires while a scroll view is tracking or decelerating.
+        // Each tilt change redraws every glass rim (with blur) on screen, which stuttered scrolling on device.
+        RunLoop.main.add(timer, forMode: .default)
         self.timer = timer
     }
 
