@@ -30,6 +30,22 @@ final class GhafOwnerRules131Tests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    func testOwnerRule_ArabicStatsPeriodsKeepAmountAtFixedHeight() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "insights", "-GhafPeriod", "M",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "ar"]
+        app.launch()
+        let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 30))
+        let y = amount.frame.minY
+        for label in ["أسبوع", "شهر", "٣ أشهر", "سنة"] {
+            let period = app.buttons[label]
+            XCTAssertTrue(period.waitForExistence(timeout: 5), "Missing period: \(label)")
+            period.tap()
+            XCTAssertEqual(amount.frame.minY, y, accuracy: 2, "The amount container moved for \(label)")
+        }
+    }
+
     /// Swipe-deletes the first Carrefour row; returns the Carrefour match count before deleting.
     private func swipeDeleteCarrefour(_ app: XCUIApplication) -> Int {
         app.tabBars.buttons["Transactions"].tap()
