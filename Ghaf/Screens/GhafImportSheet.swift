@@ -167,6 +167,7 @@ struct GhafImportSheet: View {
             let access = url.startAccessingSecurityScopedResource()
             defer { if access { url.stopAccessingSecurityScopedResource() } }
             let localFile = FileManager.default.temporaryDirectory.appendingPathComponent("ghaf-import-\(UUID().uuidString).\(url.pathExtension)")
+            try GhafCore.ImportFileSizeLimit.check(url)
             try Data(contentsOf: url).write(to: localFile, options: .atomic)
             fileURL = localFile; isFailure = false; message = nil
             switch kind {
@@ -217,6 +218,9 @@ struct GhafImportSheet: View {
         case GhafFileImportError.unsupported:
             return ar ? "صيغة الملف غير مدعومة. اختر ملف CSV أو JSON للمعاملات."
                 : "This file format isn't supported. Choose a CSV or transaction JSON file."
+        case GhafCore.ImportFileSizeError.tooLarge:
+            return ar ? "الملف كبير جداً للاستيراد (أكبر من ٢٥ ميغابايت)."
+                : "This file is too large to import (over 25 MB)."
         case GhafFileImportError.noTransactions:
             return ar ? "لم نعثر على معاملات بتاريخ ومبلغ ووصف صالح."
                 : "No transactions with a valid date, amount, and description were found."

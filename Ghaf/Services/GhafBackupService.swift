@@ -310,6 +310,7 @@ enum GhafBackupService {
             if accessGranted { url.stopAccessingSecurityScopedResource() }
         }
 
+        try GhafCore.ImportFileSizeLimit.check(url)
         let data = try Data(contentsOf: url)
         let migratedData = try migrateLegacyPayload(data)
         let decoder = JSONDecoder()

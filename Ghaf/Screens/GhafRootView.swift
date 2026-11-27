@@ -637,7 +637,7 @@ struct GhafTabView: View {
                 else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { router.typeQuestion?() } }
             case "money-tip":
                 if let source = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "source" })?.value,
-                   let sourceURL = URL(string: source), ["https", "http"].contains(sourceURL.scheme?.lowercased() ?? "") {
+                   let sourceURL = URL(string: source), sourceURL.scheme?.lowercased() == "https" {
                     UIApplication.shared.open(sourceURL)
                 }
             default: break

@@ -59,7 +59,8 @@ enum GhafExpendImportService {
     static func canImport(_ url: URL) -> Bool {
         let granted = url.startAccessingSecurityScopedResource()
         defer { if granted { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url),
+        guard (try? GhafCore.ImportFileSizeLimit.check(url)) != nil,
+              let data = try? Data(contentsOf: url),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return false
         }
@@ -72,9 +73,10 @@ enum GhafExpendImportService {
 
         let data: Data
         do {
+            try GhafCore.ImportFileSizeLimit.check(url)
             data = try Data(contentsOf: url)
         } catch {
-            throw GhafExpendImportError.unreadableFile
+            throw error
         }
 
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

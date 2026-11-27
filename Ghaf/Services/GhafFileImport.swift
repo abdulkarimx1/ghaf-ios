@@ -37,6 +37,7 @@ enum GhafFileImport {
     static func preview(_ url: URL, context: ModelContext) throws -> GhafFileImportPreview {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
+        try GhafCore.ImportFileSizeLimit.check(url)
         let data = try Data(contentsOf: url)
         let dictionaries: [[String: Any]]
         if ["csv", "tsv", "txt"].contains(url.pathExtension.lowercased()) {
