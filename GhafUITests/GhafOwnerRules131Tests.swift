@@ -38,12 +38,67 @@ final class GhafOwnerRules131Tests: XCTestCase {
         let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
         XCTAssertTrue(amount.waitForExistence(timeout: 30))
         let y = amount.frame.minY
-        for label in ["أسبوع", "شهر", "٣ أشهر", "سنة"] {
-            let period = app.buttons[label]
-            XCTAssertTrue(period.waitForExistence(timeout: 5), "Missing period: \(label)")
+        for index in 0..<4 {
+            let period = app.buttons["stats.period.\(index)"]
+            XCTAssertTrue(period.waitForExistence(timeout: 5), "Missing period identifier index \(index)")
             period.tap()
-            XCTAssertEqual(amount.frame.minY, y, accuracy: 2, "The amount container moved for \(label)")
+            XCTAssertEqual(amount.frame.minY, y, accuracy: 2, "The amount container moved for period index \(index)")
         }
+    }
+
+
+    func testOwnerRule_InactivityRestartRefreshesAndSkipsOpenTransactionSheet() throws {
+        let app = XCUIApplication()
+        let splash = app.descendants(matching: .any).matching(identifier: "ghaf.launch.splash").firstMatch
+        app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafInactivityRestartAfter5Seconds"]
+        app.launch()
+        XCTAssertTrue(splash.waitForExistence(timeout: 30))
+        splash.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let automationDone = app.buttons["Done"]
+        if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 6)
+        app.activate()
+        XCTAssertTrue(splash.waitForExistence(timeout: 2), "A long background return should show the launch splash")
+        splash.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
+
+        if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
+        let add = app.buttons["Add"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+        let merchant = app.textFields["home.quick-add.merchant"]
+        XCTAssertTrue(merchant.waitForExistence(timeout: 10))
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 6)
+        app.activate()
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5), "The transaction editor must stay open after the threshold")
+        XCTAssertFalse(splash.exists, "An open transaction sheet must suppress the restart splash")
+    }
+
+    func testOwnerRule_TrendDrawRecordingEnglish() throws {
+        recordTrendDraw(language: "en")
+    }
+
+    func testOwnerRule_TrendDrawRecordingArabic() throws {
+        recordTrendDraw(language: "ar")
+    }
+
+    private func recordTrendDraw(language: String) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "insights", "-GhafPeriod", "W",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", language]
+        app.launch()
+        let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 30))
+        let month = app.buttons["stats.period.1"]
+        XCTAssertTrue(month.waitForExistence(timeout: 10))
+        if !month.isHittable { app.swipeUp() }
+        XCTAssertTrue(month.isHittable, "The period control should be visible with the Stats chart")
+        Thread.sleep(forTimeInterval: 1)
+        month.tap()
+        Thread.sleep(forTimeInterval: 1)
     }
 
     func testOwnerRule_FastChartScrubsKeepStatsLayoutStill() throws {
