@@ -3,3 +3,4 @@
 "NSSpeechRecognitionUsageDescription" = "يحوّل غاف تفاصيل عملياتك المنطوقة إلى نص قابل للتعديل على جهازك.";
 "NSLocationWhenInUseUsageDescription" = "يضيف غاف اسم المكان إلى العملية التي تسجّلها بنفسك. يبقى الموقع على هذا الآيفون، وتجد خرائط Apple اسم المكان.";
 "NSFaceIDUsageDescription" = "يستخدم غاف بصمة الوجه أو رمز الجهاز لحماية معلوماتك المالية.";
+"NSCameraUsageDescription" = "يستخدم غاف الكاميرا عند اختيارك التقاط صورة للملف الشخصي فقط.";

@@ -15,6 +15,21 @@ final class GhafOwnerRules131Tests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "Carrefour"))
     }
 
+    func testOwnerRule_PrivacyAPIsHaveUsageDescriptionsAndCameraFallbackDoesNotCrash() throws {
+        let app = launch(["-GhafTab", "more"])
+        app.buttons["Profile photo options"].tap()
+        XCTAssertTrue(app.staticTexts["Profile photo"].waitForExistence(timeout: 5))
+        let camera = app.buttons["Take photo"]
+        if camera.exists {
+            camera.tap()
+            XCTAssertEqual(app.state, .runningForeground, "Opening the available simulator camera must not terminate Ghaf")
+            XCTAssertFalse(app.staticTexts["Profile photo"].exists, "The camera picker should replace the photo action sheet")
+        } else {
+            XCTAssertTrue(app.staticTexts["Profile photo"].exists, "When the source is unavailable, keep the fallback photo menu open")
+        }
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     /// Swipe-deletes the first Carrefour row; returns the Carrefour match count before deleting.
     private func swipeDeleteCarrefour(_ app: XCUIApplication) -> Int {
         app.tabBars.buttons["Transactions"].tap()
