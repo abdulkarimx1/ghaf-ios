@@ -75,8 +75,10 @@ enum GhafExpendImportService {
         do {
             try GhafCore.ImportFileSizeLimit.check(url)
             data = try Data(contentsOf: url)
-        } catch {
+        } catch let error as GhafCore.ImportFileSizeError {
             throw error
+        } catch {
+            throw GhafExpendImportError.unreadableFile
         }
 
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

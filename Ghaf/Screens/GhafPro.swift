@@ -397,7 +397,8 @@ struct GhafProView: View {
         case .year: unit = ("year", count == 1 ? "سنة واحدة" : count == 2 ? "سنتين" : "سنوات")
         @unknown default: unit = ("period", "فترة")
         }
-        return ar ? "تجربة مجانية لمدة \(localizedCount) \(unit.1)" : "\(count)-\(unit.0) free trial"
+        // Arabic says "one day" / "two days" with the word alone; 3+ takes the number.
+        return ar ? "تجربة مجانية لمدة \(count <= 2 ? unit.1 : "\(localizedCount) \(unit.1)")" : "\(count)-\(unit.0) free trial"
     }
 }
 

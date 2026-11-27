@@ -246,12 +246,17 @@ struct GhafReviewInboxView: View {
                             transaction.accountID = item.id
                             // R5: only move similar alerts / learn a bank-wide rule when this bank has one account here.
                             // With two Mashreq accounts, picking one must change this item only.
-                            if let bank = transaction.bank, Self.accountsForBank(bank, in: activeAccounts) <= 1 {
-                                let moved = (try? GhafAccountMappings.apply(bank: bank, accountRef: nil, accountID: item.id, context: modelContext)) ?? 0
+                            var moved = 0
+                            let learnsBank = transaction.bank.map { Self.accountsForBank($0, in: activeAccounts) <= 1 } ?? false
+                            if learnsBank, let bank = transaction.bank {
+                                moved = (try? GhafAccountMappings.apply(bank: bank, accountRef: nil, accountID: item.id, context: modelContext)) ?? 0
+                            }
+                            // Learn the bank rule only once the ledger change is saved.
+                            guard saveChanges() else { return }
+                            if learnsBank, let bank = transaction.bank {
                                 if moved > 0 { movedSimilar[transaction.id] = moved }
                                 GhafAccountMappings.confirm(transactionID: transaction.id, bank: bank, sender: nil, accountRef: nil, accountID: item.id)
                             }
-                            saveChanges()
                         }
                     }
                 } label: {
@@ -266,7 +271,7 @@ struct GhafReviewInboxView: View {
                         Button(GhafLocalization.category(category, languageCode: lang)) {
                             transaction.category = category
                             transaction.subcategory = nil
-                            saveChanges()
+                            _ = saveChanges()
                         }
                     }
                 } label: {
@@ -286,9 +291,8 @@ struct GhafReviewInboxView: View {
                 Button {
                     withAnimation(.easeOut(duration: 0.25)) {
                         transaction.needsReview = false
-                        saveChanges()
+                        if saveChanges() { confirmed += 1 }
                     }
-                    confirmed += 1
                 } label: {
                     Label(ar ? "تأكيد" : "Confirm", systemImage: "checkmark")
                 }
@@ -313,11 +317,13 @@ struct GhafReviewInboxView: View {
         .ghafCard(theme: theme)
     }
 
-    private func saveChanges() {
-        do { try modelContext.save() }
+    @discardableResult
+    private func saveChanges() -> Bool {
+        do { try modelContext.save(); return true }
         catch {
             modelContext.rollback()
             saveFailed = true
+            return false
         }
     }
 
