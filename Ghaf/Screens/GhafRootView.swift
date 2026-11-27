@@ -120,6 +120,12 @@ struct GhafRootView: View {
         }
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GhafRestartForInactivity"))) { _ in
+            showLaunch = true
+            launchSkipRequested = false
+            launchHasStarted = false
+            beginLaunch()
+        }
         .task {
             await GhafWidgetSync.endStale()
         }
@@ -806,7 +812,20 @@ struct GhafTabView: View {
         }
         .onChange(of: router.ledgerRevision) { _, _ in checkForStreakMilestone() }
         .onChange(of: scenePhase) { _, phase in
+            let defaults = UserDefaults.standard
+            if phase == .background {
+                defaults.set(Date.now.timeIntervalSince1970, forKey: "ghaf.lastBackgroundAt")
+                return
+            }
             guard phase == .active else { return }
+            let lastBackground = defaults.double(forKey: "ghaf.lastBackgroundAt")
+            if lastBackground > 0, Date.now.timeIntervalSince1970 - lastBackground >= 30 * 60 {
+                defaults.set(Date.now.timeIntervalSince1970, forKey: "ghaf.lastBackgroundAt")
+                if !hasModalPresentation, launchIsFinished {
+                    router.ledgerRevision += 1
+                    NotificationCenter.default.post(name: Notification.Name("GhafRestartForInactivity"), object: nil)
+                }
+            }
             checkForStreakMilestone()
             checkForAnnouncement()
         }
