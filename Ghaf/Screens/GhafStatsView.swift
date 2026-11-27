@@ -664,9 +664,8 @@ struct GhafStatsView: View {
                 } else {
                     GeometryReader { geometry in
                         HStack(spacing: 0) {
-                            if ar { Spacer(minLength: 0) }
                             Rectangle().frame(width: geometry.size.width * chartDrawProgress)
-                            if !ar { Spacer(minLength: 0) }
+                            Spacer(minLength: 0)
                         }
                         .frame(width: geometry.size.width, height: geometry.size.height)
                     }
