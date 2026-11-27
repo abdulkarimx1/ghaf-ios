@@ -483,12 +483,9 @@ struct GhafStatsView: View {
                     barTransactions = BarTransactions(title: title, items: items)
                 } label: {
                     Label(ar ? "عرض العمليات" : "View transactions", systemImage: "list.bullet")
-                        .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.accent)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.ghafPress)
+                .ghafGlassButton(theme: theme, languageCode: lang)
                 .disabled(items.isEmpty)
                 .opacity(selectedDate == nil ? 0 : 1)
                 .allowsHitTesting(selectedDate != nil)
