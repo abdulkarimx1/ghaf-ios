@@ -605,7 +605,7 @@ struct GhafStatsView: View {
                     }
                 }
             }
-            .chartPlotStyle { plot in plot.padding(.horizontal, 8) }
+            .chartPlotStyle { plot in plot.padding(.horizontal, 0) }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
@@ -683,7 +683,7 @@ struct GhafStatsView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(GhafMetrics.heroPadding)
+        .padding(GhafMetrics.cardPadding)
         .ghafStatsCard(theme: theme, radius: 30)
     }
 
