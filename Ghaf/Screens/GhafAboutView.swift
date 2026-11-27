@@ -167,7 +167,6 @@ struct GhafAboutView: View {
     }
 
     private func pager(width: CGFloat) -> some Gesture {
-        let dir: CGFloat = ar ? -1 : 1
         return DragGesture(minimumDistance: 12)
             .onChanged { v in
                 touching = true
@@ -176,7 +175,7 @@ struct GhafAboutView: View {
                     dragStart = Double(active)
                 }
                 guard let start = dragStart, !reduceMotion else { return }
-                var raw = start - Double(v.translation.width * dir / width)
+                var raw = start - Double(v.translation.width / width)
                 raw = min(start + 1, max(start - 1, raw))
                 if raw < 0 { raw *= 0.3 }
                 if raw > Double(count - 1) { raw = Double(count - 1) + (raw - Double(count - 1)) * 0.3 }
@@ -187,8 +186,8 @@ struct GhafAboutView: View {
                 touching = false
                 guard let start = dragStart else { return }
                 dragStart = nil
-                let travel = Double(-v.translation.width * dir / width)
-                let flick = Double(-v.velocity.width * dir)
+                let travel = Double(-v.translation.width / width)
+                let flick = Double(-v.velocity.width)
                 var step = 0
                 if travel > 0.2 || flick > 500 { step = 1 } else if travel < -0.2 || flick < -500 { step = -1 }
                 let target = max(0, min(count - 1, Int(start) + step))
