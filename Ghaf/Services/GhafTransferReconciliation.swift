@@ -57,7 +57,9 @@ enum GhafTransferReconciliation {
             && !TransactionEffect.isKnownExternalTransferSubcategory(item.subcategory)
             && item.subcategory.map({ !ownAccountNames.contains(CategoryMatcher.normalize($0)) }) != false
             && item.date <= Date.now.addingTimeInterval(-3 * 86_400) {
-            if !item.needsReview { item.needsReview = true; item.transferDecision = "pending"; reviewCount += 1 }
+            if !item.needsReview { reviewCount += 1 }
+            item.needsReview = true
+            item.transferDecision = "pending"
         }
         if pairCount > 0 || reviewCount > 0 || migrated > 0 || categoriesUpdated > 0 || ownDecisions > 0 { try context.save() }
         return (pairCount, reviewCount)
