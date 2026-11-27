@@ -447,11 +447,13 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
     @Environment(GhafTabRouter.self) private var router
     @State private var lastDirection = 0
     @State private var directionTravel: CGFloat = 0
+    @State private var ignoreScrollUntil = Date.distantPast
 
     private struct ScrollMetrics: Equatable {
         var verticalOffset: CGFloat
         var verticalRange: CGFloat
         var horizontalRange: CGFloat
+        var verticalViewport: CGFloat
     }
 
     func body(content: Content) -> some View {
@@ -460,12 +462,35 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
                 .onScrollGeometryChange(for: ScrollMetrics.self) {
                     ScrollMetrics(verticalOffset: $0.contentOffset.y + $0.contentInsets.top,
                                   verticalRange: max(0, $0.contentSize.height - $0.containerSize.height),
-                                  horizontalRange: max(0, $0.contentSize.width - $0.containerSize.width))
+                                  horizontalRange: max(0, $0.contentSize.width - $0.containerSize.width),
+                                  verticalViewport: $0.containerSize.height)
                 } action: { old, new in
                     guard router.selectedTab != 1 else { return }
                     // A horizontal carousel can be the first descendant scroll view on a screen;
                     // leave the bar state alone while its horizontal range dominates.
                     guard new.horizontalRange <= new.verticalRange else { return }
+                    // Short pages cannot reliably drive native minimization; keep the orb visible there.
+                    guard new.verticalRange >= new.verticalViewport else {
+                        lastDirection = 0
+                        directionTravel = 0
+                        router.tabBarExpansionGeneration += 1
+                        router.isForcingTabBarExpanded = false
+                        router.isTabBarMinimized = false
+                        return
+                    }
+                    // Rubber-band offsets and their settling motion are not user scroll direction.
+                    guard (0...new.verticalRange).contains(new.verticalOffset),
+                          (0...old.verticalRange).contains(old.verticalOffset) else {
+                        ignoreScrollUntil = Date().addingTimeInterval(0.45)
+                        lastDirection = 0
+                        directionTravel = 0
+                        return
+                    }
+                    guard Date() >= ignoreScrollUntil else {
+                        lastDirection = 0
+                        directionTravel = 0
+                        return
+                    }
                     if new.verticalRange <= 0 || new.verticalOffset <= 20 {
                         lastDirection = 0
                         directionTravel = 0
@@ -598,13 +623,13 @@ struct GhafTabView: View {
     }
     private var aiTab: some View { GhafAIView(settings: settings) }
     private var statsTab: some View {
-        GhafStatsView(settings: settings).ghafReportsTabBarMinimize()
+        GhafStatsView(settings: settings)
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 2) }
 #endif
     }
     private var moreTab: some View {
-        GhafSettingsView(settings: settings).ghafReportsTabBarMinimize()
+        GhafSettingsView(settings: settings)
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 4) }
 #endif

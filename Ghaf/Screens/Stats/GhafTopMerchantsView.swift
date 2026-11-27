@@ -46,6 +46,7 @@ struct GhafTopMerchantsView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .ghafReportsTabBarMinimize()
         .ghafBackground(theme: theme)
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
