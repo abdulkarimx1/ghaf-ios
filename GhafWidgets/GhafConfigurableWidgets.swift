@@ -140,7 +140,6 @@ extension GhafWidgetSnapshot {
     func whole(_ value: Decimal) -> String {
         hidden ? "✦✦✦" : value.formatted(.number.precision(.fractionLength(0)).locale(locale))
     }
-    var locale: Locale { GhafLocale.locale(identifier: arabic ? "ar_AE" : "en_AE") }
 }
 
 func periodName(_ p: GhafWidgetPeriod, _ s: GhafWidgetSnapshot?) -> String {
