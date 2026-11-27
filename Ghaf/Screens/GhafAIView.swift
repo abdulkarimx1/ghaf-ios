@@ -286,11 +286,11 @@ struct GhafAIView: View {
                     liveCallActive = false
                     tabRouter.isListening = false
                     if reason == "connection_lost" {
-                        appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+                        appendCallNote(ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment.")
                         playVoiceError()
                     }
                     if reason == "turn_limit" {
-                        appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+                        appendCallNote(ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment.")
                         playVoiceError()
                     }
                 }
@@ -329,7 +329,7 @@ struct GhafAIView: View {
                 .blur(radius: 2.5)
                 .overlay { Image(systemName: "lock.fill").font(.system(size: 26, weight: .semibold)).foregroundStyle(theme.primaryText) }
                 .accessibilityHidden(true)
-            Text(ar ? "غاف AI لأعضاء Pro" : "Ghaf AI is for Pro members")
+            Text(ar ? "غاف AI متاح لمشتركي غاف برو" : "Ghaf AI is for Pro members")
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(theme.primaryText)
@@ -339,11 +339,11 @@ struct GhafAIView: View {
                 .foregroundStyle(theme.secondaryText)
             VStack(spacing: 12) {
                 Button { showProSheet = true } label: {
-                    Text(ar ? "الأساسية · ٣ ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
+                    Text(ar ? "الأساسية · 3 ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
                         .frame(maxWidth: .infinity)
                 }.ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 Button { showProSheet = true } label: {
-                    Text(ar ? "الكاملة · ١٠ ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
+                    Text(ar ? "الكاملة · 10 ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
                         .frame(maxWidth: .infinity)
                 }.ghafGlassButton(theme: theme, languageCode: settings.languageCode)
             }
@@ -555,7 +555,7 @@ struct GhafAIView: View {
                 .padding(.top, 2)
             if progress.stage != nil { progressLine.padding(.top, 12) }
             let chips = ar
-                ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "ما الاشتراكات القادمة؟"]
+                ? ["كم أنفقت هذا الأسبوع؟", "أين أنفقت أكثر؟", "ما الاشتراكات القادمة؟"]
                 : ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"]
             GhafFlowLayout(spacing: 10) {
                 ForEach(chips, id: \.self) { chip in
@@ -925,10 +925,10 @@ struct GhafAIView: View {
 
     private func voiceLimitCounter(_ usage: GhafVoiceUsage) -> some View {
         let remaining = max(0, usage.limit - usage.used)
-        let spokenCount = remaining.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
-        let spokenLimit = usage.limit.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        let spokenCount = remaining.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
+        let spokenLimit = usage.limit.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
         return VStack(spacing: 4) {
-            Text(ar ? "باقي \(spokenCount) من \(spokenLimit) ردًا صوتيًا اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
+            Text(ar ? "تبقى \(spokenCount) من \(spokenLimit) رداً صوتياً اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
                 .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
@@ -975,7 +975,7 @@ struct GhafAIView: View {
         liveCallActive = false
         tabRouter.isListening = false
         let text = ar
-            ? (settings.userSex == "male" ? "انتهى حدك اليومي من التسجيلات الصوتية." : settings.userSex == "female" ? "انتهى حدج اليومي من التسجيلات الصوتية." : "انتهى الحد اليومي من التسجيلات الصوتية.")
+            ? (settings.userSex == "male" ? "بلغت الحد اليومي للتسجيلات الصوتية." : settings.userSex == "female" ? "بلغت الحد اليومي للتسجيلات الصوتية." : "بلغ الحد اليومي للتسجيلات الصوتية.")
             : "You've reached today's voice limit."
         appendCallNote(text)
         // Owner 1.31: after the limit line, the subscription page opens.
@@ -1015,7 +1015,7 @@ struct GhafAIView: View {
             // Nothing usable: clear it and show a short note that removes itself.
             prompt = ""
             let note = GhafChatMessage(isUser: false, text: ar
-                ? (settings.userSex == "male" ? "ما فهمت عليك، ممكن تعيد الجملة بصيغة أخرى؟" : settings.userSex == "female" ? "ما فهمت عليج، ممكن تعيدين الجملة بصيغة أخرى؟" : "ما فهمت الجملة، ممكن إعادتها بصيغة أخرى؟")
+                ? (settings.userSex == "male" ? "لم أفهم الجملة، هل يمكنك قولها بصيغة أخرى؟" : settings.userSex == "female" ? "لم أفهم الجملة، هل يمكنك قولها بصيغة أخرى؟" : "لم أفهم الجملة، هل يمكن قولها بصيغة أخرى؟")
                 : "Sorry, I didn't catch that. Could you say it another way?")
             withAnimation(.snappy) { messages.append(note) }
             // Listening restarts only after the clip ends, so the mic never hears it.
@@ -1061,7 +1061,7 @@ struct GhafAIView: View {
         case .cancel:
             guard pending else { return false }
             messages[m].draftState = .discarded
-            reply = ar ? "تمام، ما حفظت شيئاً." : "Okay, nothing saved."
+            reply = ar ? "حسناً، لم يُحفَظ أي شيء." : "Okay, nothing saved."
         case .remove(let index):
             let draftIndex = messages[m].drafts.count - 1 - index
             guard pending else {
@@ -1071,7 +1071,7 @@ struct GhafAIView: View {
             let removed = messages[m].drafts.remove(at: draftIndex).merchant
             if messages[m].drafts.isEmpty { messages[m].draftState = .discarded }
             reply = ar ? "حذفت \(removed)." : "Removed \(removed)."
-            if !messages[m].drafts.isEmpty { reply += ar ? " أحفظ الباقي؟" : " Save the rest?"; listenAfterSpeaking = isVoice }
+            if !messages[m].drafts.isEmpty { reply += ar ? " هل أحفظ بقية العمليات؟" : " Save the rest?"; listenAfterSpeaking = isVoice }
         case .rename(let index, let name):
             let draftIndex = messages[m].drafts.count - 1 - index
             let title = Self.tidyTitle(name)
@@ -1235,7 +1235,7 @@ struct GhafAIView: View {
             } catch GhafCloudAI.Failure.dailyLimit {
                 handleDailyLimit()
             } catch {
-                let note = ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment."
+                let note = ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment."
                 messages.append(GhafChatMessage(isUser: false, text: note))
                 if isVoice || speakReplies { playVoiceError() }
             }
@@ -1292,19 +1292,19 @@ struct GhafAIView: View {
             let kind = intent.isName ? "name" : "fact"
             do {
                 let memory = try GhafMemoryStore.remember(text, kind: kind, source: source, in: modelContext)
-                var answer = GhafChatMessage(isUser: false, text: ar ? "تمام، بحفظ هالمعلومة." : "Got it. I’ll remember that.")
+                var answer = GhafChatMessage(isUser: false, text: ar ? "حسناً، سأحفظ هذه المعلومة." : "Got it. I’ll remember that.")
                 answer.memoryID = memory.id
                 messages.append(answer)
             } catch {
                 Logger(subsystem: "com.ghaf.app", category: "ai").error("Saving memory failed: \(String(describing: error), privacy: .public)")
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر حفظها. حاول مرة ثانية." : "I couldn't save that memory. Try again."))
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذّر حفظ هذه المعلومة. حاول مرة أخرى." : "I couldn't save that memory. Try again."))
             }
         case .forget(let text):
             do {
                 try GhafMemoryStore.forget(text, in: modelContext)
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تم، نسيت هالمعلومة." : "Done. I’ve forgotten that."))
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تم، حذفت هذه المعلومة." : "Done. I’ve forgotten that."))
             } catch {
-                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر نسيانها. حاول مرة ثانية." : "I couldn't forget that. Try again."))
+                messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذّر حذف هذه المعلومة. حاول مرة أخرى." : "I couldn't forget that. Try again."))
             }
         }
         if voiceMode && !liveCallActive, let reply = messages.last(where: { !$0.isUser })?.text {
@@ -1364,7 +1364,7 @@ struct GhafAIView: View {
                 ? "تم الحفظ. سأتذكر أن " + learned.map { "\($0.merchant) ← \(GhafLocalization.category($0.category, languageCode: "ar"))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: "ar"))" } ?? "") }.joined(separator: "، ") + "."
                 : "Saved. I'll remember " + learned.map { "\($0.merchant) → \(GhafLocalization.category($0.category, languageCode: settings.languageCode))" + ($0.subcategory.map { " › \(GhafLocalization.category($0, languageCode: settings.languageCode))" } ?? "") }.joined(separator: ", ") + ".")
             withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: false, text: note)) }
-            speak(ar ? "تم الحفظ. شي ثاني؟" : "Saved. Anything else?", force: liveCallActive)
+            speak(ar ? "تم الحفظ. هل تريد شيئاً آخر؟" : "Saved. Anything else?", force: liveCallActive)
         } catch {
             withAnimation(.snappy) {
                 messages.append(GhafChatMessage(isUser: false, text: ar ? "تعذر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."))
@@ -1388,7 +1388,7 @@ struct GhafAIView: View {
         if liveGroundingSources.isEmpty { liveGroundingSources = [liveFacts] }
         let firstName = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
             ?? settings.userName
-        let date = Date.now.formatted(date: .complete, time: .omitted)
+        let date = Date.now.formatted(Date.FormatStyle(date: .complete, time: .omitted).locale(GhafLocale.locale(identifier: settings.languageCode)))
         let persona = ar
             ? "أنت غاف، \(voiceCharacter == "Mariam" ? "امرأة" : "رجل") إماراتي ودود. أجب دائماً بلغة آخر رسالة للمستخدم: العربية بلهجة خليجية إماراتية طبيعية، أو الإنجليزية. لا تخلط اللغتين إلا إذا خلط المستخدم بينهما، ولا تقدّم نفسك أو تمزج تحية إنجليزية بجملة عربية. عند السؤال عن الرصيد أو المصروفات أو الحسابات أو الاشتراكات، استدعِ get_finance_answer دائماً ولا تقل إنك لا تملك معلومات المستخدم. استخدم نتائج الأداة كما هي ولا تخمّن. استخدم remember أو forget فقط بطلب صريح. عند ذكر عملية، استدعِ log_transaction لعرض بطاقة تأكيد ولا تحفظها بنفسك."
             : "You are Ghaf, a warm \(voiceCharacter == "Mariam" ? "female" : "male") Emirati assistant. Always reply in the language of the user's latest turn: English, or natural Gulf Emirati Arabic. Do not mix languages unless the user does, and do not introduce yourself or combine an English greeting with Arabic. For any question about balances, spending, accounts, or subscriptions, always call get_finance_answer; never claim you lack access to the user's data. Use the tool result exactly and never guess. For a transaction, call log_transaction to show a confirmation card; never save it yourself. Use remember or forget only when explicitly asked. Speak English with a soft, educated American delivery and light Emirati warmth; avoid rolled or tapped r sounds."
@@ -1408,7 +1408,7 @@ struct GhafAIView: View {
             startVoice()
         } catch {
             tabRouter.isListening = false
-            appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+            appendCallNote(ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment.")
             playVoiceError()
         }
     }
@@ -1518,7 +1518,7 @@ struct GhafAIView: View {
             guard memoryEnabled else { response = ar ? "الذاكرة متوقفة." : "Memory is disabled."; return ["result": .string(response)] }
             do {
                 let memory = try GhafMemoryStore.remember(value("fact"), source: "confirmed", in: modelContext)
-                var message = GhafChatMessage(isUser: false, text: ar ? "تمام، بحفظ هالمعلومة." : "Got it. I’ll remember that.")
+                var message = GhafChatMessage(isUser: false, text: ar ? "حسناً، سأحفظ هذه المعلومة." : "Got it. I’ll remember that.")
                 message.memoryID = memory.id; messages.append(message)
                 response = ar ? "انحفظت على هذا الجهاز." : "Saved on this iPhone."
             } catch { response = ar ? "تعذر الحفظ." : "Could not save memory." }
@@ -1640,7 +1640,7 @@ private struct GhafInlineBars: View {
                         }
                     }
                     .frame(height: 8)
-                    Text(point.value, format: .number.precision(.fractionLength(0)).locale(Locale(identifier: languageCode)))
+                    Text(point.value, format: .number.precision(.fractionLength(0)).locale(GhafLocale.locale(identifier: languageCode)))
                         .foregroundStyle(theme.secondaryText)
                         .frame(minWidth: 48, alignment: .trailing)
                 }
@@ -1734,7 +1734,7 @@ private struct GhafChatHistorySheet: View {
                                             .accessibilityLabel(ar ? "مفتوحة الآن" : "Open now")
                                     }
                                 }
-                                Text(chat.updatedAt.formatted(.relative(presentation: .named).locale(Locale(identifier: languageCode))))
+                                Text(chat.updatedAt.formatted(.relative(presentation: .named).locale(GhafLocale.locale(identifier: languageCode))))
                                     .font(GhafTypography.body(12, languageCode: languageCode))
                                     .foregroundStyle(theme.secondaryText)
                             }

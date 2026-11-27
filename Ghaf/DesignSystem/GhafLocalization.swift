@@ -2,11 +2,14 @@ import Foundation
 import GhafCore
 
 enum GhafLocalization {
-    /// "n days" in Arabic: the counted noun follows the number (٧ أيام، ٣٠ يومًا، ١٠٠ يوم).
+    static func locale(languageCode: String) -> Locale {
+        GhafLocale.locale(identifier: languageCode.lowercased().hasPrefix("ar") ? "ar_AE" : languageCode)
+    }
+    /// Arabic day agreement with the app's Western-digit number rule.
     static func arabicDays(_ n: Int) -> String {
         let r = n % 100
         let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "ar_EG")
+        formatter.locale = locale(languageCode: "ar")
         formatter.numberStyle = .decimal
         let count = formatter.string(from: NSNumber(value: n)) ?? String(n)
         if n == 1 { return "يوم واحد" }
@@ -18,8 +21,8 @@ enum GhafLocalization {
 
 #if DEBUG
     static func assertArabicDays() {
-        assert(arabicDays(1) == "يوم واحد" && arabicDays(2) == "يومان" && arabicDays(7) == "٧ أيام"
-               && arabicDays(11) == "١١ يومًا" && arabicDays(30) == "٣٠ يومًا" && arabicDays(100) == "١٠٠ يوم")
+        assert(arabicDays(1) == "يوم واحد" && arabicDays(2) == "يومان" && arabicDays(7) == "7 أيام"
+               && arabicDays(11) == "11 يومًا" && arabicDays(30) == "30 يومًا" && arabicDays(100) == "100 يوم")
     }
 #endif
 
@@ -31,7 +34,7 @@ enum GhafLocalization {
         if value == 1 { return singular }
         if value == 2 { return dual }
         let numberFormatter = NumberFormatter()
-        numberFormatter.locale = Locale(identifier: "ar_AE")
+        numberFormatter.locale = locale(languageCode: "ar")
         numberFormatter.numberStyle = .decimal
         let formatted = numberFormatter.string(from: NSNumber(value: value)) ?? String(value)
         if (3...10).contains(value) { return "\(formatted) " + plural }

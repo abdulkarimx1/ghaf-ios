@@ -215,7 +215,7 @@ struct GhafBudgetView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(ar ? "ميزانية الشهر" : "Monthly category budgets")
             .accessibilityValue(ar
-                ? "\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) من \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). ترتيب الفئات باتجاه عقارب الساعة بدءًا من الساعة ١٢: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: "، ")). الفئة المحددة: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? "لا شيء")."
+                ? "\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) من \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). ترتيب الفئات باتجاه عقارب الساعة بدءًا من الساعة 12: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: "، ")). الفئة المحددة: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? "لا شيء")."
                 : "\(GhafFormat.shownMoney(totalSpent, currency: currency, languageCode: lang)) of \(GhafFormat.shownMoney(totalBudget, currency: currency, languageCode: lang)). Petals clockwise from 12 o'clock: \(shown.map { GhafLocalization.category($0.name, languageCode: lang) }.joined(separator: ", ")). Selected: \(selectedCategory.map { GhafLocalization.category($0, languageCode: lang) } ?? "none")")
             Text(ar ? "اضغط على فئة لعرض مصروفاتها" : "Tap a category to see its spending")
                 .font(GhafTypography.body(13, languageCode: lang))
@@ -356,7 +356,7 @@ struct GhafBudgetView: View {
     private func presetArabic(_ preset: BudgetAllocation.Preset) -> String {
         switch preset {
         case .balanced: "للمصاريف الثابتة التي تقل عن نصف دخلك"
-        case .highRentCity: "عندما يستحوذ الإيجار والفواتير على ٥٥٪ أو أكثر"
+        case .highRentCity: "عندما يستحوذ الإيجار والفواتير على 55٪ أو أكثر"
         case .essentialsFirst: "عندما ترتفع الفواتير ويبدأ الادخار بمبلغ أقل"
         case .guardian: "عندما تحتاج الأساسيات إلى الحصة الأكبر من دخلك"
         }
@@ -391,7 +391,7 @@ struct GhafBudgetView: View {
 
     private var header: some View {
         let days = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: GhafClock.now), to: cycle.end).day ?? 0)
-        let started = cycle.start.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
+        let started = cycle.start.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang)))
         let detail = hasSalary
             ? (ar ? "بدأت الدورة \(started) · \(days) يوم للراتب القادم" : "Cycle started \(started) · \(days) days to next salary")
             : (ar ? "هذا الشهر · بقي \(days) يوم" : "This month · \(days) days left")
@@ -440,7 +440,7 @@ struct GhafBudgetView: View {
                 .contentShape(Rectangle())
             }.buttonStyle(.plain)
             if allocationIncome <= 0 {
-                Text(ar ? "أضف دخلك الشهري من المزيد › الميزانية والفئات، أو راتبك من دورة الراتب، ليقسّمه غاف ٥٠/٣٠/٢٠."
+                Text(ar ? "أضف دخلك الشهري من المزيد › الميزانية والفئات، أو راتبك من دورة الراتب، ليقسّمه غاف 50/30/20."
                         : "Add your monthly income in More › Budget & categories, or your salary in Salary cycle, and Ghaf splits it using your selected budget plan.")
                     .font(GhafTypography.body(14, languageCode: lang))
                     .foregroundStyle(theme.secondaryText)
@@ -606,7 +606,7 @@ struct GhafBudgetView: View {
                 }
                 .frame(height: 28)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(selected.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang)))
+                .accessibilityLabel(selected.start.formatted(.dateTime.month(.wide).locale(GhafLocale.locale(identifier: lang)))
                                     + " · " + GhafFormat.shownMoney(Decimal(selected.total), currency: currency, languageCode: lang))
             }
             HStack(alignment: .bottom, spacing: 10) {
@@ -617,7 +617,7 @@ struct GhafBudgetView: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(selectedMonth == nil ? (current ? theme.accent : theme.primaryText.opacity(0.22)) : theme.primaryText)
                                 .frame(height: max(6, 70 * month.total / most))
-                            Text(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))
+                            Text(month.start.formatted(.dateTime.month(.abbreviated).locale(GhafLocale.locale(identifier: lang))))
                                 .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(current ? theme.primaryText : theme.secondaryText)
                         }
                         .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottom).contentShape(Rectangle())
@@ -625,7 +625,7 @@ struct GhafBudgetView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(month.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang))) + " " + GhafFormat.shownMoney(Decimal(month.total), currency: currency, languageCode: lang))
+                    .accessibilityLabel(month.start.formatted(.dateTime.month(.wide).locale(GhafLocale.locale(identifier: lang))) + " " + GhafFormat.shownMoney(Decimal(month.total), currency: currency, languageCode: lang))
                     .accessibilityAddTraits(selectedMonth == month.start ? .isSelected : [])
                 }
             }

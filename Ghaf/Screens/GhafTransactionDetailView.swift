@@ -37,10 +37,10 @@ struct GhafTransactionDetailView: View {
     }
     private var transactionDateLabel: String {
         let calendar = Calendar.current
-        let time = transaction.date.formatted(.dateTime.hour().minute().locale(Locale(identifier: lang)))
+        let time = transaction.date.formatted(.dateTime.hour().minute().locale(GhafLocale.locale(identifier: lang)))
         if calendar.isDateInToday(transaction.date) { return (ar ? "اليوم" : "Today") + (ar ? "، " : ", ") + time }
         if calendar.isDateInYesterday(transaction.date) { return (ar ? "أمس" : "Yesterday") + (ar ? "، " : ", ") + time }
-        let day = transaction.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: lang)))
+        let day = transaction.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang)))
         return day + " · " + time
     }
 
@@ -173,8 +173,8 @@ struct GhafTransactionDetailView: View {
             if transaction.originalAmount != nil, let code = transaction.originalCurrency {
                 if let rate = transaction.exchangeRate {
                     GhafDetailRow(label: ar ? "سعر الصرف (تقديري)" : "Rate (estimate)",
-                                  text: "1 \(code) = \(rate.formatted(.number.precision(.fractionLength(0...4)).locale(Locale(identifier: lang)))) \(transaction.currency)"
-                                    + " · " + (transaction.exchangeRateDate ?? transaction.date).formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang)))
+                                  text: "1 \(code) = \(rate.formatted(.number.precision(.fractionLength(0...4)).locale(GhafLocale.locale(identifier: lang)))) \(transaction.currency)"
+                                    + " · " + (transaction.exchangeRateDate ?? transaction.date).formatted(.dateTime.day().month().hour().minute().locale(GhafLocale.locale(identifier: lang)))
                                     + "\n" + (ar ? "سعر السوق من \(GhafExchangeRates.sourceName). قد يختلف سعر البنك ورسومه." : "Market rate from \(GhafExchangeRates.sourceName). Your bank's rate and fees may differ."),
                                   theme: theme, languageCode: lang)
                 }
@@ -233,7 +233,7 @@ struct GhafTransactionDetailView: View {
     private var receiptText: String {
         let amount = (isCredit ? "+" : "-") + GhafFormat.money(transaction.amount, currency: transaction.currency, languageCode: lang)
         return [status.title, merchantName, amount,
-                transaction.date.formatted(.dateTime.day().month().year().hour().minute()),
+                transaction.date.formatted(.dateTime.day().month().year().hour().minute().locale(GhafLocale.locale(identifier: lang))),
                 account?.name, "#" + transaction.id.uuidString.prefix(8)]
             .compactMap { $0 }.joined(separator: "\n")
     }

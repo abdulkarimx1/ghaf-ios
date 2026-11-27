@@ -42,7 +42,7 @@ struct GhafProFeatureMask<Content: View>: View {
                 if !isUnlocked {
                     Rectangle().fill(theme.background.opacity(0.35)).overlay {
                         Button(action: action) {
-                            Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
+                            Label(ar ? "ميزة من غاف برو" : "Pro feature", systemImage: "lock.fill")
                                 .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                                 .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
                                 .background(theme.surface, in: Capsule())
@@ -103,7 +103,7 @@ struct GhafProView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
                     // Owner 1.31: the headline is a subscribe call to action.
-                    Text(ar ? "اشترك في غاف Pro" : "Subscribe to Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
+                    Text(ar ? "اشترك في غاف برو" : "Subscribe to Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
                         .multilineTextAlignment(.center)
                     Text(ar ? "اشترك لتستمتع بغاف AI والإدخال الصوتي والإحصائيات المتقدمة وكل الودجات."
                             : "Subscribe to enjoy Ghaf AI, voice entry, advanced statistics and every widget.")
@@ -126,13 +126,13 @@ struct GhafProView: View {
                     VStack(spacing: 10) {
                         Label(ar ? "هدية قبل الرحيل" : "A gift before you go", systemImage: "gift.fill")
                             .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
-                        Text(ar ? "خصم ٢٥٪ لمرة واحدة على Ghaf Pro" : "One-time 25% off Ghaf Pro")
+                        Text(ar ? "خصم 25٪ لمرة واحدة على غاف برو" : "One-time 25% off Ghaf Pro")
                             .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         Button(ar ? "استرداد العرض" : "Claim offer") { redeeming = true }
                             .ghafProminentButton(theme: theme, languageCode: lang)
                             .disabled(!GhafFeatureFlags.appStoreAccount)
                             .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
-                        Text(ar ? "يتوفر عند إطلاق غاف في App Store." : "Available when Ghaf is on the App Store.")
+                        Text(ar ? "يتوفر عند إطلاق غاف في متجر التطبيقات." : "Available when Ghaf is on the App Store.")
                             .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                             .multilineTextAlignment(.center)
                     }
@@ -150,8 +150,8 @@ struct GhafProView: View {
                 purchaseControls
                 // Apple 3.1.2: renewal terms on the paywall itself, next to the price.
                 VStack(spacing: 1) {
-                    Text(ar ? "يتجدد تلقائيًا بالسعر نفسه؛ ألغِ قبل نهاية الفترة بـ٢٤ ساعة على الأقل." : "Auto-renews at the same price; cancel at least 24 hours before the period ends.")
-                    Text(ar ? "يمكنك الإلغاء في أي وقت من إعدادات حساب Apple." : "Cancel anytime in your Apple Account settings.")
+                    Text(ar ? "يتجدد تلقائيًا بالسعر نفسه؛ ألغِ قبل نهاية الفترة بـ 24 ساعة على الأقل." : "Auto-renews at the same price; cancel at least 24 hours before the period ends.")
+                    Text(ar ? "يمكنك الإلغاء في أي وقت من إعدادات حساب آبل." : "Cancel anytime in your Apple Account settings.")
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
@@ -205,7 +205,7 @@ struct GhafProView: View {
 
     private func allowance(annual: Bool) -> String {
         let count = annual ? VoiceAllowance.yearlySpokenAnswers : VoiceAllowance.monthlySpokenAnswers
-        let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
+        let localizedCount = count.formatted(.number.locale(GhafLocalization.locale(languageCode: lang)))
         return ar ? "نحو \(localizedCount) إجابة صوتية شهريًا" : "About \(count) spoken answers a month"
     }
 
@@ -229,7 +229,7 @@ struct GhafProView: View {
                 } catch { notice = error.localizedDescription }
             }
         } label: {
-            Text(GhafProAccess.hasAccessCode ? (ar ? "Pro فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+            Text(GhafProAccess.hasAccessCode ? (ar ? "غاف برو فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراك غاف برو فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
             .ghafLightSweep(GhafFeatureFlags.appStoreAccount && !active && !busy)
             .disabled(!GhafFeatureFlags.appStoreAccount || active || busy || selected == nil || isLoadingProducts)
@@ -287,7 +287,7 @@ struct GhafProView: View {
     @ViewBuilder private var accessCodeControls: some View {
         if GhafProAccess.hasAccessCode {
             HStack {
-                Text(ar ? "Pro فعّال (رمز)" : "Pro active (code)")
+                Text(ar ? "غاف برو فعّال (رمز)" : "Pro active (code)")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.accent)
                 Spacer()
                 Button(ar ? "إزالة الرمز" : "Remove code") {
@@ -320,7 +320,7 @@ struct GhafProView: View {
                             accessCode = ""
                             codeEntryVisible = false
                             accessRevision += 1
-                            notice = ar ? "تم تفعيل Pro باستخدام الرمز" : "Pro active (code)"
+                            notice = ar ? "تم تفعيل غاف برو باستخدام الرمز" : "Pro active (code)"
                         case .invalid:
                             notice = ar ? "الرمز غير صالح أو انتهت محاولات اليوم" : "That code is invalid, or today's attempts are used"
                         case .unavailable:
@@ -388,7 +388,7 @@ struct GhafProView: View {
 
     private func trialText(_ period: Product.SubscriptionPeriod) -> String {
         let count = period.value
-        let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
+        let localizedCount = count.formatted(.number.locale(GhafLocalization.locale(languageCode: lang)))
         let unit: (String, String)
         switch period.unit {
         case .day: unit = ("day", count == 1 ? "يوم واحد" : count == 2 ? "يومين" : "أيام")
@@ -405,7 +405,7 @@ struct GhafProView: View {
 /// Why Ghaf asks for money, in the voice of the person who makes it. Shown on the Pro page.
 enum GhafWhyPaidView {
     static func message(ar: Bool) -> String {
-        ar ? "أريد أن تكون تجربة غاف هادئة وسلسة للجميع. لن تظهر فيه إعلانات أبداً. يساعد Ghaf Pro على إبقاء غاف مستقلاً ودعم تطويره. وسيظل الإصدار المجاني مفيداً."
+        ar ? "أريد أن تكون تجربة غاف هادئة وسلسة للجميع. لن تظهر فيها إعلانات أبداً. يساعد غاف برو على إبقاء غاف مستقلاً ودعم تطويره. وسيظل الإصدار المجاني مفيداً."
            : "I want Ghaf to feel calm and easy for everyone. There will never be ads. Ghaf Pro keeps Ghaf independent and supports its development. The free version will remain useful."
     }
 }
@@ -423,26 +423,32 @@ struct GhafTermsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text(ar ? "شروط اشتراك غاف Pro" : "Ghaf Pro terms")
-                    .font(GhafTypography.display(28, languageCode: lang))
+                Text(ar ? "شروط اشتراك غاف برو" : "Ghaf Pro terms")
+                    .font(GhafTypography.body(24, languageCode: lang, weight: .bold))
                     .foregroundStyle(theme.primaryText)
                     .frame(maxWidth: .infinity)
                 ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("\(index + 1). \(section.0)")
-                            .font(GhafTypography.heading(16, languageCode: lang))
-                            .foregroundStyle(theme.primaryText)
-                        Text(section.1)
-                            .font(GhafTypography.body(14, languageCode: lang))
+                        HStack(spacing: 6) {
+                            Text("\(index + 1).\u{00a0}").font(.system(size: 16, weight: .bold))
+                            Text(section.0).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
+                        }.foregroundStyle(theme.primaryText)
+                        // `leading` resolves to the visual right in Arabic RTL.
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        legalParagraph(section.1)
                             .foregroundStyle(theme.secondaryText)
                             .lineSpacing(3)
+                            .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
+                            .multilineTextAlignment(.leading)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .ghafStatsCard(theme: theme, radius: 18)
                 }
-                Text(ar ? "آخر تحديث: نوفمبر ٢٠٢٦" : "Last updated: November 2026")
-                    .font(GhafTypography.body(12, languageCode: lang))
+                Group {
+                    if ar { HStack { Text("آخر تحديث: نوفمبر"); Text("2026").font(.system(size: 12)); }.font(GhafTypography.body(12, languageCode: lang)) }
+                    else { Text("Last updated: November 2026").font(GhafTypography.body(12, languageCode: lang)) }
+                }
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity)
             }
@@ -456,13 +462,13 @@ struct GhafTermsView: View {
 
     private var sections: [(String, String)] {
         ar ? [
-            ("الخطط", "يتوفر غاف Pro باشتراك شهري أو سنوي يتجدد تلقائياً."),
-            ("الدفع والتجديد", "يتم الدفع عبر حساب Apple الخاص بك عند تأكيد الشراء. يتجدد الاشتراك تلقائياً بنفس السعر ما لم يُوقف التجديد قبل نهاية الفترة الحالية بـ ٢٤ ساعة على الأقل. يمكنك إدارة الاشتراك وإلغاؤه من الإعدادات › حساب Apple › الاشتراكات. الإلغاء يوقف التجديد القادم فقط، ويبقى Pro فعّالاً حتى نهاية الفترة المدفوعة."),
-            ("لا استرداد ولا إرجاع", "كل المبيعات نهائية. لا يقدّم غاف أي استرداد أو إرجاع أو تعويض بعد الشراء، بما في ذلك الفترات الجزئية أو الوقت غير المستخدم أو المزايا التي لم تُستخدم. المدفوعات تتم عبر Apple، وأي طلب استرداد يُقدّم إلى Apple وحدها وتقرّر فيه وفق سياساتها، وغاف لا يستطيع إصدار استرداد بنفسه."),
-            ("المزايا", "قد تُضاف مزايا Pro أو تُعدّل أو تُحسّن مع الوقت. لا يضمن الاشتراك توفر ميزة بعينها في كل جهاز أو إصدار من iOS."),
-            ("ليس نصيحة مالية", "غاف أداة لتنظيم سجلك المالي الشخصي. الأرقام من سجلاتك ومن رسائل البنك وقد تحتوي على أخطاء. غاف ليس بنكاً ولا مستشاراً مالياً، ولا يُعدّ أي محتوى فيه نصيحة مالية أو استثمارية. أنت المسؤول عن قراراتك المالية."),
-            ("حدود المسؤولية", "يُقدَّم غاف كما هو. إلى أقصى حد يسمح به القانون، لا يتحمل المطوّر أي مسؤولية عن خسائر أو أضرار مباشرة أو غير مباشرة ناتجة عن استخدام التطبيق أو تعذّر استخدامه، ولا تتجاوز مسؤوليته في كل الأحوال المبلغ الذي دفعته خلال الأشهر الاثني عشر السابقة."),
-            ("التعديل والقانون", "قد تُحدَّث هذه الشروط، ويعني استمرار الاستخدام قبولها. تخضع هذه الشروط لقوانين دولة الإمارات العربية المتحدة، مع شروط Apple القياسية لاستخدام التطبيقات (EULA).")
+            ("الخطط", "يتوفر غاف برو باشتراك شهري أو سنوي يتجدد تلقائياً."),
+            ("الدفع والتجديد", "يتم الدفع عبر حساب آبل عند تأكيد الشراء. يتجدد الاشتراك تلقائياً بالسعر نفسه ما لم يُوقف التجديد قبل نهاية الفترة الحالية بـ 24 ساعة على الأقل. يمكنك إدارة الاشتراك أو إلغاؤه من الإعدادات › حساب آبل › الاشتراكات. يوقف الإلغاء التجديد القادم فقط، ويبقى غاف برو فعّالاً حتى نهاية الفترة المدفوعة."),
+            ("لا استرداد ولا إرجاع", "كل المبيعات نهائية. لا يقدّم غاف أي استرداد أو إرجاع أو تعويض بعد الشراء، بما في ذلك الفترات الجزئية أو الوقت غير المستخدم أو المزايا التي لم تُستخدم. تتم المدفوعات عبر آبل، ويُقدّم طلب الاسترداد إلى آبل وحدها لتقرّر فيه وفق سياساتها. لا يستطيع غاف إصدار الاسترداد بنفسه."),
+            ("المزايا", "قد تُضاف مزايا غاف برو أو تُعدّل أو تُحسّن مع الوقت. لا يضمن الاشتراك توفر ميزة بعينها على كل جهاز أو إصدار من iOS."),
+            ("إخلاء مسؤولية مالية", "غاف أداة لتنظيم سجلك المالي الشخصي. تستند الأرقام إلى سجلاتك ورسائل البنك، وقد تحتوي على أخطاء. غاف ليس بنكاً ولا مستشاراً مالياً، ولا يُعدّ أي محتوى فيه نصيحة مالية أو استثمارية. أنت مسؤول عن قراراتك المالية."),
+            ("حدود المسؤولية", "يُقدَّم غاف كما هو. إلى أقصى حد يسمح به القانون، لا يتحمل المطوّر مسؤولية الخسائر أو الأضرار المباشرة أو غير المباشرة الناتجة عن استخدام التطبيق أو تعذّر استخدامه. وفي جميع الأحوال، لا تتجاوز مسؤوليته المبلغ الذي دفعته خلال الأشهر الاثني عشر السابقة."),
+            ("التعديل والقانون", "قد تُحدَّث هذه الشروط، ويعني استمرار الاستخدام قبولها. تخضع هذه الشروط لقوانين دولة الإمارات العربية المتحدة، إلى جانب اتفاقية ترخيص التطبيقات القياسية من آبل (EULA).")
         ] : [
             ("Plans", "Monthly and yearly subscriptions renew automatically."),
             ("Payment and renewal", "Payment is charged to your Apple Account when you confirm the purchase. Subscriptions renew automatically at the same price unless auto-renew is turned off at least 24 hours before the current period ends. Manage or cancel in Settings › Apple Account › Subscriptions. Cancelling stops the next renewal only; Pro stays active until the end of the paid period."),
@@ -472,6 +478,35 @@ struct GhafTermsView: View {
             ("Limitation of liability", "Ghaf is provided as is. To the fullest extent the law allows, the developer is not liable for any direct or indirect loss or damage arising from using, or being unable to use, the app, and in any case liability is limited to the amount you paid in the previous twelve months."),
             ("Changes and law", "These terms may be updated; continued use means you accept them. They are governed by the laws of the United Arab Emirates, together with Apple's standard Licensed Application End User License Agreement (EULA).")
         ]
+    }
+
+    private func legalParagraph(_ value: String) -> Text {
+        enum Script { case arabic, latin, number }
+        func script(_ character: Character) -> Script? {
+            guard let scalar = character.unicodeScalars.first else { return nil }
+            if CharacterSet.decimalDigits.contains(scalar) { return .number }
+            if (0x0600...0x06FF).contains(scalar.value) || (0x0750...0x077F).contains(scalar.value) || (0x08A0...0x08FF).contains(scalar.value) { return .arabic }
+            if (0x0041...0x005A).contains(scalar.value) || (0x0061...0x007A).contains(scalar.value) { return .latin }
+            return nil
+        }
+        func font(_ script: Script) -> Font {
+            switch script {
+            case .arabic: GhafTypography.body(14, languageCode: "ar")
+            case .latin: .custom("IBMPlexSans-Regular", size: 14)
+            case .number: .system(size: 14)
+            }
+        }
+        var runs: [(Script, String)] = []
+        var current: Script = ar ? .arabic : .latin
+        var text = ""
+        for character in value {
+            if let next = script(character), next != current, !text.isEmpty {
+                runs.append((current, text)); text = ""; current = next
+            }
+            text.append(character)
+        }
+        if !text.isEmpty { runs.append((current, text)) }
+        return runs.reduce(Text("")) { $0 + Text($1.1).font(font($1.0)) }
     }
 }
 

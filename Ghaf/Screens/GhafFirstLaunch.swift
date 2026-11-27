@@ -54,27 +54,27 @@ struct GhafFirstLaunchCopy {
         setUpAutomation: "Set up automatic tracking", back: "Back")
 
     static let ar = GhafFirstLaunchCopy(
-        skip: "تخطي", storyHeadline: "إدارة دفعاتك صارت أسهل.", start: "ابدأ", restore: "استرجع نسخة احتياطية",
-        f1Headline: "كل دفعة تتسجّل تلقائيًا.", tapToPay: "اضغط للدفع", debitCard: "بطاقة خصم", groceriesJustNow: "بقالة · الحين", logged: "تسجّلت",
-        f1Hint: "اضغط على البطاقة", f1Body: "رسائل البنك تتحوّل إلى عمليات مسجّلة، مع اسم المحل والتصنيف.", next: "متابعة",
-        f2Headline: "صرفك واضح قدامك.", f2Hint: "اضغط على بتلة", f2Body: "كل بتلة تصنيف، تمتلي مع صرفك، ويتغيّر لونها إذا تجاوزت الحد.", f2Note: "بعض الإحصائيات المتقدمة والودجات تحتاج اشتراك.", pro: "Pro",
-        f3Headline: "اشتراكاتك كلها قدامك.", f3Hint: "جرّب الأزرار", f3Body: "تنبيه قبل التجديد بيوم، على شاشة القفل.", setUp: "جهّز حسابك",
-        markPaid: "تم الدفع", remindLater: "ذكّرني لاحقًا", markedPaid: "تم تسجيله مدفوعًا", willRemind: "بنذكّرك الساعة 6 مساءً", renewsTomorrow: "يتجدد بكرة",
+        skip: "تخطي", storyHeadline: "أصبحت إدارة مدفوعاتك أسهل.", start: "ابدأ", restore: "استعد نسخة احتياطية",
+        f1Headline: "تُسجَّل كل معاملة تلقائياً.", tapToPay: "اضغط للدفع", debitCard: "بطاقة خصم", groceriesJustNow: "بقالة · الآن", logged: "سُجِّلت",
+        f1Hint: "اضغط على البطاقة", f1Body: "تتحول رسائل البنك إلى معاملات مسجلة، مع اسم المتجر وتصنيفه.", next: "متابعة",
+        f2Headline: "تابع إنفاقك بوضوح.", f2Hint: "اضغط على إحدى البتلات", f2Body: "تمثل كل بتلة فئة إنفاق؛ وتزداد مع زيادة إنفاقك، ويتغير لونها عند تجاوز الحد.", f2Note: "تتطلب بعض الإحصاءات المتقدمة والودجات اشتراكاً.", pro: "غاف برو",
+        f3Headline: "تابع اشتراكاتك كلها في مكان واحد.", f3Hint: "جرّب الأزرار", f3Body: "يصلك تنبيه قبل موعد التجديد بيوم، على شاشة القفل.", setUp: "أكمل إعداد حسابك",
+        markPaid: "تم الدفع", remindLater: "ذكّرني لاحقاً", markedPaid: "تم تسجيله مدفوعاً", willRemind: "سيصلك تذكير عند الساعة 6 مساءً", renewsTomorrow: "يتجدد غداً",
         lockDate: "الثلاثاء 25 نوفمبر",
-        qName: "شو اسمك؟", namePlaceholder: "اسمك", qAddress: "اختر صيغة المخاطبة", male: "ذكر", female: "أنثى",
-        addressWhy: "نستخدمه بس عشان نخاطبك بالصيغة الصح.", qCurrency: "اختر عملتك", currencyWhy: "تقدر تضيف حسابات بعملات ثانية بعدين.",
-        qBudget: "اختر طريقة توزيع ميزانيتك", budgetWhy: "نقطة بداية، وتقدر تعدّل كل بتلة بعدين.", finish: "تم",
+        qName: "ما اسمك؟", namePlaceholder: "اسمك", qAddress: "اختر صيغة المخاطبة", male: "ذكر", female: "أنثى",
+        addressWhy: "نستخدم هذا الاسم لمخاطبتك بالصيغة المناسبة.", qCurrency: "اختر عملتك", currencyWhy: "يمكنك إضافة حسابات بعملات أخرى لاحقاً.",
+        qBudget: "اختر طريقة توزيع ميزانيتك", budgetWhy: "ابدأ بهذا التوزيع، ويمكنك تعديل كل فئة لاحقاً.", finish: "تم",
         pastName: "الاسم", pastAddress: "المخاطبة", pastCurrency: "العملة",
-        categories: ["بقالة", "مطاعم", "مواصلات", "فواتير", "تسوّق", "ترفيه"], leftThisMonth: "باقي هالشهر", of: "من",
+        categories: ["بقالة", "مطاعم", "مواصلات", "فواتير", "تسوق", "ترفيه"], leftThisMonth: "المتبقي هذا الشهر", of: "من",
         messages: [.init(bank: "الإمارات دبي الوطني", text: "شراء بمبلغ 45.00 درهم من كارفور", code: "EN"), .init(bank: "مصرف الراجحي", text: "شراء بمبلغ 120.00 ريال من جرير", code: "RJ"),
                    .init(bank: "أبوظبي التجاري", text: "دفعت 18.50 درهم ببطاقة 4021", code: "AD"), .init(bank: "بنك أبوظبي الأول", text: "خصم 230.00 درهم في أدنوك", code: "FA"),
                    .init(bank: "المشرق", text: "عملية بمبلغ 64.00 درهم في نون", code: "MQ"), .init(bank: "الإمارات دبي الوطني", text: "شراء بمبلغ 12.00 درهم من مقهى", code: "EN")],
-        typing: "تكتبها وحدة وحدة…", now: "الحين", shop: "كارفور", subscription: "نتفليكس",
-        islandTitle: "تسجّلت 6 عمليات", islandSubtitle: "توزّعت على 4 تصنيفات · الحين",
+        typing: "تُسجَّل العمليات واحدة تلو الأخرى…", now: "الآن", shop: "كارفور", subscription: "نتفليكس",
+        islandTitle: "سُجِّلت 6 معاملات", islandSubtitle: "وُزِّعت على 4 فئات · الآن",
         calm: [.init(name: "كارفور", category: "بقالة", amount: "−45.00"), .init(name: "أدنوك", category: "مواصلات", amount: "−230.00"),
                .init(name: "نون", category: "تسوّق", amount: "−64.00"), .init(name: "الراتب", category: "دخل", amount: "+9,500.00")],
-        accountsTitle: "وين تحتفظ بفلوسك؟", accountsWhy: "كل رصيد يبقى منفصل بعملته.",
-        incomeTitle: "دخلك ويوم الراتب", incomeWhy: "هالأرقام تساعد على حساب حد صرف يومي واقعي.",
+        accountsTitle: "أين تحتفظ بأموالك؟", accountsWhy: "يظل كل رصيد منفصلاً بعملته.",
+        incomeTitle: "دخلك وموعد الراتب", incomeWhy: "تساعد هذه الأرقام على حساب حد يومي واقعي للإنفاق.",
         setUpAutomation: "إعداد التتبع التلقائي", back: "رجوع")
 }
 
@@ -619,7 +619,7 @@ struct GhafFeatureCardScreen: View {
     private let budget = [800, 500, 400, 900, 450, 300]
 
     private func number(_ value: Int) -> String {
-        let f = NumberFormatter(); f.numberStyle = .decimal; f.locale = Locale(identifier: "en_US")
+        let f = NumberFormatter(); f.numberStyle = .decimal; f.locale = GhafLocale.locale(identifier: "en_US")
         return f.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 

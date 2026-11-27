@@ -61,7 +61,7 @@ struct GhafSubscriptionsView: View {
     private var paymentMatchCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(paymentMatches, id: \.1.id) { item, transaction in
-                let next = item.cycle.nextDate(after: item.nextPaymentDate).formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
+                let next = item.cycle.nextDate(after: item.nextPaymentDate).formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang)))
                 VStack(alignment: .leading, spacing: 10) {
                     Text(ar ? "هل كانت هذه دفعة هذا الشهر لاشتراك \(item.name)؟ ينتقل التجديد القادم إلى \(next)."
                             : "Was this your \(item.name) payment for this month? The next payment moves to \(next).")
@@ -241,7 +241,7 @@ struct GhafSubscriptionsView: View {
                     Text(item.name)
                         .font(GhafTypography.userContent(item.name, size: 18, languageCode: lang, heading: true))
                         .foregroundStyle(theme.primaryText)
-                    Text(whenText(item.nextPaymentDate) + " · " + item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))))
+                    Text(whenText(item.nextPaymentDate) + " · " + item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang))))
                         .font(GhafTypography.body(13, languageCode: lang))
                         .foregroundStyle(theme.secondaryText)
                 }
@@ -276,7 +276,7 @@ struct GhafSubscriptionsView: View {
                 .frame(maxWidth: .infinity)
                 costMetric(ar ? "نشطة" : "Active", "\(active.count)")
                 costMetric(ar ? "التالي" : "Next",
-                           next.map { $0.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))) } ?? "—")
+                           next.map { $0.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang))) } ?? "—")
             }
         }
         .padding(.vertical, 22).padding(.horizontal, 12)
@@ -428,7 +428,7 @@ struct GhafSubscriptionsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.name).font(GhafTypography.userContent(item.name, size: 15, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
-                        Text(item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang))))
+                        Text(item.nextPaymentDate.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang))))
                             .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                     }
                     Spacer()
@@ -727,7 +727,7 @@ private struct GhafSubscriptionDetailView: View {
         GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
     }
     private func date(_ value: Date) -> String {
-        value.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: lang)))
+        value.formatted(.dateTime.day().month(.abbreviated).year().locale(GhafLocale.locale(identifier: lang)))
     }
 
     var body: some View {

@@ -89,6 +89,11 @@ struct GhafReviewInboxView: View {
                         GhafEventNotifications.configure()
                         if let initialTargetID { DispatchQueue.main.async { proxy.scrollTo(initialTargetID, anchor: .top) } }
                     }
+                    .refreshable {
+                        _ = try? GhafTransferReconciliation.run(in: modelContext)
+                        GhafEventNotifications.configure()
+                        alerts = GhafEventNotifications.events
+                    }
                     .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) { _ in
                         alerts = GhafEventNotifications.events
                     }
@@ -133,7 +138,7 @@ struct GhafReviewInboxView: View {
     private var allClear: some View {
         VStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(theme.comfortable)
-            Text(ar ? "لا شيء ينتظر مراجعتك" : "You're all caught up")
+            Text(ar ? "كل شيء محدّث" : "All caught up")
                 .font(GhafTypography.heading(20, languageCode: lang)).foregroundStyle(theme.primaryText)
             Text(ar ? "ستظهر هنا العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, detected subscriptions and alerts will appear here.")
                 .font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
@@ -173,7 +178,7 @@ struct GhafReviewInboxView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
                 Text(event.message).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                Text(event.date.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang))))
+                Text(event.date.formatted(.dateTime.day().month().hour().minute().locale(GhafLocalization.locale(languageCode: lang))))
                     .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
             }
             Spacer(minLength: 0)
@@ -211,7 +216,7 @@ struct GhafReviewInboxView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText).lineLimit(1)
-                    Text(transaction.date.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang))))
+                    Text(transaction.date.formatted(.dateTime.day().month().hour().minute().locale(GhafLocalization.locale(languageCode: lang))))
                         .font(GhafTypography.body(12, languageCode: lang))
                         .foregroundStyle(theme.secondaryText)
                     Label(why.text, systemImage: why.icon)
@@ -236,6 +241,23 @@ struct GhafReviewInboxView: View {
                 if let original = transaction.originalAmount, let code = transaction.originalCurrency {
                     GhafMoneyLabel(amount: original, currency: code, languageCode: lang, size: 13)
                         .foregroundStyle(theme.secondaryText)
+                }
+            }
+
+            if transaction.category == "Transfers" && [nil, "pending"].contains(transaction.transferDecision) {
+                Text(ar ? "إلى حسابك أم إلى شخص آخر؟" : "Was this to your account or someone else?")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                HStack(spacing: 10) {
+                    Button(ar ? "بين حساباتي" : "Between my accounts") {
+                        transaction.category = "Transfers"; transaction.subcategory = "Between my accounts"
+                        transaction.transferDecision = "own"; transaction.needsReview = false
+                        if saveChanges() { confirmed += 1 }
+                    }.ghafGlassButton(theme: theme, languageCode: lang)
+                    Button(ar ? "إلى شخص آخر" : "To someone else") {
+                        transaction.category = "Transfers"; transaction.subcategory = nil
+                        transaction.transferDecision = "external"; transaction.needsReview = false
+                        if saveChanges() { confirmed += 1 }
+                    }.ghafGlassButton(theme: theme, languageCode: lang)
                 }
             }
 

@@ -114,7 +114,9 @@ struct GhafMoneyLabel: View {
         [2, 3].reduce(into: [:]) { result, digits in
             let formatter = NumberFormatter()
             formatter.numberStyle = .decimal
-            formatter.locale = Locale(identifier: id)
+            formatter.locale = GhafLocale.locale(identifier: id)
+            formatter.decimalSeparator = "."
+            formatter.groupingSeparator = ","
             formatter.minimumFractionDigits = digits
             formatter.maximumFractionDigits = digits
             result[digits] = formatter

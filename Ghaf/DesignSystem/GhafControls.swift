@@ -211,7 +211,7 @@ struct GhafFormDateRow: View {
             } label: {
                 GhafFormRow(icon: icon, tint: tint, title: title, theme: theme, languageCode: languageCode) {
                     HStack(spacing: 7) {
-                        Text(selection.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: languageCode))))
+                        Text(selection.formatted(.dateTime.day().month(.abbreviated).year().locale(GhafLocale.locale(identifier: languageCode))))
                         Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)).opacity(0.7)
                     }
                 }
@@ -221,7 +221,7 @@ struct GhafFormDateRow: View {
                 DatePicker(title, selection: $selection, displayedComponents: .date)
                     .datePickerStyle(.graphical).tint(theme.accent).labelsHidden()
                     .environment(\.colorScheme, theme.isDark ? .dark : .light)
-                    .environment(\.locale, Locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE"))
+                    .environment(\.locale, GhafLocale.locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE"))
                     .padding(.horizontal, 4).padding(.bottom, 12)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }

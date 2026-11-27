@@ -186,15 +186,12 @@ struct GhafWidgetSnapshot: Codable, Equatable {
     }
 
     /// "AED 1,234.50", or stars while the user hides balances.
+    var locale: Locale { GhafLocale.locale(identifier: arabic ? "ar_AE" : "en_AE") }
+
     func money(_ value: Decimal, currency code: String? = nil) -> String {
         let code = code ?? currency
         guard !hidden else { return "\(code) ✦✦✦✦" }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: arabic ? "ar_AE" : "en_AE")
-        formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: code)
-        formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: code)
-        return "\(code) " + (formatter.string(from: value as NSDecimalNumber) ?? "\(value)")
+        return "\(code) " + GhafLocale.decimalString(value, identifier: arabic ? "ar_AE" : "en_AE", fractionDigits: GhafCurrencyDigits.fractionDigits(for: code))
     }
 }
 

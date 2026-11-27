@@ -143,7 +143,7 @@ struct GhafAboutPrivateScene: View {
 
     private var dateText: String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: env.ar ? "ar_AE@numbers=latn" : "en_GB")
+        f.locale = GhafLocale.locale(identifier: env.ar ? "ar_AE@numbers=latn" : "en_GB")
         f.setLocalizedDateFormatFromTemplate("EEEEdMMMM")
         return f.string(from: .now)
     }

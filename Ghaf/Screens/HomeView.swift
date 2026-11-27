@@ -356,7 +356,7 @@ struct GhafHomeView: View {
                 Button(ar ? "إصلاح الإعداد" : "Fix setup") { showAutomationGuide = true }
                     .font(GhafTypography.body(14, languageCode: lang, weight: .bold))
                 Spacer()
-                Button(ar ? "إخفاء ٧ أيام" : "Dismiss for 7 days") {
+                Button(ar ? "إخفاء 7 أيام" : "Dismiss for 7 days") {
                     automationWarningDismissedUntil = GhafClock.now.addingTimeInterval(7 * 24 * 60 * 60).timeIntervalSince1970
                 }
                 .font(GhafTypography.body(12, languageCode: lang))
@@ -387,7 +387,7 @@ struct GhafHomeView: View {
                 Text(greeting)
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
-                Text(settings.userName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.userName)
+                Text(settings.displayName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.displayName)
                     .font(GhafTypography.display(32, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -425,13 +425,13 @@ struct GhafHomeView: View {
     // MARK: Balance card: tap to switch Day / Week / Month
 
     private var periodName: String {
-        ar ? ["اليوم", "آخر ٧ أيام", "هذا الشهر"][activityPeriodIndex]
+        ar ? ["اليوم", "آخر 7 أيام", "هذا الشهر"][activityPeriodIndex]
            : ["Today", "Last 7 days", "This month"][activityPeriodIndex]
     }
 
     /// The period inside a sentence: "your biggest spend in the last 7 days".
     private var periodPhrase: String {
-        ar ? ["اليوم", "في آخر ٧ أيام", "هذا الشهر"][activityPeriodIndex]
+        ar ? ["اليوم", "في آخر 7 أيام", "هذا الشهر"][activityPeriodIndex]
            : ["today", "in the last 7 days", "this month"][activityPeriodIndex]
     }
 
@@ -439,7 +439,7 @@ struct GhafHomeView: View {
     private func periodRange(_ summary: Summary) -> String {
         guard activityPeriodIndex > 0, let interval = summary.interval else { return "" }
         let formatter = DateIntervalFormatter()
-        formatter.locale = Locale(identifier: ar ? "ar_AE" : "en_AE")
+        formatter.locale = GhafLocale.locale(identifier: ar ? "ar_AE" : "en_AE")
         formatter.dateTemplate = "dMMM"
         return " · " + formatter.string(from: interval.start, to: interval.end.addingTimeInterval(-1))
     }
@@ -448,7 +448,7 @@ struct GhafHomeView: View {
         Button { withAnimation(.snappy) { seenRollingWeekNote = true } } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "info.circle.fill")
-                Text(ar ? "تغيّر الأسبوعي: يعرض الآن آخر ٧ أيام بدلاً من أسبوع التقويم."
+                        Text(ar ? "تغيّر عرض الأسبوع: يعرض الآن آخر 7 أيام بدلاً من أسبوع التقويم."
                         : "Weekly has changed: it now shows the last 7 days instead of the calendar week.")
                     .multilineTextAlignment(.leading)
                 Image(systemName: "xmark")
@@ -628,7 +628,7 @@ struct GhafHomeView: View {
                             .foregroundStyle(theme.secondaryText)
                         GhafMoneyLabel(amount: summary.spent, currency: summary.mainCurrency, languageCode: lang, size: 30)
                             .foregroundStyle(theme.primaryText)
-                        Text(ar ? "افتح الإحصائيات لترى وين راحت فلوسك" : "Open Statistics to see where it went")
+                        Text(ar ? "افتح الإحصائيات لمعرفة أين أُنفقت أموالك" : "Open Statistics to see where it went")
                             .font(GhafTypography.body(13, languageCode: lang))
                             .foregroundStyle(theme.secondaryText)
                     }
@@ -653,7 +653,7 @@ struct GhafHomeView: View {
     /// Nothing spent yet: say what the period before cost.
     private func emptyInsight(_ summary: Summary) -> String {
         let text = ar
-            ? ["لا مصروفات اليوم حتى الآن.", "لا مصروفات في آخر ٧ أيام.", "لا مصروفات هذا الشهر حتى الآن."][activityPeriodIndex]
+            ? ["لا مصروفات اليوم حتى الآن.", "لا مصروفات في آخر 7 أيام.", "لا مصروفات هذا الشهر حتى الآن."][activityPeriodIndex]
             : activityPeriodIndex == 1 ? "Nothing spent in the last 7 days." : "Nothing spent \(periodPhrase) yet."
         guard summary.previousSpent > 0 else {
             return text + (ar ? " يوم بلا مصروفات." : " A good day for your wallet.")
@@ -753,7 +753,7 @@ struct GhafTransactionRow: View {
                          + (transaction.subcategory.map { " · \(GhafLocalization.category($0, languageCode: languageCode))" } ?? ""))
                     Text("·")
                     Text(transaction.date.formatted(
-                        .dateTime.hour().minute().locale(Locale(identifier: languageCode))
+                        .dateTime.hour().minute().locale(GhafLocale.locale(identifier: languageCode))
                     ))
                 }
                 .font(GhafTypography.body(13, languageCode: languageCode))
@@ -1110,7 +1110,7 @@ struct GhafQuickAddView: View {
     }
     private var timePill: some View {
         Button { showingTime = true } label: {
-            Label(date.formatted(.dateTime.hour().minute().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))), systemImage: "clock")
+            Label(date.formatted(.dateTime.hour().minute().locale(GhafLocale.locale(identifier: ar ? "ar_AE" : "en_US"))), systemImage: "clock")
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
         }.buttonStyle(.plain).accessibilityLabel(ar ? "الوقت" : "Time")
@@ -1119,7 +1119,7 @@ struct GhafQuickAddView: View {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) { return ar ? "اليوم" : "Today" }
         if calendar.isDateInYesterday(date) { return ar ? "أمس" : "Yesterday" }
-        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: ar ? "ar_AE" : "en_US")))
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(GhafLocale.locale(identifier: ar ? "ar_AE" : "en_US")))
     }
     private var dateSheet: some View {
         VStack(spacing: 12) {

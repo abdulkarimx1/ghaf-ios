@@ -27,6 +27,10 @@ final class GhafSettings {
     var id: UUID
     var userName: String
     var arabicName: String = ""
+    var displayName: String {
+        languageCode == "ar" && !arabicName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? arabicName : userName
+    }
     var languageCode: String = "en"
     var hasSeenAutomationIntro: Bool = false
     var showKeypadOnAdd: Bool = true

@@ -66,7 +66,7 @@ struct GhafInsightsView: View {
                 let totals = categoryTotals
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     GhafScreenTitle(title: settings.languageCode == "ar" ? "التحليلات" : "Insights",
-                                    subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
+                                    subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(GhafLocale.locale(identifier: settings.languageCode))),
                                     languageCode: settings.languageCode, theme: theme, onClose: { dismiss() })
                     headlineCard
                     forecastCard
@@ -110,7 +110,7 @@ struct GhafInsightsView: View {
                         .font(GhafTypography.body(13, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                 }
-                Text(ar ? "تقدير من وتيرة هذا الشهر وآخر ٣ أشهر." : "Estimate from this month's pace and your last 3 months.")
+                Text(ar ? "تقدير من وتيرة هذا الشهر وآخر 3 أشهر." : "Estimate from this month's pace and your last 3 months.")
                     .font(GhafTypography.body(11, languageCode: settings.languageCode))
                     .foregroundStyle(theme.secondaryText)
             }

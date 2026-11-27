@@ -114,7 +114,7 @@ struct GhafImportSheet: View {
             Text(ar ? "جاهز للاستيراد: \(preview.rows.count) · صفوف متخطاة: \(preview.skipped) · حسابات جديدة: \(preview.accountsToCreate.count)" : "\(preview.rows.count) rows · \(preview.skipped) skipped · \(preview.accountsToCreate.count) accounts to create")
                 .font(.system(size: 14, weight: .medium)).foregroundStyle(theme.secondaryText)
             ForEach(Array(preview.rows.prefix(5))) { row in
-                HStack { VStack(alignment: .leading, spacing: 3) { Text(row.merchant).font(.system(size: 15, weight: .semibold)); Text(row.date.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 13)).foregroundStyle(theme.secondaryText) }; Spacer(); Text("\(row.amount.formatted()) \(row.currency)").font(.system(size: 15, weight: .semibold)) }.foregroundStyle(theme.primaryText)
+                HStack { VStack(alignment: .leading, spacing: 3) { Text(row.merchant).font(.system(size: 15, weight: .semibold)); Text(row.date.formatted(.dateTime.day().month(.abbreviated).year().locale(GhafLocale.locale(identifier: settings.languageCode)))).font(.system(size: 13)).foregroundStyle(theme.secondaryText) }; Spacer(); Text("\(row.amount.formatted(.number.locale(GhafLocale.locale(identifier: settings.languageCode)))) \(row.currency)").font(.system(size: 15, weight: .semibold)) }.foregroundStyle(theme.primaryText)
             }
             if !preview.accountsToCreate.isEmpty {
                 Text(ar ? "سيتم إنشاء هذه الحسابات بعد تأكيدك:" : "These accounts will be created only after you confirm:").font(.system(size: 14)).foregroundStyle(theme.secondaryText)
@@ -219,7 +219,7 @@ struct GhafImportSheet: View {
             return ar ? "صيغة الملف غير مدعومة. اختر ملف CSV أو JSON للمعاملات."
                 : "This file format isn't supported. Choose a CSV or transaction JSON file."
         case GhafCore.ImportFileSizeError.tooLarge:
-            return ar ? "الملف كبير جداً للاستيراد (أكبر من ٢٥ ميغابايت)."
+            return ar ? "الملف كبير جداً للاستيراد (أكبر من 25 ميغابايت)."
                 : "This file is too large to import (over 25 MB)."
         case GhafFileImportError.noTransactions:
             return ar ? "لم نعثر على معاملات بتاريخ ومبلغ ووصف صالح."

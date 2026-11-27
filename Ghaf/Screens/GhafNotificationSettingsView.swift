@@ -79,7 +79,7 @@ struct GhafNotificationSettingsView: View {
                         icon: "repeat", isOn: $detectedSubscription)
                     Divider().overlay(theme.outline)
                     row(ar ? "حدود الميزانية" : "Budget thresholds",
-                        ar ? "عند بلوغ ٨٠٪ و١٠٠٪ من ميزانية الفئة هذا الشهر." : "When a category reaches 80% and 100% of its monthly budget.",
+                        ar ? "عند بلوغ 80٪ و100٪ من ميزانية الفئة هذا الشهر." : "When a category reaches 80% and 100% of its monthly budget.",
                         icon: "chart.bar.fill", isOn: $budgetThreshold)
                     Divider().overlay(theme.outline)
                     row(ar ? "موعد دفع اشتراك" : "Subscription due date",
@@ -87,7 +87,7 @@ struct GhafNotificationSettingsView: View {
                         icon: "calendar", isOn: $subscriptionDue)
                     Divider().overlay(theme.outline)
                     row(ar ? "النشاط المباشر للعمليات" : "Live Activity for purchases",
-                        ar ? "آخر عملية على شاشة القفل وفي الجزيرة الديناميكية لمدة ٥ دقائق" : "The latest purchase on the Lock Screen and Dynamic Island for 5 minutes",
+                        ar ? "آخر عملية على شاشة القفل وفي الجزيرة الديناميكية لمدة 5 دقائق" : "The latest purchase on the Lock Screen and Dynamic Island for 5 minutes",
                         icon: "bolt.badge.clock.fill", isOn: $liveActivity)
                 }
                 .padding(.horizontal, 16)
@@ -98,10 +98,10 @@ struct GhafNotificationSettingsView: View {
                         .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 16).padding(.bottom, 12)
-                    row(ar ? "صباحاً · ٨:٠٠" : "Morning · 8:00",
+                    row(ar ? "صباحاً · 8:00" : "Morning · 8:00",
                         ar ? "مصروفات أمس" : "Yesterday's spending", icon: "sunrise.fill", isOn: $morning)
                     Divider().overlay(theme.outline)
-                    row(ar ? "مساءً · ٩:٠٠" : "Evening · 9:00 pm",
+                    row(ar ? "مساءً · 9:00" : "Evening · 9:00 pm",
                         ar ? "ملخص مصروفات اليوم" : "Today's spending", icon: "moon.stars.fill", isOn: $evening)
                     Divider().overlay(theme.outline)
                     row(ar ? "أسبوعياً · أول يوم في أسبوعك" : "Weekly · first day of your week",
@@ -151,7 +151,7 @@ struct GhafNotificationSettingsView: View {
         let channels = GhafWidgetSync.lastChannels ?? (GhafWidgetSnapshot.hasSharedContainer, GhafWidgetKeychain.accessGroup != nil)
         let heartbeat = GhafWidgetSnapshot.lastHeartbeat
         let snapshot = GhafWidgetSnapshot.loadWithSource().snapshot
-        let dateStyle = Date.FormatStyle(date: .abbreviated, time: .shortened).locale(Locale(identifier: ar ? "ar-AE" : "en-AE"))
+        let dateStyle = Date.FormatStyle(date: .abbreviated, time: .shortened).locale(GhafLocale.locale(identifier: ar ? "ar-AE" : "en-AE"))
         return VStack(alignment: .leading, spacing: 10) {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
@@ -205,7 +205,7 @@ struct GhafNotificationSettingsView: View {
         let widgetProfile = widget.map(GhafSigningProfile.load(from:)) ?? GhafSigningProfile()
         let sharedGroups = Set(appProfile.appGroups).intersection(widgetProfile.appGroups).sorted()
         let sharedKeychains = GhafSigningProfile.sharedKeychainGroups(app: appProfile.keychainGroups, widget: widgetProfile.keychainGroups)
-        let dateStyle = Date.FormatStyle(date: .numeric, time: .shortened).locale(Locale(identifier: ar ? "ar-AE" : "en-AE"))
+        let dateStyle = Date.FormatStyle(date: .numeric, time: .shortened).locale(GhafLocale.locale(identifier: ar ? "ar-AE" : "en-AE"))
         func list(_ values: [String]) -> String { values.isEmpty ? (ar ? "لا يوجد" : "none") : values.sorted().joined(separator: ", ") }
         func profile(_ value: GhafSigningProfile) -> String {
             "\(ar ? "الاسم" : "name")=\(value.name ?? "none"); \(ar ? "الفريق" : "team")=\(value.teamID ?? "none"); \(ar ? "انتهاء الصلاحية" : "expires")=\(value.expiry?.formatted(dateStyle) ?? "none"); \(ar ? "مجموعات التطبيق" : "app groups")=[\(list(value.appGroups))]; \(ar ? "مجموعات سلسلة المفاتيح" : "keychain groups")=[\(list(value.keychainGroups))]"

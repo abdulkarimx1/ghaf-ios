@@ -104,11 +104,15 @@ enum GhafExpendImportService {
             }
         )
 
+        // Parse and validate the complete file before touching existing records.
+        let existingSettings = try context.fetch(FetchDescriptor<GhafSettings>()).first
+
         // The user's own Expend categories (by id), with their subcategories, icons and colours.
         let categoryRows = ((root["categories"] as? [[String: Any]]) ?? []).filter { ($0["deleted"] as? Bool) != true }
         let categoryNames: [String: String] = Dictionary(categoryRows.compactMap { row -> (String, String)? in
             guard let id = string(row["_id"]), let name = string(row["name"]) else { return nil }
-            return (id, transferCategoryIDs.contains(id) ? "Transfers" : id == "others-income" ? "Transfers received" : name)
+            let importedName = transferCategoryIDs.contains(id) ? "Transfers" : id == "others-income" ? "Transfers received" : name
+            return (id, CategoryTaxonomy.currentCategoryName(for: importedName, available: existingSettings?.categories ?? []))
         }, uniquingKeysWith: { first, _ in first })
         var categoryMeta: [String: GhafCategoryMeta] = [:]
         for row in categoryRows {
@@ -137,8 +141,6 @@ enum GhafExpendImportService {
             throw GhafExpendImportError.invalidTransactionData
         }
 
-        // Parse and validate the complete file before touching existing records.
-        let existingSettings = try context.fetch(FetchDescriptor<GhafSettings>()).first
         let profile = root["profile"] as? [String: Any] ?? [:]
         let mainCurrency = string(profile["mainCurrency"])?.uppercased() ?? "AED"
         let languageCode = string(profile["languageCode"]) == "ar" ? "ar" : (existingSettings?.languageCode ?? "en")
@@ -270,6 +272,7 @@ enum GhafExpendImportService {
                 if !existingNames.contains(CategoryMatcher.normalize(item.name)) { context.insert(item) }
             }
             try context.save()
+            _ = try? GhafTransferReconciliation.run(in: context)
             for item in try context.fetch(FetchDescriptor<GhafSubscription>()) where item.isActive {
                 GhafSubscriptionReminderService.schedule(item, language: languageCode)
             }
@@ -466,7 +469,7 @@ enum GhafExpendImportService {
 
     private static func decimal(_ value: Any?) -> Decimal? {
         guard let value, !(value is NSNull) else { return nil }
-        return Decimal(string: String(describing: value), locale: Locale(identifier: "en_US_POSIX"))
+        return Decimal(string: String(describing: value), locale: GhafLocale.locale(identifier: "en_US_POSIX"))
     }
 
     private static func integer(_ value: Any?) -> Int? {

@@ -30,7 +30,7 @@ struct GhafVoiceEntryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(isArabic ? "تحدث، وغاف يتولى الباقي" : "Say it. Ghaf sorts it.")
+                    Text(isArabic ? "تحدث، وسيتولى غاف تصنيف المعاملة." : "Say it. Ghaf sorts it.")
                         .font(GhafTypography.display(27, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
                     Text(isArabic
@@ -39,7 +39,7 @@ struct GhafVoiceEntryView: View {
                         .font(GhafTypography.body(14, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)
                     Text(isArabic
-                         ? "مثال: اشتريت بقالة بـ ٥٦٠ درهماً، ثم أدوية بـ ١٢٠ درهماً الساعة ٣ مساءً."
+                         ? "مثال: اشتريت بقالة بـ 560 درهماً، ثم أدوية بـ 120 درهماً الساعة 3 مساءً."
                          : "Example: Groceries for AED 560, then medicine for AED 120 at 3 pm.")
                         .font(GhafTypography.body(11, languageCode: settings.languageCode))
                         .foregroundStyle(theme.secondaryText)

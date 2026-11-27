@@ -19,7 +19,6 @@ struct GhafAmountField: View {
     @State private var presented = false
     @State private var keyPress = 0
     /// Owner 1.31: the pad reads 1-2-3 left to right in every language unless mirrored here; digits can show as ١٢٣.
-    @AppStorage("ghaf.pad.indicDigits") private var indicDigits = false
     @AppStorage("ghaf.pad.mirrored") private var mirrored = false
     @State private var replaceOnNextKey = true
 
@@ -67,15 +66,13 @@ struct GhafAmountField: View {
                             Text(display)
                         } else { Text(display) }
                     }
-                    .font(languageCode == "ar"
-                          ? GhafTypography.body(fontSize, languageCode: languageCode, weight: .bold)
-                          : GhafTypography.number(fontSize, weight: .bold))
+                    .font(GhafTypography.number(fontSize, weight: .bold))
                     .foregroundStyle(value.isEmpty ? theme.secondaryText : theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
                 }
-                .frame(maxWidth: .infinity, alignment: trailingAligned ? .trailing : .center)
-                .multilineTextAlignment(trailingAligned ? .trailing : .center)
+                .frame(maxWidth: .infinity, alignment: trailingAligned ? (languageCode == "ar" ? .leading : .trailing) : .center)
+                .multilineTextAlignment(trailingAligned ? (languageCode == "ar" ? .leading : .trailing) : .center)
                 .environment(\.layoutDirection, .leftToRight)
             }
             .padding(.horizontal, chromeless ? 0 : 16)
@@ -186,17 +183,16 @@ struct GhafAmountField: View {
     }
 
     private func localized(_ text: String) -> String {
-        let shown = text.replacingOccurrences(of: ".", with: separator)
-        guard indicDigits else { return shown }
-        return String(shown.map { $0.wholeNumberValue.map { Character(UnicodeScalar(0x660 + $0)!) } ?? $0 })
+        text.replacingOccurrences(of: ".", with: separator)
     }
 
     private func amountDisplay(_ text: String) -> String {
         let display: String
-        if groupsDigits, let amount = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) {
+        if groupsDigits, let amount = Decimal(string: text, locale: GhafLocale.locale(identifier: "en_US_POSIX")) {
             let formatter = NumberFormatter()
             formatter.numberStyle = .decimal
-            formatter.locale = Locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE")
+            // Owner #120: keypad amounts always use Western digits.
+            formatter.locale = GhafLocale.locale(identifier: languageCode == "ar" ? "ar_AE" : "en_AE")
             formatter.usesGroupingSeparator = true
             formatter.minimumFractionDigits = digits
             formatter.maximumFractionDigits = digits

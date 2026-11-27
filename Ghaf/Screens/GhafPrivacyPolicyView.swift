@@ -19,7 +19,7 @@ struct GhafPrivacyPolicyView: View {
             VStack(alignment: .leading, spacing: 18) {
                 GhafScreenTitle(
                     title: isArabic ? "سياسة الخصوصية" : "Privacy policy",
-                    subtitle: isArabic ? "تاريخ السريان: ٢٥ نوفمبر ٢٠٢٦" : "Effective date: 25 November 2026",
+                    subtitle: isArabic ? "تاريخ السريان: 25 نوفمبر 2026" : "Effective date: 25 November 2026",
                     languageCode: settings.languageCode,
                     theme: theme
                 )
@@ -41,7 +41,7 @@ struct GhafPrivacyPolicyView: View {
                 section(
                     isArabic ? "الرسائل البنكية" : "Bank messages",
                     isArabic
-                    ? "يعالج غاف فقط نص الرسالة الذي تختار تمريره صراحةً إلى إجراء تسجيل الرسالة البنكية عبر تطبيق الاختصارات من Apple. لا يقرأ غاف رسائل SMS أو إشعارات التطبيقات من تلقاء نفسه."
+                    ? "يعالج غاف فقط نص الرسالة الذي تختار تمريره صراحةً إلى إجراء تسجيل الرسالة البنكية عبر تطبيق الاختصارات من آبل. لا يقرأ غاف رسائل SMS أو إشعارات التطبيقات من تلقاء نفسه."
                     : "Ghaf processes only message text that you explicitly pass to its Capture Bank Alert action through Apple Shortcuts. Ghaf does not independently read SMS messages or other apps' notifications."
                 )
 
@@ -116,7 +116,7 @@ struct GhafPrivacyPolicyView: View {
         .ghafBackground(theme: theme)
         .navigationTitle(isArabic ? "الخصوصية" : "Privacy")
         .navigationBarTitleDisplayMode(.inline)
-        .environment(\.locale, Locale(identifier: settings.languageCode))
+        .environment(\.locale, GhafLocale.locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
     }
 

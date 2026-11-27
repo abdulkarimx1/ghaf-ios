@@ -8,13 +8,13 @@ import FoundationModels
 
 /// Deterministic numbers the assistant may quote. The language model never calculates money itself.
 enum GhafFinanceFacts {
-    /// V16 (owner 1.31): how Ghaf addresses the user in Arabic. Male → ك forms, female → ج forms, else neutral.
+    /// V16 (owner 1.31): how Ghaf addresses the user in Arabic using clear, neutral Fus-ha.
     /// Goes first in FACTS so the cloud, on-device and live voice replies all follow it.
     static func addressLine(sex: String?) -> String {
         switch sex {
-        case "male": return "ADDRESS: The user is male. In Arabic, address him with masculine Gulf forms (e.g. عندك، صرفت، تبي)."
-        case "female": return "ADDRESS: The user is female. In Arabic, address her with feminine Gulf forms using ج (e.g. عندج، صرفتي، تبين)."
-        default: return "ADDRESS: The user's sex is not given. In Arabic, use neutral wording that avoids masculine and feminine forms."
+        case "male": return "ADDRESS: The user is male. In Arabic, address him with masculine Fus-ha forms."
+        case "female": return "ADDRESS: The user is female. In Arabic, address her with feminine Fus-ha forms."
+        default: return "ADDRESS: The user's sex is not given. In Arabic, use neutral Fus-ha wording where possible."
         }
     }
 
@@ -27,7 +27,7 @@ enum GhafFinanceFacts {
         now: Date = .now
     ) -> String {
         let calendar = GhafCalendar.current
-        var lines: [String] = ["Today is \(now.formatted(date: .complete, time: .omitted))."]
+        var lines: [String] = ["Today is \(now.formatted(Date.FormatStyle(date: .complete, time: .omitted).locale(GhafLocale.locale(identifier: languageCode))))."]
 
         let open = accounts.filter { !$0.isArchived }
         if open.isEmpty {
@@ -90,7 +90,7 @@ enum GhafFinanceFacts {
             .sorted { $0.nextPaymentDate < $1.nextPaymentDate }
         if !upcoming.isEmpty {
             lines.append("Subscriptions due in 30 days: " + upcoming.map {
-                "\($0.name) \(fmt($0.amount, currency: $0.currency)) \($0.currency) on \($0.nextPaymentDate.formatted(date: .abbreviated, time: .omitted))"
+                "\($0.name) \(fmt($0.amount, currency: $0.currency)) \($0.currency) on \($0.nextPaymentDate.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(GhafLocale.locale(identifier: languageCode))))"
             }.joined(separator: "; ") + ".")
         }
         let suggested = subscriptions.filter(\.needsConfirmation).map(\.name)
@@ -110,7 +110,7 @@ enum GhafFinanceFacts {
             lines.append("Latest transactions:")
             for item in recent {
                 let sign = item.direction == "credit" ? "+" : "-"
-                lines.append("- \(item.date.formatted(date: .abbreviated, time: .omitted)) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? GhafLocalization.category(item.category, languageCode: languageCode)) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(GhafLocalization.category(item.category, languageCode: languageCode))]")
+                lines.append("- \(item.date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(GhafLocale.locale(identifier: languageCode)))) \(GhafMerchantAliasStore.displayName(item.rawMerchant ?? item.merchant) ?? GhafLocalization.category(item.category, languageCode: languageCode)) \(sign)\(fmt(item.amount, currency: item.currency)) \(item.currency) [\(GhafLocalization.category(item.category, languageCode: languageCode))]")
             }
         }
         return lines.joined(separator: "\n")
@@ -127,7 +127,7 @@ enum GhafFinanceFacts {
     static func fmt(_ value: Decimal, currency: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = GhafLocale.locale(identifier: "en_US_POSIX")
         formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
@@ -307,7 +307,7 @@ final class GhafAssistant: ObservableObject {
 
         if q.contains("subscri") || q.contains("اشتراك") {
             let due = pick("Subscriptions due")
-            return due.first ?? (ar ? "لا توجد اشتراكات مستحقة خلال ٣٠ يوماً." : "No subscriptions are due in the next 30 days.")
+            return due.first ?? (ar ? "لا توجد اشتراكات مستحقة خلال 30 يوماً." : "No subscriptions are due in the next 30 days.")
         }
         if q.contains("balance") || q.contains("do i have") || q.contains("رصيد") || q.contains("عندي") {
             let start = lines.firstIndex { $0.hasPrefix("Accounts") }
@@ -352,9 +352,10 @@ enum GhafDraftSaver {
             if draft.category != "Other", let settings { settings.addCategory(draft.category, subcategory: draft.subcategory) }
             let direction = TransactionDirection(rawValue: draft.direction) ?? .debit
             let parsed = ParsedTransaction(amount: draft.amount, currency: draft.currency, merchant: draft.merchant.isEmpty ? nil : draft.merchant, date: draft.date, direction: direction, confidence: 0.82, bank: nil)
-            let category = draft.category == "Other"
+            let rawCategory = draft.category == "Other"
                 ? ((try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: context)) ?? "Other")
                 : draft.category
+            let category = CategoryTaxonomy.currentCategoryName(for: rawCategory, available: settings?.categories ?? CategoryTaxonomy.defaultNames)
             let preferred = accounts.first { $0.id == draft.accountID && !$0.isArchived && $0.currency == draft.currency }
                 ?? accounts.first { $0.id == preferredAccountID && !$0.isArchived && $0.currency == draft.currency }
             // Spoken and typed entries are usually cash: a cash wallet first, the primary account next.

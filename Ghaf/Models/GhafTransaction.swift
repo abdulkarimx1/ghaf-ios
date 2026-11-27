@@ -29,6 +29,8 @@ final class GhafTransaction {
     var createdAt: Date
     /// New automated transactions stay marked until the Transactions screen is opened.
     var isUnread: Bool = false
+    var transferPairKey: String? = nil
+    var transferDecision: String? = nil
 
     /// Moves between the user's own wallets and balance adjustments change balances,
     /// but are never spending or income.

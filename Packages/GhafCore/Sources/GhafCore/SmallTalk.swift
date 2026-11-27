@@ -27,13 +27,13 @@ public enum GhafSmallTalk {
             ["Hey! Ready when you are. Ask about your spending or tell me what you bought.",
              "Hello! Your money and I are both here. What would you like to know?",
              "Hi there. Want this week's spending, your balance, or to log a purchase?"],
-            ["هلا والله! اسألني عن مصروفك أو قل لي وش اشتريت.",
-             "مرحباً! أنا وأموالك جاهزين. وش تبي تعرف؟",
-             "أهلاً! تبي مصروف الأسبوع، رصيدك، أو نسجل عملية؟"]),
+            ["مرحباً! اسألني عن مصروفك أو أخبرني بما اشتريته.",
+             "أهلاً بك! كيف يمكنني مساعدتك في شؤون أموالك؟",
+             "أهلاً! هل تريد معرفة مصروف الأسبوع أو رصيدك أو تسجيل عملية؟"]),
         .thanks: (
             ["Anytime. Your wallet thanks you too.", "Happy to help. Anything else on your money?",
              "You're welcome. I'll keep the numbers tidy."],
-            ["العفو! محفظتك تشكرك بعد.", "بالخدمة دايماً. في شي ثاني عن فلوسك؟", "ولا يهمك، الأرقام عندي مرتبة."]),
+            ["على الرحب والسعة! محفظتك تشكرك أيضاً.", "يسعدني مساعدتك. هل لديك سؤال آخر عن أموالك؟", "لا شكر على واجب، أرقامك مرتبة."]),
         .identity: (
             ["I'm Ghaf AI, your money assistant. I only quote numbers from your own records.",
              "Ghaf AI here: part calculator, part note-taker, zero gossip about your spending.",
@@ -45,36 +45,36 @@ public enum GhafSmallTalk {
             ["I can't see the sky, but I can see your spending forecast. Want this week's numbers?",
              "No weather radar here. The only thing I forecast is your next subscription renewal.",
              "Probably sunny, it's the Gulf. Shall I check how your budget is holding up instead?"],
-            ["ما أشوف السماء، بس أشوف توقعات مصروفك. تبي أرقام الأسبوع؟",
-             "ما عندي رادار طقس. اللي أتوقعه بس موعد تجديد اشتراكاتك.",
-             "غالباً مشمس، نحن في الخليج. أشيك لك على ميزانيتك بدالها؟"]),
+            ["لا أرى حالة السماء، لكن يمكنني عرض توقعات مصروفك. هل تريد أرقام هذا الأسبوع؟",
+             "لا أملك راداراً للطقس؛ يمكنني فقط توقّع موعد تجديد اشتراكاتك.",
+             "غالباً ما يكون الطقس مشمساً في الخليج. هل أتحقق من ميزانيتك بدلاً من ذلك؟"]),
         .joke: (
             ["Why did the dirham stay calm? It had a balanced account. Want to check yours?",
              "My best joke is a subscription you forgot about. Shall I list what's due?",
              "I tried to save a joke, but it was spent before payday. Ask me about your spending."],
-            ["ليش الدرهم دايماً مرتاح؟ لأن حسابه متوازن. نشيك على حسابك؟",
-             "أحلى نكتة عندي اشتراك ناسيه. أعرض لك المستحق؟",
-             "حاولت أوفر نكتة بس انصرفت قبل الراتب. اسألني عن مصروفك."]),
+            ["لماذا يشعر الدرهم بالاطمئنان؟ لأن حسابه متوازن. هل نتحقق من حسابك؟",
+             "أفضل نكتة لدي اشتراك نسيته. هل أعرض لك الاشتراكات المستحقة؟",
+             "حاولت توفير نكتة، لكنها صُرفت قبل الراتب. اسألني عن مصروفك."]),
         .time: (
             ["Your phone's clock is better at that than me. I'm better at your spending today.",
              "Time is money, and money I can help with. Want today's total?"],
-            ["ساعة جوالك أدق مني، بس أنا أدق في مصروف اليوم.", "الوقت من ذهب، والذهب اختصاصي. تبي مجموع اليوم؟"]),
+            ["ساعة هاتفك أدق مني، لكنني أدق في حساب مصروف اليوم.", "الوقت من ذهب، والذهب من اختصاصي. هل تريد مجموع اليوم؟"]),
         .food: (
             ["I don't cook, but I can tell you how much restaurants cost you this month.",
              "No recipes here. Just tell me what lunch cost and I'll log it."],
-            ["ما أطبخ، بس أقدر أقول لك كم صرفت على المطاعم هالشهر.", "ما عندي وصفات. قل لي كم كلفك الغداء وأسجله."]),
+            ["لا أطبخ، لكن يمكنني إخبارك بمقدار ما أنفقته على المطاعم هذا الشهر.", "لا أقدّم وصفات. أخبرني بتكلفة الغداء وسأسجلها لك."]),
         .sports: (
             ["I don't track scores, only your spending streaks. Want to see this month?",
              "The only match I follow is your income versus spending."],
-            ["ما أتابع النتائج، أتابع مصروفك بس. تبي تشوف هالشهر؟", "المباراة الوحيدة اللي أتابعها: دخلك ضد مصروفك."]),
+            ["لا أتابع نتائج المباريات، بل أتابع مصروفك. هل تريد الاطلاع على مصروف هذا الشهر؟", "المباراة الوحيدة التي أتابعها هي المقارنة بين دخلك ومصروفك."]),
         .love: (
             ["That's sweet. I show my love by keeping your numbers accurate.",
              "I'm flattered. My love language is a balanced budget."],
-            ["كلامك حلو. أنا أعبّر عن حبي بأرقام دقيقة.", "تسلم! لغة الحب عندي ميزانية متوازنة."]),
+            ["هذا لطف منك. أعبّر عن اهتمامي بدقة أرقامك.", "شكراً لك! طريقتي في التعبير عن الاهتمام هي ميزانية متوازنة."]),
         .insult: (
             ["Fair, I'm still learning. Tell me what went wrong and I'll do better.",
              "Ouch. Correct me once and I'll remember it next time."],
-            ["معك حق، لسا أتعلم. قل لي وش الغلط وأتحسن.", "أوف! صححني مرة وأتذكرها المرة الجاية."])
+            ["معك حق، ما زلت أتعلم. أخبرني بما حدث لأحسّن إجابتي.", "شكراً لتنبيهي. صححني وسأحاول تذكّر التصحيح في المرة القادمة."])
     ]
 
     /// The off-topic subject of `message`, if it is one Ghaf has a reply for. Callers check money
@@ -93,10 +93,10 @@ public enum GhafSmallTalk {
     public static func notUnderstood(_ message: String, languageCode: String, avoiding: Set<String> = []) -> String {
         let quoted = String(message.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
         let options = languageCode == "ar" ? [
-            "ما فهمت «\(quoted)» تماماً. جرّب: «كم صرفت هالشهر؟» أو «٣٥ درهم غداء».",
-            "«\(quoted)» خارج اختصاصي شوي. أقدر أعطيك رصيدك، أكثر فئة صرفت فيها، أو الاشتراكات القادمة.",
-            "سؤال حلو، بس ما عندي بيانات عن «\(quoted)». اسألني عن مصروفك أو دخلك أو اشتراكاتك.",
-            "خلني أركز على فلوسك 😄 بدل «\(quoted)»: تبي مقارنة هالشهر بالشهر الماضي؟"
+            "لم أفهم «\(quoted)» تماماً. جرّب: «كم صرفت هذا الشهر؟» أو «35 درهماً للغداء».",
+            "«\(quoted)» خارج نطاق مساعدتي. أستطيع عرض رصيدك أو أكثر فئة أنفقت فيها أو الاشتراكات القادمة.",
+            "سؤال جيد، لكن لا تتوفر لدي بيانات عن «\(quoted)». اسألني عن مصروفك أو دخلك أو اشتراكاتك.",
+            "دعنا نركّز على أموالك 😄 بدلاً من «\(quoted)»: هل تريد مقارنة هذا الشهر بالشهر الماضي؟"
         ] : [
             "I didn't quite catch \u{201C}\(quoted)\u{201D}. Try \u{201C}How much did I spend this month?\u{201D} or \u{201C}35 AED lunch\u{201D}.",
             "\u{201C}\(quoted)\u{201D} is a bit outside my lane. I can show your balance, top category or upcoming subscriptions.",

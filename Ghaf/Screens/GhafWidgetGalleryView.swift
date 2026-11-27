@@ -36,7 +36,7 @@ struct GhafWidgetGalleryView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "sparkles").font(.system(size: 24, weight: .semibold)).foregroundStyle(theme.accent)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(ar ? "انضم إلى غاف Pro" : "Join Ghaf Pro").font(GhafTypography.heading(19, languageCode: lang))
+                            Text(ar ? "انضم إلى غاف برو" : "Join Ghaf Pro").font(GhafTypography.heading(19, languageCode: lang))
                             Text(ar ? "افتح الودجات وخيارات التخصيص" : "Unlock more widgets and customization").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         }
                         Spacer(minLength: 4)
@@ -130,6 +130,6 @@ struct GhafWidgetGalleryView: View {
         ["Balance":"الرصيد", "Spending":"المصروف", "Upcoming payments":"الدفعات القادمة", "Today":"اليوم", "Latest transaction":"آخر عملية", "Budget":"الميزانية", "Where it went":"أين صُرف المال", "Trends":"الاتجاهات", "Quick add":"إضافة سريعة", "Ask Ghaf":"اسأل غاف", "Money tip":"نصيحة مالية", "Streak":"السلسلة", "Top places":"أكثر الأماكن صرفاً", "Budget petals":"بتلات الميزانية"][value] ?? value
     }
     private func arabicDetail(_ value: String) -> String {
-        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها", "Streak":"سلسلتك في تسجيل العمليات وآخر ٧ أيام", "Top places":"أكثر الأماكن في المصروف هذا الشهر", "Budget petals":"ميزانيات الفئات على شكل بتلات"][value] ?? value
+        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها", "Streak":"سلسلتك في تسجيل العمليات وآخر 7 أيام", "Top places":"أكثر الأماكن في المصروف هذا الشهر", "Budget petals":"ميزانيات الفئات على شكل بتلات"][value] ?? value
     }
 }

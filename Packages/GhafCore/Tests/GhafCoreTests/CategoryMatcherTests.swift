@@ -182,6 +182,12 @@ final class CategoryMatcherTests: XCTestCase {
             .contains(where: { $0.name == "Gardening" }))
     }
 
+    func testLegacyCategoryNameMapsOnlyToAnExistingUserAlias() {
+        XCTAssertEqual(CategoryTaxonomy.currentCategoryName(for: "Car & Transport", available: ["Food", "Car"]), "Car")
+        XCTAssertEqual(CategoryTaxonomy.currentCategoryName(for: "Food & Dining", available: ["Food"]), "Food")
+        XCTAssertEqual(CategoryTaxonomy.currentCategoryName(for: "Car & Transport", available: ["Utilities"]), "Car & Transport")
+    }
+
     func testTransfersAreNeverSpending() {
         XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Transfers", subcategory: nil))
         XCTAssertTrue(CategoryTaxonomy.isTransferOrAdjustment(category: "Adjustment", subcategory: nil))

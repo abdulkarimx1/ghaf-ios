@@ -82,7 +82,6 @@ struct GhafSettingsView: View {
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
-    @AppStorage("ghaf.pad.indicDigits") private var padIndicDigits = false
     @AppStorage("ghaf.pad.mirrored") private var padMirrored = false
 #if DEBUG
     @State private var fixtureGlassPresented = false
@@ -136,7 +135,7 @@ struct GhafSettingsView: View {
                     if proUnlocked {
                         HStack(spacing: 12) {
                             Image(systemName: "sparkles").foregroundStyle(theme.accent)
-                            Text(ar ? "أنت مشترك في Pro" : "You're on Pro")
+                            Text(ar ? "أنت مشترك في غاف برو" : "You're on Pro")
                                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                             Spacer()
                         }
@@ -488,7 +487,7 @@ struct GhafSettingsView: View {
         case .balanced: ar ? "هادي ومتّزن، تعطي كل شي حقّه بدون مبالغة." : "Calm and even-handed, you give everything its fair share."
         case .highRentCity: ar ? "تخطّط قبل لا تصرف، وكل درهم يعرف مكانه." : "You plan before you spend, and every dirham knows its place."
         case .essentialsFirst: ar ? "تحب التجربة وتعيش يومك، والادخار يمشي معك على مهله." : "You enjoy trying new things, and saving keeps pace at its own speed."
-        case .guardian: ar ? "حذر وثابت، تحمي الأساسيات قبل أي شي ثاني." : "Careful and steady, you protect the basics before anything else."
+        case .guardian: ar ? "حذر وثابت، تحمي الأساسيات قبل أي شيء آخر." : "Careful and steady, you protect the basics before anything else."
         }
     }
 
@@ -570,7 +569,7 @@ struct GhafSettingsView: View {
                 HStack {
                     Text(ar ? "آخر نسخة احتياطية" : "Last backup")
                     Spacer()
-                    Text(drive.lastBackupDate?.formatted(date: .abbreviated, time: .shortened) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
+                    Text(drive.lastBackupDate?.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(GhafLocale.locale(identifier: languageCode))) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
                 }.font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 Button { driveBackup() } label: {
                     settingsActionRow(ar ? "نسخ احتياطي الآن" : "Back up now", detail: ar ? "رفع نسخة جديدة إلى Drive" : "Upload a fresh copy to Drive", icon: "icloud.and.arrow.up")
@@ -874,7 +873,7 @@ struct GhafSettingsView: View {
                     let date = Calendar.current.date(byAdding: .day, value: offset - 6, to: GhafClock.now) ?? GhafClock.now
                     let logged = transactions.contains { Calendar.current.isDate($0.date, inSameDayAs: date) && !$0.needsReview }
                     VStack(spacing: 5) {
-                        Text(date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: languageCode))))
+                        Text(date.formatted(.dateTime.weekday(.narrow).locale(GhafLocale.locale(identifier: languageCode))))
                             .font(GhafTypography.body(11, languageCode: languageCode, weight: .medium)).foregroundStyle(theme.secondaryText)
                         Circle().fill(logged ? theme.accent : theme.secondaryText.opacity(0.12)).frame(width: 28, height: 28)
                             .overlay { if logged { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.accentContrast) } }
@@ -976,7 +975,7 @@ struct GhafSettingsView: View {
                     choiceButton(title, detail: nil, selected: weekStart == day) { weekStart = day }
                 }
             }
-            Text(ar ? "يحدد «هذا الأسبوع» و«الأسبوع الماضي» في غاف AI والرسوم، وموعد الملخص الأسبوعي. الرئيسية تعرض آخر ٧ أيام."
+            Text(ar ? "يحدد «هذا الأسبوع» و«الأسبوع الماضي» في غاف AI والرسوم، وموعد الملخص الأسبوعي. الرئيسية تعرض آخر 7 أيام."
                     : "Sets \"this week\" and \"last week\" in Ghaf AI and charts, and when the weekly summary arrives. Home shows the last 7 days.")
                 .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
@@ -1022,12 +1021,6 @@ struct GhafSettingsView: View {
                 catch { modelContext.rollback(); prompt = .message(ar ? "تعذر حفظ الإعداد." : "Couldn't save this setting.") }
             })) {
                 Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
-            }
-            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
-            .frame(minHeight: 56)
-            Toggle(isOn: $padIndicDigits) {
-                Text(ar ? "أرقام هندية في لوحة الأرقام (١٢٣)" : "Arabic-Indic digits on the keypad (١٢٣)")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
             }
             .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
@@ -1243,7 +1236,7 @@ HStack(spacing: 8) {
 
     private var budgetCard: some View {
         settingsCard(ar ? "الميزانية" : "Budget",
-                     subtitle: ar ? "الميزانية هي المبلغ الذي تخطط أن تصرفه. يقارن غاف صرفك الفعلي بها ويخبرك إن كنت مرتاحاً أو قريباً من الحد أو تجاوزته."
+                     subtitle: ar ? "الميزانية هي المبلغ الذي تخطط لإنفاقه. يقارن غاف إنفاقك الفعلي بها، ويوضح لك إن كنت ضمن الحد أو قريباً منه أو متجاوزاً له."
                                   : "A budget is how much you plan to spend. Ghaf compares what you actually spend with it and tells you if you're comfortable, close or over.") {
             HStack(spacing: 10) {
                 budgetChoice("Daily", ar ? "حد يومي" : "Daily limit",
@@ -1254,10 +1247,10 @@ HStack(spacing: 8) {
 
             if budgetMode == "Daily" {
                 settingsLabel(languageCode == "ar" ? "الدخل الشهري" : "Monthly income")
-                settingsField(languageCode == "ar" ? "مثال: ٥٠٠٠" : "e.g. 5000", text: $income, numeric: true)
+                settingsField(languageCode == "ar" ? "مثال: 5000" : "e.g. 5000", text: $income, numeric: true)
 
                 settingsLabel(languageCode == "ar" ? "الالتزامات الشهرية الثابتة" : "Fixed monthly commitments")
-                settingsField(languageCode == "ar" ? "مثال: ١٥٠٠" : "e.g. 1500", text: $commitments, numeric: true)
+                settingsField(languageCode == "ar" ? "مثال: 1500" : "e.g. 1500", text: $commitments, numeric: true)
 
                 Text(languageCode == "ar" ? "الميزانية اليومية = (الدخل − الالتزامات) ÷ عدد أيام الشهر." : "Daily budget = (income − commitments) ÷ days in month.")
                     .font(GhafTypography.body(12, languageCode: languageCode))

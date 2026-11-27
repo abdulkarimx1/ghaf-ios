@@ -137,13 +137,14 @@ final class TransactionIngestionService {
 
         let suggestion = MerchantCategorizer.suggestion(for: parsed.merchant, amount: parsed.amount, date: parsed.date,
                                                         direction: isReversal && original == nil ? .debit : parsed.direction, context: context)
-        let category = try original?.category ?? MerchantCategorizer.category(
+        var category = try original?.category ?? MerchantCategorizer.category(
             for: parsed.merchant,
             direction: isReversal ? .debit : parsed.direction,
             amount: parsed.amount,
             date: parsed.date,
             context: context
         )
+        category = CategoryTaxonomy.currentCategoryName(for: category, available: try GhafPersistence.settings(in: context).categories)
 
         // Never silently leave a bank notification unassigned. This is
         // especially important when the notification body omits the bank name.
@@ -191,6 +192,7 @@ final class TransactionIngestionService {
 
         context.insert(transaction)
         try context.save()
+        _ = try? GhafTransferReconciliation.run(in: context)
         GhafAccountMappings.recordAlert(transactionID: transaction.id, bank: parsed.bank, sender: sender,
                                         accountRef: parsed.accountRef)
         // One notification per capture: a saved record gets the normal transaction banner with
@@ -203,7 +205,7 @@ final class TransactionIngestionService {
         // The Live Activity is started by the calling LiveActivityIntent, which iOS lets run in the background.
 
         let amountFormatter = NumberFormatter()
-        amountFormatter.locale = Locale(identifier: "en_US_POSIX")
+        amountFormatter.locale = GhafLocale.locale(identifier: "en_US_POSIX")
         amountFormatter.minimumFractionDigits = 2
         amountFormatter.maximumFractionDigits = 2
         amountFormatter.numberStyle = .decimal

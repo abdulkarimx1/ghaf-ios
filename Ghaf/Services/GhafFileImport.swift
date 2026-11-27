@@ -124,7 +124,8 @@ enum GhafFileImport {
                 if existing.contains(where: { abs($0.date.timeIntervalSince(row.date)) < 1 && $0.amount == row.amount && $0.merchant?.localizedCaseInsensitiveCompare(row.merchant) == .orderedSame && $0.accountID == accountID }) || FileImportRules.isDuplicate(reference: row.reference, hasTime: row.hasTime, date: row.date, amount: row.amount, merchant: row.merchant, account: row.account, among: seen) { duplicates += 1; continue }
                 seen.append(identity)
                 let parsed = ParsedTransaction(amount: row.amount, currency: row.currency, merchant: row.merchant, date: row.date, direction: row.direction, confidence: 1, bank: nil)
-                context.insert(GhafTransaction(fingerprint: "file-\(UUID().uuidString)", parsed: parsed, category: row.category, needsReview: row.needsReview, isReversal: false, accountID: accountID)); imported += 1
+                let category = CategoryTaxonomy.currentCategoryName(for: row.category, available: try GhafPersistence.settings(in: context).categories)
+                context.insert(GhafTransaction(fingerprint: "file-\(UUID().uuidString)", parsed: parsed, category: category, needsReview: row.needsReview, isReversal: false, accountID: accountID)); imported += 1
             }
             try context.save()
         } catch { context.rollback(); throw error }

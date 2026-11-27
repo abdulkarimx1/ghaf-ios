@@ -2,7 +2,7 @@ import Foundation
 
 enum GhafCompactNumber {
     static func string(_ value: Double, languageCode: String) -> String {
-        let locale = Locale(identifier: languageCode)
+        let locale = GhafLocale.locale(identifier: languageCode)
         let magnitude = abs(value)
         let (scaled, suffix): (Double, String) = magnitude >= 1_000_000 ? (value / 1_000_000, "M")
             : magnitude >= 1_000 ? (value / 1_000, "K") : (value, "")

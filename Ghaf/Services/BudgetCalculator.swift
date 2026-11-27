@@ -109,7 +109,7 @@ enum GhafFormat {
             "OMR": "OM", "QAR": "QA", "USD": "US", "EUR": "DE", "GBP": "GB"
         ]
         let region = regions[currency.uppercased()] ?? "AE"
-        return Locale(identifier: "\(languageCode == "ar" ? "ar" : "en")_\(region)")
+        return GhafLocale.locale(identifier: "\(languageCode == "ar" ? "ar" : "en")_\(region)")
     }
 
     static func symbol(for currency: String, languageCode: String = "en") -> String {
@@ -159,6 +159,10 @@ enum GhafFormat {
         formatter.numberStyle = .currency
         formatter.currencyCode = currency.uppercased()
         formatter.locale = locale(for: currency, languageCode: languageCode)
+        formatter.decimalSeparator = "."
+        formatter.groupingSeparator = ","
+        formatter.currencyDecimalSeparator = "."
+        formatter.currencyGroupingSeparator = ","
         formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
 
