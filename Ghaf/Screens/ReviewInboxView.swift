@@ -89,6 +89,11 @@ struct GhafReviewInboxView: View {
                         GhafEventNotifications.configure()
                         if let initialTargetID { DispatchQueue.main.async { proxy.scrollTo(initialTargetID, anchor: .top) } }
                     }
+                    .refreshable {
+                        _ = try? GhafTransferReconciliation.run(in: modelContext)
+                        GhafEventNotifications.configure()
+                        alerts = GhafEventNotifications.events
+                    }
                     .onReceive(NotificationCenter.default.publisher(for: GhafEventNotifications.inboxUpdated)) { _ in
                         alerts = GhafEventNotifications.events
                     }
@@ -133,7 +138,7 @@ struct GhafReviewInboxView: View {
     private var allClear: some View {
         VStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(theme.comfortable)
-            Text(ar ? "لا شيء ينتظر مراجعتك" : "You're all caught up")
+            Text(ar ? "كل شيء محدّث" : "All caught up")
                 .font(GhafTypography.heading(20, languageCode: lang)).foregroundStyle(theme.primaryText)
             Text(ar ? "ستظهر هنا العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, detected subscriptions and alerts will appear here.")
                 .font(GhafTypography.body(14, languageCode: lang)).foregroundStyle(theme.secondaryText)
