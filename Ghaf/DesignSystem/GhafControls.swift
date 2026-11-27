@@ -294,11 +294,12 @@ struct GhafSegmented<Value: Hashable>: View {
     let theme: GhafTheme
     var languageCode = "en"
     var selectionIsActive = true
+    var identifierPrefix: String? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+            ForEach(Array(options.enumerated()), id: \.offset) { index, option in
                 Button {
                     if reduceMotion { selection = option.0 }
                     else { withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { selection = option.0 } }
@@ -313,6 +314,7 @@ struct GhafSegmented<Value: Hashable>: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selectionIsActive && selection == option.0 ? .isSelected : [])
+                .accessibilityIdentifier(identifierPrefix.map { "\($0).\(index)" } ?? "")
             }
         }
         .padding(4)

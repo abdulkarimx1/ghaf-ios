@@ -35,6 +35,7 @@ struct GhafHomeView: View {
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
     @State private var showAccounts = false
+    @State private var accountToOpenID: UUID?
     @State private var showImportSheet = false
     @State private var showInbox = false
 #if DEBUG
@@ -188,6 +189,15 @@ struct GhafHomeView: View {
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
             }
+            .refreshable {
+                // Owner #87: pull to refresh re-runs own-account transfer matching before recomputing.
+                _ = try? GhafTransferReconciliation.run(in: modelContext)
+                summary = makeSummary()
+                cachedSummaryID = summaryTaskID
+                summaryPrepared = true
+                GhafEventNotifications.configure()
+                GhafWidgetSync.refresh(context: modelContext)
+            }
             .scrollIndicators(.hidden)
             .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
@@ -218,7 +228,9 @@ struct GhafHomeView: View {
             .onAppear { refreshSummaryIfNeeded() }
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace) }
+            .navigationDestination(isPresented: $showAccounts) {
+                GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace, initialSelectedAccountID: accountToOpenID)
+            }
             .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }.ghafDirection(settings.languageCode)
@@ -227,7 +239,9 @@ struct GhafHomeView: View {
                 GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showInbox) {
-                GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID).presentationDragIndicator(.visible).ghafDirection(settings.languageCode)
+                GhafReviewInboxView(settings: settings, initialTargetID: inboxTargetID)
+                    .presentationDragIndicator(.visible)
+                    .ghafDirection(settings.languageCode)
             }
 #if DEBUG
             .sheet(isPresented: $showNotificationSettings) {
@@ -318,7 +332,7 @@ struct GhafHomeView: View {
                 .font(GhafTypography.body(15, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
-            Button { showAccounts = true } label: {
+            Button { accountToOpenID = nil; showAccounts = true } label: {
                 Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
             }
             .ghafProminentButton(theme: theme, languageCode: lang)
@@ -371,7 +385,7 @@ struct GhafHomeView: View {
     private var header: some View {
         HStack(spacing: 8) {
             if accounts.contains(where: { !$0.isArchived }) {
-                Button { showAccounts = true } label: {
+                Button { accountToOpenID = nil; showAccounts = true } label: {
                     Image(systemName: "wallet.bifold.fill")
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 44, height: 44)
@@ -514,7 +528,6 @@ struct GhafHomeView: View {
         .ghafGlassHero(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
-            GhafSounds.shared.play(.tick)
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
         }
         .accessibilityElement(children: .contain)
@@ -540,7 +553,7 @@ struct GhafHomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(open) { account in
-                        Button { showAccounts = true } label: {
+                        Button { accountToOpenID = account.id; showAccounts = true } label: {
                             VStack(spacing: 2) {
                                 Text(account.name)
                                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
@@ -880,6 +893,7 @@ struct GhafQuickAddView: View {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
                             HStack(spacing: 7) {
                                 TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
+                                    .accessibilityIdentifier("home.quick-add.merchant")
                                     .lineLimit(1).submitLabel(.done)
                                     .multilineTextAlignment(.leading)
                                     .onSubmit { suggestCategory() }

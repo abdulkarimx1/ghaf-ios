@@ -221,6 +221,10 @@ struct GhafTransactionsView: View {
             .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
+            .refreshable {
+                _ = try? GhafTransferReconciliation.run(in: modelContext)
+                prepareVisibleTransactions()
+            }
             .background(theme.background.ignoresSafeArea())
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()

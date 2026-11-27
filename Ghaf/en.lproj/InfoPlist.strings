@@ -3,3 +3,4 @@
 "NSSpeechRecognitionUsageDescription" = "Ghaf converts your spoken transaction details into editable text on your device.";
 "NSLocationWhenInUseUsageDescription" = "Ghaf can add the place to a transaction you log yourself. Your location stays on this iPhone; Apple Maps finds the place name.";
 "NSFaceIDUsageDescription" = "Ghaf uses Face ID or your device passcode to protect your financial information.";
+"NSCameraUsageDescription" = "Ghaf uses the camera only when you choose to take a profile photo.";

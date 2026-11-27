@@ -16,6 +16,7 @@ struct GhafBudgetView: View {
     @State private var bucketSelected = false
     @State private var selectedMonth: Date?
     @State private var selectedCategory: String?
+    @State private var categoryTransactions: String?
     @State private var editingCategory: String?
     @State private var budgetEntry = ""
     @State private var showPresetSheet = false
@@ -69,6 +70,15 @@ struct GhafBudgetView: View {
         .sheet(item: Binding(get: { editingCategory.map(EditCategory.init) }, set: { editingCategory = $0?.name })) { item in
             budgetEditor(item.name).ghafBottomCard(theme: theme, languageCode: lang)
         }
+        .sheet(item: Binding(get: { categoryTransactions.map(EditCategory.init) }, set: { categoryTransactions = $0?.name })) { item in
+            GhafTransactionListSheet(title: GhafLocalization.category(item.name, languageCode: lang),
+                                     transactions: expenses(in: cycle).filter { $0.category == item.name },
+                                     theme: theme, languageCode: lang)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .ghafSheetFrame(theme: theme)
+                .ghafDirection(lang)
+        }
         .onAppear {
 #if DEBUG
             guard GhafScreenshotFixture.enabled else { return }
@@ -81,7 +91,7 @@ struct GhafBudgetView: View {
             }
             if GhafScreenshotFixture.selection == "wants" { bucket = .wants; bucketSelected = true }
             if GhafScreenshotFixture.selection == "savings" { bucket = .savings; bucketSelected = true }
-            if GhafScreenshotFixture.selection == "petal" { selectedCategory = "Dining" }
+            if GhafScreenshotFixture.selection == "petal" { selectedCategory = monthlySpendByCategory.first?.name }
             if GhafScreenshotFixture.selection == "preset-card" { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showPresetSheet = true } }
             if GhafScreenshotFixture.selection == "over" {
                 var budgets = settings.categoryBudgets; budgets["Subscriptions"] = 1; settings.categoryBudgets = budgets
@@ -265,6 +275,13 @@ struct GhafBudgetView: View {
                         } label: {
                             Image(systemName: "chevron.forward").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.secondaryText).frame(width: 32, height: 44)
                         }
+                        if selectedCategory == category {
+                            Button(ar ? "عرض الكل" : "View all") { categoryTransactions = item.name }
+                                .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
+                                .foregroundStyle(theme.accent)
+                                .frame(minHeight: 44)
+                                .accessibilityHint(ar ? "عرض عمليات هذه الفئة في دورة الميزانية الحالية" : "Show this category's transactions in the current budget period")
+                        }
                     }
                     .accessibilityElement(children: .contain)
                 }
@@ -315,6 +332,10 @@ struct GhafBudgetView: View {
                                     .foregroundStyle(theme.accent)
                             }
                         }
+                        Text(ar ? presetArabic(item) : item.description)
+                            .font(GhafTypography.body(13, languageCode: lang))
+                            .foregroundStyle(theme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         GeometryReader { proxy in
                             HStack(spacing: 3) {
                                 ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { bucket in

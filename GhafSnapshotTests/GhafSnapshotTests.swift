@@ -42,6 +42,16 @@ struct SnapshotCase: Sendable, CustomTestStringConvertible {
 @Suite(.serialized, .snapshots(record: .missing))
 struct GhafSnapshotTests {
     @Test
+    func privacySensitiveAPIsHaveUsageDescriptions() throws {
+        let info = Bundle.main.infoDictionary ?? [:]
+        for key in ["NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription",
+                    "NSLocationWhenInUseUsageDescription", "NSFaceIDUsageDescription"] {
+            let value = try #require(info[key] as? String, "Missing privacy usage description: \(key)")
+            #expect(!value.isEmpty)
+        }
+    }
+
+    @Test
     @MainActor
     func primaryScreensMatchReference() async throws {
         for sample in SnapshotCase.all {

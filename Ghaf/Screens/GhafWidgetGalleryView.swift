@@ -21,7 +21,7 @@ struct GhafWidgetGalleryView: View {
         ("Where it went", "Top spending categories", false),
         ("Trends", "Spending over time", false),
         ("Quick add", "Add a transaction", false),
-        ("Ask Ghaf", "Open Ghaf AI ready to type", false),
+        ("Ask Ghaf", "Open Ghaf AI in voice mode", false),
         ("Money tip", "A cited daily budgeting tip", false),
         ("Streak", "Your logging streak and the last 7 days", false),
         ("Top places", "Where you spent the most this month", false),
@@ -110,7 +110,7 @@ struct GhafWidgetGalleryView: View {
                 PremiumTile(galleryFamily: family, entry: .init(date: GhafClock.now, snapshot: snapshot,
                                          tip: .init(id: 0, en: "Plan a small weekly savings goal and track it.", ar: "حدّد هدفًا أسبوعيًا صغيرًا للادخار وتابعه.", source: "CFPB", url: "https://www.consumerfinance.gov/")),
                             title: name, symbol: name == "Quick add" ? "plus" : name == "Ask Ghaf" ? "mic.fill" : "lightbulb.fill",
-                            url: URL(string: name == "Money tip" ? "ghaf://money-tip?source=https%3A%2F%2Fwww.consumerfinance.gov%2F" : name == "Quick add" ? "ghaf://add-transaction" : "ghaf://ai/type")!)
+                            url: URL(string: name == "Money tip" ? "ghaf://money-tip?source=https%3A%2F%2Fwww.consumerfinance.gov%2F" : name == "Quick add" ? "ghaf://add-transaction" : "ghaf://ai/voice")!)
             }
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)

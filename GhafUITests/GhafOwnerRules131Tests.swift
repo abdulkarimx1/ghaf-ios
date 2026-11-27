@@ -15,6 +15,109 @@ final class GhafOwnerRules131Tests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "Carrefour"))
     }
 
+    func testOwnerRule_PrivacyAPIsHaveUsageDescriptionsAndCameraFallbackDoesNotCrash() throws {
+        let app = launch(["-GhafTab", "more"])
+        app.buttons["Profile photo options"].tap()
+        XCTAssertTrue(app.staticTexts["Profile photo"].waitForExistence(timeout: 5))
+        let camera = app.buttons["Take photo"]
+        if camera.exists {
+            camera.tap()
+            XCTAssertEqual(app.state, .runningForeground, "Opening the available simulator camera must not terminate Ghaf")
+            XCTAssertFalse(app.staticTexts["Profile photo"].exists, "The camera picker should replace the photo action sheet")
+        } else {
+            XCTAssertTrue(app.staticTexts["Profile photo"].exists, "When the source is unavailable, keep the fallback photo menu open")
+        }
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    func testOwnerRule_ArabicStatsPeriodsKeepAmountAtFixedHeight() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "insights", "-GhafPeriod", "M",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "ar"]
+        app.launch()
+        let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 30))
+        let y = amount.frame.minY
+        for index in 0..<4 {
+            let period = app.buttons["stats.period.\(index)"]
+            XCTAssertTrue(period.waitForExistence(timeout: 5), "Missing period identifier index \(index)")
+            period.tap()
+            XCTAssertEqual(amount.frame.minY, y, accuracy: 2, "The amount container moved for period index \(index)")
+        }
+    }
+
+
+    func testOwnerRule_InactivityRestartRefreshesAndSkipsOpenTransactionSheet() throws {
+        let app = XCUIApplication()
+        let splash = app.descendants(matching: .any).matching(identifier: "ghaf.launch.splash").firstMatch
+        app.launchArguments = ["-GhafFixture", "1", "-GhafLaunchProof", "1", "-GhafInactivityRestartAfter5Seconds"]
+        app.launch()
+        XCTAssertTrue(splash.waitForExistence(timeout: 30))
+        splash.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let automationDone = app.buttons["Done"]
+        if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 6)
+        app.activate()
+        XCTAssertTrue(splash.waitForExistence(timeout: 2), "A long background return should show the launch splash")
+        splash.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
+
+        if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
+        let add = app.buttons["Add"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+        let merchant = app.textFields["home.quick-add.merchant"]
+        XCTAssertTrue(merchant.waitForExistence(timeout: 10))
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 6)
+        app.activate()
+        XCTAssertTrue(merchant.waitForExistence(timeout: 5), "The transaction editor must stay open after the threshold")
+        XCTAssertFalse(splash.exists, "An open transaction sheet must suppress the restart splash")
+    }
+
+    func testOwnerRule_TrendDrawRecordingEnglish() throws {
+        recordTrendDraw(language: "en")
+    }
+
+    func testOwnerRule_TrendDrawRecordingArabic() throws {
+        recordTrendDraw(language: "ar")
+    }
+
+    private func recordTrendDraw(language: String) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "insights", "-GhafPeriod", "W",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", language]
+        app.launch()
+        let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 30))
+        let month = app.buttons["stats.period.1"]
+        XCTAssertTrue(month.waitForExistence(timeout: 10))
+        if !month.isHittable { app.swipeUp() }
+        XCTAssertTrue(month.isHittable, "The period control should be visible with the Stats chart")
+        Thread.sleep(forTimeInterval: 1)
+        month.tap()
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    func testOwnerRule_FastChartScrubsKeepStatsLayoutStill() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "insights", "-GhafPeriod", "M",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en"]
+        app.launch()
+        let amount = app.descendants(matching: .any).matching(identifier: "stats.period.spent").firstMatch
+        XCTAssertTrue(amount.waitForExistence(timeout: 30))
+        let amountY = amount.frame.minY
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.54))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.54))
+        for _ in 0..<3 {
+            start.press(forDuration: 0.05, thenDragTo: right)
+            right.press(forDuration: 0.05, thenDragTo: start)
+        }
+        XCTAssertEqual(amount.frame.minY, amountY, accuracy: 2, "Scrubbing must not move the stats card")
+    }
+
     /// Swipe-deletes the first Carrefour row; returns the Carrefour match count before deleting.
     private func swipeDeleteCarrefour(_ app: XCUIApplication) -> Int {
         app.tabBars.buttons["Transactions"].tap()

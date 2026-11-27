@@ -35,6 +35,7 @@ struct GhafStatsView: View {
     @State private var scrubbedMonthDay: Date?
     @State private var selectedCategory: String?
     @State private var showProSheet = false
+    @State private var showTransfersExplanation = false
     @State private var barTransactions: BarTransactions?
     private struct BarTransactions: Identifiable { let id = UUID(); let title: String; let items: [GhafTransaction] }
     @State private var preparedStats = PreparedStats.empty
@@ -98,9 +99,13 @@ struct GhafStatsView: View {
         var immediate = Transaction()
         immediate.disablesAnimations = true
         withTransaction(immediate) { chartDrawProgress = 0 }
+        guard !reduceMotion else {
+            withTransaction(immediate) { chartDrawProgress = 1 }
+            return
+        }
         Task { @MainActor in
             await Task.yield()
-            withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .easeOut(duration: 0.6)) {
+            withAnimation(.easeInOut(duration: 0.7)) {
                 chartDrawProgress = 1
             }
         }
@@ -288,6 +293,11 @@ struct GhafStatsView: View {
                         .ghafSheetFrame(theme: theme)
                         .ghafDirection(lang)
                 }
+                .alert(ar ? "تحويلات لأشخاص آخرين" : "Sent to others", isPresented: $showTransfersExplanation) {
+                    Button(ar ? "حسنًا" : "OK", role: .cancel) {}
+                } message: {
+                    Text(ar ? "الأموال التي حولتها إلى أشخاص آخرين. لا تُحتسب التحويلات بين حساباتك." : "Money you transferred to other people. Transfers between your own accounts aren't counted.")
+                }
                 .onChange(of: router.statsFocus) { _, _ in applyStatsFocus() }
                 .onAppear {
                 chartReady = true
@@ -311,7 +321,19 @@ struct GhafStatsView: View {
                     selectedLabel = chartKey(calendar.startOfDay(for: date))
                     if period == .month { scrubbedMonthDay = calendar.startOfDay(for: date) }
                 }
+                if GhafScreenshotFixture.selection == "forecast" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if let future = preparedStats.buckets.first(where: { $0.start > GhafClock.now && $0.forecast != nil }) {
+                            selectedLabel = chartKey(future.start)
+                        }
+                    }
+                }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
+                if GhafScreenshotFixture.selection == "transfers-explanation" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if preparedStats.transferTotal > 0 { showTransfersExplanation = true }
+                    }
+                }
                 if GhafScreenshotFixture.autoSelect && !fixtureBudget { runAutoSelection(scrollProxy: scrollProxy) }
                 if GhafScreenshotFixture.selection == "category" {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("category-chart", anchor: .center) }
@@ -427,9 +449,12 @@ struct GhafStatsView: View {
             return plotted[max(0, first - 1)...].map { ($0, $0.total + ($0.forecast ?? 0)) }
         }()
         let selected = selectedLabel.flatMap { key in plotted.first { chartKey($0.start) == key } }
+        let selectedBucketAmount = { (bucket: Bucket) in
+            bucket.start <= GhafClock.now ? bucket.total : bucket.total + (bucket.forecast ?? 0)
+        }
         let spent = total(current)
         let scrubbedDayAmount = scrubbedMonthDay.map { total(dailyTrendTransactions(on: $0, current: current)) }
-        let selectedAmount = scrubbedDayAmount ?? selected.map { $0.total + ($0.forecast ?? 0) } ?? spent
+        let selectedAmount = scrubbedDayAmount ?? selected.map(selectedBucketAmount) ?? spent
         let selectedDate = scrubbedMonthDay ?? selected?.start
         let before = total(previous)
         let change = before > 0 ? (spent - before) / before : nil
@@ -479,12 +504,9 @@ struct GhafStatsView: View {
                     barTransactions = BarTransactions(title: title, items: items)
                 } label: {
                     Label(ar ? "عرض العمليات" : "View transactions", systemImage: "list.bullet")
-                        .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
-                        .foregroundStyle(theme.accent)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.ghafPress)
+                .ghafGlassButton(theme: theme, languageCode: lang)
                 .disabled(items.isEmpty)
                 .opacity(selectedDate == nil ? 0 : 1)
                 .allowsHitTesting(selectedDate != nil)
@@ -499,7 +521,7 @@ struct GhafStatsView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
                     // Owner: the pill keeps one height (top of the chart) and only slides sideways.
                     .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                        selectionBubble(amount: bucket.total + (bucket.forecast ?? 0), date: bucket.start).opacity(isSelected ? 1 : 0)
+                        selectionBubble(amount: selectedBucketAmount(bucket), date: bucket.start).opacity(isSelected ? 1 : 0)
                     }
                     .opacity(isSelected ? 1 : 0)
                 if bucket.start <= GhafClock.now {
@@ -539,7 +561,7 @@ struct GhafStatsView: View {
                         .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [5, 4]))
                         .accessibilityLabel(ar ? "توقع · \(bucketLabel(bucket.start))" : "Forecast · \(bucketLabel(bucket.start))")
                         .accessibilityValue(GhafFormat.shownMoney(Decimal(amount), currency: currency, languageCode: lang))
-                    if bucket.forecast != nil, selected?.id == bucket.id {
+                    if bucket.start > GhafClock.now, bucket.forecast != nil, selected?.id == bucket.id {
                         PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, amount))
                             .symbol { Circle().fill(accent).frame(width: 10, height: 10).overlay(Circle().stroke(theme.surface, lineWidth: 2)) }
                     }
@@ -600,12 +622,12 @@ struct GhafStatsView: View {
                         Button {
                             tapTrendBucket(chartKey(bucket.start))
                         } label: { Text(bucketLabel(bucket.start)) }
-                            .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total + (bucket.forecast ?? 0)), currency: currency, languageCode: lang))
+                            .accessibilityValue(GhafFormat.shownMoney(Decimal(selectedBucketAmount(bucket)), currency: currency, languageCode: lang))
                             .accessibilityAddTraits(selected?.id == bucket.id ? .isSelected : [])
                     }
                 }
             }
-            .chartPlotStyle { plot in plot.padding(.horizontal, 8) }
+            .chartPlotStyle { plot in plot.padding(.horizontal, 0) }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine().foregroundStyle(theme.outline.opacity(0.32))
@@ -636,7 +658,7 @@ struct GhafStatsView: View {
                 }
             }
             .frame(height: 200)
-            .mask(alignment: .leading) {
+            .mask {
                 if reduceMotion {
                     Rectangle()
                 } else {
@@ -662,14 +684,15 @@ struct GhafStatsView: View {
                         context.stroke(path, with: .color(accent.opacity(theme.isDark ? 0.55 : 0.45)), style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
                     }
                     .frame(width: 16, height: 8)
-                    Text(ar ? "توقع · بناءً على آخر 90 يوماً" : "Forecast · based on your last 90 days")
+                    Text(ar ? "متوقع · بناءً على آخر 90 يوماً" : "Forecast · based on your last 90 days")
                         .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
                 .frame(maxWidth: .infinity, minHeight: 18, alignment: .center)
                 .opacity(all.contains(where: { $0.forecast != nil }) ? 1 : 0)
                 .accessibilityHidden(!all.contains(where: { $0.forecast != nil }))
 
-            GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme, languageCode: lang)
+            GhafSegmented(options: Array(zip(Period.allCases, periods)), selection: $period, theme: theme,
+                          languageCode: lang, identifierPrefix: "stats.period")
                 .scaleEffect(x: 1, y: 52.0 / 56.0)
                 .frame(height: 52)
                 .padding(.top, 8)
@@ -683,7 +706,7 @@ struct GhafStatsView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(GhafMetrics.heroPadding)
+        .padding(GhafMetrics.cardPadding)
         .ghafStatsCard(theme: theme, radius: 30)
     }
 
@@ -733,10 +756,21 @@ struct GhafStatsView: View {
 
     private func selectionBubble(amount: Double, date: Date, exactDay: Bool = false) -> some View {
         HStack(spacing: 4) {
-            GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
-            Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
-                .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+            if date > GhafClock.now {
+                Text(ar ? "متوقع" : "Forecast")
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+                GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
+            } else {
+                GhafMoneyLabel(amount: Decimal(amount), currency: currency, languageCode: lang, size: 15, weight: .semibold)
+                Text("· \(exactDay ? dailyBucketLabel(date) : bucketLabel(date))")
+                    .font(GhafTypography.body(11, languageCode: lang, weight: .semibold))
+            }
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(width: 190, height: 32)
         .foregroundStyle(theme.primaryText).padding(.horizontal, 10).padding(.vertical, 6)
         .background(theme.surface, in: Capsule())
     }
@@ -815,14 +849,17 @@ struct GhafStatsView: View {
                 }
             }
             if transferTotal > 0 {
-                Button { toggle("Transfers") } label: {
+                Button {
+                    toggle("Transfers")
+                    showTransfersExplanation = true
+                } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(theme.accent)
                             .frame(width: 36, height: 36)
                             .background(theme.accent.opacity(0.12), in: Circle())
-                        Text(ar ? "تحويلات خارجية" : "Outgoing transfers")
+                        Text(ar ? "تحويلات لأشخاص آخرين" : "Sent to others")
                             .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                             .foregroundStyle(theme.primaryText)
                             .lineLimit(1)
@@ -837,7 +874,7 @@ struct GhafStatsView: View {
                     .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(ar ? "تحويلات خارجية" : "Outgoing transfers") \(GhafFormat.shownMoney(transferTotal, currency: currency, languageCode: lang))")
+                .accessibilityLabel("\(ar ? "تحويلات لأشخاص آخرين" : "Sent to others") \(GhafFormat.shownMoney(transferTotal, currency: currency, languageCode: lang))")
                 .accessibilityAddTraits(selectedCategory == "Transfers" ? .isSelected : [])
             }
         }
@@ -871,11 +908,13 @@ struct GhafStatsView: View {
                     .contentTransition(.opacity)
                     .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 34)
                 Text(ar ? "\(currency) يومياً" : "\(currency) a day")
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 16)
             }
-            .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
+            .frame(maxWidth: .infinity).frame(height: 96).padding(GhafMetrics.cardPadding)
             .ghafStatsCard(theme: theme, radius: 22)
             VStack(spacing: 8) {
                 Text(ar ? "المشتريات" : "Purchases")
@@ -884,11 +923,13 @@ struct GhafStatsView: View {
                 Text(items.count.formatted(.number.locale(GhafLocale.locale(identifier: lang))))
                     .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 34)
                 Text(units[period.rawValue])
                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1).minimumScaleFactor(0.75).frame(height: 16)
             }
-            .frame(maxWidth: .infinity, minHeight: 96).padding(GhafMetrics.cardPadding)
+            .frame(maxWidth: .infinity).frame(height: 96).padding(GhafMetrics.cardPadding)
             .ghafStatsCard(theme: theme, radius: 22)
         }
     }

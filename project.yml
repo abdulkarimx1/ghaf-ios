@@ -82,6 +82,7 @@ targets:
           - en
           - ar
         NSFaceIDUsageDescription: Ghaf uses Face ID or your device passcode to protect your financial information.
+        NSCameraUsageDescription: Ghaf uses the camera only when you choose to take a profile photo.
         NSLocationWhenInUseUsageDescription: Ghaf can add the place to a manual transaction. Place details stay on this iPhone; Apple Maps finds the name.
         NSMicrophoneUsageDescription: Ghaf uses the microphone when you choose to record a transaction by voice or talk to Ghaf AI.
         NSSpeechRecognitionUsageDescription: Ghaf converts your spoken transaction details into editable text on your device.

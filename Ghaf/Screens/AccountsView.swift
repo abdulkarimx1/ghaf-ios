@@ -12,6 +12,7 @@ struct GhafAccountsView: View {
 
     let settings: GhafSettings
     var zoomNamespace: Namespace.ID? = nil
+    var initialSelectedAccountID: UUID? = nil
 
     /// One value drives the sheet so it always opens on the tapped account.
     private struct EditorTarget: Identifiable { let id = UUID(); let account: GhafAccount? }
@@ -34,12 +35,18 @@ struct GhafAccountsView: View {
     var body: some View {
         // One pass over transactions for every account, not one per row.
         let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
-        ScrollView { walletContent(balances) }
+        ViewThatFits(in: .vertical) {
+            walletContent(balances)
+            ScrollView { walletContent(balances) }
+                .scrollIndicators(.hidden)
+        }
         .ghafBackground(theme: theme)
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { eyeButton } }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackground(theme.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(theme.isDark ? .dark : .light, for: .navigationBar)
         .sheet(item: $editorTarget) { target in
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
@@ -63,7 +70,8 @@ struct GhafAccountsView: View {
             } else {
                 GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
                                 theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
-                                onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
+                                onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) },
+                                initialSelectedID: initialSelectedAccountID)
                     .ghafEntrance(1)
             }
             if accounts.contains(where: \.isArchived) { archivedAccounts(balances) }
