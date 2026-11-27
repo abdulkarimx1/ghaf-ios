@@ -36,7 +36,7 @@ struct GhafWidgetGalleryView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "sparkles").font(.system(size: 24, weight: .semibold)).foregroundStyle(theme.accent)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(ar ? "انضم إلى غاف Pro" : "Join Ghaf Pro").font(GhafTypography.heading(19, languageCode: lang))
+                            Text(ar ? "انضم إلى غاف برو" : "Join Ghaf Pro").font(GhafTypography.heading(19, languageCode: lang))
                             Text(ar ? "افتح الودجات وخيارات التخصيص" : "Unlock more widgets and customization").font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         }
                         Spacer(minLength: 4)

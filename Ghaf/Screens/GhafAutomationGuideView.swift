@@ -551,7 +551,7 @@ struct GhafAutomationGuideView: View {
                     if !GhafLinks.isPlaceholder(GhafLinks.instagram) {
                         Link(destination: GhafLinks.instagram) {
                             HStack(spacing: 6) {
-                                Text(text("Bank not there?", "بنكك مو موجود؟")).foregroundStyle(theme.secondaryText)
+                                Text(text("Bank not there?", "ألا ترى بنكك هنا؟")).foregroundStyle(theme.secondaryText)
                                 Text(text("Tell us on Instagram", "قول لنا على إنستغرام")).foregroundStyle(theme.accent)
                             }
                             .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium))

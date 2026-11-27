@@ -67,7 +67,7 @@ enum GhafLedgerAnswers {
         // Balances: one line per account, totals only within a currency.
         if has(["balance", "do i have", "how much money", "رصيد", "عندي", "كم معي", "فلوسي"]) {
             let open = accounts.filter { !$0.isArchived }
-            guard !open.isEmpty else { return ar ? "ما عندك حسابات بعد. أضف حساباً من «الحسابات»." : "You have no accounts yet. Add one under Accounts." }
+            guard !open.isEmpty else { return ar ? "لا توجد حسابات بعد. أضف حساباً من «الحسابات»." : "You have no accounts yet. Add one under Accounts." }
             let balances = GhafAccountBalanceCalculator.balances(accounts: open, transactions: transactions)
             let byCurrency = Dictionary(grouping: open.filter(\.includeInTotal), by: \.currency)
                 .mapValues { $0.reduce(Decimal.zero) { $0 + (balances[$1.id] ?? $1.openingBalance) } }
@@ -86,7 +86,7 @@ enum GhafLedgerAnswers {
             let monthly = subscriptions.filter { $0.isActive && $0.currency == currency }
                 .reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }
             guard !due.isEmpty else {
-                return ar ? "لا تجديدات خلال 30 يوماً. اشتراكاتك تكلّف تقريباً \(money(monthly)) شهرياً."
+                return ar ? "لا توجد تجديدات خلال 30 يوماً. تبلغ كلفة اشتراكاتك نحو \(money(monthly)) شهرياً."
                           : "Nothing renews in the next 30 days. Your subscriptions cost about \(money(monthly)) a month."
             }
             let locale = GhafLocale.locale(identifier: languageCode)
@@ -94,7 +94,7 @@ enum GhafLedgerAnswers {
                 let date = item.nextPaymentDate.formatted(.dateTime.day().month(.wide).locale(locale))
                 return "• \(item.name) · \(money(item.amount, item.currency)) · \(date)"
             }.joined(separator: "\n")
-            return ar ? "القادم خلال 30 يوماً:\n\(list)\nالمجموع الشهري التقريبي: \(money(monthly))."
+            return ar ? "التجديدات خلال 30 يوماً:\n\(list)\nإجمالي التكلفة الشهرية التقريبية: \(money(monthly))."
                       : "Coming up in the next 30 days:\n\(list)\nAbout \(money(monthly)) a month in total."
         }
 
@@ -106,9 +106,9 @@ enum GhafLedgerAnswers {
         if has(["forecast", "predict", "expect", "end of the month", "end of month", "on track", "will i spend", "توقع", "متوقع", "نهاية الشهر"]),
            let forecast = monthForecast(transactions: transactions, currency: currency, now: now) {
             let typical = forecast.typicalMonth.map {
-                ar ? " عادةً تصرف \(money($0)) في الشهر." : " You usually spend \(money($0)) a month."
+                ar ? " تنفق عادةً \(money($0)) شهرياً." : " You usually spend \(money($0)) a month."
             } ?? ""
-            return ar ? "بهذا المعدل ستصرف تقريباً \(money(forecast.projected)) بنهاية الشهر. صرفت \(money(forecast.spentSoFar)) حتى الآن وباقي \(GhafLocalization.arabicDays(forecast.daysLeft)).\(typical)"
+            return ar ? "بهذا المعدل ستنفق نحو \(money(forecast.projected)) بنهاية الشهر. أنفقت \(money(forecast.spentSoFar)) حتى الآن، ويتبقى \(GhafLocalization.arabicDays(forecast.daysLeft)).\(typical)"
                       : "At this pace you'll spend about \(money(forecast.projected)) by month end. \(money(forecast.spentSoFar)) so far, \(forecast.daysLeft) days left.\(typical)"
         }
 
@@ -129,32 +129,32 @@ enum GhafLedgerAnswers {
             let total = items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
             let share = spent > 0 ? Int((NSDecimalNumber(decimal: total / spent).doubleValue * 100).rounded()) : 0
             let name = GhafLocalization.category(category, languageCode: languageCode)
-            return ar ? "صرفت \(money(total)) على \(name) \(label) (\(items.count) عمليات، \(share)٪ من مصروفك)."
+            return ar ? "أنفقت \(money(total)) على \(name) \(label) (\(items.count) معاملات، أي \(share)٪ من إنفاقك)."
                       : "You spent \(money(total)) on \(name) \(label): \(items.count) transactions, \(share)% of your spending."
         }
 
         if let merchant = matchedMerchant(in: q, transactions: inCurrency) {
             let items = spending.filter { MerchantName.key(GhafMerchantAliasStore.displayName($0.rawMerchant ?? $0.merchant) ?? "") == merchant.key }
             let total = items.reduce(Decimal.zero) { $0 + $1.spendingAmount }
-            return ar ? "صرفت \(money(total)) عند \(merchant.name) \(label) في \(items.count) عملية."
+            return ar ? "أنفقت \(money(total)) لدى \(merchant.name) \(label) في \(items.count) معاملات."
                       : "You spent \(money(total)) at \(merchant.name) \(label), across \(items.count) transactions."
         }
         // This period against the one before it.
         if comparing, let previous = period.previous {
             let before = inCurrency.filter { $0.isExpense && previous.contains($0.date) }.reduce(Decimal.zero) { $0 + $1.spendingAmount }
             guard before > 0 else {
-                return ar ? "صرفت \(money(spent)) \(label)، ولا يوجد مصروف مسجل \(period.previousAr) للمقارنة."
+                return ar ? "أنفقت \(money(spent)) \(label)، ولا توجد مصروفات مسجلة في \(period.previousAr) للمقارنة."
                           : "You spent \(money(spent)) \(label), and nothing is recorded for \(period.previousEn) to compare."
             }
             let change = Int((NSDecimalNumber(decimal: (spent - before) / before).doubleValue * 100).rounded())
             let direction = change >= 0 ? (ar ? "أكثر" : "more") : (ar ? "أقل" : "less")
-            return ar ? "صرفت \(money(spent)) \(label) مقابل \(money(before)) \(period.previousAr)، أي \(abs(change))٪ \(direction)."
+            return ar ? "أنفقت \(money(spent)) \(label) مقابل \(money(before)) في \(period.previousAr)، أي \(abs(change))٪ \(direction)."
                       : "You spent \(money(spent)) \(label) versus \(money(before)) \(period.previousEn): \(abs(change))% \(direction)."
         }
 
         if has(["biggest", "largest", "most expensive", "أكبر", "أغلى", "اغلى"]) {
             guard let top = spending.max(by: { $0.spendingAmount < $1.spendingAmount }) else {
-                return ar ? "لا مصاريف \(label)." : "No spending \(label)."
+                return ar ? "لا توجد مصروفات \(label)." : "No spending \(label)."
             }
             let date = top.date.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: languageCode)))
             let merchantName = GhafMerchantAliasStore.displayName(top.rawMerchant ?? top.merchant) ?? GhafLocalization.category(top.category, languageCode: languageCode)
@@ -187,7 +187,7 @@ enum GhafLedgerAnswers {
             let byCategory = Dictionary(grouping: spending, by: \.category)
                 .mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
                 .filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(3)
-            guard spent > 0, !byCategory.isEmpty else { return ar ? "لا مصاريف \(label) بعد." : "No spending \(label) yet." }
+            guard spent > 0, !byCategory.isEmpty else { return ar ? "لم تُسجَّل مصروفات \(label) بعد." : "No spending \(label) yet." }
             let parts = byCategory.map { item -> String in
                 let share = Int((NSDecimalNumber(decimal: item.value / spent).doubleValue * 100).rounded())
                 return "• \(GhafLocalization.category(item.key, languageCode: languageCode)) · \(money(item.value)) · \(share)%"
@@ -197,12 +197,12 @@ enum GhafLedgerAnswers {
         }
 
         if has(["spen", "spent", "cost", "صرف", "مصروف", "دفعت", "كم"]) {
-            guard spent > 0 else { return ar ? "ما سجلت أي مصروف \(label)." : "You haven't spent anything \(label)." }
+            guard spent > 0 else { return ar ? "لم تُسجَّل أي مصروفات \(label)." : "You haven't spent anything \(label)." }
             let days = max(1, Calendar.current.dateComponents([.day], from: period.interval.start, to: min(now, period.interval.end)).day ?? 1)
             let top = Dictionary(grouping: spending, by: \.category).mapValues { $0.reduce(Decimal.zero) { $0 + $1.spendingAmount } }
                 .max { $0.value < $1.value }
             let topName = top.map { GhafLocalization.category($0.key, languageCode: languageCode) } ?? ""
-            return ar ? "صرفت \(money(spent)) \(label) في \(spending.count) عملية، بمعدل \(money(spent / Decimal(days))) يومياً. أكثر فئة: \(topName)."
+            return ar ? "أنفقت \(money(spent)) \(label) في \(spending.count) معاملات، بمتوسط \(money(spent / Decimal(days))) يومياً. أعلى فئة إنفاق: \(topName)."
                       : "You spent \(money(spent)) \(label) over \(spending.count) transactions, about \(money(spent / Decimal(days))) a day. Top category: \(topName)."
         }
         return nil
@@ -236,16 +236,16 @@ enum GhafLedgerAnswers {
         }.max { ($0.1 - $0.2) < ($1.1 - $1.2) }
         if let (category, value, base) = grown {
             let name = GhafLocalization.category(category, languageCode: languageCode)
-            return ar ? "\(name) أعلى من المعتاد هذا الشهر: \(money(value)) مقابل \(money(base)) عادةً. لو رجعت لمعدلك المعتاد توفّر \(money(value - base))."
+            return ar ? "بلغ إنفاقك على \(name) هذا الشهر \(money(value))، مقارنة بمتوسط \(money(base)). والعودة إلى متوسطك المعتاد توفر \(money(value - base))."
                       : "\(name) is running high: \(money(value)) this month against a usual \(money(base)). Getting back to normal saves \(money(value - base))."
         }
         if let top = thisMonth.filter({ $0.value > 0 }).max(by: { $0.value < $1.value }) {
             let name = GhafLocalization.category(top.key, languageCode: languageCode)
-            return ar ? "أكبر فئة عندك \(name) بـ \(money(top.value)) هذا الشهر. تقليلها 10٪ يوفّر \(money(top.value / 10)) شهرياً."
+            return ar ? "أعلى فئات إنفاقك هذا الشهر هي \(name) بمبلغ \(money(top.value)). وخفض الإنفاق فيها 10٪ يوفر \(money(top.value / 10)) شهرياً."
                       : "Your biggest category is \(name) at \(money(top.value)) this month. Trimming it by 10% saves \(money(top.value / 10)) a month."
         }
         let monthly = subscriptions.filter { $0.isActive && $0.currency == currency }.reduce(Decimal.zero) { $0 + $1.amount * $1.cycle.monthlyFactor }
-        return ar ? "لا مصاريف كافية هذا الشهر لنصيحة. اشتراكاتك تكلّف \(money(monthly)) شهرياً؛ راجع ما لا تستخدمه."
+        return ar ? "لا تتوفر بيانات إنفاق كافية هذا الشهر لتقديم اقتراح. تبلغ كلفة اشتراكاتك \(money(monthly)) شهرياً؛ راجع الاشتراكات التي لا تستخدمها."
                   : "Not enough spending this month for a tip yet. Your subscriptions cost \(money(monthly)) a month; check for any you don't use."
     }
 

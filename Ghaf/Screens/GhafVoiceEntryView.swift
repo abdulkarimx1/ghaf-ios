@@ -30,7 +30,7 @@ struct GhafVoiceEntryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(isArabic ? "تحدث، وغاف يتولى الباقي" : "Say it. Ghaf sorts it.")
+                    Text(isArabic ? "تحدث، وسيتولى غاف تصنيف المعاملة." : "Say it. Ghaf sorts it.")
                         .font(GhafTypography.display(27, languageCode: settings.languageCode))
                         .foregroundStyle(theme.primaryText)
                     Text(isArabic

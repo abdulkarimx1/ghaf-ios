@@ -448,7 +448,7 @@ struct GhafHomeView: View {
         Button { withAnimation(.snappy) { seenRollingWeekNote = true } } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "info.circle.fill")
-                Text(ar ? "تغيّر الأسبوعي: يعرض الآن آخر 7 أيام بدلاً من أسبوع التقويم."
+                        Text(ar ? "تغيّر عرض الأسبوع: يعرض الآن آخر 7 أيام بدلاً من أسبوع التقويم."
                         : "Weekly has changed: it now shows the last 7 days instead of the calendar week.")
                     .multilineTextAlignment(.leading)
                 Image(systemName: "xmark")
@@ -628,7 +628,7 @@ struct GhafHomeView: View {
                             .foregroundStyle(theme.secondaryText)
                         GhafMoneyLabel(amount: summary.spent, currency: summary.mainCurrency, languageCode: lang, size: 30)
                             .foregroundStyle(theme.primaryText)
-                        Text(ar ? "افتح الإحصائيات لترى وين راحت فلوسك" : "Open Statistics to see where it went")
+                        Text(ar ? "افتح الإحصائيات لمعرفة أين أُنفقت أموالك" : "Open Statistics to see where it went")
                             .font(GhafTypography.body(13, languageCode: lang))
                             .foregroundStyle(theme.secondaryText)
                     }

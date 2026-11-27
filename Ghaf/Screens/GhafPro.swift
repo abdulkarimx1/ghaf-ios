@@ -42,7 +42,7 @@ struct GhafProFeatureMask<Content: View>: View {
                 if !isUnlocked {
                     Rectangle().fill(theme.background.opacity(0.35)).overlay {
                         Button(action: action) {
-                            Label(ar ? "ميزة Pro" : "Pro feature", systemImage: "lock.fill")
+                            Label(ar ? "ميزة من غاف برو" : "Pro feature", systemImage: "lock.fill")
                                 .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                                 .foregroundStyle(theme.primaryText).padding(.horizontal, 18).frame(minHeight: 48)
                                 .background(theme.surface, in: Capsule())

@@ -286,11 +286,11 @@ struct GhafAIView: View {
                     liveCallActive = false
                     tabRouter.isListening = false
                     if reason == "connection_lost" {
-                        appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+                        appendCallNote(ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment.")
                         playVoiceError()
                     }
                     if reason == "turn_limit" {
-                        appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+                        appendCallNote(ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment.")
                         playVoiceError()
                     }
                 }
@@ -329,7 +329,7 @@ struct GhafAIView: View {
                 .blur(radius: 2.5)
                 .overlay { Image(systemName: "lock.fill").font(.system(size: 26, weight: .semibold)).foregroundStyle(theme.primaryText) }
                 .accessibilityHidden(true)
-            Text(ar ? "غاف AI لأعضاء Pro" : "Ghaf AI is for Pro members")
+            Text(ar ? "غاف AI متاح لمشتركي غاف برو" : "Ghaf AI is for Pro members")
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(theme.primaryText)
@@ -555,7 +555,7 @@ struct GhafAIView: View {
                 .padding(.top, 2)
             if progress.stage != nil { progressLine.padding(.top, 12) }
             let chips = ar
-                ? ["كم صرفت هالأسبوع؟", "وين أكثر مكان صرفت فيه؟", "ما الاشتراكات القادمة؟"]
+                ? ["كم أنفقت هذا الأسبوع؟", "أين أنفقت أكثر؟", "ما الاشتراكات القادمة؟"]
                 : ["How much did I spend this week?", "Where did most of my money go?", "Which subscriptions are due soon?"]
             GhafFlowLayout(spacing: 10) {
                 ForEach(chips, id: \.self) { chip in
@@ -928,7 +928,7 @@ struct GhafAIView: View {
         let spokenCount = remaining.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
         let spokenLimit = usage.limit.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
         return VStack(spacing: 4) {
-            Text(ar ? "باقي \(spokenCount) من \(spokenLimit) ردًا صوتيًا اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
+            Text(ar ? "تبقى \(spokenCount) من \(spokenLimit) رداً صوتياً اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
                 .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
                 .foregroundStyle(theme.secondaryText)
                 .lineLimit(1)
@@ -975,7 +975,7 @@ struct GhafAIView: View {
         liveCallActive = false
         tabRouter.isListening = false
         let text = ar
-            ? (settings.userSex == "male" ? "انتهى حدك اليومي من التسجيلات الصوتية." : settings.userSex == "female" ? "انتهى حدج اليومي من التسجيلات الصوتية." : "انتهى الحد اليومي من التسجيلات الصوتية.")
+            ? (settings.userSex == "male" ? "بلغت الحد اليومي للتسجيلات الصوتية." : settings.userSex == "female" ? "بلغت الحد اليومي للتسجيلات الصوتية." : "بلغ الحد اليومي للتسجيلات الصوتية.")
             : "You've reached today's voice limit."
         appendCallNote(text)
         // Owner 1.31: after the limit line, the subscription page opens.
@@ -1015,7 +1015,7 @@ struct GhafAIView: View {
             // Nothing usable: clear it and show a short note that removes itself.
             prompt = ""
             let note = GhafChatMessage(isUser: false, text: ar
-                ? (settings.userSex == "male" ? "ما فهمت عليك، ممكن تعيد الجملة بصيغة أخرى؟" : settings.userSex == "female" ? "ما فهمت عليج، ممكن تعيدين الجملة بصيغة أخرى؟" : "ما فهمت الجملة، ممكن إعادتها بصيغة أخرى؟")
+                ? (settings.userSex == "male" ? "لم أفهم الجملة، هل يمكنك قولها بصيغة أخرى؟" : settings.userSex == "female" ? "لم أفهم الجملة، هل يمكنك قولها بصيغة أخرى؟" : "لم أفهم الجملة، هل يمكن قولها بصيغة أخرى؟")
                 : "Sorry, I didn't catch that. Could you say it another way?")
             withAnimation(.snappy) { messages.append(note) }
             // Listening restarts only after the clip ends, so the mic never hears it.
@@ -1071,7 +1071,7 @@ struct GhafAIView: View {
             let removed = messages[m].drafts.remove(at: draftIndex).merchant
             if messages[m].drafts.isEmpty { messages[m].draftState = .discarded }
             reply = ar ? "حذفت \(removed)." : "Removed \(removed)."
-            if !messages[m].drafts.isEmpty { reply += ar ? " أحفظ الباقي؟" : " Save the rest?"; listenAfterSpeaking = isVoice }
+            if !messages[m].drafts.isEmpty { reply += ar ? " هل أحفظ بقية العمليات؟" : " Save the rest?"; listenAfterSpeaking = isVoice }
         case .rename(let index, let name):
             let draftIndex = messages[m].drafts.count - 1 - index
             let title = Self.tidyTitle(name)
@@ -1235,7 +1235,7 @@ struct GhafAIView: View {
             } catch GhafCloudAI.Failure.dailyLimit {
                 handleDailyLimit()
             } catch {
-                let note = ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment."
+                let note = ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment."
                 messages.append(GhafChatMessage(isUser: false, text: note))
                 if isVoice || speakReplies { playVoiceError() }
             }
@@ -1408,7 +1408,7 @@ struct GhafAIView: View {
             startVoice()
         } catch {
             tabRouter.isListening = false
-            appendCallNote(ar ? "تعذّر الرد الآن. جرّب بعد شوي." : "Sorry, I can't answer right now. Try again in a moment.")
+            appendCallNote(ar ? "تعذّر الرد الآن. حاول مرة أخرى لاحقاً." : "Sorry, I can't answer right now. Try again in a moment.")
             playVoiceError()
         }
     }

@@ -487,7 +487,7 @@ struct GhafSettingsView: View {
         case .balanced: ar ? "هادي ومتّزن، تعطي كل شي حقّه بدون مبالغة." : "Calm and even-handed, you give everything its fair share."
         case .highRentCity: ar ? "تخطّط قبل لا تصرف، وكل درهم يعرف مكانه." : "You plan before you spend, and every dirham knows its place."
         case .essentialsFirst: ar ? "تحب التجربة وتعيش يومك، والادخار يمشي معك على مهله." : "You enjoy trying new things, and saving keeps pace at its own speed."
-        case .guardian: ar ? "حذر وثابت، تحمي الأساسيات قبل أي شي ثاني." : "Careful and steady, you protect the basics before anything else."
+        case .guardian: ar ? "حذر وثابت، تحمي الأساسيات قبل أي شيء آخر." : "Careful and steady, you protect the basics before anything else."
         }
     }
 
@@ -1236,7 +1236,7 @@ HStack(spacing: 8) {
 
     private var budgetCard: some View {
         settingsCard(ar ? "الميزانية" : "Budget",
-                     subtitle: ar ? "الميزانية هي المبلغ الذي تخطط أن تصرفه. يقارن غاف صرفك الفعلي بها ويخبرك إن كنت مرتاحاً أو قريباً من الحد أو تجاوزته."
+                     subtitle: ar ? "الميزانية هي المبلغ الذي تخطط لإنفاقه. يقارن غاف إنفاقك الفعلي بها، ويوضح لك إن كنت ضمن الحد أو قريباً منه أو متجاوزاً له."
                                   : "A budget is how much you plan to spend. Ghaf compares what you actually spend with it and tells you if you're comfortable, close or over.") {
             HStack(spacing: 10) {
                 budgetChoice("Daily", ar ? "حد يومي" : "Daily limit",

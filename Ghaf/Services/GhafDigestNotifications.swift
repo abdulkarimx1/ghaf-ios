@@ -61,8 +61,8 @@ enum GhafDigestNotifications {
             let total = spent(today)
             let count = transactions.filter { $0.isExpense && today.contains($0.date) }.count
             schedule(ids[1], ar ? "ملخص اليوم" : "Today in Ghaf",
-                     total > 0 ? (ar ? "صرفت \(money(total)) في \(count) عملية اليوم." : "You spent \(money(total)) across \(count) transactions today.")
-                               : (ar ? "لم تسجّل أي مصروف اليوم." : "No spending recorded today."),
+                     total > 0 ? (ar ? "أنفقت \(money(total)) في \(count) معاملات اليوم." : "You spent \(money(total)) across \(count) transactions today.")
+                               : (ar ? "لم تسجّل أي مصروفات اليوم." : "No spending recorded today."),
                      next(hour: 21))
         }
         if isOn(morningKey) {
@@ -72,8 +72,8 @@ enum GhafDigestNotifications {
             let yesterday = calendar.dateInterval(of: .day, for: calendar.date(byAdding: .day, value: -1, to: fireDay)!)!
             let total = spent(yesterday)
             schedule(ids[0], ar ? "صباح الخير" : "Good morning",
-                     total > 0 ? (ar ? "صرفت أمس \(money(total))." : "Yesterday you spent \(money(total)).")
-                               : (ar ? "لم تصرف شيئاً أمس." : "Nothing spent yesterday."),
+                     total > 0 ? (ar ? "أنفقت أمس \(money(total))." : "Yesterday you spent \(money(total)).")
+                               : (ar ? "لم تنفق شيئاً أمس." : "Nothing spent yesterday."),
                      morning)
         }
         if isOn(weeklyKey) {
@@ -84,7 +84,7 @@ enum GhafDigestNotifications {
                                         end: calendar.startOfDay(for: fireDay))
             let before = DateInterval(start: calendar.date(byAdding: .day, value: -7, to: lastWeek.start)!, end: lastWeek.start)
             let total = spent(lastWeek), previous = spent(before)
-            var body = ar ? "صرفت الأسبوع الماضي \(money(total))." : "Last week you spent \(money(total))."
+            var body = ar ? "أنفقت الأسبوع الماضي \(money(total))." : "Last week you spent \(money(total))."
             if previous > 0 {
                 body += total > previous ? (ar ? " أكثر من الأسبوع الذي قبله (\(money(previous)))." : " More than the week before (\(money(previous)))." )
                                          : (ar ? " أقل من الأسبوع الذي قبله (\(money(previous)))." : " Less than the week before (\(money(previous))).")
