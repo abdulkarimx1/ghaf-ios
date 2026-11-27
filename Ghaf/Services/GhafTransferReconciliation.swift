@@ -33,6 +33,7 @@ enum GhafTransferReconciliation {
                 isReversal: item.isReversal,
                 hasTransferEvidence: item.category != "Adjustment" && (transferCategory || unlabelledTransfer
                     || item.category == "Transfers" || item.category == "Utilities" && CategoryMatcher.normalize(item.subcategory ?? "") == "transfer")
+            )
         }
         let existing = Set(transactions.compactMap(\.transferPairKey))
         let pairs = AccountTransferMatcher.pairs(in: candidates, alreadyPaired: existing)
