@@ -514,7 +514,6 @@ struct GhafHomeView: View {
         .ghafGlassHero(theme: theme, radius: 28)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
-            GhafSounds.shared.play(.tick)
             withAnimation(.snappy(duration: 0.25)) { activityPeriodIndex = (activityPeriodIndex + 1) % 3 }
         }
         .accessibilityElement(children: .contain)
