@@ -315,6 +315,13 @@ struct GhafStatsView: View {
                     selectedLabel = chartKey(calendar.startOfDay(for: date))
                     if period == .month { scrubbedMonthDay = calendar.startOfDay(for: date) }
                 }
+                if GhafScreenshotFixture.selection == "forecast" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if let future = preparedStats.buckets.first(where: { $0.start > GhafClock.now && $0.forecast != nil }) {
+                            selectedLabel = chartKey(future.start)
+                        }
+                    }
+                }
                 if GhafScreenshotFixture.selection == "category" { selectedCategory = "Dining" }
                 if GhafScreenshotFixture.autoSelect && !fixtureBudget { runAutoSelection(scrollProxy: scrollProxy) }
                 if GhafScreenshotFixture.selection == "category" {
@@ -431,9 +438,12 @@ struct GhafStatsView: View {
             return plotted[max(0, first - 1)...].map { ($0, $0.total + ($0.forecast ?? 0)) }
         }()
         let selected = selectedLabel.flatMap { key in plotted.first { chartKey($0.start) == key } }
+        let selectedBucketAmount = { (bucket: Bucket) in
+            bucket.start <= GhafClock.now ? bucket.total : bucket.total + (bucket.forecast ?? 0)
+        }
         let spent = total(current)
         let scrubbedDayAmount = scrubbedMonthDay.map { total(dailyTrendTransactions(on: $0, current: current)) }
-        let selectedAmount = scrubbedDayAmount ?? selected.map { $0.total + ($0.forecast ?? 0) } ?? spent
+        let selectedAmount = scrubbedDayAmount ?? selected.map(selectedBucketAmount) ?? spent
         let selectedDate = scrubbedMonthDay ?? selected?.start
         let before = total(previous)
         let change = before > 0 ? (spent - before) / before : nil
@@ -500,7 +510,7 @@ struct GhafStatsView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
                     // Owner: the pill keeps one height (top of the chart) and only slides sideways.
                     .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                        selectionBubble(amount: bucket.total + (bucket.forecast ?? 0), date: bucket.start).opacity(isSelected ? 1 : 0)
+                        selectionBubble(amount: selectedBucketAmount(bucket), date: bucket.start).opacity(isSelected ? 1 : 0)
                     }
                     .opacity(isSelected ? 1 : 0)
                 if bucket.start <= GhafClock.now {
@@ -540,7 +550,7 @@ struct GhafStatsView: View {
                         .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [5, 4]))
                         .accessibilityLabel(ar ? "توقع · \(bucketLabel(bucket.start))" : "Forecast · \(bucketLabel(bucket.start))")
                         .accessibilityValue(GhafFormat.shownMoney(Decimal(amount), currency: currency, languageCode: lang))
-                    if bucket.forecast != nil, selected?.id == bucket.id {
+                    if bucket.start > GhafClock.now, bucket.forecast != nil, selected?.id == bucket.id {
                         PointMark(x: .value("Date", chartKey(bucket.start)), y: .value(currency, amount))
                             .symbol { Circle().fill(accent).frame(width: 10, height: 10).overlay(Circle().stroke(theme.surface, lineWidth: 2)) }
                     }
@@ -601,7 +611,7 @@ struct GhafStatsView: View {
                         Button {
                             tapTrendBucket(chartKey(bucket.start))
                         } label: { Text(bucketLabel(bucket.start)) }
-                            .accessibilityValue(GhafFormat.shownMoney(Decimal(bucket.total + (bucket.forecast ?? 0)), currency: currency, languageCode: lang))
+                            .accessibilityValue(GhafFormat.shownMoney(Decimal(selectedBucketAmount(bucket)), currency: currency, languageCode: lang))
                             .accessibilityAddTraits(selected?.id == bucket.id ? .isSelected : [])
                     }
                 }
@@ -664,7 +674,7 @@ struct GhafStatsView: View {
                         context.stroke(path, with: .color(accent.opacity(theme.isDark ? 0.55 : 0.45)), style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
                     }
                     .frame(width: 16, height: 8)
-                    Text(ar ? "توقع · بناءً على آخر ٩٠ يوماً" : "Forecast · based on your last 90 days")
+                    Text(ar ? "متوقع · بناءً على آخر ٩٠ يوماً" : "Forecast · based on your last 90 days")
                         .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                 }
                 .frame(maxWidth: .infinity, minHeight: 18, alignment: .center)
