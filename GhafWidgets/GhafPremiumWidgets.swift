@@ -97,10 +97,10 @@ struct GhafQuickAddWidget: Widget {
 struct GhafAskWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "GhafAsk", provider: PremiumProvider()) { entry in
-            PremiumTile(entry: entry, title: "Ask Ghaf", symbol: "mic.fill", url: URL(string: "ghaf://ai/voice")!)
+            PremiumTile(entry: entry, title: "Ask Ghaf", symbol: "mic.fill", url: URL(string: "ghaf://ai/type")!)
         }
         .configurationDisplayName("Ask Ghaf")
-        .description("Open Ghaf AI in voice mode.")
+        .description("Open Ghaf AI ready to type.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
