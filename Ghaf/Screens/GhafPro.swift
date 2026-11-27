@@ -103,7 +103,7 @@ struct GhafProView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
                     // Owner 1.31: the headline is a subscribe call to action.
-                    Text(ar ? "اشترك في غاف Pro" : "Subscribe to Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
+                    Text(ar ? "اشترك في غاف برو" : "Subscribe to Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
                         .multilineTextAlignment(.center)
                     Text(ar ? "اشترك لتستمتع بغاف AI والإدخال الصوتي والإحصائيات المتقدمة وكل الودجات."
                             : "Subscribe to enjoy Ghaf AI, voice entry, advanced statistics and every widget.")
@@ -126,13 +126,13 @@ struct GhafProView: View {
                     VStack(spacing: 10) {
                         Label(ar ? "هدية قبل الرحيل" : "A gift before you go", systemImage: "gift.fill")
                             .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
-                        Text(ar ? "خصم ٢٥٪ لمرة واحدة على Ghaf Pro" : "One-time 25% off Ghaf Pro")
+                        Text(ar ? "خصم 25٪ لمرة واحدة على غاف برو" : "One-time 25% off Ghaf Pro")
                             .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText)
                         Button(ar ? "استرداد العرض" : "Claim offer") { redeeming = true }
                             .ghafProminentButton(theme: theme, languageCode: lang)
                             .disabled(!GhafFeatureFlags.appStoreAccount)
                             .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
-                        Text(ar ? "يتوفر عند إطلاق غاف في App Store." : "Available when Ghaf is on the App Store.")
+                        Text(ar ? "يتوفر عند إطلاق غاف في متجر التطبيقات." : "Available when Ghaf is on the App Store.")
                             .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
                             .multilineTextAlignment(.center)
                     }
@@ -150,8 +150,8 @@ struct GhafProView: View {
                 purchaseControls
                 // Apple 3.1.2: renewal terms on the paywall itself, next to the price.
                 VStack(spacing: 1) {
-                    Text(ar ? "يتجدد تلقائيًا بالسعر نفسه؛ ألغِ قبل نهاية الفترة بـ٢٤ ساعة على الأقل." : "Auto-renews at the same price; cancel at least 24 hours before the period ends.")
-                    Text(ar ? "يمكنك الإلغاء في أي وقت من إعدادات حساب Apple." : "Cancel anytime in your Apple Account settings.")
+                    Text(ar ? "يتجدد تلقائيًا بالسعر نفسه؛ ألغِ قبل نهاية الفترة بـ 24 ساعة على الأقل." : "Auto-renews at the same price; cancel at least 24 hours before the period ends.")
+                    Text(ar ? "يمكنك الإلغاء في أي وقت من إعدادات حساب آبل." : "Cancel anytime in your Apple Account settings.")
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
@@ -229,7 +229,7 @@ struct GhafProView: View {
                 } catch { notice = error.localizedDescription }
             }
         } label: {
-            Text(GhafProAccess.hasAccessCode ? (ar ? "Pro فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+            Text(GhafProAccess.hasAccessCode ? (ar ? "غاف برو فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراك غاف برو فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
             .ghafLightSweep(GhafFeatureFlags.appStoreAccount && !active && !busy)
             .disabled(!GhafFeatureFlags.appStoreAccount || active || busy || selected == nil || isLoadingProducts)
@@ -287,7 +287,7 @@ struct GhafProView: View {
     @ViewBuilder private var accessCodeControls: some View {
         if GhafProAccess.hasAccessCode {
             HStack {
-                Text(ar ? "Pro فعّال (رمز)" : "Pro active (code)")
+                Text(ar ? "غاف برو فعّال (رمز)" : "Pro active (code)")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.accent)
                 Spacer()
                 Button(ar ? "إزالة الرمز" : "Remove code") {
@@ -320,7 +320,7 @@ struct GhafProView: View {
                             accessCode = ""
                             codeEntryVisible = false
                             accessRevision += 1
-                            notice = ar ? "تم تفعيل Pro باستخدام الرمز" : "Pro active (code)"
+                            notice = ar ? "تم تفعيل غاف برو باستخدام الرمز" : "Pro active (code)"
                         case .invalid:
                             notice = ar ? "الرمز غير صالح أو انتهت محاولات اليوم" : "That code is invalid, or today's attempts are used"
                         case .unavailable:
@@ -405,7 +405,7 @@ struct GhafProView: View {
 /// Why Ghaf asks for money, in the voice of the person who makes it. Shown on the Pro page.
 enum GhafWhyPaidView {
     static func message(ar: Bool) -> String {
-        ar ? "أريد أن تكون تجربة غاف هادئة وسلسة للجميع. لن تظهر فيه إعلانات أبداً. يساعد Ghaf Pro على إبقاء غاف مستقلاً ودعم تطويره. وسيظل الإصدار المجاني مفيداً."
+        ar ? "أريد أن تكون تجربة غاف هادئة وسلسة للجميع. لن تظهر فيها إعلانات أبداً. يساعد غاف برو على إبقاء غاف مستقلاً ودعم تطويره. وسيظل الإصدار المجاني مفيداً."
            : "I want Ghaf to feel calm and easy for everyone. There will never be ads. Ghaf Pro keeps Ghaf independent and supports its development. The free version will remain useful."
     }
 }

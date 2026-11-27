@@ -387,7 +387,7 @@ struct GhafHomeView: View {
                 Text(greeting)
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
-                Text(settings.userName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.userName)
+                Text(settings.displayName.isEmpty ? (ar ? "غاف" : "Ghaf") : settings.displayName)
                     .font(GhafTypography.display(32, languageCode: lang))
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1).minimumScaleFactor(0.7)

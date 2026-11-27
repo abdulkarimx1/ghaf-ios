@@ -1089,6 +1089,7 @@ struct GhafOnboardingView: View {
     @State private var languageCode = "en"
     @State private var showAutomationGuide = false
     @State private var name = ""
+    @State private var arabicName = ""
     @State private var userSex = "unspecified"
     @State private var currency = "AED"
     @State private var income = ""
@@ -1122,6 +1123,7 @@ struct GhafOnboardingView: View {
         self.settings = settings
         _languageCode = State(initialValue: settings.languageCode)
         _name = State(initialValue: settings.userName)
+        _arabicName = State(initialValue: settings.arabicName)
         _currency = State(initialValue: settings.currency)
         _income = State(initialValue: "")
         _commitments = State(initialValue: "")
@@ -1208,6 +1210,12 @@ struct GhafOnboardingView: View {
                     .onSubmit { advance() }
                     .padding(.vertical, 6)
                     .overlay(alignment: .bottom) { Rectangle().fill(theme.ink).frame(height: 2) }
+                TextField(languageCode == "ar" ? "الاسم بالعربية (اختياري)" : "Name in Arabic (optional)", text: $arabicName)
+                    .font(GhafTypography.body(17, languageCode: "ar"))
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
+                    .padding(.vertical, 6)
+                    .overlay(alignment: .bottom) { Rectangle().fill(theme.ink.opacity(0.55)).frame(height: 1) }
             }
         case Step.address:
             setup(safeTop, .address, title: copy.qAddress, past: pastRows(upTo: Step.address), why: copy.addressWhy, button: copy.next) {
@@ -1525,6 +1533,7 @@ struct GhafOnboardingView: View {
             return
         }
         settings.userName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.arabicName = arabicName.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.userSex = userSex
         GhafCloudVoice.matchVoice(toSex: userSex)
         settings.currency = currency

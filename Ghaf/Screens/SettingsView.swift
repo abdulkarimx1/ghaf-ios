@@ -135,7 +135,7 @@ struct GhafSettingsView: View {
                     if proUnlocked {
                         HStack(spacing: 12) {
                             Image(systemName: "sparkles").foregroundStyle(theme.accent)
-                            Text(ar ? "أنت مشترك في Pro" : "You're on Pro")
+                            Text(ar ? "أنت مشترك في غاف برو" : "You're on Pro")
                                 .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                             Spacer()
                         }
