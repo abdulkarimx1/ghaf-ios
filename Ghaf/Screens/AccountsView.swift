@@ -8,6 +8,7 @@ struct GhafAccountsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
     @Query private var transactions: [GhafTransaction]
+    @State private var saveFailed = false
 
     let settings: GhafSettings
     var zoomNamespace: Namespace.ID? = nil
@@ -43,6 +44,9 @@ struct GhafAccountsView: View {
             NavigationStack {
                 GhafAccountEditorView(account: target.account, settings: settings)
             }.ghafDirection(settings.languageCode)
+        }
+        .alert(settings.languageCode == "ar" ? "تعذّر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again.", isPresented: $saveFailed) {
+            Button(settings.languageCode == "ar" ? "حسنًا" : "OK", role: .cancel) { }
         }
         .modifier(WalletZoomDestination(namespace: zoomNamespace))
     }
@@ -101,7 +105,11 @@ struct GhafAccountsView: View {
         let previousOrder = account.sortOrder
         account.sortOrder = destination.sortOrder
         destination.sortOrder = previousOrder
-        try? modelContext.save()
+        do { try modelContext.save() }
+        catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 
     private var emptyState: some View {
@@ -176,6 +184,7 @@ struct GhafAccountEditorView: View {
     @State private var lastFourDigits = ""
     @State private var isPrimary = false
     @State private var errorMessage = false
+    @State private var saveFailed = false
     @State private var showArchiveConfirmation = false
     @State private var cardDesign: GhafCardDesign?
     /// The plain face, chosen on purpose; otherwise a designed card or note is always shown.
@@ -281,6 +290,12 @@ struct GhafAccountEditorView: View {
 
                 if errorMessage {
                     Label(ar ? "تحقق من اسم الحساب والرصيد." : "Check the account name and balance.", systemImage: "exclamationmark.circle.fill")
+                        .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(theme.over)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if saveFailed {
+                    Label(ar ? "تعذّر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again.", systemImage: "exclamationmark.circle.fill")
                         .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.over)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -598,7 +613,8 @@ struct GhafAccountEditorView: View {
                 dismiss()
             }
         } catch {
-            errorMessage = true
+            modelContext.rollback()
+            saveFailed = true
         }
     }
 
@@ -611,8 +627,13 @@ struct GhafAccountEditorView: View {
         if account.isPrimary {
             accounts.first(where: { $0.id != account.id && !$0.isArchived })?.isPrimary = true
         }
-        try? modelContext.save()
-        dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 }
 

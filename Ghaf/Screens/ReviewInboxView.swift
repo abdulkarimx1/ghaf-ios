@@ -26,6 +26,7 @@ struct GhafReviewInboxView: View {
     @State private var alerts = GhafEventNotifications.events
     @State private var confirmed = 0
     @State private var movedSimilar: [UUID: Int] = [:]
+    @State private var saveFailed = false
 
     let settings: GhafSettings
     var initialTargetID: String? = nil
@@ -108,6 +109,9 @@ struct GhafReviewInboxView: View {
             }
             .sheet(isPresented: $showSubscriptions) {
                 GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(lang)
+            }
+            .alert(ar ? "تعذّر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again.", isPresented: $saveFailed) {
+                Button(ar ? "حسنًا" : "OK", role: .cancel) { }
             }
         }
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
@@ -247,7 +251,7 @@ struct GhafReviewInboxView: View {
                                 if moved > 0 { movedSimilar[transaction.id] = moved }
                                 GhafAccountMappings.confirm(transactionID: transaction.id, bank: bank, sender: nil, accountRef: nil, accountID: item.id)
                             }
-                            try? modelContext.save()
+                            saveChanges()
                         }
                     }
                 } label: {
@@ -262,7 +266,7 @@ struct GhafReviewInboxView: View {
                         Button(GhafLocalization.category(category, languageCode: lang)) {
                             transaction.category = category
                             transaction.subcategory = nil
-                            try? modelContext.save()
+                            saveChanges()
                         }
                     }
                 } label: {
@@ -282,7 +286,7 @@ struct GhafReviewInboxView: View {
                 Button {
                     withAnimation(.easeOut(duration: 0.25)) {
                         transaction.needsReview = false
-                        try? modelContext.save()
+                        saveChanges()
                     }
                     confirmed += 1
                 } label: {
@@ -307,6 +311,14 @@ struct GhafReviewInboxView: View {
         }
         .padding(16)
         .ghafCard(theme: theme)
+    }
+
+    private func saveChanges() {
+        do { try modelContext.save() }
+        catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 
     private func menuValue(_ value: String, missing: Bool) -> some View {

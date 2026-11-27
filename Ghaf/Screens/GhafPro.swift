@@ -67,6 +67,9 @@ struct GhafProView: View {
     private let monthlyID = "com.ghaf.app.pro.monthly"
     private let yearlyID = "com.ghaf.app.pro.yearly"
     @State private var products: [Product] = []
+    @State private var isLoadingProducts = false
+    @State private var productLoadFailed = false
+    @State private var introOfferEligibility: [String: Bool] = [:]
     @State private var busy = false
     @State private var redeeming = false
     @AppStorage("ghaf.pro.offerHighlight") private var offerHighlight = false
@@ -229,7 +232,7 @@ struct GhafProView: View {
             Text(GhafProAccess.hasAccessCode ? (ar ? "Pro فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراكك فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
             .ghafLightSweep(GhafFeatureFlags.appStoreAccount && !active && !busy)
-            .disabled(!GhafFeatureFlags.appStoreAccount || active || busy)
+            .disabled(!GhafFeatureFlags.appStoreAccount || active || busy || selected == nil || isLoadingProducts)
         accessCodeControls
         do {
             Button(ar ? "استعادة المشتريات" : "Restore purchases") {
@@ -250,10 +253,30 @@ struct GhafProView: View {
     }
 
     private func loadProducts() async {
+        isLoadingProducts = true
+        productLoadFailed = false
+        defer { isLoadingProducts = false }
         do {
             products = try await Product.products(for: [monthlyID, yearlyID])
-            notice = products.isEmpty ? (ar ? "الأسعار غير متاحة" : "Prices are unavailable") : nil
-        } catch { notice = error.localizedDescription }
+            if products.isEmpty {
+                productLoadFailed = true
+                notice = ar ? "الأسعار غير متاحة" : "Prices are unavailable"
+                introOfferEligibility = [:]
+                return
+            }
+            var eligibility: [String: Bool] = [:]
+            for product in products {
+                guard let subscription = product.subscription, subscription.introductoryOffer != nil else { continue }
+                eligibility[product.id] = await subscription.isEligibleForIntroOffer
+            }
+            introOfferEligibility = eligibility
+            notice = nil
+        } catch {
+            products = []
+            introOfferEligibility = [:]
+            productLoadFailed = true
+            notice = error.localizedDescription
+        }
     }
 
     private func refreshEntitlements() async {
@@ -320,7 +343,9 @@ struct GhafProView: View {
     }
 
     private func planRow(annual: Bool) -> some View {
-        Button { yearly = annual } label: {
+        let product = products.first(where: { $0.id == (annual ? yearlyID : monthlyID) })
+        let offer = product?.subscription?.introductoryOffer
+        return Button { yearly = annual } label: {
             HStack(spacing: 12) {
                 Image(systemName: yearly == annual ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20, weight: .medium)).foregroundStyle(yearly == annual ? theme.accent : theme.secondaryText)
@@ -331,13 +356,16 @@ struct GhafProView: View {
                         .font(GhafTypography.body(10, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
                     Text(allowance(annual: annual))
                         .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
-                    Text(ar ? "تجربة مجانية لمدة ٣ أيام" : "3-day free trial")
-                        .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
+                    if let product, let offer, introOfferEligibility[product.id] == true {
+                        Text(trialText(offer.period))
+                            .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
+                    }
                 }
                 Spacer(minLength: 2)
                 VStack(alignment: .trailing, spacing: 3) {
-                    if let product = products.first(where: { $0.id == (annual ? yearlyID : monthlyID) }) { Text(product.displayPrice) }
-                    else { Text(annual ? (ar ? "‏79.99 د.إ" : "AED 79.99") : (ar ? "‏9.99 د.إ" : "AED 9.99")).foregroundStyle(theme.secondaryText) }
+                    if let product { Text(product.displayPrice) }
+                    else if isLoadingProducts || (!productLoadFailed && GhafFeatureFlags.appStoreAccount) { ProgressView().controlSize(.small) }
+                    else { Text(ar ? "غير متاح" : "Unavailable").foregroundStyle(theme.secondaryText) }
                 }
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
             }
@@ -356,6 +384,20 @@ struct GhafProView: View {
                 }
             }
         }.buttonStyle(.plain).accessibilityAddTraits(yearly == annual ? .isSelected : [])
+    }
+
+    private func trialText(_ period: Product.SubscriptionPeriod) -> String {
+        let count = period.value
+        let localizedCount = count.formatted(.number.locale(Locale(identifier: lang)))
+        let unit: (String, String)
+        switch period.unit {
+        case .day: unit = ("day", count == 1 ? "يوم واحد" : count == 2 ? "يومين" : "أيام")
+        case .week: unit = ("week", count == 1 ? "أسبوع واحد" : count == 2 ? "أسبوعين" : "أسابيع")
+        case .month: unit = ("month", count == 1 ? "شهر واحد" : count == 2 ? "شهرين" : "أشهر")
+        case .year: unit = ("year", count == 1 ? "سنة واحدة" : count == 2 ? "سنتين" : "سنوات")
+        @unknown default: unit = ("period", "فترة")
+        }
+        return ar ? "تجربة مجانية لمدة \(localizedCount) \(unit.1)" : "\(count)-\(unit.0) free trial"
     }
 }
 

@@ -146,10 +146,16 @@ struct GhafImportSheet: View {
     }
 
     /// A restored Ghaf backup is a set-up app: never drop the user back into first-run onboarding.
-    private func markSetUp() {
-        guard let restored = try? context.fetch(FetchDescriptor<GhafSettings>()).first else { return }
+    private func markSetUp() -> Bool {
+        guard let restored = try? context.fetch(FetchDescriptor<GhafSettings>()).first else { return true }
         restored.hasCompletedOnboarding = true
-        try? context.save()
+        do { try context.save(); return true }
+        catch {
+            context.rollback()
+            isFailure = true
+            message = ar ? "تعذّر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."
+            return false
+        }
     }
 
     private func handlePick(_ result: Result<[URL], Error>) {
@@ -166,7 +172,7 @@ struct GhafImportSheet: View {
             switch kind {
             case .ghaf:
                 let result = try GhafBackupService.restore(from: localFile, context: context)
-                markSetUp()
+                guard markSetUp() else { return }
                 message = ar
                     ? "اكتمل الاستيراد · الحسابات: \(result.accountsImported) · المعاملات: \(result.transactionsImported) · الاشتراكات: \(result.subscriptionsImported) · بلا حساب: \(result.recordsWithoutAccounts)"
                     : "Import complete · Accounts: \(result.accountsImported) · Transactions: \(result.transactionsImported) · Subscriptions: \(result.subscriptionsImported) · Unassigned: \(result.recordsWithoutAccounts)"
@@ -229,7 +235,11 @@ struct GhafImportSheet: View {
             let result = try GhafFileImport.commit(preview, createAccounts: true, context: context)
             self.preview = nil; isFailure = false
             message = ar ? "تم استيراد \(result.imported) معاملة، وتخطي \(result.duplicates) مكررة." : "Imported \(result.imported) transactions. \(result.duplicates) duplicates skipped."
-        } catch { isFailure = true; message = ar ? "تعذّر حفظ الاستيراد. لم تُحفظ التغييرات." : error.localizedDescription }
+        } catch {
+            context.rollback()
+            isFailure = true
+            message = ar ? "تعذّر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again."
+        }
     }
     private func compose(_ url: URL) { guard canEmailDeveloper else { return }; showMail = true }
 }
