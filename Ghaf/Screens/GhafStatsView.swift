@@ -98,9 +98,13 @@ struct GhafStatsView: View {
         var immediate = Transaction()
         immediate.disablesAnimations = true
         withTransaction(immediate) { chartDrawProgress = 0 }
+        guard !reduceMotion else {
+            withTransaction(immediate) { chartDrawProgress = 1 }
+            return
+        }
         Task { @MainActor in
             await Task.yield()
-            withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .easeOut(duration: 0.6)) {
+            withAnimation(.easeInOut(duration: 0.7)) {
                 chartDrawProgress = 1
             }
         }
@@ -636,14 +640,15 @@ struct GhafStatsView: View {
                 }
             }
             .frame(height: 200)
-            .mask(alignment: .leading) {
+            .mask {
                 if reduceMotion {
                     Rectangle()
                 } else {
                     GeometryReader { geometry in
                         HStack(spacing: 0) {
+                            if ar { Spacer(minLength: 0) }
                             Rectangle().frame(width: geometry.size.width * chartDrawProgress)
-                            Spacer(minLength: 0)
+                            if !ar { Spacer(minLength: 0) }
                         }
                         .frame(width: geometry.size.width, height: geometry.size.height)
                     }
