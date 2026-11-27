@@ -425,31 +425,30 @@ struct GhafSettingsView: View {
 
     private var photoActionsSheet: some View {
         VStack(spacing: 10) {
-            Capsule().fill(theme.secondaryText.opacity(0.35)).frame(width: 36, height: 5).padding(.top, 8)
             Text(ar ? "صورة الملف الشخصي" : "Profile photo")
                 .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                 .padding(.bottom, 2)
             PhotosPicker(selection: $photoItem, matching: .images) {
                 Label(ar ? "اختيار صورة" : "Choose photo", systemImage: "photo")
-                    .frame(maxWidth: .infinity, minHeight: 48)
-            }.buttonStyle(.ghafPress).ghafCard(theme: theme)
+                    .frame(maxWidth: .infinity)
+            }.ghafProminentButton(theme: theme, languageCode: languageCode)
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                 Button { showPhotoMenu = false; showCameraPicker = true } label: {
                     Label(ar ? "التقاط صورة" : "Take photo", systemImage: "camera")
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                }.buttonStyle(.ghafPress).ghafCard(theme: theme)
+                        .frame(maxWidth: .infinity)
+                }.ghafProminentButton(theme: theme, languageCode: languageCode)
             }
             if hasPhoto {
                 Button(role: .destructive) {
                     GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil; showPhotoMenu = false
                 } label: {
                     Label(ar ? "إزالة الصورة" : "Remove photo", systemImage: "trash")
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                }.buttonStyle(.ghafPress).ghafCard(theme: theme)
+                        .frame(maxWidth: .infinity)
+                }.ghafDestructiveButton(theme: theme, languageCode: languageCode)
             }
             Button(ar ? "إلغاء" : "Cancel") { showPhotoMenu = false }
-                .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
-                .foregroundStyle(theme.accent).frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity)
+                .ghafGlassButton(theme: theme, languageCode: languageCode)
         }
         .padding(.horizontal, 20).padding(.bottom, 20)
         .ghafBottomCard(theme: theme, languageCode: languageCode)
@@ -738,6 +737,13 @@ struct GhafSettingsView: View {
             .frame(maxWidth: .infinity)
             .sheet(isPresented: $showPhotoMenu) { photoActionsSheet }
             .sheet(isPresented: $showBudgetCharacterInfo) { budgetCharacterSheet }
+#if DEBUG
+            .onAppear {
+                guard GhafScreenshotFixture.enabled else { return }
+                if GhafScreenshotFixture.selection == "photo-actions" { showPhotoMenu = true }
+                if GhafScreenshotFixture.selection == "character-sheet" { showBudgetCharacterInfo = true }
+            }
+#endif
             .onDisappear(perform: discardProfileName)
 
             HStack(spacing: 8) {
