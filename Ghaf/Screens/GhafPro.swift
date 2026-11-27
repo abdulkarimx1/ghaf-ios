@@ -433,12 +433,13 @@ struct GhafTermsView: View {
                             Text("\(index + 1).\u{00a0}").font(.system(size: 16, weight: .bold))
                             Text(section.0).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                         }.foregroundStyle(theme.primaryText)
-                            .frame(maxWidth: .infinity, alignment: ar ? .trailing : .leading)
+                        // `leading` resolves to the visual right in Arabic RTL.
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         legalParagraph(section.1)
                             .foregroundStyle(theme.secondaryText)
                             .lineSpacing(3)
                             .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
-                            .multilineTextAlignment(ar ? .trailing : .leading)
+                            .multilineTextAlignment(.leading)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
