@@ -35,7 +35,11 @@ struct GhafAccountsView: View {
     var body: some View {
         // One pass over transactions for every account, not one per row.
         let balances = GhafAccountBalanceCalculator.balances(accounts: accounts, transactions: transactions)
-        ScrollView { walletContent(balances) }
+        ViewThatFits(in: .vertical) {
+            walletContent(balances)
+            ScrollView { walletContent(balances) }
+                .scrollIndicators(.hidden)
+        }
         .ghafBackground(theme: theme)
         // Canvas header: "Wallet" in the bar's row, the hide-balances eye trailing.
         .ghafPageTitle(lang == "ar" ? "المحفظة" : "Wallet", languageCode: lang, theme: theme)

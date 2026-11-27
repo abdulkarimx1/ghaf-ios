@@ -39,7 +39,7 @@ struct GhafWalletStack: View {
     private var index: Int { accounts.firstIndex { $0.id == current?.id } ?? 0 }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 8) {
             totals
             if let account = current {
                 // "<card> balance" over a big number, like the canvas; the card itself stays clean.
