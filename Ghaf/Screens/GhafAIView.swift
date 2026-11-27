@@ -1061,7 +1061,7 @@ struct GhafAIView: View {
         case .cancel:
             guard pending else { return false }
             messages[m].draftState = .discarded
-            reply = ar ? "تمام، ما حفظت شيئاً." : "Okay, nothing saved."
+            reply = ar ? "حسناً، لم يُحفَظ أي شيء." : "Okay, nothing saved."
         case .remove(let index):
             let draftIndex = messages[m].drafts.count - 1 - index
             guard pending else {
