@@ -127,7 +127,7 @@ enum GhafFinanceFacts {
     static func fmt(_ value: Decimal, currency: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = GhafLocale.locale(identifier: "en_US_POSIX")
         formatter.minimumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         formatter.maximumFractionDigits = GhafCurrencyDigits.fractionDigits(for: currency)
         return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
@@ -352,9 +352,10 @@ enum GhafDraftSaver {
             if draft.category != "Other", let settings { settings.addCategory(draft.category, subcategory: draft.subcategory) }
             let direction = TransactionDirection(rawValue: draft.direction) ?? .debit
             let parsed = ParsedTransaction(amount: draft.amount, currency: draft.currency, merchant: draft.merchant.isEmpty ? nil : draft.merchant, date: draft.date, direction: direction, confidence: 0.82, bank: nil)
-            let category = draft.category == "Other"
+            let rawCategory = draft.category == "Other"
                 ? ((try? MerchantCategorizer.category(for: draft.merchant, direction: direction, context: context)) ?? "Other")
                 : draft.category
+            let category = CategoryTaxonomy.currentCategoryName(for: rawCategory, available: settings?.categories ?? CategoryTaxonomy.defaultNames)
             let preferred = accounts.first { $0.id == draft.accountID && !$0.isArchived && $0.currency == draft.currency }
                 ?? accounts.first { $0.id == preferredAccountID && !$0.isArchived && $0.currency == draft.currency }
             // Spoken and typed entries are usually cash: a cash wallet first, the primary account next.
