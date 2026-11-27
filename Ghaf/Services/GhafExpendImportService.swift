@@ -272,6 +272,7 @@ enum GhafExpendImportService {
                 if !existingNames.contains(CategoryMatcher.normalize(item.name)) { context.insert(item) }
             }
             try context.save()
+            _ = try? GhafTransferReconciliation.run(in: context)
             for item in try context.fetch(FetchDescriptor<GhafSubscription>()) where item.isActive {
                 GhafSubscriptionReminderService.schedule(item, language: languageCode)
             }

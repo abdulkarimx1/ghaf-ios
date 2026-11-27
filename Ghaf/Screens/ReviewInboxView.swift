@@ -239,6 +239,23 @@ struct GhafReviewInboxView: View {
                 }
             }
 
+            if transaction.category == "Transfers" && transaction.transferDecision == nil {
+                Text(ar ? "إلى حسابك أم إلى شخص آخر؟" : "Was this to your account or someone else?")
+                    .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
+                HStack(spacing: 10) {
+                    Button(ar ? "بين حساباتي" : "Between my accounts") {
+                        transaction.category = "Transfers"; transaction.subcategory = "Between my accounts"
+                        transaction.transferDecision = "own"; transaction.needsReview = false
+                        if saveChanges() { confirmed += 1 }
+                    }.ghafGlassButton(theme: theme, languageCode: lang)
+                    Button(ar ? "إلى شخص آخر" : "To someone else") {
+                        transaction.category = "Transfers"; transaction.subcategory = nil
+                        transaction.transferDecision = "external"; transaction.needsReview = false
+                        if saveChanges() { confirmed += 1 }
+                    }.ghafGlassButton(theme: theme, languageCode: lang)
+                }
+            }
+
             VStack(spacing: 0) {
                 Menu {
                     ForEach(activeAccounts) { item in

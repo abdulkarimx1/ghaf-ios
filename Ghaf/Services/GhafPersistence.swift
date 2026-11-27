@@ -11,12 +11,14 @@ enum GhafPersistence {
         if let sharedContainer {
             cleanMerchantDataIfNeeded(in: sharedContainer.mainContext)
             migrateLegacyCategories(in: sharedContainer.mainContext)
+            _ = try? GhafTransferReconciliation.run(in: sharedContainer.mainContext)
             return sharedContainer
         }
         let container = try makeContainer()
         sharedContainer = container
         cleanMerchantDataIfNeeded(in: container.mainContext)
         migrateLegacyCategories(in: container.mainContext)
+        _ = try? GhafTransferReconciliation.run(in: container.mainContext)
         return container
     }
 

@@ -108,6 +108,8 @@ private struct GhafTransactionBackup: Codable {
     var originalCurrency: String?
     var exchangeRate: Decimal?
     var exchangeRateDate: Date?
+    var transferPairKey: String?
+    var transferDecision: String?
 }
 
 private struct GhafMemoryBackup: Codable {
@@ -231,7 +233,9 @@ enum GhafBackupService {
                 originalAmount: transaction.originalAmount,
                 originalCurrency: transaction.originalCurrency,
                 exchangeRate: transaction.exchangeRate,
-                exchangeRateDate: transaction.exchangeRateDate
+                exchangeRateDate: transaction.exchangeRateDate,
+                transferPairKey: transaction.transferPairKey,
+                transferDecision: transaction.transferDecision
             )
         }
 
@@ -451,6 +455,8 @@ enum GhafBackupService {
             transaction.originalCurrency = item.originalCurrency
             transaction.exchangeRate = item.exchangeRate
             transaction.exchangeRateDate = item.exchangeRateDate
+            transaction.transferPairKey = item.transferPairKey
+            transaction.transferDecision = item.transferDecision
             context.insert(transaction)
         }
 
@@ -495,6 +501,7 @@ enum GhafBackupService {
             }, "Restored records still contain a dangling account reference")
 #endif
             try context.save()
+            _ = try? GhafTransferReconciliation.run(in: context)
         } catch {
             context.rollback()
             throw error

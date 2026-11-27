@@ -192,6 +192,7 @@ final class TransactionIngestionService {
 
         context.insert(transaction)
         try context.save()
+        _ = try? GhafTransferReconciliation.run(in: context)
         GhafAccountMappings.recordAlert(transactionID: transaction.id, bank: parsed.bank, sender: sender,
                                         accountRef: parsed.accountRef)
         // One notification per capture: a saved record gets the normal transaction banner with
@@ -204,7 +205,7 @@ final class TransactionIngestionService {
         // The Live Activity is started by the calling LiveActivityIntent, which iOS lets run in the background.
 
         let amountFormatter = NumberFormatter()
-        amountFormatter.locale = Locale(identifier: "en_US_POSIX")
+        amountFormatter.locale = GhafLocale.locale(identifier: "en_US_POSIX")
         amountFormatter.minimumFractionDigits = 2
         amountFormatter.maximumFractionDigits = 2
         amountFormatter.numberStyle = .decimal
