@@ -8,6 +8,13 @@ enum GhafLinks {
     static let website = URL(string: "https://example.com/")!
     static let feedback = URL(string: "mailto:?subject=Ghaf%20feedback")!
     static let appStore = URL(string: "https://apps.apple.com/")!
+    static func isPlaceholder(_ url: URL) -> Bool {
+        let host = url.host?.lowercased() ?? ""
+        let path = url.path.lowercased()
+        return path.count <= 1 || host == "example.com" || (host == "instagram.com" && path == "/instagram")
+            || (url.scheme?.lowercased() == "mailto" && path.isEmpty)
+    }
+    static func isPlaceholder(_ email: String) -> Bool { email.caseInsensitiveCompare("support@example.com") == .orderedSame }
 }
 
 /// Full-screen story pages: each page is a looping scene with its text and one action over it.
@@ -234,22 +241,31 @@ struct GhafAboutView: View {
             }
             .id("cta-\(active)")
             .transition(.opacity)
-            HStack(spacing: 10) {
-                pill(t("Rate", "قيّم"), "star.fill", GhafLinks.appStore)
-                pill(t("Feedback", "ملاحظات"), "bubble.left.fill", GhafLinks.feedback)
+            if !GhafLinks.isPlaceholder(GhafLinks.appStore) || !GhafLinks.isPlaceholder(GhafLinks.feedback) {
+                HStack(spacing: 10) {
+                    if !GhafLinks.isPlaceholder(GhafLinks.appStore) { pill(t("Rate", "قيّم"), "star.fill", GhafLinks.appStore) }
+                    if !GhafLinks.isPlaceholder(GhafLinks.feedback) { pill(t("Feedback", "ملاحظات"), "bubble.left.fill", GhafLinks.feedback) }
+                }
             }
-            HStack {
-                ShareLink(item: GhafLinks.appStore, message: Text(t("Try Ghaf to keep track of your money", "جرّب غاف لمتابعة أموالك"))) { circle("square.and.arrow.up") }
-                    .disabled(isPlaceholder(GhafLinks.appStore)).opacity(isPlaceholder(GhafLinks.appStore) ? 0.4 : 1)
-                    .accessibilityLabel(t("Share", "مشاركة"))
-                Spacer(minLength: 0)
-                social("Instagram", "camera.fill", GhafLinks.instagram); Spacer(minLength: 0)
-                social("X", "xmark", GhafLinks.x); Spacer(minLength: 0)
-                social("TikTok", "music.note", GhafLinks.tiktok); Spacer(minLength: 0)
-                social(t("Website", "الموقع"), "globe", GhafLinks.website)
+            let socialItems: [(String, String, URL)] = [
+                ("Instagram", "camera.fill", GhafLinks.instagram), ("X", "xmark", GhafLinks.x),
+                ("TikTok", "music.note", GhafLinks.tiktok), (t("Website", "الموقع"), "globe", GhafLinks.website)
+            ].filter { !GhafLinks.isPlaceholder($0.2) }
+            if !GhafLinks.isPlaceholder(GhafLinks.appStore) || !socialItems.isEmpty {
+                HStack(spacing: 0) {
+                    if !GhafLinks.isPlaceholder(GhafLinks.appStore) {
+                        ShareLink(item: GhafLinks.appStore, message: Text(t("Try Ghaf to keep track of your money", "جرّب غاف لمتابعة أموالك"))) { circle("square.and.arrow.up") }
+                            .accessibilityLabel(t("Share", "مشاركة"))
+                        if !socialItems.isEmpty { Spacer(minLength: 0) }
+                    }
+                    ForEach(Array(socialItems.enumerated()), id: \.offset) { index, item in
+                        if index > 0 { Spacer(minLength: 0) }
+                        social(item.0, item.1, item.2)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.top, 4)
             }
-            .padding(.horizontal, 6)
-            .padding(.top, 4)
         }
         .animation(reduceMotion ? .easeOut(duration: 0.2) : .easeOut(duration: 0.25), value: active)
         .buttonStyle(.ghafPress)
@@ -269,8 +285,6 @@ struct GhafAboutView: View {
         .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.85), value: active)
     }
 
-    private func isPlaceholder(_ url: URL) -> Bool { url.path.count <= 1 || url.host == "example.com" }
-
     private func circle(_ symbol: String) -> some View {
         Image(systemName: symbol).resizable().scaledToFit().frame(width: 19, height: 19).foregroundStyle(theme.inkText)
             .frame(width: 48, height: 48).background(Color.white.opacity(0.12), in: Circle())
@@ -278,12 +292,10 @@ struct GhafAboutView: View {
 
     private func social(_ name: String, _ symbol: String, _ url: URL) -> some View {
         Link(destination: url) { circle(symbol) }
-            .disabled(isPlaceholder(url)).opacity(isPlaceholder(url) ? 0.4 : 1)
             .accessibilityLabel(name)
     }
 
     private func pill(_ title: String, _ symbol: String, _ url: URL) -> some View {
-        // Until there is an App Store listing the link is a bare placeholder: shown, but inactive (owner rule).
         Link(destination: url) {
             HStack(spacing: 8) {
                 Image(systemName: symbol).resizable().scaledToFit().frame(width: 17, height: 17)
@@ -292,7 +304,6 @@ struct GhafAboutView: View {
             .foregroundStyle(theme.inkText).frame(maxWidth: .infinity, minHeight: 48)
             .background(Color.white.opacity(0.12), in: Capsule())
         }
-        .disabled(url == GhafLinks.appStore && isPlaceholder(url)).opacity(url == GhafLinks.appStore && isPlaceholder(url) ? 0.4 : 1)
     }
 }
 

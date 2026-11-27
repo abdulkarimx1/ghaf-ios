@@ -916,7 +916,7 @@ struct GhafTabView: View {
             router.selectedTab = 4
         case .announcement(let item):
             if let code = item.code { UIPasteboard.general.string = code }
-            else { UIApplication.shared.open(GhafLinks.appStore) }
+            else if !GhafLinks.isPlaceholder(GhafLinks.appStore) { UIApplication.shared.open(GhafLinks.appStore) }
         }
         dismissCard(card)
     }

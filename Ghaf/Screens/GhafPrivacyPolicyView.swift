@@ -55,8 +55,8 @@ struct GhafPrivacyPolicyView: View {
                 section(
                     isArabic ? "ذكاء غاف" : "Ghaf AI",
                     isArabic
-                    ? "ذكاء غاف هو الميزة الوحيدة التي ترسل بيانات خارج جهازك، وفقط عندما تسأله بالكتابة أو بالصوت. يُرسَل سؤالك وأقل قدر من التفاصيل المالية اللازمة للإجابة عبر خادم غاف إلى خدمة Gemini من Google لإنشاء الرد، بما في ذلك الردود الصوتية. لا يحفظ غاف هذا المحتوى ولا يطّلع عليه ولا يستخدمه لأي غرض آخر. تعالج Google الطلب وفق شروط واجهتها البرمجية."
-                    : "Ghaf AI is the only feature that sends data off your device, and only when you ask it something by text or voice. Your question and the minimum financial details needed to answer it travel through Ghaf's server to Google's Gemini service to create the reply, including spoken replies. Ghaf never stores, inspects or uses this content for anything else. Google processes the request under its API terms."
+                    ? "ذكاء غاف متوقف حتى تفعّله، ولا يرسل بيانات إلا عندما تسأله. عند الكتابة: يُرسَل سؤالك وآخر رسائل المحادثة وملخص المجاميع والحسابات وأبرز التجار والذكريات المحفوظة اللازمة للإجابة عبر خادم غاف إلى Gemini من Google أو Cloudflare Workers AI. لا تُرسَل قائمة العمليات ولا أرقام الحسابات. الردود المنطوقة: يُرسَل نص الرد عبر خادم غاف إلى Google لقراءته بصوت مسموع. المحادثة الصوتية: ينتقل صوتك من جهازك مباشرةً إلى خدمة Gemini Live من Google، ويكتفي خادم غاف بإصدار مفتاح دخول قصير الصلاحية. لا يحفظ غاف هذا المحتوى ولا يطّلع عليه. تعالجه Google وCloudflare وفق شروط واجهاتهما البرمجية، وبحسب الخطة التي يستخدمها غاف لديهما قد تحتفظان به لفترة محدودة، وقد تستخدمانه في الخطط المجانية لتحسين خدماتهما."
+                    : "Ghaf AI is off until you turn it on, and it sends data only when you ask it something. Typed questions: your question, recent messages in the chat and a summary of the totals, accounts, top merchants and saved memories needed to answer travel through Ghaf's server to Google Gemini or Cloudflare Workers AI. Your transaction list and account numbers aren't sent. Spoken replies: the reply text goes through Ghaf's server to Google to be read aloud. Voice conversations: your voice goes directly from your iPhone to Google's Gemini Live service; Ghaf's server only issues a short-lived access key. Ghaf doesn't store or read this content. Google and Cloudflare process it under their API terms; depending on the plan Ghaf uses with them, they may keep it for a limited time and, on free plans, use it to improve their services."
                 )
 
                 section(
@@ -69,15 +69,15 @@ struct GhafPrivacyPolicyView: View {
                 section(
                     isArabic ? "النسخ الاحتياطي والمشاركة" : "Backups and sharing",
                     isArabic
-                    ? "يوفر غاف حالياً تصدير JSON واستعادته يدوياً. الملف غير مشفّر وقد يحتوي على معلومات مالية حساسة؛ احفظه في مكان خاص ومحمي. قد تتيح قائمة المشاركة حفظ الملف في iCloud Drive أو Google Drive أو وجهة أخرى، وتخضع هذه الخدمات لسياساتها الخاصة. لا يرفع غاف النسخ تلقائياً."
-                    : "Ghaf currently supports manual JSON export and restore. The file is not encrypted and may contain sensitive financial information; store it securely. The iOS share sheet may let you save it to iCloud Drive, Google Drive or another destination. Those services follow their own privacy policies. Ghaf does not upload backups automatically."
+                    ? "يمكنك تصدير نسخة احتياطية بصيغة JSON واستعادتها يدوياً. الملف غير مشفّر وقد يحتوي على معلومات مالية حساسة، فاحفظه في مكان آمن. قد تتيح قائمة المشاركة حفظه في iCloud Drive أو Google Drive أو غيرهما، وتخضع هذه الخدمات لسياساتها الخاصة. إذا ربطت Google Drive من الإعدادات، يحفظ غاف النسخة أو يستعيدها عندما تطلب ذلك فقط، في مجلد خاص بالتطبيق داخل Drive لا يستخدمه إلا غاف، ولا يستطيع غاف رؤية ملفاتك الأخرى. يعرض غاف بريد حساب Google لتعرف الحساب المرتبط. عند فصل الحساب يُزال وصول غاف من هذا الجهاز."
+                    : "You can export and restore a JSON backup manually. The file is not encrypted and may contain sensitive financial information; store it securely. The share sheet may save it to iCloud Drive, Google Drive or elsewhere; those services follow their own privacy policies. If you connect Google Drive in Settings, Ghaf saves or restores a backup only when you ask, in a private app folder in your Drive that only Ghaf can use; Ghaf can't see your other Drive files. Ghaf shows your Google account email so you know which account is connected. Disconnecting removes Ghaf's access from this iPhone."
                 )
 
                 section(
                     isArabic ? "الميزات غير المتاحة حالياً" : "Features not currently available",
                     isArabic
-                    ? "لم يتم تنفيذ النسخ السحابي التلقائي أو الربط المباشر بحساب Google Drive أو تسجيل الدخول باستخدام Apple."
-                    : "Automatic cloud backup, direct Google Drive account integration and Sign in with Apple are not currently implemented."
+                    ? "النسخ الاحتياطي السحابي التلقائي وتسجيل الدخول باستخدام Apple غير متاحين حالياً."
+                    : "Automatic cloud backup and Sign in with Apple are not currently available."
                 )
 
                 section(

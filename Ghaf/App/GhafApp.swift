@@ -132,12 +132,13 @@ final class GhafAppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem,
                      completionHandler: @escaping (Bool) -> Void) {
-        let destination = shortcutItem.type == "com.ghaf.app.feedback"
-            ? GhafLinks.instagram
-            : URL(string: "ghaf://pro")!
         if shortcutItem.type == "com.ghaf.app.goodbye-offer" {
             UserDefaults.standard.set(true, forKey: "ghaf.pro.offerHighlight")
+            application.open(URL(string: "ghaf://pro")!, options: [:]) { completionHandler($0) }
+        } else if !GhafLinks.isPlaceholder(GhafLinks.instagram) {
+            application.open(GhafLinks.instagram, options: [:]) { completionHandler($0) }
+        } else {
+            completionHandler(false)
         }
-        application.open(destination, options: [:]) { completionHandler($0) }
     }
 }

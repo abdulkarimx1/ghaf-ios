@@ -22,7 +22,7 @@ struct GhafImportSheet: View {
     private var ar: Bool { settings.languageCode == "ar" }
     private var theme: GhafTheme { GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: scheme == .dark) }
     private var mailIsConfigured: Bool { MFMailComposeViewController.canSendMail() }
-    private var canEmailDeveloper: Bool { mailIsConfigured }
+    private var canEmailDeveloper: Bool { mailIsConfigured && !GhafLinks.isPlaceholder(GhafLinks.supportEmail) }
 
     var body: some View {
         NavigationStack {
@@ -41,7 +41,7 @@ struct GhafImportSheet: View {
                             choice(ar ? "ملف CSV أو JSON آخر" : "Other CSV or JSON", subtitle: ar ? "راجع السجلات قبل الاستيراد" : "Review the rows before importing", icon: "tablecells", kind: .other)
                         }.padding(18).background(theme.surface, in: RoundedRectangle(cornerRadius: 24))
                     }
-                    sendButton
+                    if !GhafLinks.isPlaceholder(GhafLinks.supportEmail) { sendButton }
                     if let message {
                         Text(message).font(GhafTypography.body(15, languageCode: settings.languageCode)).foregroundStyle(isFailure ? theme.over : theme.comfortable).multilineTextAlignment(.center)
                     }
