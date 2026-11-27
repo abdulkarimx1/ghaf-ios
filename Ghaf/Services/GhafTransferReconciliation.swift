@@ -16,16 +16,23 @@ enum GhafTransferReconciliation {
         }
         let accounts = try context.fetch(FetchDescriptor<GhafAccount>()).filter { !$0.isArchived }
         let accountIDs = Set(accounts.map(\.id))
-        let candidates = transactions.filter { $0.transferPairKey == nil }.map { item in
-            AccountTransferMatcher.Candidate(
+        let ownNameKeys = Set((CategoryTaxonomy.transferSubcategories.first { $0.name == "Between my accounts" }.map { [$0.name, $0.arabic] + $0.words } ?? []).map(CategoryMatcher.normalize))
+        var ownDecisions = 0
+        for item in transactions where item.transferDecision == nil && item.subcategory.map({ ownNameKeys.contains(CategoryMatcher.normalize($0)) }) == true {
+            item.transferDecision = "own"; ownDecisions += 1
+        }
+        let candidates = transactions.filter { $0.transferPairKey == nil && $0.transferDecision == nil }.map { item in
+            let transferCategory = CategoryTaxonomy.category(named: item.category)?.kind == .transfer || item.category == "Transfers received"
+            let unlabelledTransfer = item.category == "Other" && [item.merchant, item.note].compactMap { $0 }.contains { text in
+                let normalized = CategoryMatcher.normalize(text)
+                return ["transfer", "xfer", "between accounts", "تحويل"].contains { normalized.contains($0) }
+            }
+            return AccountTransferMatcher.Candidate(
                 id: item.id, accountID: item.accountID.flatMap { accountIDs.contains($0) ? $0 : nil },
                 amount: item.amount, currency: item.currency, date: item.date, direction: item.direction,
                 isReversal: item.isReversal,
-                hasTransferEvidence: CategoryTaxonomy.isTransferOrAdjustment(category: item.category, subcategory: item.subcategory)
-                    || [item.merchant, item.note].compactMap { $0 }.contains { text in
-                        let normalized = CategoryMatcher.normalize(text)
-                        return ["transfer", "xfer", "between accounts", "تحويل"].contains { normalized.contains($0) }
-                    })
+                hasTransferEvidence: item.category != "Adjustment" && (transferCategory || unlabelledTransfer
+                    || item.category == "Transfers" || item.category == "Utilities" && CategoryMatcher.normalize(item.subcategory ?? "") == "transfer")
         }
         let existing = Set(transactions.compactMap(\.transferPairKey))
         let pairs = AccountTransferMatcher.pairs(in: candidates, alreadyPaired: existing)
@@ -51,7 +58,7 @@ enum GhafTransferReconciliation {
             && item.date <= Date.now.addingTimeInterval(-3 * 86_400) {
             if !item.needsReview { item.needsReview = true; reviewCount += 1 }
         }
-        if pairCount > 0 || reviewCount > 0 || migrated > 0 || categoriesUpdated > 0 { try context.save() }
+        if pairCount > 0 || reviewCount > 0 || migrated > 0 || categoriesUpdated > 0 || ownDecisions > 0 { try context.save() }
         return (pairCount, reviewCount)
     }
 }
