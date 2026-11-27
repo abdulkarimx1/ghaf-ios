@@ -331,7 +331,7 @@ struct GhafHomeView: View {
                 .font(GhafTypography.body(15, languageCode: lang))
                 .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
-            Button { showAccounts = true } label: {
+            Button { accountToOpenID = nil; showAccounts = true } label: {
                 Label(ar ? "إضافة حساب" : "Add account", systemImage: "plus")
             }
             .ghafProminentButton(theme: theme, languageCode: lang)
@@ -384,7 +384,7 @@ struct GhafHomeView: View {
     private var header: some View {
         HStack(spacing: 8) {
             if accounts.contains(where: { !$0.isArchived }) {
-                Button { showAccounts = true } label: {
+                Button { accountToOpenID = nil; showAccounts = true } label: {
                     Image(systemName: "wallet.bifold.fill")
                         .foregroundStyle(theme.primaryText)
                         .frame(width: 44, height: 44)
