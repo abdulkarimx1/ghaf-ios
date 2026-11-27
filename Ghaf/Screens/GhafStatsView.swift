@@ -328,7 +328,7 @@ struct GhafStatsView: View {
 
     /// Short, unique label for a bucket on the chart's axis.
     private func axisLabel(_ date: Date) -> String {
-        let locale = Locale(identifier: lang)
+        let locale = GhafLocale.locale(identifier: lang)
         switch period {
         case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
         case .month, .quarter:
@@ -377,7 +377,7 @@ struct GhafStatsView: View {
     }
 
     private func bucketLabel(_ date: Date) -> String {
-        let locale = Locale(identifier: lang)
+        let locale = GhafLocale.locale(identifier: lang)
         switch period {
         case .month, .quarter:
             // A point now covers several days, so name its range: "4–6 Nov", or "30 Oct – 5 Nov" across months.
@@ -394,7 +394,7 @@ struct GhafStatsView: View {
     }
 
     private func dailyBucketLabel(_ date: Date) -> String {
-        date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
+        date.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang)))
     }
 
     private func dailyTrendTransactions(on date: Date, current: [GhafTransaction]) -> [GhafTransaction] {
@@ -452,7 +452,7 @@ struct GhafStatsView: View {
                 .accessibilityIdentifier("stats.period.spent")
             Group {
             if let change, comparisonVisible, selected == nil, scrubbedMonthDay == nil, selectedCategory == nil {
-                Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(Locale(identifier: lang)))
+                Label(change.formatted(.percent.precision(.fractionLength(0)).sign(strategy: .always()).locale(GhafLocale.locale(identifier: lang)))
                       + (ar ? " عن الفترة السابقة" : " vs previous"),
                       systemImage: change > 0 ? "arrow.up.right" : "arrow.down.right")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
@@ -846,7 +846,7 @@ struct GhafStatsView: View {
     }
 
     private func whole(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(0)).locale(Locale(identifier: lang)))
+        value.formatted(.number.precision(.fractionLength(0)).locale(GhafLocale.locale(identifier: lang)))
     }
 
     private func toggle(_ category: String) {
@@ -881,7 +881,7 @@ struct GhafStatsView: View {
                 Text(ar ? "المشتريات" : "Purchases")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
                     .foregroundStyle(theme.secondaryText)
-                Text(items.count.formatted(.number.locale(Locale(identifier: lang))))
+                Text(items.count.formatted(.number.locale(GhafLocale.locale(identifier: lang))))
                     .font(GhafTypography.number(28, weight: .heavy))
                     .foregroundStyle(theme.primaryText)
                 Text(units[period.rawValue])

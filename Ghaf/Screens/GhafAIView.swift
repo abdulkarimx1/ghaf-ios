@@ -925,8 +925,8 @@ struct GhafAIView: View {
 
     private func voiceLimitCounter(_ usage: GhafVoiceUsage) -> some View {
         let remaining = max(0, usage.limit - usage.used)
-        let spokenCount = remaining.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
-        let spokenLimit = usage.limit.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        let spokenCount = remaining.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
+        let spokenLimit = usage.limit.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
         return VStack(spacing: 4) {
             Text(ar ? "باقي \(spokenCount) من \(spokenLimit) ردًا صوتيًا اليوم" : "\(spokenCount) of \(spokenLimit) voice replies left today")
                 .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .medium))
@@ -1388,7 +1388,7 @@ struct GhafAIView: View {
         if liveGroundingSources.isEmpty { liveGroundingSources = [liveFacts] }
         let firstName = (memoryEnabled ? memories.first(where: { $0.kind == "name" })?.text : nil)
             ?? settings.userName
-        let date = Date.now.formatted(date: .complete, time: .omitted)
+        let date = Date.now.formatted(.dateTime.date(.complete).locale(GhafLocale.locale(identifier: settings.languageCode)))
         let persona = ar
             ? "أنت غاف، \(voiceCharacter == "Mariam" ? "امرأة" : "رجل") إماراتي ودود. أجب دائماً بلغة آخر رسالة للمستخدم: العربية بلهجة خليجية إماراتية طبيعية، أو الإنجليزية. لا تخلط اللغتين إلا إذا خلط المستخدم بينهما، ولا تقدّم نفسك أو تمزج تحية إنجليزية بجملة عربية. عند السؤال عن الرصيد أو المصروفات أو الحسابات أو الاشتراكات، استدعِ get_finance_answer دائماً ولا تقل إنك لا تملك معلومات المستخدم. استخدم نتائج الأداة كما هي ولا تخمّن. استخدم remember أو forget فقط بطلب صريح. عند ذكر عملية، استدعِ log_transaction لعرض بطاقة تأكيد ولا تحفظها بنفسك."
             : "You are Ghaf, a warm \(voiceCharacter == "Mariam" ? "female" : "male") Emirati assistant. Always reply in the language of the user's latest turn: English, or natural Gulf Emirati Arabic. Do not mix languages unless the user does, and do not introduce yourself or combine an English greeting with Arabic. For any question about balances, spending, accounts, or subscriptions, always call get_finance_answer; never claim you lack access to the user's data. Use the tool result exactly and never guess. For a transaction, call log_transaction to show a confirmation card; never save it yourself. Use remember or forget only when explicitly asked. Speak English with a soft, educated American delivery and light Emirati warmth; avoid rolled or tapped r sounds."
@@ -1640,7 +1640,7 @@ private struct GhafInlineBars: View {
                         }
                     }
                     .frame(height: 8)
-                    Text(point.value, format: .number.precision(.fractionLength(0)).locale(Locale(identifier: languageCode)))
+                    Text(point.value, format: .number.precision(.fractionLength(0)).locale(GhafLocale.locale(identifier: languageCode)))
                         .foregroundStyle(theme.secondaryText)
                         .frame(minWidth: 48, alignment: .trailing)
                 }
@@ -1734,7 +1734,7 @@ private struct GhafChatHistorySheet: View {
                                             .accessibilityLabel(ar ? "مفتوحة الآن" : "Open now")
                                     }
                                 }
-                                Text(chat.updatedAt.formatted(.relative(presentation: .named).locale(Locale(identifier: languageCode))))
+                                Text(chat.updatedAt.formatted(.relative(presentation: .named).locale(GhafLocale.locale(identifier: languageCode))))
                                     .font(GhafTypography.body(12, languageCode: languageCode))
                                     .foregroundStyle(theme.secondaryText)
                             }

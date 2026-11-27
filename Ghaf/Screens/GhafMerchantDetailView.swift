@@ -126,7 +126,7 @@ struct GhafMerchantDetailView: View {
                 .padding(.bottom, 6)
             ForEach(history.prefix(5)) { item in
                 HStack {
-                    Text(item.date.formatted(.dateTime.day().month().year().locale(Locale(identifier: languageCode))))
+                    Text(item.date.formatted(.dateTime.day().month().year().locale(GhafLocale.locale(identifier: languageCode))))
                         .foregroundStyle(item.id == transaction.id ? theme.accent : theme.primaryText)
                     Spacer()
                     GhafMoneyLabel(amount: item.amount, currency: item.currency, languageCode: languageCode, size: 14)
@@ -229,7 +229,7 @@ struct GhafPlacePicker: View {
                                 Spacer(minLength: 8)
                                 if let distance = GhafPlaces.distance(to: item) {
                                     Text(Measurement(value: distance / 1000, unit: UnitLength.kilometers)
-                                        .formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(1))).locale(Locale(identifier: languageCode))))
+                                        .formatted(.measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(1))).locale(GhafLocale.locale(identifier: languageCode))))
                                         .font(GhafTypography.number(12, weight: .semibold))
                                         .foregroundStyle(theme.secondaryText)
                                 }

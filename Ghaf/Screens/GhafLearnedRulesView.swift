@@ -96,7 +96,7 @@ struct GhafLearnedRulesView: View {
                                     .font(GhafTypography.body(13, languageCode: settings.languageCode)).foregroundStyle(theme.accent)
                             }
                             Spacer(minLength: 4)
-                            let count = row.hits.formatted(.number.locale(Locale(identifier: ar ? "ar_AE" : "en_US")))
+                            let count = row.hits.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar_AE" : "en_US")))
                             let arabicCount = row.hits == 1 ? "مرة واحدة" : (row.hits == 2 ? "مرتان" : "\(count) مرات")
                             Text(ar ? arabicCount : "\(count)×")
                                 .font(GhafTypography.body(12, languageCode: settings.languageCode)).foregroundStyle(theme.secondaryText)

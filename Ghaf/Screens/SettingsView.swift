@@ -82,7 +82,6 @@ struct GhafSettingsView: View {
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
-    @AppStorage("ghaf.pad.indicDigits") private var padIndicDigits = false
     @AppStorage("ghaf.pad.mirrored") private var padMirrored = false
 #if DEBUG
     @State private var fixtureGlassPresented = false
@@ -570,7 +569,7 @@ struct GhafSettingsView: View {
                 HStack {
                     Text(ar ? "آخر نسخة احتياطية" : "Last backup")
                     Spacer()
-                    Text(drive.lastBackupDate?.formatted(date: .abbreviated, time: .shortened) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
+                    Text(drive.lastBackupDate?.formatted(.dateTime.date(.abbreviated).time(.shortened).locale(GhafLocale.locale(identifier: languageCode))) ?? (ar ? "لا توجد نسخة بعد" : "No backup yet"))
                 }.font(GhafTypography.body(12, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 Button { driveBackup() } label: {
                     settingsActionRow(ar ? "نسخ احتياطي الآن" : "Back up now", detail: ar ? "رفع نسخة جديدة إلى Drive" : "Upload a fresh copy to Drive", icon: "icloud.and.arrow.up")
@@ -874,7 +873,7 @@ struct GhafSettingsView: View {
                     let date = Calendar.current.date(byAdding: .day, value: offset - 6, to: GhafClock.now) ?? GhafClock.now
                     let logged = transactions.contains { Calendar.current.isDate($0.date, inSameDayAs: date) && !$0.needsReview }
                     VStack(spacing: 5) {
-                        Text(date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: languageCode))))
+                        Text(date.formatted(.dateTime.weekday(.narrow).locale(GhafLocale.locale(identifier: languageCode))))
                             .font(GhafTypography.body(11, languageCode: languageCode, weight: .medium)).foregroundStyle(theme.secondaryText)
                         Circle().fill(logged ? theme.accent : theme.secondaryText.opacity(0.12)).frame(width: 28, height: 28)
                             .overlay { if logged { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.accentContrast) } }
@@ -1022,12 +1021,6 @@ struct GhafSettingsView: View {
                 catch { modelContext.rollback(); prompt = .message(ar ? "تعذر حفظ الإعداد." : "Couldn't save this setting.") }
             })) {
                 Text(ar ? "إظهار لوحة الأرقام عند الإضافة" : "Show keypad when adding")
-                    .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
-            }
-            .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))
-            .frame(minHeight: 56)
-            Toggle(isOn: $padIndicDigits) {
-                Text(ar ? "أرقام هندية في لوحة الأرقام (١٢٣)" : "Arabic-Indic digits on the keypad (١٢٣)")
                     .font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
             }
             .toggleStyle(GhafToggleStyle(theme: theme, languageCode: languageCode))

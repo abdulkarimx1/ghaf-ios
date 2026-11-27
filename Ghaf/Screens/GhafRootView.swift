@@ -88,7 +88,7 @@ struct GhafRootView: View {
             }
         }
         .toggleStyle(GhafToggleStyle(theme: GhafTheme.resolve(name: settings.first?.themeName ?? "Abu Dhabi", appearanceMode: settings.first?.appearanceMode ?? "System", systemIsDark: systemColorScheme == .dark), languageCode: languageCode))
-        .environment(\.locale, Locale(identifier: languageCode))
+        .environment(\.locale, GhafLocale.locale(identifier: languageCode))
         .environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
@@ -1154,7 +1154,7 @@ struct GhafOnboardingView: View {
         .ignoresSafeArea(.container)
         .foregroundStyle(theme.primaryText)
         .background(theme.surface.ignoresSafeArea())
-        .environment(\.locale, Locale(identifier: languageCode))
+        .environment(\.locale, GhafLocale.locale(identifier: languageCode))
         // First launch is always light; the three colour cards need light status-bar content.
         .preferredColorScheme((Step.payment...Step.renewal).contains(step) ? .dark : .light)
 #if DEBUG

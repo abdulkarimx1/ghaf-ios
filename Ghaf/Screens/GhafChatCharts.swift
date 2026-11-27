@@ -68,9 +68,9 @@ enum GhafChatChartBuilder {
         let calendar = GhafCalendar.current
         let isMonth = calendar.dateInterval(of: .month, for: period.interval.start) == period.interval
         let label = isMonth
-            ? period.interval.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: ar ? "ar" : "en")))
+            ? period.interval.start.formatted(.dateTime.month(.wide).locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
             : (ar ? period.ar : period.en)
-        let number = count.formatted(.number.locale(Locale(identifier: ar ? "ar" : "en")))
+        let number = count.formatted(.number.locale(GhafLocale.locale(identifier: ar ? "ar" : "en")))
         return ar ? "من \(number) من عملياتك · \(label)" : "From \(number) of your transactions · \(label)"
     }
 
@@ -110,7 +110,7 @@ enum GhafChatChartBuilder {
         if has(q, ["week", "daily", "per day", "أسبوع", "اسبوع", "يومي", "يوم"]) {
             let points = (0..<7).reversed().compactMap { offset -> GhafChatChart.Point? in
                 guard let day = calendar.date(byAdding: .day, value: -offset, to: .now) else { return nil }
-                return .init(label: day.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: languageCode))),
+                return .init(label: day.formatted(.dateTime.weekday(.narrow).locale(GhafLocale.locale(identifier: languageCode))),
                              value: total(calendar.dateInterval(of: .day, for: day)), highlight: offset == 0)
             }
             return GhafChatChart(kind: .week, style: requested ?? .bar, title: ar ? "آخر ٧ أيام" : "Last 7 days",

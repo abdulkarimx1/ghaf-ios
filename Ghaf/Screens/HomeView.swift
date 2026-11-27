@@ -439,7 +439,7 @@ struct GhafHomeView: View {
     private func periodRange(_ summary: Summary) -> String {
         guard activityPeriodIndex > 0, let interval = summary.interval else { return "" }
         let formatter = DateIntervalFormatter()
-        formatter.locale = Locale(identifier: ar ? "ar_AE" : "en_AE")
+        formatter.locale = GhafLocale.locale(identifier: ar ? "ar_AE" : "en_AE")
         formatter.dateTemplate = "dMMM"
         return " · " + formatter.string(from: interval.start, to: interval.end.addingTimeInterval(-1))
     }
@@ -753,7 +753,7 @@ struct GhafTransactionRow: View {
                          + (transaction.subcategory.map { " · \(GhafLocalization.category($0, languageCode: languageCode))" } ?? ""))
                     Text("·")
                     Text(transaction.date.formatted(
-                        .dateTime.hour().minute().locale(Locale(identifier: languageCode))
+                        .dateTime.hour().minute().locale(GhafLocale.locale(identifier: languageCode))
                     ))
                 }
                 .font(GhafTypography.body(13, languageCode: languageCode))
@@ -1110,7 +1110,7 @@ struct GhafQuickAddView: View {
     }
     private var timePill: some View {
         Button { showingTime = true } label: {
-            Label(date.formatted(.dateTime.hour().minute().locale(Locale(identifier: ar ? "ar_AE" : "en_US"))), systemImage: "clock")
+            Label(date.formatted(.dateTime.hour().minute().locale(GhafLocale.locale(identifier: ar ? "ar_AE" : "en_US"))), systemImage: "clock")
                 .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, minHeight: 44).background(theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06), in: Capsule())
         }.buttonStyle(.plain).accessibilityLabel(ar ? "الوقت" : "Time")
@@ -1119,7 +1119,7 @@ struct GhafQuickAddView: View {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) { return ar ? "اليوم" : "Today" }
         if calendar.isDateInYesterday(date) { return ar ? "أمس" : "Yesterday" }
-        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: ar ? "ar_AE" : "en_US")))
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(GhafLocale.locale(identifier: ar ? "ar_AE" : "en_US")))
     }
     private var dateSheet: some View {
         VStack(spacing: 12) {

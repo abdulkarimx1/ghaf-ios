@@ -31,7 +31,7 @@ enum GhafLedgerAnswers {
         let purchases = purchaseQuery ? items.filter { $0.isExpense && $0.direction == "debit" && !$0.isReversal }.count : nil
         let calendar = GhafCalendar.current
         let end = min(now, period.interval.end.addingTimeInterval(-1))
-        let locale = Locale(identifier: languageCode == "ar" ? "ar" : "en")
+        let locale = GhafLocale.locale(identifier: languageCode == "ar" ? "ar" : "en")
         let startMonth = period.interval.start.formatted(.dateTime.month(.abbreviated).locale(locale))
         let endMonth = end.formatted(.dateTime.month(.abbreviated).locale(locale))
         let startDay = period.interval.start.formatted(.dateTime.day().locale(locale))
@@ -89,7 +89,7 @@ enum GhafLedgerAnswers {
                 return ar ? "لا تجديدات خلال ٣٠ يوماً. اشتراكاتك تكلّف تقريباً \(money(monthly)) شهرياً."
                           : "Nothing renews in the next 30 days. Your subscriptions cost about \(money(monthly)) a month."
             }
-            let locale = Locale(identifier: languageCode)
+            let locale = GhafLocale.locale(identifier: languageCode)
             let list = due.prefix(4).map { item in
                 let date = item.nextPaymentDate.formatted(.dateTime.day().month(.wide).locale(locale))
                 return "• \(item.name) · \(money(item.amount, item.currency)) · \(date)"
@@ -156,7 +156,7 @@ enum GhafLedgerAnswers {
             guard let top = spending.max(by: { $0.spendingAmount < $1.spendingAmount }) else {
                 return ar ? "لا مصاريف \(label)." : "No spending \(label)."
             }
-            let date = top.date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: languageCode)))
+            let date = top.date.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: languageCode)))
             let merchantName = GhafMerchantAliasStore.displayName(top.rawMerchant ?? top.merchant) ?? GhafLocalization.category(top.category, languageCode: languageCode)
             return ar ? "أكبر عملية \(label): \(merchantName) بمبلغ \(money(top.amount)) في \(date)."
                       : "Your biggest purchase \(label) was \(merchantName) for \(money(top.amount)) on \(date)."

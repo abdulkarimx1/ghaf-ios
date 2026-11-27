@@ -190,7 +190,7 @@ extension View {
     /// Sheets don't inherit the app's Arabic right-to-left direction; set it again at each sheet's root.
     func ghafDirection(_ languageCode: String) -> some View {
         environment(\.layoutDirection, languageCode == "ar" ? .rightToLeft : .leftToRight)
-            .environment(\.locale, Locale(identifier: languageCode))
+            .environment(\.locale, GhafLocale.locale(identifier: languageCode))
     }
 }
 

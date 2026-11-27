@@ -391,7 +391,7 @@ struct GhafBudgetView: View {
 
     private var header: some View {
         let days = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: GhafClock.now), to: cycle.end).day ?? 0)
-        let started = cycle.start.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: lang)))
+        let started = cycle.start.formatted(.dateTime.day().month(.abbreviated).locale(GhafLocale.locale(identifier: lang)))
         let detail = hasSalary
             ? (ar ? "بدأت الدورة \(started) · \(days) يوم للراتب القادم" : "Cycle started \(started) · \(days) days to next salary")
             : (ar ? "هذا الشهر · بقي \(days) يوم" : "This month · \(days) days left")
@@ -606,7 +606,7 @@ struct GhafBudgetView: View {
                 }
                 .frame(height: 28)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(selected.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang)))
+                .accessibilityLabel(selected.start.formatted(.dateTime.month(.wide).locale(GhafLocale.locale(identifier: lang)))
                                     + " · " + GhafFormat.shownMoney(Decimal(selected.total), currency: currency, languageCode: lang))
             }
             HStack(alignment: .bottom, spacing: 10) {
@@ -617,7 +617,7 @@ struct GhafBudgetView: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(selectedMonth == nil ? (current ? theme.accent : theme.primaryText.opacity(0.22)) : theme.primaryText)
                                 .frame(height: max(6, 70 * month.total / most))
-                            Text(month.start.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: lang))))
+                            Text(month.start.formatted(.dateTime.month(.abbreviated).locale(GhafLocale.locale(identifier: lang))))
                                 .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(current ? theme.primaryText : theme.secondaryText)
                         }
                         .frame(maxWidth: .infinity, minHeight: 96, alignment: .bottom).contentShape(Rectangle())
@@ -625,7 +625,7 @@ struct GhafBudgetView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(month.start.formatted(.dateTime.month(.wide).locale(Locale(identifier: lang))) + " " + GhafFormat.shownMoney(Decimal(month.total), currency: currency, languageCode: lang))
+                    .accessibilityLabel(month.start.formatted(.dateTime.month(.wide).locale(GhafLocale.locale(identifier: lang))) + " " + GhafFormat.shownMoney(Decimal(month.total), currency: currency, languageCode: lang))
                     .accessibilityAddTraits(selectedMonth == month.start ? .isSelected : [])
                 }
             }

@@ -64,7 +64,7 @@ final class GhafSpeechRecorder: ObservableObject {
         // Run Arabic and English recognition side by side. The selected UI language
         // controls labels only; it must not constrain the spoken language.
         let recognizers = ["en-US", Self.gulfArabicLocale].compactMap { identifier -> (String, SFSpeechRecognizer)? in
-            guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: identifier)),
+            guard let recognizer = SFSpeechRecognizer(locale: GhafLocale.locale(identifier: identifier)),
                   recognizer.isAvailable else { return nil }
             let code = identifier.hasPrefix("ar") ? "ar" : "en"
             return (code, recognizer)

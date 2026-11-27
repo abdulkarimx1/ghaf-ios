@@ -178,7 +178,7 @@ struct GhafReviewInboxView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
                 Text(event.message).font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText)
-                Text(event.date.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang))))
+                Text(event.date.formatted(.dateTime.day().month().hour().minute().locale(GhafLocalization.locale(languageCode: lang))))
                     .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText)
             }
             Spacer(minLength: 0)
@@ -216,7 +216,7 @@ struct GhafReviewInboxView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(name).font(GhafTypography.body(16, languageCode: lang, weight: .semibold))
                         .foregroundStyle(theme.primaryText).lineLimit(1)
-                    Text(transaction.date.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: lang))))
+                    Text(transaction.date.formatted(.dateTime.day().month().hour().minute().locale(GhafLocalization.locale(languageCode: lang))))
                         .font(GhafTypography.body(12, languageCode: lang))
                         .foregroundStyle(theme.secondaryText)
                     Label(why.text, systemImage: why.icon)

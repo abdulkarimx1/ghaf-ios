@@ -619,7 +619,7 @@ struct GhafFeatureCardScreen: View {
     private let budget = [800, 500, 400, 900, 450, 300]
 
     private func number(_ value: Int) -> String {
-        let f = NumberFormatter(); f.numberStyle = .decimal; f.locale = Locale(identifier: "en_US")
+        let f = NumberFormatter(); f.numberStyle = .decimal; f.locale = GhafLocale.locale(identifier: "en_US")
         return f.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 

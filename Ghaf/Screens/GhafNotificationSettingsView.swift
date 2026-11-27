@@ -151,7 +151,7 @@ struct GhafNotificationSettingsView: View {
         let channels = GhafWidgetSync.lastChannels ?? (GhafWidgetSnapshot.hasSharedContainer, GhafWidgetKeychain.accessGroup != nil)
         let heartbeat = GhafWidgetSnapshot.lastHeartbeat
         let snapshot = GhafWidgetSnapshot.loadWithSource().snapshot
-        let dateStyle = Date.FormatStyle(date: .abbreviated, time: .shortened).locale(Locale(identifier: ar ? "ar-AE" : "en-AE"))
+        let dateStyle = Date.FormatStyle(date: .abbreviated, time: .shortened).locale(GhafLocale.locale(identifier: ar ? "ar-AE" : "en-AE"))
         return VStack(alignment: .leading, spacing: 10) {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
@@ -205,7 +205,7 @@ struct GhafNotificationSettingsView: View {
         let widgetProfile = widget.map(GhafSigningProfile.load(from:)) ?? GhafSigningProfile()
         let sharedGroups = Set(appProfile.appGroups).intersection(widgetProfile.appGroups).sorted()
         let sharedKeychains = GhafSigningProfile.sharedKeychainGroups(app: appProfile.keychainGroups, widget: widgetProfile.keychainGroups)
-        let dateStyle = Date.FormatStyle(date: .numeric, time: .shortened).locale(Locale(identifier: ar ? "ar-AE" : "en-AE"))
+        let dateStyle = Date.FormatStyle(date: .numeric, time: .shortened).locale(GhafLocale.locale(identifier: ar ? "ar-AE" : "en-AE"))
         func list(_ values: [String]) -> String { values.isEmpty ? (ar ? "لا يوجد" : "none") : values.sorted().joined(separator: ", ") }
         func profile(_ value: GhafSigningProfile) -> String {
             "\(ar ? "الاسم" : "name")=\(value.name ?? "none"); \(ar ? "الفريق" : "team")=\(value.teamID ?? "none"); \(ar ? "انتهاء الصلاحية" : "expires")=\(value.expiry?.formatted(dateStyle) ?? "none"); \(ar ? "مجموعات التطبيق" : "app groups")=[\(list(value.appGroups))]; \(ar ? "مجموعات سلسلة المفاتيح" : "keychain groups")=[\(list(value.keychainGroups))]"

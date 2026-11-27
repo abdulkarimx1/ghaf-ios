@@ -82,7 +82,7 @@ struct GhafAutomationGuideView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(theme.background, for: .navigationBar)
-        .environment(\.locale, Locale(identifier: settings.languageCode))
+        .environment(\.locale, GhafLocale.locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
         .sheet(isPresented: $showingBankPicker) { bankPicker }
         .onAppear {
@@ -731,7 +731,7 @@ struct GhafAutomationGuideView: View {
         if !enabled { return text("Off: Ghaf ignores this bank’s alerts · \(skipped) skipped", "متوقف: يتجاهل غاف تنبيهات هذا البنك · تم تجاهل \(skipped)") }
         guard lastSeen > 0 else { return text("Waiting for first alert", "بانتظار أول تنبيه") }
         let date = Date(timeIntervalSince1970: lastSeen)
-        let locale = Locale(identifier: settings.languageCode)
+        let locale = GhafLocale.locale(identifier: settings.languageCode)
         let relativeDate: String
         if #available(iOS 18, *) {
             relativeDate = Date.AnchoredRelativeFormatStyle(anchor: date, presentation: .named, locale: locale).format(GhafClock.now)

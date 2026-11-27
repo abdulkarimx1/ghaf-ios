@@ -66,7 +66,7 @@ struct GhafInsightsView: View {
                 let totals = categoryTotals
                 VStack(spacing: GhafMetrics.sectionSpacing) {
                     GhafScreenTitle(title: settings.languageCode == "ar" ? "التحليلات" : "Insights",
-                                    subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: settings.languageCode))),
+                                    subtitle: Date.now.formatted(.dateTime.month(.wide).year().locale(GhafLocale.locale(identifier: settings.languageCode))),
                                     languageCode: settings.languageCode, theme: theme, onClose: { dismiss() })
                     headlineCard
                     forecastCard

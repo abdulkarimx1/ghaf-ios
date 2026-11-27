@@ -116,7 +116,7 @@ struct GhafPrivacyPolicyView: View {
         .ghafBackground(theme: theme)
         .navigationTitle(isArabic ? "الخصوصية" : "Privacy")
         .navigationBarTitleDisplayMode(.inline)
-        .environment(\.locale, Locale(identifier: settings.languageCode))
+        .environment(\.locale, GhafLocale.locale(identifier: settings.languageCode))
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
     }
 
