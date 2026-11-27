@@ -5,7 +5,7 @@ import worker from '../worker.js';
 const device = '12345678-1234-1234-1234-123456789abc';
 const month = new Date().toISOString().slice(0, 7);
 const day = new Date().toISOString().slice(0, 10);
-const allowanceKey = `vc:pro_monthly:${month}:${device}`;
+const allowanceKey = `vc:pro_yearly:${month}:${device}`;
 const hash = async text => {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -15,13 +15,13 @@ const hash = async text => {
 function setup(initial = {}) {
   const values = new Map(Object.entries(initial));
   return { values, env: {
-    GEMINI_API_KEY: 'k', TTS_MODEL: 'gemini-3.1-flash-tts-preview',
+    ACCESS_CODE_HASHES: '293f6bf6ac4a72bdaf109ae879ed4b388d9ea3aa3d43c6842b8e6ec51e27ec1f', GEMINI_API_KEY: 'k', TTS_MODEL: 'gemini-3.1-flash-tts-preview',
     VOICE_HAMAD: 'Orus', VOICE_MARIAM: 'Kore',
     USAGE: { get: async key => values.get(key) ?? null, put: async (key, value) => values.set(key, value) }
   } };
 }
 const speak = (env, text, character = 'Mariam', language = 'ar', liveSession = false) => worker.fetch(new Request('https://worker.test/speak', {
-  method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'pro_monthly' },
+  method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Tier': 'pro_monthly', 'X-Ghaf-Code': 'release-test-code' },
   body: JSON.stringify({ text, character, tier: 'pro_monthly', language, liveSession }) }), env);
 
 test('user speech uses approved Gemini TTS voice and style, then caches under gtts', async t => {
@@ -66,13 +66,13 @@ test('live TTS chunks rely on existing voice-turn reservation while standard spe
   t.mock.method(globalThis, 'fetch', async () => Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }] }));
   const live = setup();
   assert.equal((await speak(live.env, 'hello there from Ghaf.', 'Hamad', 'en', true)).status, 200);
-  assert.equal(live.values.get(`v:pro_monthly:${day}:${device}`), undefined);
+  assert.equal(live.values.get(`v:pro_yearly:${day}:${device}`), undefined);
   // Live chunks skip the per-clip daily counter (a reply is several chunks); the monthly characters still apply.
   assert.equal(live.values.get(`s:${day}:${device}`), undefined);
 
   const standard = setup();
   assert.equal((await speak(standard.env, 'hello there from Ghaf.', 'Hamad', 'en')).status, 200);
-  assert.equal(standard.values.get(`v:pro_monthly:${day}:${device}`), '1');
+  assert.equal(standard.values.get(`v:pro_yearly:${day}:${device}`), '1');
 });
 
 test('new Gemini failure is voice_off and never returns a stand-in', async t => {
@@ -85,7 +85,7 @@ test('new Gemini failure is voice_off and never returns a stand-in', async t => 
 
 test('monthly allowance and daily speak limit remain enforced', async t => {
   const blockedFetch = t.mock.method(globalThis, 'fetch', async () => Response.json({ candidates: [{ content: { parts: [{ inlineData: { data: 'AQI=' } }] } }] }));
-  const monthly = setup({ [allowanceKey]: '14999' });
+  const monthly = setup({ [allowanceKey]: '19999' });
   const overMonthly = await speak(monthly.env, 'hello');
   assert.equal(overMonthly.status, 429);
   assert.equal((await overMonthly.json()).scope, 'voice_month');

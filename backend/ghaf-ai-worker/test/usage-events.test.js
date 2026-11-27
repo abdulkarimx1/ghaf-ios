@@ -6,13 +6,13 @@ const device = '12345678-1234-1234-1234-123456789abc';
 const prompt = 'PRIVATE_PROMPT_usage_event_test';
 function setup(initial = {}) {
   const values = new Map(Object.entries(initial)), points = [], pending = [];
-  const env = { GEMINI_API_KEY: 'test-key', LIVE_CALLS_ENABLED: '1', ELEVENLABS_API_KEY: 'el', ELEVEN_VOICE_HAMAD: 'h', ELEVEN_VOICE_MARIAM: 'm', AI_HASH_SALT: 'usage-test-salt', GEMINI_MODEL: 'gemini-3.5-flash-lite', REASONING_MODEL: 'gemini-3.8-flash', LIVE_MODEL: 'models/gemini-3.8-live', TTS_MODEL: 'gemini-3.1-flash-tts-preview',
+  const env = { ACCESS_CODE_HASHES: '293f6bf6ac4a72bdaf109ae879ed4b388d9ea3aa3d43c6842b8e6ec51e27ec1f', GEMINI_API_KEY: 'test-key', LIVE_CALLS_ENABLED: '1', ELEVENLABS_API_KEY: 'el', ELEVEN_VOICE_HAMAD: 'h', ELEVEN_VOICE_MARIAM: 'm', AI_HASH_SALT: 'usage-test-salt', GEMINI_MODEL: 'gemini-3.5-flash-lite', REASONING_MODEL: 'gemini-3.8-flash', LIVE_MODEL: 'models/gemini-3.8-live', TTS_MODEL: 'gemini-3.1-flash-tts-preview',
     USAGE: { get: async (key, type) => values.get(key) ?? null, put: async (key, value) => values.set(key, value) },
     USAGE_EVENTS: { writeDataPoint: point => points.push(point) } };
   return { env, ctx: { waitUntil: promise => pending.push(promise) }, points, pending, values };
 }
 function request(path, body, headers = { 'X-Ghaf-Device': device }) {
-  return new Request(`https://worker.test${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  return new Request(`https://worker.test${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Code': 'release-test-code', ...headers }, body: JSON.stringify(body) });
 }
 async function invoke(path, body, state) {
   const response = await worker.fetch(request(path, body), state.env, state.ctx);
@@ -59,8 +59,8 @@ test('build classification is the final analytics blob and unknown is the defaul
 
 test('limited request logs once and missing analytics binding does not change response', async () => {
   const date = new Date().toISOString().slice(0, 10);
-  const key = `d:pro_monthly:${date}:${device}`;
-  const state = setup({ [key]: '60' });
+  const key = `d:pro_yearly:${date}:${device}`;
+  const state = setup({ [key]: '200' });
   const response = await invoke('/chat', { question: prompt, tier: 'pro_monthly' }, state);
   assert.equal(response.status, 429);
   assert.equal(state.points.length, 1);
@@ -123,7 +123,7 @@ test('health, tips and unmatched routes use fixed endpoint labels', async () => 
 test('live-token refuses a session once the day\'s voice turns are used', async () => {
   const state = setup();
   const day = new Date().toISOString().slice(0, 10);
-  await state.env.USAGE.put(`v:pro_monthly:${day}:${device}`, '3');
+  await state.env.USAGE.put(`v:pro_yearly:${day}:${device}`, '10');
   const live = await invoke('/live-token', { language: 'en', tier: 'pro_monthly' }, state);
   assert.equal(live.status, 429);
 });

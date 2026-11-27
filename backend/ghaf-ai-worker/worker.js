@@ -53,7 +53,7 @@ async function handle(request, env, usage) {
       if (!auth) return json({ error: "unauthorized" }, 401);
       const codeTier = await accessCodeTier(request, env, auth.device);
       if (codeTier === false) return json({ error: "invalid_access_code" }, 401);
-      const tier = codeTier || normalizeTier(request.headers.get("X-Ghaf-Tier"));
+      const tier = auth.developer ? normalizeTier(request.headers.get("X-Ghaf-Tier")) : (codeTier || "free");
       if (usage) { usage.tier = tier; usage.model = "voice-usage-v1"; }
       return json(await voiceUsage(env, auth.device, tier));
     }
@@ -72,7 +72,8 @@ async function handle(request, env, usage) {
     if (path === "/redeem") return redeemAccessCode(body, env, device, usage);
     const codeTier = await accessCodeTier(request, env, device);
     if (codeTier === false) return json({ error: "invalid_access_code" }, 401);
-    if (codeTier) body.tier = codeTier;
+    // shortcut: Pro only via access code; App Store purchases need App Store Server API / JWS verification here before launch.
+    body.tier = developer ? normalizeTier(body.tier) : (codeTier || "free");
     usage.tier = normalizeTier(body.tier);
     if (!developer && usage.tier === "free" && ["/chat", "/speak", "/live-token", "/voice-turn"].includes(path)) {
       if (usage) usage.outcome = "limited_device";
@@ -107,7 +108,6 @@ async function handle(request, env, usage) {
     const { question, facts = "", direct = "", language = "en", history = [], mode = "chat" } = body;
     if (typeof question !== "string" || !question.trim()) return json({ error: "missing_question" }, 400);
 
-    // shortcut: tier is client-reported until App Attest/receipt validation at launch.
     const tier = ["pro_monthly", "pro_yearly"].includes(body.tier) ? body.tier : "free";
     const detectedLanguage = detectLanguage(question);
     const replyLanguage = detectedLanguage === "ar" || detectedLanguage === "en" ? detectedLanguage : language;

@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import worker from '../worker.js';
 
 const device = '12345678-1234-1234-1234-123456789abc';
+const codeHash = '293f6bf6ac4a72bdaf109ae879ed4b388d9ea3aa3d43c6842b8e6ec51e27ec1f';
 
 function harness(initial = []) {
   const values = new Map(initial);
-  return { values, env: { USAGE: {
+  return { values, env: { APP_TOKEN: 'dev-test', ACCESS_CODE_HASHES: codeHash, USAGE: {
     get: async key => values.get(key) ?? null,
     put: async (key, value) => values.set(key, value)
   } } };
@@ -47,12 +48,12 @@ test('voice turns are counted separately from text questions and plan tiers', as
   const day = new Date().toISOString().slice(0, 10);
   const { env, values } = harness();
   const response = await worker.fetch(new Request('https://worker.test/voice-turn', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device },
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Code': 'release-test-code' },
     body: JSON.stringify({ tier: 'pro_monthly', language: 'ar' })
   }), env);
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).limit, 3);
-  assert.equal(values.get(`v:pro_monthly:${day}:${device}`), '1');
+  assert.equal((await response.json()).limit, 10);
+  assert.equal(values.get(`v:pro_yearly:${day}:${device}`), '1');
   assert.equal(values.get(`d:${day}:${device}`), undefined);
 });
 
@@ -61,17 +62,17 @@ test('Essentials and Complete use defaults, env overrides, and a shared per-tier
   for (const [tier, expected] of [['pro_monthly', 3], ['pro_yearly', 10]]) {
     const { env } = harness();
     const response = await worker.fetch(new Request('https://worker.test/voice-usage', {
-      headers: { 'X-Ghaf-Device': device, 'X-Ghaf-Tier': tier }
+      headers: { 'X-Ghaf-Device': device, 'X-Ghaf-Tier': tier, 'X-Ghaf-Token': 'dev-test' }
     }), env);
     assert.equal((await response.json()).limit, expected);
   }
 
   const { env, values } = harness();
-  env.ESSENTIALS_DAILY_VOICE_LIMIT = '4';
+  env.COMPLETE_DAILY_VOICE_LIMIT = '4';
   const response = await worker.fetch(new Request('https://worker.test/voice-turn', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device },
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ghaf-Device': device, 'X-Ghaf-Code': 'release-test-code' },
     body: JSON.stringify({ tier: 'pro_monthly', language: 'en' })
   }), env);
   assert.equal((await response.json()).limit, 4);
-  assert.equal(values.get(`v:pro_monthly:${day}:${device}`), '1');
+  assert.equal(values.get(`v:pro_yearly:${day}:${device}`), '1');
 });
