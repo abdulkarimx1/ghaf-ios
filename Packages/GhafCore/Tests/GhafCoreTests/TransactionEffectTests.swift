@@ -2,6 +2,13 @@ import XCTest
 @testable import GhafCore
 
 final class TransactionEffectTests: XCTestCase {
+    func testTransferReviewPromptIsOnlyEligibleBeforeAnyDecision() {
+        XCTAssertTrue(TransactionEffect.shouldAskAboutTransfer(decision: nil))
+        XCTAssertFalse(TransactionEffect.shouldAskAboutTransfer(decision: "pending"))
+        XCTAssertFalse(TransactionEffect.shouldAskAboutTransfer(decision: "own"))
+        XCTAssertFalse(TransactionEffect.shouldAskAboutTransfer(decision: "external"))
+    }
+
     func testDirectionAndReversalEffects() {
         let amount: Decimal = 42
         for (isDebit, isReversal, spending, income) in [

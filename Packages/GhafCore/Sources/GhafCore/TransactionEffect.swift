@@ -1,6 +1,9 @@
 import Foundation
 
 public enum TransactionEffect {
+    /// A transfer decision, including `pending`, prevents the Review prompt from recurring.
+    public static func shouldAskAboutTransfer(decision: String?) -> Bool { decision == nil }
+
     /// True only when the ledger explicitly says the recipient is outside the user's accounts.
     public static func isKnownExternalTransferSubcategory(_ value: String?) -> Bool {
         guard let value else { return false }

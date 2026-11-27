@@ -244,7 +244,7 @@ struct GhafReviewInboxView: View {
                 }
             }
 
-            if transaction.category == "Transfers" && transaction.transferDecision == nil {
+            if transaction.category == "Transfers" && [nil, "pending"].contains(transaction.transferDecision) {
                 Text(ar ? "إلى حسابك أم إلى شخص آخر؟" : "Was this to your account or someone else?")
                     .font(GhafTypography.body(13, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText)
                 HStack(spacing: 10) {

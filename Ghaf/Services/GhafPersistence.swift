@@ -10,8 +10,6 @@ enum GhafPersistence {
     static func shared() throws -> ModelContainer {
         if let sharedContainer {
             cleanMerchantDataIfNeeded(in: sharedContainer.mainContext)
-            migrateLegacyCategories(in: sharedContainer.mainContext)
-            _ = try? GhafTransferReconciliation.run(in: sharedContainer.mainContext)
             return sharedContainer
         }
         let container = try makeContainer()

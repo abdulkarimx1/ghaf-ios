@@ -51,13 +51,13 @@ enum GhafTransferReconciliation {
         }
         var reviewCount = 0
         let ownAccountNames = Set((CategoryTaxonomy.transferSubcategories.first { $0.name == "Between my accounts" }.map { [$0.name, $0.arabic] + $0.words } ?? []).map(CategoryMatcher.normalize))
-        for item in transactions where item.direction == "debit" && item.transferDecision == nil && item.transferPairKey == nil && !item.isReversal
+        for item in transactions where TransactionEffect.shouldAskAboutTransfer(decision: item.transferDecision) && item.transferPairKey == nil && !item.isReversal
             && item.accountID.map(accountIDs.contains) == true
             && transferEvidenceIDs.contains(item.id)
             && !TransactionEffect.isKnownExternalTransferSubcategory(item.subcategory)
             && item.subcategory.map({ !ownAccountNames.contains(CategoryMatcher.normalize($0)) }) != false
             && item.date <= Date.now.addingTimeInterval(-3 * 86_400) {
-            if !item.needsReview { item.needsReview = true; reviewCount += 1 }
+            if !item.needsReview { item.needsReview = true; item.transferDecision = "pending"; reviewCount += 1 }
         }
         if pairCount > 0 || reviewCount > 0 || migrated > 0 || categoriesUpdated > 0 || ownDecisions > 0 { try context.save() }
         return (pairCount, reviewCount)
