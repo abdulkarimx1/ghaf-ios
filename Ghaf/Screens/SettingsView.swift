@@ -458,14 +458,25 @@ struct GhafSettingsView: View {
     private var budgetCharacterSheet: some View {
         let preset = BudgetAllocation.Preset(rawValue: settings.allocationPresetRaw) ?? .balanced
         let shares = preset.shares
-        let split = "\(NSDecimalNumber(decimal: (shares[.needs] ?? 0) * 100).intValue)/\(NSDecimalNumber(decimal: (shares[.wants] ?? 0) * 100).intValue)/\(NSDecimalNumber(decimal: (shares[.savings] ?? 0) * 100).intValue)"
         let description = budgetCharacterLine
         return VStack(spacing: 14) {
             Text(budgetCharacterName).font(GhafTypography.heading(19, languageCode: languageCode)).foregroundStyle(theme.primaryText)
             Text(description).font(GhafTypography.body(14, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-            Text(ar ? "الاحتياجات / الرغبات / الادخار · \(split)٪" : "Needs / wants / savings · \(split)%")
-                .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            HStack(spacing: 4) {
+                ForEach(Array(zip([ar ? "الاحتياجات" : "Needs", ar ? "الرغبات" : "Wants", ar ? "الادخار" : "Savings"], [BudgetAllocation.Bucket.needs, .wants, .savings]).enumerated()), id: \.offset) { _, pair in
+                    Text(pair.0).frame(maxWidth: .infinity)
+                }
+            }
+            .font(GhafTypography.body(13, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.primaryText)
+            HStack(spacing: 4) {
+                ForEach([BudgetAllocation.Bucket.needs, .wants, .savings], id: \.self) { bucket in
+                    Text("\(NSDecimalNumber(decimal: (shares[bucket] ?? 0) * 100).intValue)%")
+                        .frame(maxWidth: .infinity)
+                        .environment(\.layoutDirection, .leftToRight)
+                }
+            }
+            .font(GhafTypography.number(13, weight: .semibold)).foregroundStyle(theme.secondaryText)
             // V13: a sheet is outside the parent's NavigationStack, so close it and push Budget from the parent.
             Button {
                 showBudgetCharacterInfo = false
