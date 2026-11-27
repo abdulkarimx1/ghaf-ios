@@ -179,6 +179,9 @@ struct GhafAIView: View {
                 guard typing else { return }
                 DispatchQueue.main.async { inputFocused = true }
             }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GhafReloadAILimits"))) { _ in
+                Task { await reloadAILimits() }
+            }
             .onAppear {
                 isOnScreen = true
                 expireIfStale()
@@ -201,14 +204,7 @@ struct GhafAIView: View {
                         return
                     }
 #endif
-                    hasProAccess = GhafProAccess.hasAccess
-                    proAccessKnown = GhafProAccess.isKnown
-                    _ = await GhafAITier.refreshVerifiedEntitlement()
-                    hasProAccess = GhafProAccess.hasAccess
-                    proAccessKnown = true
-                    guard hasProAccess else { return }
-                    await GhafCloudAI.prewarm()
-                    voiceUsage = await GhafCloudAI.voiceUsage()
+                    await reloadAILimits()
                 }
                 tabRouter.startVoice = { toggleVoiceInput() }
                 tabRouter.typeQuestion = { openTyping() }
@@ -853,6 +849,18 @@ struct GhafAIView: View {
         guard hasProAccess, !isThinking else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.snappy) { isTyping = true }
+    }
+
+    @MainActor
+    private func reloadAILimits() async {
+        hasProAccess = GhafProAccess.hasAccess
+        proAccessKnown = GhafProAccess.isKnown
+        _ = await GhafAITier.refreshVerifiedEntitlement()
+        hasProAccess = GhafProAccess.hasAccess
+        proAccessKnown = true
+        guard hasProAccess else { return }
+        await GhafCloudAI.prewarm()
+        voiceUsage = await GhafCloudAI.voiceUsage()
     }
 
     private func closeTyping() {

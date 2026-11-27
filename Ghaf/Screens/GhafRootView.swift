@@ -121,6 +121,8 @@ struct GhafRootView: View {
         .scrollIndicators(.hidden)
         .onAppear(perform: beginLaunch)
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GhafRestartForInactivity"))) { _ in
+            GhafWidgetSync.refresh(context: modelContext)
+            NotificationCenter.default.post(name: Notification.Name("GhafReloadAILimits"), object: nil)
             showLaunch = true
             launchSkipRequested = false
             launchHasStarted = false
@@ -819,7 +821,12 @@ struct GhafTabView: View {
             }
             guard phase == .active else { return }
             let lastBackground = defaults.double(forKey: "ghaf.lastBackgroundAt")
-            if lastBackground > 0, Date.now.timeIntervalSince1970 - lastBackground >= 30 * 60 {
+#if DEBUG
+            let restartThreshold: TimeInterval = ProcessInfo.processInfo.arguments.contains("-GhafInactivityRestartAfter5Seconds") ? 5 : 30 * 60
+#else
+            let restartThreshold: TimeInterval = 30 * 60
+#endif
+            if lastBackground > 0, Date.now.timeIntervalSince1970 - lastBackground >= restartThreshold {
                 defaults.set(Date.now.timeIntervalSince1970, forKey: "ghaf.lastBackgroundAt")
                 if !hasModalPresentation, launchIsFinished {
                     router.ledgerRevision += 1
@@ -1750,6 +1757,7 @@ private struct GhafWelcomeLaunchScreen: View {
         .ignoresSafeArea()
         .ghafBackground(theme: theme)
         .accessibilityElement(children: .combine).accessibilityLabel("Ghaf is opening")
+        .accessibilityIdentifier("ghaf.launch.splash")
         .onAppear {
             start = .now
             withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.2)) { shown = true }

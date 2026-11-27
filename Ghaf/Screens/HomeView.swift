@@ -891,6 +891,7 @@ struct GhafQuickAddView: View {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
                             HStack(spacing: 7) {
                                 TextField(ar ? "اسم المتجر" : "Store name", text: $merchant)
+                                    .accessibilityIdentifier("home.quick-add.merchant")
                                     .lineLimit(1).submitLabel(.done)
                                     .multilineTextAlignment(.leading)
                                     .onSubmit { suggestCategory() }
