@@ -13,8 +13,21 @@ struct GhafWalletStack: View {
     let onEdit: (GhafAccount) -> Void
     let onMove: (GhafAccount, Int) -> Void
     let onAdd: () -> Void
-
     @State private var selectedID: UUID?
+
+    init(accounts: [GhafAccount], balances: [UUID: Decimal], transactions: [GhafTransaction], settings: GhafSettings,
+         theme: GhafTheme, onEdit: @escaping (GhafAccount) -> Void, onMove: @escaping (GhafAccount, Int) -> Void,
+         onAdd: @escaping () -> Void, initialSelectedID: UUID? = nil) {
+        self.accounts = accounts
+        self.balances = balances
+        self.transactions = transactions
+        self.settings = settings
+        self.theme = theme
+        self.onEdit = onEdit
+        self.onMove = onMove
+        self.onAdd = onAdd
+        _selectedID = State(initialValue: initialSelectedID.flatMap { id in accounts.contains { $0.id == id } ? id : nil } ?? accounts.first?.id)
+    }
     @State private var quickAdd: QuickAdd?
     @State private var allFor: GhafAccount?
     private struct QuickAdd: Identifiable { let id = UUID(); let account: UUID; let transfer: Bool }
@@ -49,9 +62,6 @@ struct GhafWalletStack: View {
             }
         }
         .sensoryFeedback(.selection, trigger: selectedID)
-        .onAppear {
-            if selectedID == nil { selectedID = accounts.first?.id }
-        }
         .sheet(item: $allFor) { account in
             GhafTransactionListSheet(title: account.name, transactions: transactions.filter { $0.accountID == account.id },
                                      theme: theme, languageCode: languageCode)

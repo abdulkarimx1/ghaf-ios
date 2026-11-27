@@ -12,6 +12,7 @@ struct GhafAccountsView: View {
 
     let settings: GhafSettings
     var zoomNamespace: Namespace.ID? = nil
+    var initialSelectedAccountID: UUID? = nil
 
     /// One value drives the sheet so it always opens on the tapped account.
     private struct EditorTarget: Identifiable { let id = UUID(); let account: GhafAccount? }
@@ -63,7 +64,8 @@ struct GhafAccountsView: View {
             } else {
                 GhafWalletStack(accounts: activeAccounts, balances: balances, transactions: transactions, settings: settings,
                                 theme: theme, onEdit: { editorTarget = EditorTarget(account: $0) },
-                                onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) })
+                                onMove: moveAccount, onAdd: { editorTarget = EditorTarget(account: nil) },
+                                initialSelectedID: initialSelectedAccountID)
                     .ghafEntrance(1)
             }
             if accounts.contains(where: \.isArchived) { archivedAccounts(balances) }

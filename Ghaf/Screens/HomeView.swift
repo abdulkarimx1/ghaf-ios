@@ -35,6 +35,7 @@ struct GhafHomeView: View {
     @State private var showAutomationGuide = false
     @State private var showSalaryCheckIn = false
     @State private var showAccounts = false
+    @State private var accountToOpenID: UUID?
     @State private var showImportSheet = false
     @State private var showInbox = false
 #if DEBUG
@@ -225,7 +226,9 @@ struct GhafHomeView: View {
             .onAppear { refreshSummaryIfNeeded() }
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(isPresented: $showAccounts) { GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace) }
+            .navigationDestination(isPresented: $showAccounts) {
+                GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace, initialSelectedAccountID: accountToOpenID)
+            }
             .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
                 NavigationStack { GhafVoiceEntryView(settings: settings) }.ghafDirection(settings.languageCode)
@@ -549,7 +552,7 @@ struct GhafHomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(open) { account in
-                        Button { showAccounts = true } label: {
+                        Button { accountToOpenID = account.id; showAccounts = true } label: {
                             VStack(spacing: 2) {
                                 Text(account.name)
                                     .font(GhafTypography.body(12, languageCode: lang, weight: .semibold))
