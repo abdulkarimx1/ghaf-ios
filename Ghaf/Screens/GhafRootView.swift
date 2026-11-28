@@ -958,7 +958,7 @@ struct GhafTabView: View {
             (4, "person.crop.circle", ar ? "حسابي" : "Profile", false)
         ]
         let motion: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.78)
-        return HStack(spacing: 8) {
+        return HStack(spacing: 0) {
             HStack(spacing: router.isTabBarMinimized ? 0 : 2) {
                 ForEach(tabs.indices, id: \.self) { index in
                     let tab = tabs[index]
@@ -996,17 +996,17 @@ struct GhafTabView: View {
             }
             .padding(6)
             .frame(height: 62)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(theme.outline.opacity(0.55), lineWidth: 1))
+            .ghafLiquidGlass(theme: theme, radius: 31)
             .animation(motion, value: router.isTabBarMinimized)
+
+            Spacer(minLength: 0)
 
             GhafTabOrbControl(theme: theme, listening: router.isListening || showOrbOverlay,
                               expanded: expandedOrb, hidden: router.isTabBarMinimized,
                               onTap: handleAITabOrbTap, onHold: handleAITabOrbHold, onType: handleAITabOrbHold,
                               ar: ar)
                 .frame(width: 62, height: 62)
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().stroke(theme.outline.opacity(0.55), lineWidth: 1))
+                .ghafLiquidGlass(theme: theme, radius: 31)
                 .scaleEffect(reduceMotion || !router.isTabBarMinimized ? 1 : 0.2)
                 .opacity(router.isTabBarMinimized ? 0 : 1)
                 .allowsHitTesting(!router.isTabBarMinimized)
@@ -1017,6 +1017,7 @@ struct GhafTabView: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 26)
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .bottom)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .accessibilityIdentifier("ghaf.tabbar")
     }
 
