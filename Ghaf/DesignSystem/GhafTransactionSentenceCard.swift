@@ -79,7 +79,7 @@ struct GhafTransactionSentenceCard: View {
         text.font = GhafTypography.body(26, languageCode: languageCode, weight: .bold)
         text.foregroundColor = theme.primaryText
         guard let symbol else { return Text(text) }
-        return Text(Image(systemName: symbol)) + Text(text)
+        return Text(Image(systemName: symbol)).font(GhafTypography.body(22, languageCode: languageCode)) + Text(text)
     }
 
     private func helper(_ value: String) -> Text { Text(value).foregroundColor(theme.secondaryText) }
