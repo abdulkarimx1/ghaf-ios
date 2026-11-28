@@ -21,6 +21,12 @@ private enum GhafSettingsPrompt: Identifiable {
     }
 }
 
+private struct GhafProMemberInfo {
+    let since: Date
+    let renews: Date
+    let yearly: Bool
+}
+
 struct GhafSettingsView: View {
     private struct SavedPlace: Decodable { let name: String; let latitude: Double; let longitude: Double; let address: String?; let phone: String? }
     private struct PlaceSummary: Identifiable { let name: String; let count: Int; let totals: [String: Decimal]; var id: String { name } }
@@ -139,47 +145,7 @@ struct GhafSettingsView: View {
                         .accessibilityLabel(ar ? "الحسابات" : "Accounts")
                     }
 
-                    if proUnlocked {
-                        HStack(spacing: 12) {
-                            Image(systemName: "sparkles").foregroundStyle(theme.accent)
-                            Text(ar ? "أنت مشترك في غاف برو" : "You're on Pro")
-                                .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                            Spacer()
-                        }
-                        .padding(GhafMetrics.cardPadding)
-                        .ghafCard(theme: theme)
-                    } else {
-                        Button { showProSheet = true } label: {
-                            HStack(spacing: 14) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Ghaf Pro")
-                                        .font(GhafTypography.heading(25, languageCode: languageCode).weight(.bold))
-                                        .foregroundStyle(theme.primaryText)
-                                    Text(ar ? "مساحة أوسع للتخطيط وإدارة أموالك." : "More room to plan and manage your money.")
-                                        .font(GhafTypography.body(13, languageCode: languageCode))
-                                        .foregroundStyle(theme.primaryText.opacity(0.78))
-                                        .lineLimit(1).minimumScaleFactor(0.76)
-                                }
-                                Spacer(minLength: 4)
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(theme.primaryText)
-                                    .frame(width: 34, height: 30)
-                                    .background(theme.primaryText.opacity(0.12), in: Capsule())
-                            }
-                            .padding(.horizontal, 18).padding(.vertical, 20)
-                            .frame(maxWidth: .infinity, minHeight: 94, alignment: .leading)
-                            .background {
-                                ZStack {
-                                    GhafProBannerGlow(theme: theme)
-                                    theme.background.opacity(theme.isDark ? 0.25 : 0.16)
-                                }.clipShape(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
-                            }
-                            .overlay(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).stroke(theme.outline.opacity(0.6), lineWidth: 1))
-                        }
-                        .buttonStyle(.ghafPress)
-                        .ghafProSheet(isPresented: $showProSheet, settings: settings)
-                    }
+                    if proUnlocked { proMemberCard }
 
                     inviteCard
                 }
@@ -223,6 +189,7 @@ struct GhafSettingsView: View {
                 Task {
                     _ = await GhafAITier.refreshVerifiedEntitlement()
                     proUnlocked = GhafProAccess.hasAccess
+                    await refreshProMemberInfo()
                 }
                 refreshProfileStreakIfNeeded()
                 if let days = router.pendingMilestone {
@@ -410,6 +377,54 @@ struct GhafSettingsView: View {
     }
 
     private var profilePage: some View { profileCard.offerCodeRedemption(isPresented: $redeemingVoucher) }
+
+    private var proMemberCard: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Label(ar ? "غاف برو لك" : "Ghaf Pro is yours", systemImage: "sparkles")
+                .font(GhafTypography.heading(20, languageCode: languageCode).weight(.semibold))
+                .foregroundStyle(theme.primaryText)
+            Text(ar ? "كل المزايا وكل الأدوات، وصوت حمد أو مريم كلما طلبت." : "Every feature, every widget, and Hamad or Mariam whenever you ask.")
+                .font(GhafTypography.body(14, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+            if let info = proMemberInfo {
+                Text(proMemberLine(info))
+                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GhafMetrics.cardPadding)
+        .background(theme.isDark ? theme.background : theme.surface, in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).stroke(theme.outline.opacity(0.7), lineWidth: 1))
+    }
+
+    private func proMemberLine(_ info: GhafProMemberInfo) -> String {
+        let locale = GhafLocale.locale(identifier: languageCode)
+        let since = info.since.formatted(.dateTime.month(.wide).year().locale(locale))
+        let renews = info.renews.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))
+        if ar { return "عضو برو منذ \(since) · \(info.yearly ? "سنوي" : "شهري") · يتجدد \(renews)" }
+        return "Pro member since \(since) · \(info.yearly ? "Yearly" : "Monthly") · renews \(renews)"
+    }
+
+    @MainActor
+    private func refreshProMemberInfo() async {
+        var active: StoreKit.Transaction?
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.revocationDate == nil,
+                  !transaction.isUpgraded,
+                  ["com.ghaf.app.pro.monthly", "com.ghaf.app.pro.yearly"].contains(transaction.productID) else { continue }
+            if let current = active,
+               (transaction.expirationDate ?? .distantFuture) > (current.expirationDate ?? .distantPast) {
+                active = transaction
+            } else if active == nil {
+                active = transaction
+            }
+        }
+        guard let active, let renewal = active.expirationDate else { proMemberInfo = nil; return }
+        proMemberInfo = GhafProMemberInfo(since: active.originalPurchaseDate, renews: renewal,
+                                          yearly: active.productID == "com.ghaf.app.pro.yearly")
+    }
 
     private var profileDisplayName: String {
         let arabic = settings.arabicName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -715,22 +730,15 @@ struct GhafSettingsView: View {
                             .onChange(of: draftProfileName) { _, value in if value.count > 20 { draftProfileName = String(value.prefix(20)) } }
                         Button(ar ? "تم" : "Done", action: saveProfileName)
                             .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
+                        if proUnlocked { GhafProPill(theme: theme, languageCode: languageCode) }
                     } else {
-                        Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
-                            .font(GhafTypography.display(26, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                            .lineLimit(2).minimumScaleFactor(0.8)
-                            // The pencil hangs off the name's trailing edge so the name itself stays centred (mirrors in RTL).
-                            .overlay(alignment: .trailing) {
-                        Button {
+                        GhafProfileProNameLine(name: profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName,
+                                               isPro: proUnlocked, theme: theme, languageCode: languageCode) {
                             draftProfileName = name
                             draftArabicName = arabicName
                             isEditingProfileName = true
                             profileNameFocused = true
-                        } label: { Image(systemName: "pencil").font(.system(size: 13, weight: .semibold)) }
-                            .foregroundStyle(theme.accent).frame(minWidth: 44, minHeight: 44)
-                            .accessibilityLabel(ar ? "تعديل الاسم" : "Edit name")
-                            .alignmentGuide(.trailing) { d in d[.leading] + 6 }
-                            }
+                        }
                     }
                 }
                 if isEditingProfileName {
@@ -1914,43 +1922,69 @@ HStack(spacing: 8) {
     }
 }
 
-private struct GhafProBannerGlow: View {
+private struct GhafProPill: View {
     let theme: GhafTheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isVisible = false
+    let languageCode: String
 
-    private var motionIsEnabled: Bool {
-#if DEBUG
-        !reduceMotion && !GhafScreenshotFixture.snapshotTestingEnabled
-#else
-        !reduceMotion
-#endif
+    var body: some View {
+        Text("PRO")
+            .font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold))
+            .tracking(0.6)
+            .foregroundStyle(theme.background)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .background(LinearGradient(colors: [theme.secondaryText, theme.primaryText.opacity(0.82), theme.accent], startPoint: .topLeading, endPoint: .bottomTrailing), in: Capsule())
+    }
+}
+
+private struct GhafProfileProNameLine: View {
+    let name: String
+    let isPro: Bool
+    let theme: GhafTheme
+    let languageCode: String
+    let onEdit: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var nameAndPill: some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .font(GhafTypography.display(26, languageCode: languageCode))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(2).minimumScaleFactor(0.8)
+                // Keep the edit affordance outside the measured name width, as in the original profile row.
+                .overlay(alignment: .trailing) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil").font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(theme.accent).frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel(languageCode == "ar" ? "تعديل الاسم" : "Edit name")
+                    .alignmentGuide(.trailing) { d in d[.leading] + 6 }
+                }
+            if isPro { GhafProPill(theme: theme, languageCode: languageCode) }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 24, paused: !isVisible || !motionIsEnabled)) { timeline in
-            let phase = motionIsEnabled ? timeline.date.timeIntervalSinceReferenceDate : 0
-            let x = Float(sin(phase * 0.24))
-            let y = Float(cos(phase * 0.19))
-            if #available(iOS 18.0, *) {
-                MeshGradient(width: 3, height: 3, points: [
-                    [0, 0], [0.5 + 0.08 * x, 0], [1, 0],
-                    [0, 0.5 + 0.07 * y], [0.5 + 0.12 * x, 0.5 + 0.10 * y], [1, 0.5 - 0.07 * x],
-                    [0, 1], [0.5 - 0.08 * y, 1], [1, 1]
-                ], colors: [
-                    theme.accent.opacity(0.56), theme.glow.opacity(0.74), theme.surface,
-                    theme.glow.opacity(0.82), theme.accent.opacity(0.34), theme.surface,
-                    theme.surface, theme.accent.opacity(0.45), theme.glow.opacity(0.62)
-                ])
-            } else {
-                LinearGradient(colors: [theme.accent, theme.glow, theme.surface, theme.accent.opacity(0.7)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isPro || reduceMotion)) { timeline in
+            let cycle = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 6)
+            let sweep = min(max((cycle - 4.4) / 1.6, 0), 1)
+            nameAndPill
+                .overlay {
+                    if isPro && !reduceMotion {
+                        GeometryReader { geometry in
+                            LinearGradient(colors: [.clear, .white.opacity(0.35), .clear], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: geometry.size.width * 0.4, height: geometry.size.height * 1.7)
+                                .rotationEffect(.degrees(30))
+                                .offset(x: geometry.size.width * (-0.35 + sweep * 1.7))
+                                .blendMode(.screen)
+                        }
+                        .mask { nameAndPill }
+                        .clipped()
+                        .accessibilityHidden(true)
+                    }
+                }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(false).accessibilityHidden(true)
-        .onAppear { isVisible = true }
-        .onDisappear { isVisible = false }
     }
 }
 
