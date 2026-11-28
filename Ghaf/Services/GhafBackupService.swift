@@ -81,6 +81,9 @@ private struct GhafSettingsBackup: Codable {
     var lastSalaryDecisionKey: String?
     var salaryReminderEnabled: Bool?
     var biometricLockEnabled: Bool?
+    var autoLockDelaySeconds: Int?
+    var backupExportLockEnabled: Bool?
+    var profileBanner: Data?
     var createdAt: Date?
     var userSex: String?
     var mapsAppPreference: String?
@@ -206,6 +209,9 @@ enum GhafBackupService {
             lastSalaryDecisionKey: settings.lastSalaryDecisionKey,
             salaryReminderEnabled: settings.salaryReminderEnabled,
             biometricLockEnabled: settings.biometricLockEnabled,
+            autoLockDelaySeconds: settings.autoLockDelaySeconds,
+            backupExportLockEnabled: settings.backupExportLockEnabled,
+            profileBanner: GhafProfilePhoto.loadBannerData(),
             createdAt: settings.createdAt,
             userSex: settings.userSex,
             mapsAppPreference: settings.mapsAppPreference
@@ -271,7 +277,7 @@ enum GhafBackupService {
         }
 
         let payload = GhafBackupPayload(
-            version: 5,
+            version: 6,
             exportedAt: .now,
             settings: settingsBackup,
             transactions: transactionBackups,
@@ -306,7 +312,7 @@ enum GhafBackupService {
         return url
     }
 
-    /// Replaces current Ghaf data with a supported v1–v5 backup. Chats remain local and are not in the backup format.
+    /// Replaces current Ghaf data with a supported v1–v6 backup. Chats remain local and are not in the backup format.
     @discardableResult
     static func restore(from url: URL, context: ModelContext) throws -> GhafBackupImportResult {
         let accessGranted = url.startAccessingSecurityScopedResource()
@@ -321,7 +327,7 @@ enum GhafBackupService {
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(GhafBackupPayload.self, from: migratedData)
 
-        guard (1...5).contains(payload.version) else {
+        guard (1...6).contains(payload.version) else {
             throw GhafBackupError.unsupportedVersion
         }
         if let preferences = payload.preferences, preferences.version != 1 {
@@ -388,7 +394,9 @@ enum GhafBackupService {
             } ?? nil,
             lastSalaryDecisionKey: source.lastSalaryDecisionKey,
             salaryReminderEnabled: source.salaryReminderEnabled ?? false,
-            biometricLockEnabled: source.biometricLockEnabled ?? false
+            biometricLockEnabled: source.biometricLockEnabled ?? false,
+            autoLockDelaySeconds: source.autoLockDelaySeconds ?? 0,
+            backupExportLockEnabled: source.backupExportLockEnabled ?? source.biometricLockEnabled ?? false
         )
         settings.id = source.id ?? settings.id
         settings.createdAt = source.createdAt ?? settings.createdAt
@@ -500,6 +508,8 @@ enum GhafBackupService {
                 transaction.accountID.map { availableAccountIDs?.contains($0) ?? false } ?? true
             }, "Restored records still contain a dangling account reference")
 #endif
+            guard (source.profileBanner?.count ?? 0) <= 1_000_000 else { throw GhafBackupError.invalidBackup("profile banner too large") }
+            try GhafProfilePhoto.saveBannerData(source.profileBanner)
             try context.save()
             _ = try? GhafTransferReconciliation.run(in: context)
         } catch {
@@ -534,7 +544,7 @@ enum GhafBackupService {
               let version = root["version"] as? Int else {
             throw GhafBackupError.invalidBackup("JSON structure")
         }
-        guard (1...5).contains(version) else { throw GhafBackupError.unsupportedVersion }
+        guard (1...6).contains(version) else { throw GhafBackupError.unsupportedVersion }
         guard var settings = root["settings"] as? [String: Any] else {
             throw GhafBackupError.invalidBackup("settings")
         }

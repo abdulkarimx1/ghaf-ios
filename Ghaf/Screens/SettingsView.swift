@@ -4,6 +4,8 @@ import SwiftData
 import UniformTypeIdentifiers
 import PhotosUI
 import UIKit
+import LocalAuthentication
+import StoreKit
 
 private enum GhafSettingsPrompt: Identifiable {
     case importBackup
@@ -57,6 +59,9 @@ struct GhafSettingsView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
+    @State private var hasBanner = GhafProfilePhoto.loadBanner() != nil
+    @State private var editingBanner = false
+    @AppStorage(GhafProfilePhoto.bannerVersionKey) private var profileBannerVersion = 0
     @State private var showPhotoMenu = false
     @State private var showBudgetCharacterInfo = false
     @State private var showBudgetFromCharacter = false
@@ -252,9 +257,15 @@ struct GhafSettingsView: View {
             .sheet(isPresented: $showBackupShare) {
                 if let backupURL { GhafSettingsShareSheet(items: [backupURL]) }
             }
+            .sheet(isPresented: $showProSheet) {
+                GhafProSheet(settings: settings, feature: ("Profile", "الملف الشخصي")).ghafDirection(languageCode)
+            }
             .sheet(isPresented: $showCameraPicker) {
                 GhafCameraPicker { image in
-                    do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                    do {
+                        if editingBanner { try GhafProfilePhoto.saveBanner(image); hasBanner = true }
+                        else { try GhafProfilePhoto.save(image); hasPhoto = true }
+                    }
                     catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
                 }
             }
@@ -424,11 +435,14 @@ struct GhafSettingsView: View {
 
     private var photoActionsSheet: some View {
         VStack(spacing: 10) {
-            Text(ar ? "صورة الملف الشخصي" : "Profile photo")
-                .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                .padding(.bottom, 2)
+            Picker(ar ? "نوع الصورة" : "Image type", selection: $editingBanner) {
+                Text(ar ? "الغلاف" : "Banner").tag(true)
+                Text(ar ? "صورة الملف الشخصي" : "Profile photo").tag(false)
+            }
+            .pickerStyle(.segmented)
+            .padding(.bottom, 2)
             PhotosPicker(selection: $photoItem, matching: .images) {
-                Label(ar ? "اختيار صورة" : "Choose photo", systemImage: "photo")
+                Label(ar ? "اختيار صورة" : "Choose from library", systemImage: "photo")
                     .frame(maxWidth: .infinity)
             }.ghafProminentButton(theme: theme, languageCode: languageCode)
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -437,11 +451,13 @@ struct GhafSettingsView: View {
                         .frame(maxWidth: .infinity)
                 }.ghafProminentButton(theme: theme, languageCode: languageCode)
             }
-            if hasPhoto {
+            if editingBanner ? hasBanner : hasPhoto {
                 Button(role: .destructive) {
-                    GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil; showPhotoMenu = false
+                    if editingBanner { GhafProfilePhoto.removeBanner(); hasBanner = false }
+                    else { GhafProfilePhoto.remove(); hasPhoto = false }
+                    photoItem = nil; showPhotoMenu = false
                 } label: {
-                    Label(ar ? "إزالة الصورة" : "Remove photo", systemImage: "trash")
+                    Label(ar ? "إزالة الصورة" : "Remove", systemImage: "trash")
                         .frame(maxWidth: .infinity)
                 }.ghafDestructiveButton(theme: theme, languageCode: languageCode)
             }
@@ -681,7 +697,10 @@ struct GhafSettingsView: View {
                     .onChange(of: photoItem) { _, item in
                         Task {
                             guard let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
-                            do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                            do {
+                                if editingBanner { try GhafProfilePhoto.saveBanner(image); hasBanner = true }
+                                else { try GhafProfilePhoto.save(image); hasPhoto = true }
+                            }
                             catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
                         }
                     }
@@ -804,6 +823,29 @@ struct GhafSettingsView: View {
             }
             streakVoucherCard(streak: streak)
             placesCard
+        }
+        .background(alignment: .top) {
+            if hasBanner, let image = GhafProfilePhoto.loadBanner() {
+                GeometryReader { geometry in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: 280, alignment: .top)
+                        .clipped()
+                        .overlay(alignment: .bottom) {
+                            LinearGradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .clear, location: 0.58),
+                                .init(color: theme.background.opacity(0.8), location: 0.83),
+                                .init(color: theme.background, location: 1)
+                            ], startPoint: .top, endPoint: .bottom)
+                        }
+                }
+                .frame(height: 280)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
         }
     }
 
