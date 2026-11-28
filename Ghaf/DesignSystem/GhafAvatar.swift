@@ -59,7 +59,7 @@ enum GhafProfilePhoto {
 
     static func saveBannerData(_ data: Data?) throws {
         guard let data else { removeBanner(); return }
-        guard data.count <= 1_000_000, UIImage(data: data) != nil else { throw CocoaError(.fileWriteCorruptFile) }
+        guard data.count <= 1_000_000, UIImage(data: data) != nil else { throw CocoaError(.fileWriteUnknown) }
         try FileManager.default.createDirectory(at: bannerURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: bannerURL, options: [.atomic, .completeFileProtection])
         UserDefaults.standard.set(UserDefaults.standard.integer(forKey: bannerVersionKey) + 1, forKey: bannerVersionKey)

@@ -452,12 +452,10 @@ struct GhafSettingsView: View {
 
     private var photoActionsSheet: some View {
         VStack(spacing: 10) {
-            Picker(ar ? "نوع الصورة" : "Image type", selection: $editingBanner) {
-                Text(ar ? "الغلاف" : "Banner").tag(true)
-                Text(ar ? "صورة الملف الشخصي" : "Profile photo").tag(false)
-            }
-            .pickerStyle(.segmented)
-            .padding(.bottom, 2)
+            GhafSegmented(options: [(true, ar ? "الغلاف" : "Banner"),
+                                    (false, ar ? "صورة الملف الشخصي" : "Profile photo")],
+                          selection: $editingBanner, theme: theme, languageCode: languageCode)
+                .padding(.bottom, 2)
             PhotosPicker(selection: $photoItem, matching: .images) {
                 Label(ar ? "اختيار صورة" : "Choose from library", systemImage: "photo")
                     .frame(maxWidth: .infinity)
