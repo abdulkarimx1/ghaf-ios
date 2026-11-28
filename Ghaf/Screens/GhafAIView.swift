@@ -245,6 +245,17 @@ struct GhafAIView: View {
                                                                                  languageCode: settings.languageCode))
                         ]
                     }
+                    if GhafScreenshotFixture.destination == "ai-draft", messages.isEmpty {
+                        var draft = GhafVoiceTransactionParser.parse(
+                            settings.languageCode == "ar" ? "صرفت 32 على الطعام الساعة 9 مساءً" : "spent 32 on food at 9 pm",
+                            languageCode: settings.languageCode, baseCurrency: settings.currency
+                        ).first
+                        draft?.category = "Dining"
+                        draft?.accountID = accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
+                        if let draft {
+                            messages = [GhafChatMessage(isUser: false, text: settings.languageCode == "ar" ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:", drafts: [draft])]
+                        }
+                    }
                     if GhafScreenshotFixture.destination == "ai-subscription-answer", messages.isEmpty {
                         // Exercise the real ledger answer for subscription renewal dates in screenshots/tests.
                         let question = "Which subscriptions are due soon?"
@@ -802,44 +813,17 @@ struct GhafAIView: View {
         let state = message.wrappedValue.draftState
         return VStack(spacing: 10) {
             ForEach(message.drafts) { $draft in
-                HStack(alignment: .top, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Name and amount stay editable until saved, in case speech was misheard.
-                        GhafTextField(text: $draft.merchant, placeholder: ar ? "الاسم" : "Name", theme: theme, languageCode: settings.languageCode)
-                            .disabled(state != .pending)
-                        GhafCategoryPicker(category: $draft.category, subcategory: $draft.subcategory,
-                                           languageCode: settings.languageCode, tint: theme.accent)
-                            .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                            .frame(minHeight: 56)
-                            .disabled(state != .pending)
-                        if state == .pending && isNewCategory(draft) {
-                            Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
-                                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                                .foregroundStyle(theme.accentContrast)
-                                .padding(.horizontal, 7).padding(.vertical, 3)
-                                .background(theme.accent, in: Capsule())
-                        }
-                        if state == .pending {
-                            Picker(ar ? "الحساب" : "Account", selection: $draft.accountID) {
-                                let eligibleAccounts = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
-                                Text(eligibleAccounts.isEmpty ? (ar ? "لا يوجد حساب متاح" : "No account available") : (ar ? "تلقائي" : "Automatic"))
-                                    .tag(UUID?.none)
-                                ForEach(eligibleAccounts) { account in
-                                    Text(account.name).tag(Optional(account.id))
-                                }
-                            }
-                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
-                            .tint(theme.primaryText)
-                            .frame(minHeight: 40)
-                        }
-                    }
-                    Spacer(minLength: 6)
-                    GhafAmountField(value: $draft.amountText, currency: draft.currency,
-                                    label: ar ? "المبلغ" : "Amount", theme: theme,
-                                    languageCode: settings.languageCode)
+                VStack(alignment: .leading, spacing: 8) {
+                    GhafTransactionSentenceCard(draft: $draft, accounts: accounts, transactions: transactions,
+                                                theme: theme, languageCode: settings.languageCode, enabled: state == .pending)
+                    GhafTextField(text: $draft.merchant, placeholder: ar ? "الاسم" : "Name", theme: theme, languageCode: settings.languageCode)
                         .disabled(state != .pending)
-                    .foregroundStyle(draft.direction == "credit" ? theme.credit : theme.primaryText)
-                    .environment(\.layoutDirection, .leftToRight)
+                    if state == .pending && isNewCategory(draft) {
+                        Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
+                            .foregroundStyle(theme.accentContrast).padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(theme.accent, in: Capsule())
+                    }
                 }
             }
             switch state {

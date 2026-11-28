@@ -2,6 +2,30 @@ import XCTest
 @testable import GhafCore
 
 final class VoiceTransactionParserTests: XCTestCase {
+    func testEnglishAndArabicTimesBecomeTwentyOneHundredTodayAndAmountsStayDecimal() {
+        let english = GhafVoiceTransactionParser.parse("spent 32 on food at 9 pm", languageCode: "en", baseCurrency: "AED").first
+        let arabic = GhafVoiceTransactionParser.parse("صرفت 32 على الطعام الساعة 9 مساءً", languageCode: "ar", baseCurrency: "AED").first
+        let calendar = Calendar.current
+
+        for draft in [english, arabic].compactMap({ $0 }) {
+            XCTAssertEqual(draft.amount, Decimal(32))
+            XCTAssertEqual(calendar.component(.hour, from: draft.date), 21)
+            XCTAssertEqual(calendar.component(.minute, from: draft.date), 0)
+            XCTAssertTrue(calendar.isDateInToday(draft.date))
+        }
+        XCTAssertNotNil(english)
+        XCTAssertNotNil(arabic)
+    }
+
+    func testMissingTimeUsesCurrentTime() {
+        let before = Date()
+        let draft = GhafVoiceTransactionParser.parse("spent 32 on food", languageCode: "en", baseCurrency: "AED").first
+        let after = Date()
+        XCTAssertNotNil(draft)
+        XCTAssertGreaterThanOrEqual(draft!.date, before)
+        XCTAssertLessThanOrEqual(draft!.date, after)
+    }
+
     func testSplitsOnAndWhenEachPartHasAnAmount() {
         let drafts = GhafVoiceTransactionParser.parse("karak 3 and petrol 120 and gym 250", languageCode: "en", baseCurrency: "AED")
         XCTAssertEqual(drafts.map(\.merchant), ["karak", "petrol", "gym"])
