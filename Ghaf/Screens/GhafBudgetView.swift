@@ -282,7 +282,7 @@ struct GhafBudgetView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityIdentifier("budget.category.\(item.name)")
+                        .accessibilityIdentifier("budget.category.\(item.name).\(index)")
                         Button {
                         editingCategory = item.name
                         budgetEntry = NSDecimalNumber(decimal: item.budget).stringValue
