@@ -6,7 +6,8 @@ import os
 
 struct GhafSaveSplash: View {
     let title: String
-    let amount: String
+    let amount: Decimal
+    let currency: String
     let detail: String
     let theme: GhafTheme
     let languageCode: String
@@ -40,7 +41,8 @@ struct GhafSaveSplash: View {
             let doneOpacity = min(1, doneProgress * 2.2) * (1 - returnProgress)
             let ring = easeOut(segment(t, doneStart, reduceMotion ? 2.8 : 2.63))
             let tick = easeOut(segment(t, tickStart, reduceMotion ? 2.95 : 2.8))
-            let savingOpacity = segment(t, 0.15, 0.45) * (1 - segment(t, reduceMotion ? 2.0 : 3.65, reduceMotion ? 2.2 : 3.85))
+            let savingFade = reduceMotion ? segment(t, 2.0, 2.2) : segment(t, doneStart - 0.2, doneStart)
+            let savingOpacity = segment(t, 0.15, 0.45) * (1 - savingFade)
             let shaderFade = reduceMotion
                 ? segment(t, blurEnd, 0.8) * (1 - easeInOut(segment(t, 3.9, endTime)))
                 : segment(t, blurEnd - 0.05, blurEnd + 0.25) * (1 - easeInOut(segment(t, 3.85, endTime)))
@@ -84,7 +86,13 @@ struct GhafSaveSplash: View {
                         .frame(width: 58, height: 58)
                         Text(title).font(GhafTypography.heading(21, languageCode: languageCode)).foregroundStyle(theme.primaryText)
                             .accessibilityLabel("Transaction added")
-                        Text(amount).font(GhafTypography.number(30, weight: .bold)).foregroundStyle(theme.primaryText)
+                        HStack(spacing: 7) {
+                            GhafCurrencyIcon(currency: currency, size: 25)
+                            Text(GhafMoneyLabel.formatter(languageCode: languageCode, currency: currency).string(from: amount as NSDecimalNumber)
+                                 ?? NSDecimalNumber(decimal: amount).stringValue)
+                                .font(GhafTypography.number(30, weight: .bold))
+                        }
+                        .foregroundStyle(theme.primaryText)
                         Text(detail).font(GhafTypography.body(13, languageCode: languageCode)).foregroundStyle(theme.secondaryText)
                     }
                     .multilineTextAlignment(.center)

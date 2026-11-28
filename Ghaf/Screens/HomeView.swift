@@ -986,9 +986,8 @@ struct GhafQuickAddView: View {
         // it, and the live 24 pt blur of the whole form (costly next to the 60 fps shader) is gone.
         .fullScreenCover(isPresented: $showingSuccess) {
                 GhafSaveSplash(title: ar ? "تمت إضافة المعاملة" : "Transaction added",
-                               amount: GhafFormat.money(Decimal(string: amount) ?? 0,
-                                   currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency,
-                                   languageCode: lang),
+                               amount: Decimal(string: amount) ?? 0,
+                               currency: accounts.first(where: { $0.id == selectedAccountID })?.currency ?? settings.currency,
                                detail: [successCategory,
                                         accounts.first(where: { $0.id == selectedAccountID })?.name ?? ""]
                                    .filter { !$0.isEmpty }.joined(separator: " · "),
