@@ -63,7 +63,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "budget-salary-currency",
                                "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en",
-                               "-GhafBudgetSlowRowRoll"]
+                               "-GhafBudgetSlowRowRoll", "-GhafSelection", "category-budget-rows"]
         app.launch()
         let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "budget.category.")).allElementsBoundByIndex
         XCTAssertTrue(rows.first?.waitForExistence(timeout: 20) == true)
@@ -71,7 +71,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         let initialY = firstVisible.frame.minY
         Thread.sleep(forTimeInterval: 8.4)
         XCTAssertNotEqual(firstVisible.frame.minY, initialY, accuracy: 1, "The category budget list should advance one row")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.83)).tap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.68)).tap()
         let selected = app.buttons.matching(NSPredicate(format: "isSelected == true")).firstMatch
         XCTAssertTrue(selected.waitForExistence(timeout: 3), "Tapping a visible category budget row should select it")
         let row = app.buttons[selected.identifier]
@@ -79,7 +79,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         let selectedY = row.frame.minY
         Thread.sleep(forTimeInterval: 2.4)
         XCTAssertEqual(row.frame.minY, selectedY, accuracy: 1, "Selection should pause the rolling list")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.83)).tap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.68)).tap()
         XCTAssertFalse(row.isSelected, "Tapping the selected row again should resume the rolling list")
         Thread.sleep(forTimeInterval: 8.4)
         XCTAssertNotEqual(row.frame.minY, selectedY, accuracy: 1, "Deselecting should resume the rolling list")
