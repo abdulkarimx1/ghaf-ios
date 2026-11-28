@@ -251,7 +251,7 @@ enum GhafMoneyText {
     }
     private static var cache: [String: UIImage] = [:]
 
-    static func text(_ string: String, size: CGFloat) -> Text {
+    static func text(_ string: String, size: CGFloat, link: URL? = nil) -> Text {
         let ns = string as NSString
         var result = Text("")
         var cursor = 0
@@ -263,7 +263,11 @@ enum GhafMoneyText {
             result = result + Text(Image(uiImage: mark)).baselineOffset(-size * 0.08) + Text("\u{2009}")
             cursor = match.range.location + match.range.length
         }
-        return result + Text(ns.substring(from: cursor))
+        let remainder = ns.substring(from: cursor)
+        guard let link else { return result + Text(remainder) }
+        var linkedAmount = AttributedString(remainder)
+        linkedAmount.link = link
+        return result + Text(linkedAmount)
     }
 
     /// The asset redrawn at the text's cap height, as a template so it takes the text colour.

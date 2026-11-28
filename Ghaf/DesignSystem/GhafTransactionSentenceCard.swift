@@ -26,7 +26,10 @@ struct GhafTransactionSentenceCard: View {
         draft.date.formatted(.dateTime.hour().minute().locale(GhafLocalization.locale(languageCode: languageCode)))
     }
     private var sentence: Text {
-        helper(ar ? (draft.direction == "credit" ? "استلمت " : "صرفت ") : (draft.direction == "credit" ? "Received " : "Spent ")) + linked("\(GhafFormat.symbol(for: draft.currency, languageCode: languageCode)) \(draft.amountText)", field: "amount")
+        helper(ar ? (draft.direction == "credit" ? "استلمت " : "صرفت ") : (draft.direction == "credit" ? "Received " : "Spent ")) +
+        GhafMoneyText.text("\(draft.currency) \(draft.amountText)", size: 26, link: URL(string: "ghaf-edit://amount"))
+            .font(GhafTypography.body(26, languageCode: languageCode, weight: .bold))
+            .foregroundColor(theme.primaryText)
         + helper(ar ? " على " : " on ") + linked(GhafLocalization.category(draft.category, languageCode: languageCode), field: "category", symbol: "fork.knife")
         + helper(ar ? " من " : " from ") + linked(accountName, field: "account", symbol: "building.columns")
         + Text(" ") + linked(dateText, field: "date", symbol: "calendar")
