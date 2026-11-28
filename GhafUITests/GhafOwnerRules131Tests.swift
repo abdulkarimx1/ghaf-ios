@@ -62,17 +62,19 @@ final class GhafOwnerRules131Tests: XCTestCase {
     func testWave3CategoryBudgetLoopPausesOnSelectionAndResumes() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "budget-salary-currency",
-                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en"]
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en",
+                               "-GhafBudgetSlowRowRoll"]
         app.launch()
         let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "budget.category.")).allElementsBoundByIndex
         XCTAssertTrue(rows.first?.waitForExistence(timeout: 20) == true)
         let firstVisible = try XCTUnwrap(rows.first(where: \.isHittable))
         let initialY = firstVisible.frame.minY
-        Thread.sleep(forTimeInterval: 2.4)
+        Thread.sleep(forTimeInterval: 8.4)
         XCTAssertNotEqual(firstVisible.frame.minY, initialY, accuracy: 1, "The category budget list should advance one row")
-        let rowID = firstVisible.identifier
-        app.coordinate(withNormalizedOffset: CGVector(dx: firstVisible.frame.midX / app.frame.width,
-                                                        dy: firstVisible.frame.midY / app.frame.height)).tap()
+        let tapTarget = try XCTUnwrap(rows.first(where: \.isHittable))
+        let rowID = tapTarget.identifier
+        app.coordinate(withNormalizedOffset: CGVector(dx: tapTarget.frame.midX / app.frame.width,
+                                                        dy: tapTarget.frame.midY / app.frame.height)).tap()
         let row = app.buttons[rowID]
         XCTAssertTrue(row.isSelected, "Tapping a visible category budget row should select it")
         let selectedY = row.frame.minY
@@ -80,7 +82,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         XCTAssertEqual(row.frame.minY, selectedY, accuracy: 1, "Selection should pause the rolling list")
         row.tap()
         XCTAssertFalse(row.isSelected, "Tapping the selected row again should resume the rolling list")
-        Thread.sleep(forTimeInterval: 4.2)
+        Thread.sleep(forTimeInterval: 8.4)
         XCTAssertNotEqual(row.frame.minY, selectedY, accuracy: 1, "Deselecting should resume the rolling list")
     }
 

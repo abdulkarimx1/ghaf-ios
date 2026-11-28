@@ -42,6 +42,12 @@ struct GhafBudgetView: View {
     private var allocationIncome: Decimal { plan.allocationIncome }
     private var cycle: DateInterval { plan.cycle }
     private func expenses(in range: DateInterval) -> [GhafTransaction] { plan.expenses(in: range) }
+    private var categoryRollInterval: Duration {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-GhafBudgetSlowRowRoll") { return .seconds(8) }
+#endif
+        return .seconds(2)
+    }
 
     var body: some View {
         let spending = expenses(in: cycle)
@@ -314,7 +320,7 @@ struct GhafBudgetView: View {
                     guard rows.count > 3, !reduceMotion, !showAllBudgetRows else { return }
                     var position = rows.count
                     while !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(2))
+                        try? await Task.sleep(for: categoryRollInterval)
                         guard !Task.isCancelled, selectedCategory == nil, !budgetPageDragging, !voiceOverEnabled else { continue }
                         position += 1
                         if position >= rows.count * 2 {
