@@ -20,7 +20,11 @@ struct GhafBudgetView: View {
     @State private var editingCategory: String?
     @State private var budgetEntry = ""
     @State private var showPresetSheet = false
+    @State private var showAllBudgetRows = false
+    @State private var budgetPageDragging = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @ScaledMetric(relativeTo: .body) private var categoryRowHeight: CGFloat = 64
 
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
@@ -59,6 +63,9 @@ struct GhafBudgetView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .simultaneousGesture(DragGesture(minimumDistance: 5).onChanged { _ in budgetPageDragging = true }.onEnded { _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { budgetPageDragging = false }
+        })
         .ghafStatusBarFade(theme: theme)
         .ghafBackground(theme: theme)
         .navigationTitle(ar ? "الميزانية" : "Budget")
@@ -132,7 +139,7 @@ struct GhafBudgetView: View {
     private var monthlySpendByCategory: [(name: String, spent: Decimal, budget: Decimal)] { plan.categoryRows }
 
     private var petalBudgetCard: some View {
-        let rows = monthlySpendByCategory.filter { $0.spent > 0 }
+        let rows = monthlySpendByCategory.filter { $0.budget > 0 }
         let all = rows.filter { $0.budget > 0 }
         let grouped = all.count > 8
         let shown = Array(all.prefix(grouped ? 7 : 8)) + (grouped ? [(name: ar ? "أخرى" : "Other", spent: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.spent }, budget: all.dropFirst(7).reduce(Decimal.zero) { $0 + $1.budget })] : [])
@@ -233,10 +240,11 @@ struct GhafBudgetView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
-            VStack(spacing: 0) {
-                ForEach(rows, id: \.name) { item in
-                    let category = shown.first(where: { $0.name == item.name })?.name
-                        ?? ((grouped && !all.prefix(7).contains(where: { $0.name == item.name })) ? (ar ? "أخرى" : "Other") : nil)
+            ScrollViewReader { rowProxy in
+                ScrollView(.vertical) {
+                    VStack(spacing: 0) {
+                ForEach(Array((rows.count > 3 ? rows + rows + rows : rows).enumerated()), id: \.offset) { index, item in
+                    let category = item.name
                     HStack(spacing: 8) {
                         Button {
                             withAnimation(reduceMotion ? nil : .spring()) { selectedCategory = selectedCategory == category ? nil : category }
@@ -263,12 +271,18 @@ struct GhafBudgetView: View {
                             }
                             Spacer(minLength: 2)
                             }
-                            .frame(height: 64)
+                            .frame(minHeight: categoryRowHeight)
                             .contentShape(Rectangle())
                             .foregroundStyle(theme.primaryText)
                             .opacity(selectedCategory == nil || selectedCategory == category ? 1 : 0.45)
+                            .overlay {
+                                if selectedCategory == category {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.accent, lineWidth: 1.5)
+                                }
+                            }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("budget.category.\(item.name)")
                         Button {
                         editingCategory = item.name
                         budgetEntry = NSDecimalNumber(decimal: item.budget).stringValue
@@ -284,12 +298,40 @@ struct GhafBudgetView: View {
                         }
                     }
                     .accessibilityElement(children: .contain)
+                    .id(index)
                 }
+                    }
+                }
+                .frame(height: CGFloat(showAllBudgetRows ? rows.count : min(rows.count, 3)) * categoryRowHeight)
+                .scrollIndicators(.hidden)
+                .scrollDisabled(true)
+                .clipped()
+                .task(id: rows.map(\.name)) {
+                    guard rows.count > 3, !reduceMotion, !showAllBudgetRows else { return }
+                    var position = rows.count
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(2))
+                        guard !Task.isCancelled, selectedCategory == nil, !budgetPageDragging, !voiceOverEnabled else { continue }
+                        position += 1
+                        if position >= rows.count * 2 {
+                            position = rows.count
+                            rowProxy.scrollTo(position, anchor: .top)
+                        } else {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) { rowProxy.scrollTo(position, anchor: .top) }
+                        }
+                    }
+                }
+            }
+            if reduceMotion && rows.count > 3 {
+                Button(ar ? "عرض الكل" : "Show all") { showAllBudgetRows = true }
+                    .font(GhafTypography.body(12, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent).frame(minHeight: 40)
             }
         }
         }
-        .frame(height: CGFloat(rows.count * 64) + 430)
-        .padding(GhafMetrics.cardPadding)
+        .frame(height: CGFloat(showAllBudgetRows ? rows.count : min(rows.count, 3)) * categoryRowHeight + 430)
+        .padding(.horizontal, GhafMetrics.cardPadding)
+        .padding(.top, GhafMetrics.cardPadding)
+        .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .ghafStatsCard(theme: theme, radius: 22)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -506,16 +548,9 @@ struct GhafBudgetView: View {
                             .padding(.horizontal, 12)
                             .background(bucketSelected && bucket == item ? theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06) : .clear,
                                         in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay {
-                                if bucketSelected && bucket == item {
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(theme.primaryText.opacity(0.75), lineWidth: 1.5)
-                                }
-                            }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(names[item.rawValue]), \(GhafFormat.shownMoney(allocationIncome * preset.share(item), currency: currency, languageCode: lang)), \(Int(truncating: (preset.share(item) * 100) as NSNumber))%")
-                        .accessibilityIdentifier("budget.allocation.\(item)")
                         .accessibilityAddTraits(bucketSelected && bucket == item ? .isSelected : [])
                     }
                 }
