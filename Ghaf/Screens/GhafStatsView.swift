@@ -281,7 +281,6 @@ struct GhafStatsView: View {
                 }
                 .ghafBackground(theme: theme)
                 .toolbar(.hidden, for: .navigationBar)
-                .toolbar(.hidden, for: .tabBar)
                 .onChange(of: statsTaskID) { _, _ in refreshStatsIfNeeded() }
                 .onAppear { refreshStatsIfNeeded() }
                 .sensoryFeedback(.selection, trigger: period)

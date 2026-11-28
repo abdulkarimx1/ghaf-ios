@@ -639,6 +639,7 @@ struct GhafTabView: View {
                         Tab(value: 2) { statsTab }
                         Tab(value: 4) { moreTab }
                     }
+                    .toolbar(.hidden, for: .tabBar)
                 } else {
                     TabView(selection: selection) {
                         homeTab.tag(0)
@@ -647,6 +648,7 @@ struct GhafTabView: View {
                         statsTab.tag(2)
                         moreTab.tag(4)
                     }
+                    .toolbar(.hidden, for: .tabBar)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {

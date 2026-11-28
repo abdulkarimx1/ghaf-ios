@@ -192,7 +192,6 @@ struct GhafSettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar(.hidden, for: .tabBar)
             .tint(theme.accent)
 #if DEBUG
             .navigationDestination(isPresented: $fixtureGlassPresented) {

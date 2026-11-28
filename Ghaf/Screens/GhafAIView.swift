@@ -166,7 +166,6 @@ struct GhafAIView: View {
                 .allowsHitTesting(false)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar(.hidden, for: .tabBar)
             .modifier(GhafHideTabBar(forceDark: false))
             .environment(\.colorScheme, theme.isDark ? .dark : .light) // owner 1.31: AI follows the theme
             .sensoryFeedback(.success, trigger: savedCount)

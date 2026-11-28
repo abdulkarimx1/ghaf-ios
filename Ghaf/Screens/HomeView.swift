@@ -217,7 +217,6 @@ struct GhafHomeView: View {
             .onAppear { refreshSummaryIfNeeded() }
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar(.hidden, for: .tabBar)
             .navigationDestination(isPresented: $showAccounts) {
                 GhafAccountsView(settings: settings, initialSelectedAccountID: accountToOpenID)
             }

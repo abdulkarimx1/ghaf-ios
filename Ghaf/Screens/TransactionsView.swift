@@ -229,7 +229,6 @@ struct GhafTransactionsView: View {
             .ghafStatusBarFade(theme: theme)
             .ghafKeyboardDone()
             .toolbar(.hidden, for: .navigationBar)
-            .toolbar(.hidden, for: .tabBar)
             .onChange(of: preparationID) { _, _ in prepareVisibleTransactions() }
             .onAppear { prepareVisibleTransactions() }
             .onAppear {
