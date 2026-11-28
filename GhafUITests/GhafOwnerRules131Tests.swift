@@ -79,7 +79,8 @@ final class GhafOwnerRules131Tests: XCTestCase {
         Thread.sleep(forTimeInterval: 2.4)
         XCTAssertEqual(row.frame.minY, selectedY, accuracy: 1, "Selection should pause the rolling list")
         row.tap()
-        Thread.sleep(forTimeInterval: 2.4)
+        XCTAssertFalse(row.isSelected, "Tapping the selected row again should resume the rolling list")
+        Thread.sleep(forTimeInterval: 4.2)
         XCTAssertNotEqual(row.frame.minY, selectedY, accuracy: 1, "Deselecting should resume the rolling list")
     }
 
