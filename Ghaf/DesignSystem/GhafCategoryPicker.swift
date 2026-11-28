@@ -118,7 +118,7 @@ struct GhafCategoryPicker: View {
         Button(action: action) {
             HStack(spacing: 7) {
                 Circle().fill(color).frame(width: 10, height: 10)
-                Text(title).font(GhafTypography.body(14, languageCode: languageCode, weight: .medium)).lineLimit(1)
+                Text(title).font(GhafTypography.body(14, languageCode: languageCode, weight: .medium)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
             }
             .foregroundStyle(selected ? theme.accentContrast : theme.primaryText)
             .padding(.horizontal, 14).frame(height: 40)

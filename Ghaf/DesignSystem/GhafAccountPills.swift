@@ -32,6 +32,7 @@ struct GhafAccountPills: View {
                             Circle().fill(dotColor(account)).frame(width: 10, height: 10)
                             Text("\(account.name) · \(account.currency)")
                                 .font(GhafTypography.body(14, languageCode: languageCode, weight: .medium)).lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
                         .foregroundStyle(selection == account.id ? theme.background : theme.primaryText)
                         .padding(.horizontal, 14).frame(height: 40)
