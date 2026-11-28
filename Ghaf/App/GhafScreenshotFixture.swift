@@ -102,6 +102,7 @@ enum GhafScreenshotFixture {
         let settings = GhafSettings(languageCode: language, currency: "AED", monthlyIncome: 12000, themeName: theme,
                                     appearanceMode: appearance, hasCompletedOnboarding: !launchNewUser)
         if !launchNewUser { settings.userName = language == "ar" ? "أمينة" : "Amina" }
+        if arguments.contains("-GhafBiometricLockProof") { settings.biometricLockEnabled = true }
         context.insert(settings)
         if launchNewUser { try? context.save(); return }
         let mashreq = GhafAccount(name: language == "ar" ? "حساب المشرق الجاري" : "Mashreq Current",

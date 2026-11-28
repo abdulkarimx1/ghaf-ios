@@ -132,9 +132,10 @@ struct GhafRootView: View {
             await GhafWidgetSync.endStale()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active {
+            // Only real backgrounding counts: the Face ID prompt itself makes the scene inactive,
+            // and counting that re-locked after every successful unlock (owner #133).
+            if phase == .background, backgroundedAt == nil {
                 backgroundedAt = .now
-                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: "ghaf.security.backgroundAt")
             }
             // Leaving Ghaf: refresh the morning/evening/weekly notes with today's numbers.
             if phase == .background {
@@ -147,16 +148,15 @@ struct GhafRootView: View {
                 Task { await GhafWidgetSync.endStale() }
             }
             if phase == .active { Task { await GhafExchangeRates.refreshIfStale() } }
-            if phase == .active, requiresAuthentication {
-                let saved = UserDefaults.standard.double(forKey: "ghaf.security.backgroundAt")
-                let elapsed = backgroundedAt.map { Date.now.timeIntervalSince($0) }
-                    ?? (saved > 0 ? Date.now.timeIntervalSince1970 - saved : 0)
+            if phase == .active, requiresAuthentication, let backgroundedAt {
+                // Cold launches are locked by the launch sequence, not here.
+                let elapsed = Date.now.timeIntervalSince(backgroundedAt)
                 if GhafSecurityPolicy.shouldLock(backgroundDuration: elapsed,
                                                  delaySeconds: settings.first?.autoLockDelaySeconds ?? 0) {
                     isUnlocked = false
                     authenticateUser()
                 }
-                backgroundedAt = nil
+                self.backgroundedAt = nil
             }
         }
         .onChange(of: settings.first?.biometricLockEnabled) { _, enabled in
