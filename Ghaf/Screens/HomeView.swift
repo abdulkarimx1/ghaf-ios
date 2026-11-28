@@ -3,21 +3,10 @@ import SwiftData
 import UniformTypeIdentifiers
 import UIKit
 
-private struct HomeAccountsZoomSource: ViewModifier {
-    let namespace: Namespace.ID
-    func body(content: Content) -> some View {
-        if #available(iOS 18, *) {
-            content.matchedTransitionSource(id: "home-accounts", in: namespace)
-        } else {
-            content
-        }
-    }
-}
 import GhafCore
 import AppIntents
 
 struct GhafHomeView: View {
-    @Namespace private var accountsNamespace
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(GhafTabRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
@@ -229,7 +218,7 @@ struct GhafHomeView: View {
             .sensoryFeedback(.selection, trigger: activityPeriodIndex)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $showAccounts) {
-                GhafAccountsView(settings: settings, zoomNamespace: accountsNamespace, initialSelectedAccountID: accountToOpenID)
+                GhafAccountsView(settings: settings, initialSelectedAccountID: accountToOpenID)
             }
             .sheet(isPresented: $showQuickAdd) { GhafQuickAddView(settings: settings).ghafDirection(settings.languageCode) }
             .sheet(isPresented: $showVoiceEntry) {
@@ -393,7 +382,6 @@ struct GhafHomeView: View {
                 }
                 .accessibilityLabel(ar ? "الحسابات" : "Accounts")
                 .buttonStyle(.ghafPress)
-                .modifier(HomeAccountsZoomSource(namespace: accountsNamespace))
             } else {
                 Color.clear.frame(width: 44, height: 44)
             }

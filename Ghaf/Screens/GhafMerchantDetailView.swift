@@ -71,6 +71,7 @@ struct GhafMerchantDetailView: View {
                 Marker(displayName, systemImage: "bag.fill", coordinate: coordinate).tint(theme.accent)
             }
             .mapControlVisibility(.hidden)
+            .environment(\.colorScheme, theme.isDark ? .dark : .light)
             .frame(height: 170)
 
             VStack(alignment: .leading, spacing: 12) {

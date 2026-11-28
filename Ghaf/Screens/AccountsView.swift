@@ -11,7 +11,6 @@ struct GhafAccountsView: View {
     @State private var saveFailed = false
 
     let settings: GhafSettings
-    var zoomNamespace: Namespace.ID? = nil
     var initialSelectedAccountID: UUID? = nil
 
     /// One value drives the sheet so it always opens on the tapped account.
@@ -55,7 +54,6 @@ struct GhafAccountsView: View {
         .alert(settings.languageCode == "ar" ? "تعذّر الحفظ. حاول مرة أخرى." : "Couldn't save. Try again.", isPresented: $saveFailed) {
             Button(settings.languageCode == "ar" ? "حسنًا" : "OK", role: .cancel) { }
         }
-        .modifier(WalletZoomDestination(namespace: zoomNamespace))
     }
 
     private func walletContent(_ balances: [UUID: Decimal]) -> some View {
@@ -159,17 +157,6 @@ struct GhafAccountsView: View {
         }
         .padding(18)
         .ghafCard(theme: theme)
-    }
-}
-
-private struct WalletZoomDestination: ViewModifier {
-    let namespace: Namespace.ID?
-    func body(content: Content) -> some View {
-        if #available(iOS 18, *), let namespace {
-            content.navigationTransition(.zoom(sourceID: "home-accounts", in: namespace))
-        } else {
-            content
-        }
     }
 }
 

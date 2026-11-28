@@ -2,7 +2,9 @@
   "identifier": "07e52e63-8fc5-4065-8823-47231d7a71a8",
   "nonRenewingSubscriptions": [],
   "products": [],
-  "settings": {},
+  "settings": {
+    "_storefront": "ARE"
+  },
   "subscriptionGroups": [
     {
       "id": "456aec76-cf5e-4db5-a2e1-b5996e16266f",
@@ -12,7 +14,7 @@
         {
           "adHocOffers": [],
           "codeOffers": [],
-          "displayPrice": "9.99",
+          "displayPrice": "10.00",
           "familyShareable": false,
           "groupNumber": 1,
           "introductoryOffer": {
@@ -20,7 +22,7 @@
             "internalID": "3DA7B001",
             "numberOfPeriods": 1,
             "paymentMode": "free",
-            "subscriptionPeriod": "P3D"
+            "subscriptionPeriod": "P1W"
           },
           "internalID": "d7130060-913d-4b18-a962-e16eda5d9633",
           "localizations": [
@@ -39,7 +41,7 @@
         {
           "adHocOffers": [],
           "codeOffers": [],
-          "displayPrice": "79.99",
+          "displayPrice": "99.00",
           "familyShareable": false,
           "groupNumber": 1,
           "introductoryOffer": {
@@ -47,7 +49,7 @@
             "internalID": "3DA7B002",
             "numberOfPeriods": 1,
             "paymentMode": "free",
-            "subscriptionPeriod": "P3D"
+            "subscriptionPeriod": "P1W"
           },
           "internalID": "dd0cf1a4-b678-49ed-8c7a-4cf2a1b6aa54",
           "localizations": [

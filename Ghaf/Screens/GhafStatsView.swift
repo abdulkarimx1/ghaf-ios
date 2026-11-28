@@ -352,7 +352,8 @@ struct GhafStatsView: View {
     private func axisLabel(_ date: Date) -> String {
         let locale = GhafLocale.locale(identifier: lang)
         switch period {
-        case .week: return date.formatted(.dateTime.weekday(.narrow).locale(locale))
+        // Owner 2026-11-28: Arabic days in full (الخميس), never initials.
+        case .week: return date.formatted(.dateTime.weekday(ar ? .wide : .narrow).locale(locale))
         case .month, .quarter:
             // 4 even bars: label each with its date range, e.g. "1–8" or "1 Sep".
             // Labels sit under the middle day of each group; show that group's range.
