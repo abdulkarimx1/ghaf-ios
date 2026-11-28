@@ -320,10 +320,11 @@ extension GhafWalkthroughTests {
         app.launchArguments = ["-GhafFixture", "1", "-GhafRestoreBackup", backup,
                                "-GhafTheme", "Graphite", "-GhafAppearance", "Dark", "-GhafLanguage", "en"]
         app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
-        timedTap(app.tabBars.buttons["Transactions"], "tab Transactions after backup restore")
-        XCTAssertTrue(app.tabBars.buttons["Transactions"].isSelected)
-        XCTAssertGreaterThan(app.buttons.count, app.tabBars.buttons.count + 4, "Expected at least one restored transaction row")
+        let transactionsTab = app.buttons["ghaf.tabbar.item.3"]
+        XCTAssertTrue(transactionsTab.waitForExistence(timeout: 20))
+        timedTap(transactionsTab, "tab Transactions after backup restore")
+        XCTAssertTrue(transactionsTab.isSelected)
+        XCTAssertGreaterThan(app.buttons.count, 9, "Expected at least one restored transaction row")
         snap("restore-real-data-transactions")
     }
 

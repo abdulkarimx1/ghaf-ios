@@ -1,6 +1,7 @@
 import XCTest
 import SwiftData
 import GhafCore
+import UIKit
 @testable import Ghaf
 
 @MainActor
@@ -169,6 +170,32 @@ final class GhafImportRegressionTests: XCTestCase {
         XCTAssertEqual(result.transactionsImported, 1)
         XCTAssertEqual(try container.mainContext.fetchCount(FetchDescriptor<GhafAccount>()), 1)
         XCTAssertEqual(try container.mainContext.fetchCount(FetchDescriptor<GhafTransaction>()), 1)
+    }
+
+    func testProfileBannerAndSecuritySettingsRoundTripThroughBackup() throws {
+        let source = try makeContainer()
+        let settings = GhafSettings(userName: "Synthetic", currency: "AED", monthlyIncome: 1000)
+        settings.autoLockDelaySeconds = 300
+        settings.backupExportLockEnabled = true
+        source.mainContext.insert(settings)
+        try source.mainContext.save()
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 80, height: 40)).image { context in
+            UIColor.systemBlue.setFill(); context.cgContext.fill(CGRect(x: 0, y: 0, width: 80, height: 40))
+        }
+        let banner = try XCTUnwrap(image.jpegData(compressionQuality: 0.8))
+        try GhafProfilePhoto.saveBannerData(banner)
+        defer { GhafProfilePhoto.removeBanner() }
+
+        let backup = try GhafBackupService.export(context: source.mainContext)
+        defer { try? FileManager.default.removeItem(at: backup) }
+        GhafProfilePhoto.removeBanner()
+        let restored = try makeContainer()
+        try GhafBackupService.restore(from: backup, context: restored.mainContext)
+
+        let restoredSettings = try XCTUnwrap(restored.mainContext.fetch(FetchDescriptor<GhafSettings>()).first)
+        XCTAssertEqual(restoredSettings.autoLockDelaySeconds, 300)
+        XCTAssertEqual(restoredSettings.backupExportLockEnabled, true)
+        XCTAssertEqual(GhafProfilePhoto.loadBannerData(), banner)
     }
 
     private func syntheticBackup() throws -> [String: Any] {

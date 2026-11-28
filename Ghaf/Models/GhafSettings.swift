@@ -60,6 +60,8 @@ final class GhafSettings {
     var lastSalaryDecisionKey: String?
     var salaryReminderEnabled: Bool?
     var biometricLockEnabled: Bool?
+    var autoLockDelaySeconds: Int?
+    var backupExportLockEnabled: Bool?
     /// Maps app selected for directions. Defaults to Apple Maps on existing installs.
     var mapsAppPreference: String = "apple"
     /// 1.31 (V16): "male", "female" or "unspecified"; picks the Arabic forms the voices use. nil = not asked yet.
@@ -85,7 +87,9 @@ final class GhafSettings {
         salaryAccountID: UUID? = nil,
         lastSalaryDecisionKey: String? = nil,
         salaryReminderEnabled: Bool? = false,
-        biometricLockEnabled: Bool? = false
+        biometricLockEnabled: Bool? = false,
+        autoLockDelaySeconds: Int? = nil,
+        backupExportLockEnabled: Bool? = nil
     ) {
         self.id = UUID()
         self.userName = userName
@@ -114,6 +118,8 @@ final class GhafSettings {
         self.lastSalaryDecisionKey = lastSalaryDecisionKey
         self.salaryReminderEnabled = salaryReminderEnabled
         self.biometricLockEnabled = biometricLockEnabled
+        self.autoLockDelaySeconds = autoLockDelaySeconds
+        self.backupExportLockEnabled = backupExportLockEnabled
     }
 
     var categories: [String] {

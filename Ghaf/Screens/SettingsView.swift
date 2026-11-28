@@ -4,6 +4,8 @@ import SwiftData
 import UniformTypeIdentifiers
 import PhotosUI
 import UIKit
+import LocalAuthentication
+import StoreKit
 
 private enum GhafSettingsPrompt: Identifiable {
     case importBackup
@@ -17,6 +19,12 @@ private enum GhafSettingsPrompt: Identifiable {
         case .message(let value): return "message-\(value)"
         }
     }
+}
+
+private struct GhafProMemberInfo {
+    let since: Date
+    let renews: Date
+    let yearly: Bool
 }
 
 struct GhafSettingsView: View {
@@ -57,6 +65,9 @@ struct GhafSettingsView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var photoItem: PhotosPickerItem?
     @State private var hasPhoto = GhafProfilePhoto.load() != nil
+    @State private var hasBanner = GhafProfilePhoto.loadBanner() != nil
+    @State private var editingBanner = false
+    @AppStorage(GhafProfilePhoto.bannerVersionKey) private var profileBannerVersion = 0
     @State private var showPhotoMenu = false
     @State private var showBudgetCharacterInfo = false
     @State private var showBudgetFromCharacter = false
@@ -77,12 +88,14 @@ struct GhafSettingsView: View {
     @State private var categoryDraftName = ""
     @State private var showCategories = false
     @State private var proUnlocked = GhafProAccess.hasAccess
+    @State private var proMemberInfo: GhafProMemberInfo?
     @State private var selectedMilestone: Int?
     @State private var showPendingMilestoneProfile = false
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
     @AppStorage("ghaf.pad.mirrored") private var padMirrored = false
+    @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
@@ -133,14 +146,7 @@ struct GhafSettingsView: View {
                     }
 
                     if proUnlocked {
-                        HStack(spacing: 12) {
-                            Image(systemName: "sparkles").foregroundStyle(theme.accent)
-                            Text(ar ? "أنت مشترك في غاف برو" : "You're on Pro")
-                                .font(GhafTypography.heading(22, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                            Spacer()
-                        }
-                        .padding(GhafMetrics.cardPadding)
-                        .ghafCard(theme: theme)
+                        proMemberCard
                     } else {
                         Button { showProSheet = true } label: {
                             HStack(spacing: 14) {
@@ -171,7 +177,6 @@ struct GhafSettingsView: View {
                             .overlay(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).stroke(theme.outline.opacity(0.6), lineWidth: 1))
                         }
                         .buttonStyle(.ghafPress)
-                        .ghafProSheet(isPresented: $showProSheet, settings: settings)
                     }
 
                     inviteCard
@@ -216,6 +221,7 @@ struct GhafSettingsView: View {
                 Task {
                     _ = await GhafAITier.refreshVerifiedEntitlement()
                     proUnlocked = GhafProAccess.hasAccess
+                    await refreshProMemberInfo()
                 }
                 refreshProfileStreakIfNeeded()
                 if let days = router.pendingMilestone {
@@ -252,9 +258,15 @@ struct GhafSettingsView: View {
             .sheet(isPresented: $showBackupShare) {
                 if let backupURL { GhafSettingsShareSheet(items: [backupURL]) }
             }
+            .sheet(isPresented: $showProSheet) {
+                GhafProSheet(settings: settings, feature: ("Profile", "الملف الشخصي")).ghafDirection(languageCode)
+            }
             .sheet(isPresented: $showCameraPicker) {
                 GhafCameraPicker { image in
-                    do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                    do {
+                        if editingBanner { try GhafProfilePhoto.saveBanner(image); hasBanner = true }
+                        else { try GhafProfilePhoto.save(image); hasPhoto = true }
+                    }
                     catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
                 }
             }
@@ -398,6 +410,54 @@ struct GhafSettingsView: View {
 
     private var profilePage: some View { profileCard.offerCodeRedemption(isPresented: $redeemingVoucher) }
 
+    private var proMemberCard: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Label(ar ? "غاف برو لك" : "Ghaf Pro is yours", systemImage: "sparkles")
+                .font(GhafTypography.heading(20, languageCode: languageCode).weight(.semibold))
+                .foregroundStyle(theme.primaryText)
+            Text(ar ? "كل المزايا وكل الأدوات، وصوت حمد أو مريم كلما طلبت." : "Every feature, every widget, and Hamad or Mariam whenever you ask.")
+                .font(GhafTypography.body(14, languageCode: languageCode))
+                .foregroundStyle(theme.secondaryText)
+            if let info = proMemberInfo {
+                Text(proMemberLine(info))
+                    .font(GhafTypography.body(12, languageCode: languageCode, weight: .medium))
+                    .foregroundStyle(theme.secondaryText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GhafMetrics.cardPadding)
+        .background(theme.isDark ? theme.background : theme.surface, in: RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: GhafMetrics.cardRadius, style: .continuous).stroke(theme.outline.opacity(0.7), lineWidth: 1))
+    }
+
+    private func proMemberLine(_ info: GhafProMemberInfo) -> String {
+        let locale = GhafLocale.locale(identifier: languageCode)
+        let since = info.since.formatted(.dateTime.month(.wide).year().locale(locale))
+        let renews = info.renews.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))
+        if ar { return "عضو برو منذ \(since) · \(info.yearly ? "سنوي" : "شهري") · يتجدد \(renews)" }
+        return "Pro member since \(since) · \(info.yearly ? "Yearly" : "Monthly") · renews \(renews)"
+    }
+
+    @MainActor
+    private func refreshProMemberInfo() async {
+        var active: StoreKit.Transaction?
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.revocationDate == nil,
+                  !transaction.isUpgraded,
+                  ["com.ghaf.app.pro.monthly", "com.ghaf.app.pro.yearly"].contains(transaction.productID) else { continue }
+            if let current = active,
+               (transaction.expirationDate ?? .distantFuture) > (current.expirationDate ?? .distantPast) {
+                active = transaction
+            } else if active == nil {
+                active = transaction
+            }
+        }
+        guard let active, let renewal = active.expirationDate else { proMemberInfo = nil; return }
+        proMemberInfo = GhafProMemberInfo(since: active.originalPurchaseDate, renews: renewal,
+                                          yearly: active.productID == "com.ghaf.app.pro.yearly")
+    }
+
     private var profileDisplayName: String {
         let arabic = settings.arabicName.trimmingCharacters(in: .whitespacesAndNewlines)
         return ar && !arabic.isEmpty ? arabic : name
@@ -424,11 +484,12 @@ struct GhafSettingsView: View {
 
     private var photoActionsSheet: some View {
         VStack(spacing: 10) {
-            Text(ar ? "صورة الملف الشخصي" : "Profile photo")
-                .font(GhafTypography.heading(18, languageCode: languageCode)).foregroundStyle(theme.primaryText)
+            GhafSegmented(options: [(true, ar ? "الغلاف" : "Banner"),
+                                    (false, ar ? "صورة الملف الشخصي" : "Profile photo")],
+                          selection: $editingBanner, theme: theme, languageCode: languageCode)
                 .padding(.bottom, 2)
             PhotosPicker(selection: $photoItem, matching: .images) {
-                Label(ar ? "اختيار صورة" : "Choose photo", systemImage: "photo")
+                Label(ar ? "اختيار صورة" : "Choose from library", systemImage: "photo")
                     .frame(maxWidth: .infinity)
             }.ghafProminentButton(theme: theme, languageCode: languageCode)
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -437,11 +498,13 @@ struct GhafSettingsView: View {
                         .frame(maxWidth: .infinity)
                 }.ghafProminentButton(theme: theme, languageCode: languageCode)
             }
-            if hasPhoto {
+            if editingBanner ? hasBanner : hasPhoto {
                 Button(role: .destructive) {
-                    GhafProfilePhoto.remove(); hasPhoto = false; photoItem = nil; showPhotoMenu = false
+                    if editingBanner { GhafProfilePhoto.removeBanner(); hasBanner = false }
+                    else { GhafProfilePhoto.remove(); hasPhoto = false }
+                    photoItem = nil; showPhotoMenu = false
                 } label: {
-                    Label(ar ? "إزالة الصورة" : "Remove photo", systemImage: "trash")
+                    Label(ar ? "إزالة الصورة" : "Remove", systemImage: "trash")
                         .frame(maxWidth: .infinity)
                 }.ghafDestructiveButton(theme: theme, languageCode: languageCode)
             }
@@ -681,7 +744,10 @@ struct GhafSettingsView: View {
                     .onChange(of: photoItem) { _, item in
                         Task {
                             guard let data = try? await item?.loadTransferable(type: Data.self), let image = UIImage(data: data) else { return }
-                            do { try GhafProfilePhoto.save(image); hasPhoto = true }
+                            do {
+                                if editingBanner { try GhafProfilePhoto.saveBanner(image); hasBanner = true }
+                                else { try GhafProfilePhoto.save(image); hasPhoto = true }
+                            }
                             catch { prompt = .message(ar ? "تعذر حفظ الصورة." : "Couldn't save the photo.") }
                         }
                     }
@@ -694,22 +760,15 @@ struct GhafSettingsView: View {
                             .onChange(of: draftProfileName) { _, value in if value.count > 20 { draftProfileName = String(value.prefix(20)) } }
                         Button(ar ? "تم" : "Done", action: saveProfileName)
                             .font(GhafTypography.body(12, languageCode: languageCode, weight: .semibold)).foregroundStyle(theme.accent)
+                        if proUnlocked { GhafProPill(theme: theme, languageCode: languageCode) }
                     } else {
-                        Text(profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName)
-                            .font(GhafTypography.display(26, languageCode: languageCode)).foregroundStyle(theme.primaryText)
-                            .lineLimit(2).minimumScaleFactor(0.8)
-                            // The pencil hangs off the name's trailing edge so the name itself stays centred (mirrors in RTL).
-                            .overlay(alignment: .trailing) {
-                        Button {
+                        GhafProfileProNameLine(name: profileDisplayName.isEmpty ? (ar ? "أضف اسمك" : "Add your name") : profileDisplayName,
+                                               isPro: proUnlocked, theme: theme, languageCode: languageCode) {
                             draftProfileName = name
                             draftArabicName = arabicName
                             isEditingProfileName = true
                             profileNameFocused = true
-                        } label: { Image(systemName: "pencil").font(.system(size: 13, weight: .semibold)) }
-                            .foregroundStyle(theme.accent).frame(minWidth: 44, minHeight: 44)
-                            .accessibilityLabel(ar ? "تعديل الاسم" : "Edit name")
-                            .alignmentGuide(.trailing) { d in d[.leading] + 6 }
-                            }
+                        }
                     }
                 }
                 if isEditingProfileName {
@@ -804,6 +863,29 @@ struct GhafSettingsView: View {
             }
             streakVoucherCard(streak: streak)
             placesCard
+        }
+        .background(alignment: .top) {
+            if hasBanner, let image = GhafProfilePhoto.loadBanner() {
+                GeometryReader { geometry in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: 280, alignment: .top)
+                        .clipped()
+                        .overlay(alignment: .bottom) {
+                            LinearGradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .clear, location: 0.58),
+                                .init(color: theme.background.opacity(0.8), location: 0.83),
+                                .init(color: theme.background, location: 1)
+                            ], startPoint: .top, endPoint: .bottom)
+                        }
+                }
+                .frame(height: 280)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
         }
     }
 
@@ -1206,39 +1288,81 @@ HStack(spacing: 8) {
                 ? "احمِ بياناتك المالية عند فتح التطبيق"
                 : "Protect your financial data when opening Ghaf"
         ) {
-            Toggle(isOn: Binding(
-                get: { settings.biometricLockEnabled ?? false },
-                set: { enabled in
+            let biometric = settings.biometricLockEnabled ?? false
+            let delay = settings.autoLockDelaySeconds ?? 0
+            let exportLocked = settings.backupExportLockEnabled ?? biometric
+            let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+            LazyVGrid(columns: columns, spacing: 12) {
+                securityTile(ar ? "قفل Face ID" : "Face ID lock", state: securityState(biometric), icon: biometric ? "faceid" : "faceid", active: biometric) {
+                    let enabled = !biometric
                     settings.biometricLockEnabled = enabled
-                    do {
-                        try modelContext.save()
-                    } catch {
-                        prompt = .message(languageCode == "ar"
-                            ? "تعذر حفظ إعداد الأمان."
-                            : "Could not save the security setting.")
+                    if enabled {
+                        if settings.autoLockDelaySeconds == nil { settings.autoLockDelaySeconds = 0 }
+                        if settings.backupExportLockEnabled == nil { settings.backupExportLockEnabled = true }
                     }
+                    persistSecuritySettings()
                 }
-            )) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(languageCode == "ar" ? "القفل بالبصمة أو رمز الجهاز" : "Require Face ID or device passcode")
-                        .font(GhafTypography.body(16, languageCode: languageCode, weight: .bold))
-                        .foregroundStyle(theme.primaryText)
-                    Text(languageCode == "ar"
-                        ? "يتطلب المصادقة عند فتح غاف أو العودة إليه."
-                        : "Authenticate when opening Ghaf or returning to it.")
-                        .font(GhafTypography.body(13, languageCode: languageCode))
-                        .foregroundStyle(theme.secondaryText)
+                securityTile(ar ? "القفل التلقائي" : "Auto-lock", state: autoLockLabel(delay), icon: "lock.clock", active: biometric, enabled: biometric) {
+                    settings.autoLockDelaySeconds = delay == 0 ? 60 : delay == 60 ? 300 : 0
+                    persistSecuritySettings()
+                }
+                securityTile(ar ? "إخفاء الأرصدة" : "Hide balances", state: securityState(hideBalances), icon: hideBalances ? "eye.slash.fill" : "eye", active: hideBalances) {
+                    hideBalances.toggle()
+                }
+                securityTile(ar ? "قفل التصدير" : "Export lock", state: securityState(exportLocked), icon: "square.and.arrow.up", active: exportLocked) {
+                    settings.backupExportLockEnabled = !exportLocked
+                    persistSecuritySettings()
                 }
             }
-            .tint(theme.accent)
-            .frame(minHeight: 52)
-
-            Text(languageCode == "ar"
-                ? "يستخدم غاف آلية المصادقة الآمنة في iOS. قد يطلب رمز دخول الجهاز إذا لم تكن البصمة متاحة."
-                : "Ghaf uses iOS device authentication. Your device passcode may be requested when biometrics are unavailable.")
-                .font(GhafTypography.body(11, languageCode: languageCode))
+            Text(ar ? "يمكنك استخدام رمز دخول iPhone كخيار احتياطي." : "Your iPhone passcode works as a backup.")
+                .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func securityState(_ enabled: Bool) -> String {
+        enabled ? (ar ? "مفعّل" : "On") : (ar ? "متوقف" : "Off")
+    }
+
+    private func autoLockLabel(_ seconds: Int) -> String {
+        switch seconds {
+        case 60: return ar ? "بعد دقيقة" : "After 1 minute"
+        case 300: return ar ? "بعد 5 دقائق" : "After 5 minutes"
+        default: return ar ? "فوراً" : "Immediately"
+        }
+    }
+
+    private func persistSecuritySettings() {
+        do { try modelContext.save() }
+        catch {
+            modelContext.rollback()
+            prompt = .message(ar ? "تعذر حفظ إعداد الأمان." : "Could not save the security setting.")
+        }
+    }
+
+    private func securityTile(_ title: String, state: String, icon: String, active: Bool,
+                              enabled: Bool = true, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(active ? theme.accentContrast : theme.primaryText)
+                Text(title).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(active ? theme.accentContrast : theme.primaryText).lineLimit(1).minimumScaleFactor(0.78)
+                Text(state).font(GhafTypography.body(13, languageCode: languageCode))
+                    .foregroundStyle(active ? theme.accentContrast.opacity(0.8) : theme.secondaryText).lineLimit(1).minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .padding(14)
+            .background(active ? theme.accent : theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(theme.outline.opacity(0.6), lineWidth: 1))
+            .opacity(enabled ? 1 : 0.48)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(title)
+        .accessibilityValue(state)
     }
 
     /// Budget and categories behind two big tabs, so the page is one card tall instead of two.
@@ -1713,6 +1837,24 @@ HStack(spacing: 8) {
     }
 
     private func createBackup() {
+        let exportLock = settings.backupExportLockEnabled ?? (settings.biometricLockEnabled == true)
+        guard exportLock else { createBackupFile(); return }
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            prompt = .message(ar ? "أوقف قفل التصدير من الأمان للتصدير دون رمز." : "Turn off Export lock in Security to export without a passcode.")
+            return
+        }
+        context.evaluatePolicy(.deviceOwnerAuthentication,
+                               localizedReason: ar ? "أكّد هويتك لتصدير النسخة الاحتياطية." : "Confirm your identity to export the backup.") { success, _ in
+            Task { @MainActor in
+                guard GhafSecurityPolicy.canExport(authenticated: success) else { return }
+                createBackupFile()
+            }
+        }
+    }
+
+    private func createBackupFile() {
         do {
             backupURL = try GhafBackupService.export(context: modelContext)
             showBackupShare = true
@@ -1806,6 +1948,75 @@ HStack(spacing: 8) {
             } catch {
                 prompt = .message(arabic ? "تعذر حذف جميع البيانات: \(error.localizedDescription)" : "Could not delete all data: \(error.localizedDescription)")
             }
+        }
+    }
+}
+
+private struct GhafProPill: View {
+    let theme: GhafTheme
+    let languageCode: String
+
+    var body: some View {
+        Text("PRO")
+            .font(GhafTypography.body(11, languageCode: languageCode, weight: .semibold))
+            .tracking(0.6)
+            .foregroundStyle(Color(red: 0.10, green: 0.11, blue: 0.12))
+            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .background(LinearGradient(colors: [Color(red: 0.91, green: 0.92, blue: 0.93),
+                                                Color(red: 0.66, green: 0.68, blue: 0.71),
+                                                Color(red: 0.84, green: 0.85, blue: 0.87)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing), in: Capsule())
+    }
+}
+
+private struct GhafProfileProNameLine: View {
+    let name: String
+    let isPro: Bool
+    let theme: GhafTheme
+    let languageCode: String
+    let onEdit: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var nameAndPill: some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .font(GhafTypography.display(26, languageCode: languageCode))
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(2).minimumScaleFactor(0.8)
+                // Keep the edit affordance outside the measured name width, as in the original profile row.
+                .overlay(alignment: .trailing) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil").font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(theme.accent).frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel(languageCode == "ar" ? "تعديل الاسم" : "Edit name")
+                    .alignmentGuide(.trailing) { d in d[.leading] + 6 }
+                }
+            if isPro { GhafProPill(theme: theme, languageCode: languageCode) }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isPro || reduceMotion)) { timeline in
+            let cycle = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 6)
+            let sweep = min(max((cycle - 4.4) / 1.6, 0), 1)
+            nameAndPill
+                .overlay {
+                    if isPro && !reduceMotion {
+                        GeometryReader { geometry in
+                            LinearGradient(colors: [.clear, .white.opacity(0.35), .clear], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: geometry.size.width * 0.4, height: geometry.size.height * 1.7)
+                                .rotationEffect(.degrees(30))
+                                .offset(x: geometry.size.width * (-0.35 + sweep * 1.7))
+                                .blendMode(.screen)
+                        }
+                        .mask { nameAndPill }
+                        .clipped()
+                        .accessibilityHidden(true)
+                    }
+                }
         }
     }
 }

@@ -4,13 +4,20 @@ import UIKit
 /// The profile photo, kept as a small JPEG in Application Support (not in backups).
 enum GhafProfilePhoto {
     static let versionKey = "ghaf.profile.photoVersion"
+    static let bannerVersionKey = "ghaf.profile.bannerVersion"
 
     private static var url: URL {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return folder.appendingPathComponent("profile-photo.jpg")
     }
+    private static var bannerURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("profile-banner.jpg")
+    }
 
     static func load() -> UIImage? { UIImage(contentsOfFile: url.path) }
+    static func loadBanner() -> UIImage? { UIImage(contentsOfFile: bannerURL.path) }
+    static func loadBannerData() -> Data? { try? Data(contentsOf: bannerURL) }
 
     /// Square-cropped to 512 px so it stays small and sharp in every circle it fills.
     static func save(_ image: UIImage) throws {
@@ -31,6 +38,36 @@ enum GhafProfilePhoto {
     static func remove() {
         try? FileManager.default.removeItem(at: url)
         bump()
+    }
+
+    static func saveBanner(_ image: UIImage) throws {
+        let longSide = max(image.size.width, image.size.height)
+        let scale = min(1, 1600 / longSide)
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let data = stride(from: 0.82, through: 0.22, by: -0.1)
+            .compactMap({ resized.jpegData(compressionQuality: $0) })
+            .first(where: { $0.count <= 1_000_000 }) else { throw CocoaError(.fileWriteUnknown) }
+        try FileManager.default.createDirectory(at: bannerURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: bannerURL, options: [.atomic, .completeFileProtection])
+        UserDefaults.standard.set(UserDefaults.standard.integer(forKey: bannerVersionKey) + 1, forKey: bannerVersionKey)
+    }
+
+    static func saveBannerData(_ data: Data?) throws {
+        guard let data else { removeBanner(); return }
+        guard data.count <= 1_000_000, UIImage(data: data) != nil else { throw CocoaError(.fileWriteUnknown) }
+        try FileManager.default.createDirectory(at: bannerURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: bannerURL, options: [.atomic, .completeFileProtection])
+        UserDefaults.standard.set(UserDefaults.standard.integer(forKey: bannerVersionKey) + 1, forKey: bannerVersionKey)
+    }
+
+    static func removeBanner() {
+        try? FileManager.default.removeItem(at: bannerURL)
+        UserDefaults.standard.set(UserDefaults.standard.integer(forKey: bannerVersionKey) + 1, forKey: bannerVersionKey)
     }
 
     private static func bump() {
