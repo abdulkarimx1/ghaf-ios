@@ -803,6 +803,7 @@ struct GhafQuickAddView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
+    @Query private var transactions: [GhafTransaction]
 
     let settings: GhafSettings
     /// Opened from a card in Accounts: start on that account, optionally as a transfer.
@@ -846,6 +847,13 @@ struct GhafQuickAddView: View {
     @State private var showSubscriptionAdd = false
     private var isTransfer: Bool { direction == "transfer" }
     private var activeAccounts: [GhafAccount] { accounts.filter { !$0.isArchived } }
+    private var mostUsedAccounts: [GhafAccount] {
+        let counts = Dictionary(grouping: transactions.compactMap(\.accountID), by: { $0 }).mapValues(\.count)
+        return activeAccounts.enumerated().sorted {
+            let left = counts[$0.element.id, default: 0], right = counts[$1.element.id, default: 0]
+            return left == right ? $0.offset < $1.offset : left > right
+        }.map(\.element)
+    }
     private var presentAmountPadOnAppear: Bool {
         #if DEBUG
         settings.showKeypadOnAdd && GhafScreenshotFixture.screen != "new-transaction"
@@ -873,9 +881,9 @@ struct GhafQuickAddView: View {
                     amountHeader
                     GhafFormCard(theme: theme) {
                       if isTransfer {
-                        accountPicker($selectedAccountID, title: ar ? "من" : "From", icon: "arrow.up.forward.circle")
+                        accountPicker($selectedAccountID, title: ar ? "من" : "From", icon: "arrow.up.forward.circle", replacingFrom: true)
                         divider
-                        accountPicker($toAccountID, title: ar ? "إلى" : "To", icon: "arrow.down.forward.circle")
+                        accountPicker($toAccountID, title: ar ? "إلى" : "To", icon: "arrow.down.forward.circle", excluding: selectedAccountID)
                         divider
                       } else {
                         row(ar ? "المتجر" : "Merchant", icon: "storefront") {
@@ -1164,18 +1172,11 @@ struct GhafQuickAddView: View {
         suggestedCategory = true
     }
 
-    private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String) -> some View {
-        let value = activeAccounts.first(where: { $0.id == selection.wrappedValue }).map { "\($0.name) · \($0.currency)" } ?? (ar ? "اختر" : "Choose")
-        return Menu {
-            Picker(ar ? "الحساب" : "Account", selection: selection) {
-                if selection.wrappedValue == nil { Text(ar ? "اختر" : "Choose").tag(nil as UUID?) }
-                ForEach(activeAccounts, id: \.id) { account in
-                    Text("\(account.name) · \(account.currency)").tag(Optional(account.id))
-                }
-            }
-        } label: {
-            row(title, icon: icon) {
-                HStack(spacing: 7) { Text(value); Image(systemName: "chevron.forward").font(.system(size: 13, weight: .bold)) }
+    private func accountPicker(_ selection: Binding<UUID?>, title: String, icon: String, excluding excludedID: UUID? = nil, replacingFrom: Bool = false) -> some View {
+        row(title, icon: icon) {
+            GhafAccountPills(accounts: activeAccounts, transactions: transactions, selection: selection,
+                            theme: theme, languageCode: lang, excludingID: excludedID) { id in
+                if replacingFrom && id == toAccountID { toAccountID = nil }
             }
         }
     }
