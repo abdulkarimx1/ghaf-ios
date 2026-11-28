@@ -59,6 +59,20 @@ final class GhafOwnerRules131Tests: XCTestCase {
         XCTAssertTrue(app.buttons["0 budget alerts"].exists, "Fixture BudgetCalculator status is comfortable")
     }
 
+    func testWave3BudgetThreeRowsStayVisibleWithoutRolling() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "budget-salary-currency",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en"]
+        app.launch()
+        let rows = ["needs", "wants", "savings"].map { app.buttons["budget.allocation.\($0)"] }
+        for row in rows { XCTAssertTrue(row.waitForExistence(timeout: 30)) }
+        let initialY = rows.map { $0.frame.minY }
+        Thread.sleep(forTimeInterval: 2.5)
+        for (index, row) in rows.enumerated() {
+            XCTAssertEqual(row.frame.minY, initialY[index], accuracy: 1, "A three-row budget must stay visible without rolling")
+        }
+    }
+
 
     func testOwnerRule_InactivityRestartRefreshesAndSkipsOpenTransactionSheet() throws {
         let app = XCUIApplication()

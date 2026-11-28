@@ -488,7 +488,9 @@ struct GhafBudgetView: View {
                 .frame(maxWidth: .infinity)
                 VStack(spacing: 2) {
                     ForEach(BudgetAllocation.Bucket.allCases, id: \.self) { item in
-                        Button { toggleBucket(item) } label: {
+                        Button {
+                            toggleBucket(item)
+                        } label: {
                             HStack(spacing: 10) {
                                 Circle().fill(colors[item.rawValue]).frame(width: 10, height: 10)
                                 Text(names[item.rawValue]).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).lineLimit(1)
@@ -504,9 +506,16 @@ struct GhafBudgetView: View {
                             .padding(.horizontal, 12)
                             .background(bucketSelected && bucket == item ? theme.primaryText.opacity(theme.isDark ? 0.10 : 0.06) : .clear,
                                         in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay {
+                                if bucketSelected && bucket == item {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(theme.primaryText.opacity(0.75), lineWidth: 1.5)
+                                }
+                            }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(names[item.rawValue]), \(GhafFormat.shownMoney(allocationIncome * preset.share(item), currency: currency, languageCode: lang)), \(Int(truncating: (preset.share(item) * 100) as NSNumber))%")
+                        .accessibilityIdentifier("budget.allocation.\(item)")
                         .accessibilityAddTraits(bucketSelected && bucket == item ? .isSelected : [])
                     }
                 }
