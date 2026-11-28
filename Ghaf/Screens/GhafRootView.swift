@@ -18,9 +18,10 @@ struct GhafRootView: View {
 
     @State private var showAutomationIntro = false
     @State private var appliedLanguage = ""
-    @State private var languageTransitionText = ""
     @State private var showLanguageTransition = false
-    @State private var languageGlow = false
+    @State private var languageTransitionStartedAt = Date.now
+    @State private var languageLayoutReady = false
+    @State private var languageTransitionGeneration = 0
     @State private var showLaunch = true
     @State private var launchHasStarted = false
     @State private var launchSkipRequested = false
@@ -41,16 +42,15 @@ struct GhafRootView: View {
         settings.first?.languageCode ?? "en"
     }
 
-    private func localized(_ english: String, _ arabic: String, languageCode: String) -> String {
-        languageCode == "ar" ? arabic : english
-    }
-
     var body: some View {
         ZStack {
             rootContent
                 .id(appliedLanguage)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear.ignoresSafeArea())
+                .onAppear {
+                    if showLanguageTransition && appliedLanguage == languageCode { languageLayoutReady = true }
+                }
 
             if showLaunch && (!screenshotFixtureEnabled || launchFixtureProofEnabled) {
                 GhafWelcomeLaunchScreen(settings: settings.first) { launchSkipRequested = true }
@@ -69,23 +69,10 @@ struct GhafRootView: View {
                 let transitionTheme = GhafTheme.resolve(name: currentSettings.themeName,
                                                         appearanceMode: currentSettings.appearanceMode,
                                                         systemIsDark: systemColorScheme == .dark)
-                VStack(spacing: 18) {
-                    Text(languageCode == "ar" ? "غاف" : "Ghaf")
-                        .font(GhafTypography.display(40, languageCode: languageCode))
-                        .foregroundStyle(transitionTheme.primaryText)
-                        .shadow(color: transitionTheme.glow.opacity(languageGlow ? 0.65 : 0.2), radius: languageGlow ? 24 : 10)
-                        .overlay { Circle().fill(transitionTheme.glow.opacity(languageGlow ? 0.18 : 0)).frame(width: 86, height: 86).blur(radius: 24) }
-                    Text(languageTransitionText).font(GhafTypography.body(17, languageCode: languageCode, weight: .medium))
-                        .contentTransition(.opacity)
-                }
-                .multilineTextAlignment(.center)
-                .foregroundStyle(transitionTheme.primaryText)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(transitionTheme.background.ignoresSafeArea())
-                .onAppear {
-                    guard !reduceMotion else { return }
-                    withAnimation(.easeOut(duration: 0.55)) { languageGlow = true }
-                }
+                GhafLanguageOrbTransition(theme: transitionTheme, startedAt: languageTransitionStartedAt,
+                                          reduceMotion: reduceMotion)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
                 .zIndex(30)
             }
         }
@@ -103,21 +90,32 @@ struct GhafRootView: View {
                 appliedLanguage = code
                 return
             }
-            let oldText = localized("Welcome", "أهلاً", languageCode: oldCode)
-            let newText = localized("Welcome", "أهلاً", languageCode: code)
-            languageTransitionText = oldText
-            languageGlow = false
-            showLanguageTransition = true
+            languageTransitionStartedAt = .now
+            languageLayoutReady = false
+            languageTransitionGeneration += 1
+            let generation = languageTransitionGeneration
+            if reduceMotion {
+                withAnimation(.easeInOut(duration: 0.2)) { showLanguageTransition = true }
+            } else {
+                showLanguageTransition = true
+            }
             Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(300))
-                withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .easeInOut(duration: 0.45)) {
-                    languageTransitionText = newText
-                }
-                try? await Task.sleep(for: .milliseconds(200))
+                let started = Date.now
+                try? await Task.sleep(for: .milliseconds(reduceMotion ? 50 : 650))
+                guard generation == languageTransitionGeneration else { return }
                 UIView.appearance().semanticContentAttribute = code == "ar" ? .forceRightToLeft : .forceLeftToRight
                 appliedLanguage = code
-                try? await Task.sleep(for: .milliseconds(400))
-                withAnimation(.easeOut(duration: 0.15)) { showLanguageTransition = false; languageGlow = false }
+                for _ in 0..<62 where !languageLayoutReady {
+                    guard generation == languageTransitionGeneration else { return }
+                    try? await Task.sleep(for: .milliseconds(16))
+                }
+                let minimumDuration = reduceMotion ? 0.2 : 2.0
+                let remaining = minimumDuration - Date.now.timeIntervalSince(started)
+                if remaining > 0 { try? await Task.sleep(for: .milliseconds(Int(remaining * 1000))) }
+                guard generation == languageTransitionGeneration else { return }
+                withAnimation(.easeInOut(duration: reduceMotion ? 0.2 : 0.18)) {
+                    showLanguageTransition = false
+                }
             }
         }
         .scrollIndicators(.hidden)
@@ -1048,6 +1046,88 @@ struct GhafTabView: View {
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
+    }
+}
+
+private struct GhafLanguageOrbTransition: View {
+    let theme: GhafTheme
+    let startedAt: Date
+    let reduceMotion: Bool
+
+    private static let points: [(x: Double, y: Double, z: Double)] = {
+        let count = 1200, golden = Double.pi * (3 - 5.0.squareRoot())
+        return (0..<count).map { index in
+            let y = 1 - (Double(index) + 0.5) / Double(count) * 2
+            let ring = (1 - y * y).squareRoot(), angle = golden * Double(index)
+            return (cos(angle) * ring, y, sin(angle) * ring)
+        }
+    }()
+
+    var body: some View {
+        if reduceMotion {
+            ZStack {
+                theme.background
+                GhafAIOrbFace(theme: theme, mood: .idle, level: 0, time: 0, still: true)
+                    .frame(width: 148, height: 148)
+            }
+        } else {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+                let elapsed = max(0, context.date.timeIntervalSince(startedAt))
+                let gather = easeInOut(segment(elapsed, 0, 0.68))
+                let fly = easeInOut(segment(elapsed, 1.15, 2.0))
+                let backgroundOpacity = elapsed < 0.68 ? gather : elapsed < 1.15 ? 1 : 1 - fly
+
+                GeometryReader { geometry in
+                    let size = geometry.size
+                    let side = min(size.width, size.height)
+                    let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                    ZStack {
+                        theme.background.opacity(backgroundOpacity)
+                        Canvas { context, _ in
+                            let spin = max(0, elapsed - 0.68) * 0.55
+                            let radius = side * 0.4
+                            let dot = max(0.9, side * 0.0105)
+                            let ca = cos(spin), sa = sin(spin), ct = cos(0.35), st = sin(0.35)
+                            for (index, point) in Self.points.enumerated() {
+                                let x1 = point.x * ca + point.z * sa
+                                let z1 = -point.x * sa + point.z * ca
+                                let y2 = point.y * ct - z1 * st
+                                let z2 = point.y * st + z1 * ct
+                                let orbX = center.x + x1 * radius
+                                let orbY = center.y + y2 * radius
+                                let startX = (Double(index % 40) + unitNoise(Double(index) * 3.1)) / 40 * size.width
+                                let startY = (Double(index / 40) + unitNoise(Double(index) * 7.7)) / 30 * size.height
+                                let x = startX + (orbX - startX) * gather
+                                let y = startY + (orbY - startY) * gather
+                                let depth = (z2 + 1) / 2
+                                let endX = center.x + x1 * max(size.width, size.height) * 1.1
+                                let endY = center.y + y2 * max(size.width, size.height) * 1.1
+                                let px = x + (endX - orbX) * fly
+                                let py = y + (endY - orbY) * fly
+                                let alpha = (0.4 + depth * 0.6) * (1 - fly)
+                                let d = dot * (0.55 + depth * 0.9)
+                                context.fill(Circle().path(in: CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)),
+                                             with: .color(theme.accent.opacity(alpha)))
+                            }
+                        }
+                    }
+                    .frame(width: size.width, height: size.height)
+                }
+            }
+        }
+    }
+
+    private func segment(_ value: Double, _ start: Double, _ end: Double) -> Double {
+        min(1, max(0, (value - start) / (end - start)))
+    }
+
+    private func easeInOut(_ value: Double) -> Double {
+        value < 0.5 ? 4 * value * value * value : 1 - pow(-2 * value + 2, 3) / 2
+    }
+
+    private func unitNoise(_ value: Double) -> Double {
+        let raw = sin(value * 12.9898) * 43_758.5453
+        return raw - floor(raw)
     }
 }
 
