@@ -96,6 +96,7 @@ struct GhafAIView: View {
     @State private var showVoicePicker = false
     @State private var voiceUsage: GhafVoiceUsage?
     @State private var voiceLimitReached = false
+    @State private var voiceStartedAt = Date.now
     @State private var voiceGoodbyePlaying = false
     @State private var hasProAccess = GhafProAccess.hasAccess
     @State private var proAccessKnown = GhafProAccess.isKnown
@@ -576,26 +577,77 @@ struct GhafAIView: View {
     }
 
     private var voiceOrbControl: some View {
-        VStack(spacing: 4) {
-            GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                .onChange(of: orbLevel) { _, level in tabRouter.voiceLevel = level }
-                .frame(width: 72, height: 72)
-                .contentShape(Circle())
-                .modifier(GhafOrbPressGesture(
-                    onTap: { guard hasProAccess else { return }; toggleVoiceInput() },
-                    onHold: { guard hasProAccess else { return }; openTyping() }
-                ))
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
-                .accessibilityIdentifier("ghaf.ai.orb")
-                .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
-                .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
+        Group {
+            if orbMood == .listening {
+                VStack(spacing: 12) {
+                    orb(size: 183)
+                    HStack(spacing: 12) {
+                        TimelineView(.periodic(from: voiceStartedAt, by: 1)) { context in
+                            let seconds = max(0, Int(context.date.timeIntervalSince(voiceStartedAt)))
+                            Text(String(format: "%02d:%02d", seconds / 60, seconds % 60))
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        Spacer()
+                        Button {
+                            toggleVoiceInput()
+                        } label: {
+                            Label(ar ? "إيقاف" : "Stop", systemImage: "stop.fill")
+                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                        }
+                        .accessibilityIdentifier("ghaf.ai.stop-listening")
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity)
+                .background(theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous).stroke(theme.outline, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            } else {
+                HStack(spacing: 12) {
+                    orb(size: 32)
+                    Text(ar ? "اضغط على الدائرة للتحدث" : "Tap the orb and talk")
+                        .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Button(action: openTyping) {
+                        Image(systemName: "keyboard")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(theme.primaryText)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel(ar ? "اكتب سؤالاً" : "Type a question")
+                }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity, minHeight: 74)
+                .background(theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface)
+                .overlay(Capsule().stroke(theme.outline, lineWidth: 1))
+                .clipShape(Capsule())
+            }
             if hasProAccess, let voiceUsage { voiceLimitCounter(voiceUsage) }
         }
-        .frame(maxWidth: 220)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .padding(.top, 2)
-        .padding(.bottom, 4)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .animation(reduceMotion ? nil : .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.55), value: orbMood == .listening)
+    }
+
+    private func orb(size: CGFloat) -> some View {
+        GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+            .onChange(of: orbLevel) { _, level in tabRouter.voiceLevel = level }
+            .frame(width: size, height: size)
+            .contentShape(Circle())
+            .modifier(GhafOrbPressGesture(
+                onTap: { guard hasProAccess else { return }; toggleVoiceInput() },
+                onHold: { guard hasProAccess else { return }; openTyping() }
+            ))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
+            .accessibilityIdentifier("ghaf.ai.orb")
+            .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
+            .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
     }
 
     // MARK: Messages
@@ -894,6 +946,7 @@ struct GhafAIView: View {
         stopSpeaking()
         prompt = ""
         microphoneOff = false
+        voiceStartedAt = .now
         closeTyping()
         inputFocused = false
         // Bias recognition towards this user's own merchants and categories.
@@ -1556,6 +1609,7 @@ struct GhafAIView: View {
 
     private var orbMood: GhafAIOrb.Mood {
         if voiceGoodbyePlaying { return .speaking }
+        if progress.stage == .listening { return .listening }
         if voiceMode {
             switch liveCall.phase {
             case .connecting, .thinking: return .thinking

@@ -50,7 +50,7 @@ struct GhafAIOrb: View {
     @State private var isVisible = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || !isVisible)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 60, paused: reduceMotion || !isVisible)) { context in
             GhafAIOrbFace(theme: theme, mood: mood, level: CGFloat(min(max(level, 0), 1)),
                           time: reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate,
                           still: reduceMotion)
@@ -90,9 +90,9 @@ struct GhafAIOrbFace: View {
         }
     }
 
-    /// 1200 points spread evenly over a sphere (Fibonacci lattice), computed once.
+    /// 996 points spread evenly over a sphere (Fibonacci lattice), computed once.
     private static let points: [(x: Double, y: Double, z: Double)] = {
-        let n = 1200, golden = Double.pi * (3 - 5.0.squareRoot())
+        let n = 996, golden = Double.pi * (3 - 5.0.squareRoot())
         return (0..<n).map { i in
             let y = 1 - (Double(i) + 0.5) / Double(n) * 2
             let ring = (1 - y * y).squareRoot(), a = golden * Double(i)
@@ -100,7 +100,7 @@ struct GhafAIOrbFace: View {
         }
     }()
 
-    /// Owner 1.31 AURA pick: particle sphere, 1200 particles, size 0.9, spin 0.55, react 0.6, theme tint + glow.
+    /// Owner 1.31 AURA pick: 996 particles, spin 3/10, react 7/10, theme tint + glow.
     /// Particles use the theme accent at full strength so they stay visible on white as well as on dark.
     private var orb: some View {
         Canvas { context, size in
@@ -108,8 +108,8 @@ struct GhafAIOrbFace: View {
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let radius = side * (halo ? 0.4 : 0.48)
             let t = still ? 0.6 : time
-            let spin: Double = 0.55 * (mood == .thinking ? 3.2 : mood == .idle ? 1 : 1.6)
-            let react = 0.6 * Double(level)
+            let spin: Double = 2 * Double.pi / 12
+            let react = 0.7 * Double(level)
             let angle = t * spin, tilt = 0.35 + (mood == .thinking ? 0.25 * sin(t * 1.3) : 0)
             let (ca, sa, ct, st) = (cos(angle), sin(angle), cos(tilt), sin(tilt))
             // Owner 1.31: brighter (was pale on device), and a share of particles drifts past the sphere's edge.
@@ -122,7 +122,7 @@ struct GhafAIOrbFace: View {
                 var r = radius
                 switch mood {
                 case .idle: r *= 1 + 0.02 * sin(t * 1.6)
-                case .listening: r *= 1 + react * 0.18 + 0.015 * sin(t * 6 + p.y * 4)
+                case .listening: r *= 1 + react * 0.14 + 0.015 * sin(t * 6 + p.y * 4)
                 case .thinking: r *= 1 + 0.04 * sin(t * 4 + p.x * 6)
                 case .speaking: r *= 1 + (0.05 + react * 0.2) * max(0, sin(t * 7 - (1 - p.y) * 5))
                 }
