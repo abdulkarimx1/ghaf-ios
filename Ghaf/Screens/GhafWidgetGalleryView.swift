@@ -47,7 +47,7 @@ struct GhafWidgetGalleryView: View {
                 }.buttonStyle(.plain)
                 }
 
-                Text(ar ? "لإضافة أداة، اضغط مطولًا على الشاشة الرئيسية، ثم اختر تحرير وإضافة أداة." : "To add a widget, touch and hold your Home Screen, tap Edit, then Add Widget.")
+                Text(ar ? "بعد إضافة الأداة، اضغط عليها مطولًا لتعديل ما تعرضه." : "Tip: after you add a widget, press and hold it to edit what it shows.")
                     .font(GhafTypography.body(13, languageCode: lang)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
 
                 // Medium widgets get a full-width row, small ones pair up (LazyVGrid ignores gridCellColumns).
@@ -118,6 +118,13 @@ struct GhafWidgetGalleryView: View {
         // Today, Latest transaction and Budget default to the theme-coloured tile (dark text), as on the Home Screen.
         .background { GhafWidgetBackground(tile: GhafTile(["Today", "Latest transaction", "Budget"].contains(name) ? .theme : .ink, snapshot), enabled: false) }
         .environment(\.ghafWidgetPreview, true)
+        .padding(20)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(LinearGradient(colors: [theme.accent.opacity(0.34), theme.background.opacity(0.88), theme.secondaryText.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .blur(radius: 30)
+                .padding(-20)
+        }
         // V17: everyone sees every widget; only using a Pro one needs Pro (lock on the title, tap opens Pro).
         .contentShape(Rectangle())
         .onTapGesture { if proLocked { showPro = true } }
@@ -130,6 +137,6 @@ struct GhafWidgetGalleryView: View {
         ["Balance":"الرصيد", "Spending":"المصروف", "Upcoming payments":"الدفعات القادمة", "Today":"اليوم", "Latest transaction":"آخر عملية", "Budget":"الميزانية", "Where it went":"أين صُرف المال", "Trends":"الاتجاهات", "Quick add":"إضافة سريعة", "Ask Ghaf":"اسأل غاف", "Money tip":"نصيحة مالية", "Streak":"السلسلة", "Top places":"أكثر الأماكن صرفاً", "Budget petals":"بتلات الميزانية"][value] ?? value
     }
     private func arabicDetail(_ value: String) -> String {
-        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI لكتابة سؤالك", "Money tip":"نصيحة مالية موثوقة مع مصدرها", "Streak":"سلسلتك في تسجيل العمليات وآخر 7 أيام", "Top places":"أكثر الأماكن في المصروف هذا الشهر", "Budget petals":"ميزانيات الفئات على شكل بتلات"][value] ?? value
+        ["Balance":"إجمالي الأرصدة", "Spending":"المصروف في الفترة المحددة", "Upcoming payments":"الاشتراكات المستحقة قريبًا", "Today":"مصروف اليوم حسب الفئة", "Latest transaction":"أحدث عملية سجّلها غاف", "Budget":"التقدم في الميزانية", "Where it went":"أعلى فئات الإنفاق", "Trends":"الإنفاق عبر الوقت", "Quick add":"سجّل عملية", "Ask Ghaf":"افتح غاف AI للوضع الصوتي", "Money tip":"نصيحة مالية موثوقة مع مصدرها", "Streak":"سلسلتك في تسجيل العمليات وآخر 7 أيام", "Top places":"أكثر الأماكن في المصروف هذا الشهر", "Budget petals":"ميزانيات الفئات على شكل بتلات"][value] ?? value
     }
 }
