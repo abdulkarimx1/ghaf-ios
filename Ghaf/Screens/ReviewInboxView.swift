@@ -60,7 +60,7 @@ struct GhafReviewInboxView: View {
                                 if !reviewTransactions.isEmpty {
                                     inboxSection(ar ? "تحتاج إلى مراجعة" : "Needs review") {
                                         ForEach(reviewTransactions, id: \.id) { transaction in
-                                            card(transaction).id(transaction.id.uuidString)
+                                            shortReviewRow(transaction).id(transaction.id.uuidString)
                                         }
                                     }
                                 }
@@ -123,9 +123,27 @@ struct GhafReviewInboxView: View {
             }
             .sensoryFeedback(.success, trigger: confirmed)
             .sheet(item: $selectedTransaction) { transaction in
-                GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName,
-                                      appearanceMode: settings.appearanceMode, languageCode: lang, accounts: activeAccounts)
-                    .presentationDragIndicator(.visible).ghafDirection(lang)
+                VStack(spacing: 12) {
+                    if transaction.category == "Transfers" && [nil, "pending"].contains(transaction.transferDecision) {
+                        Text(ar ? "إلى حسابك أم إلى شخص آخر؟" : "Was this to your account or someone else?")
+                            .font(GhafTypography.body(14, languageCode: lang, weight: .semibold))
+                        HStack {
+                            Button(ar ? "بين حساباتي" : "Between my accounts") {
+                                transaction.category = "Transfers"; transaction.subcategory = "Between my accounts"; transaction.transferDecision = "own"; transaction.needsReview = false
+                                if saveChanges() { confirmed += 1; selectedTransaction = nil }
+                            }
+                                .ghafGlassButton(theme: theme, languageCode: lang)
+                            Button(ar ? "إلى شخص آخر" : "To someone else") {
+                                transaction.category = "Transfers"; transaction.subcategory = nil; transaction.transferDecision = "external"; transaction.needsReview = false
+                                if saveChanges() { confirmed += 1; selectedTransaction = nil }
+                            }
+                                .ghafGlassButton(theme: theme, languageCode: lang)
+                        }
+                    }
+                    GhafTransactionEditor(transaction: transaction, categories: settings.categories, themeName: settings.themeName,
+                                          appearanceMode: settings.appearanceMode, languageCode: lang, accounts: activeAccounts)
+                }
+                .padding(18).presentationDragIndicator(.visible).ghafDirection(lang)
             }
             .sheet(isPresented: $showSubscriptions) {
                 GhafSubscriptionsView(settings: settings).presentationDragIndicator(.visible).ghafDirection(lang)
@@ -142,9 +160,6 @@ struct GhafReviewInboxView: View {
             Text(ar ? "النشاط" : "Activity")
                 .font(GhafTypography.display(30, languageCode: lang))
                 .foregroundStyle(theme.primaryText)
-            Text(ar ? "العمليات والاشتراكات والتنبيهات التي تحتاج انتباهك." : "Transactions, subscriptions and alerts that need your attention.")
-                .font(GhafTypography.body(14, languageCode: lang))
-                .foregroundStyle(theme.secondaryText)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
@@ -417,6 +432,28 @@ struct GhafReviewInboxView: View {
         }
         .padding(16)
         .ghafCard(theme: theme)
+    }
+
+    private func shortReviewRow(_ transaction: GhafTransaction) -> some View {
+        let name = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
+            ?? GhafLocalization.category(transaction.category, languageCode: lang)
+        let why = reason(transaction)
+        return Button { selectedTransaction = transaction } label: {
+            HStack(spacing: 10) {
+                GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
+                    .frame(width: 36, height: 36).background(theme.accent.opacity(0.12), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1).truncationMode(.tail)
+                    Text(why.text).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Text(ar ? "مراجعة" : "Review").font(GhafTypography.body(10, languageCode: lang, weight: .semibold))
+                    .foregroundStyle(theme.close).padding(.horizontal, 8).padding(.vertical, 5).background(theme.close.opacity(0.12), in: Capsule())
+            }
+            .padding(12).ghafCard(theme: theme).contentShape(RoundedRectangle(cornerRadius: 20))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("activity.review.\(transaction.id.uuidString)")
     }
 
     @discardableResult
