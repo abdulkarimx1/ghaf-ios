@@ -59,6 +59,7 @@ struct GhafAIView: View {
     @StateObject private var recorder = GhafSpeechRecorder()
     @StateObject private var liveCall = GhafLiveCall()
     @State private var progress = GhafAIProgress.shared
+    @State private var completedProgressStages: [GhafAIStage] = []
     @State private var prompt = ""
     @State private var isTyping = false
     @State private var microphoneOff = false
@@ -182,6 +183,9 @@ struct GhafAIView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GhafReloadAILimits"))) { _ in
                 Task { await reloadAILimits() }
+            }
+            .onChange(of: progress.stage) { oldStage, newStage in
+                if let oldStage, oldStage != newStage { completedProgressStages.append(oldStage) }
             }
             .onAppear {
                 isOnScreen = true
@@ -354,18 +358,47 @@ struct GhafAIView: View {
 
     private var progressLine: some View {
         Group {
-            if let stage = progress.stage {
-                Text(stage.label(languageCode: settings.languageCode))
-                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .id(stage)
-                    .transition(.opacity)
-                    .accessibilityAddTraits(.updatesFrequently)
+            if !completedProgressStages.isEmpty || progress.stage != nil {
+                VStack(spacing: 8) {
+                    ForEach(completedProgressStages.indices, id: \.self) { index in
+                        progressChip(completedProgressStages[index], active: false)
+                    }
+                    if let stage = progress.stage { progressChip(stage, active: true).id(stage) }
+                }
+                .transition(.opacity)
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: progress.stage)
+    }
+
+    private func progressChip(_ stage: GhafAIStage, active: Bool) -> some View {
+        HStack(spacing: 9) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(4), spacing: 2), count: 3), spacing: 2) {
+                ForEach(0..<9, id: \.self) { index in
+                    if !active {
+                        RoundedRectangle(cornerRadius: 1).fill(theme.accent.opacity(0.4)).frame(width: 4, height: 4)
+                    } else if active {
+                        RoundedRectangle(cornerRadius: 1).fill(theme.accent)
+                            .frame(width: 4, height: 4)
+                            .phaseAnimator(reduceMotion ? [0.6] : [0.15, 1.0]) { dot, phase in
+                                dot.opacity(phase)
+                            } animation: { _ in .easeInOut(duration: 1.1).delay(Double(index) * 0.08) }
+                    } else {
+                        RoundedRectangle(cornerRadius: 1).fill(theme.accent.opacity(0.15)).frame(width: 4, height: 4)
+                    }
+                }
+            }
+            .frame(width: 16, height: 16)
+            Text(stage.label(languageCode: settings.languageCode) + (active && reduceMotion ? " …" : ""))
+                .font(ar ? GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium) : .system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(theme.primaryText.opacity(0.06), in: Capsule())
+        .frame(maxWidth: .infinity)
+        .accessibilityAddTraits(active ? .updatesFrequently : [])
     }
 
     // MARK: Header
@@ -932,6 +965,7 @@ struct GhafAIView: View {
     private func startVoice() {
         guard hasProAccess else { return }
         guard !voiceCharacter.isEmpty else { showVoicePicker = true; return }
+        completedProgressStages.removeAll()
         if GhafCloudAI.isEnabled, !liveVoiceOff {
             guard !liveCallActive else {
                 liveCall.end(reason: "user")
@@ -1187,6 +1221,7 @@ struct GhafAIView: View {
     private func send(_ raw: String, isVoice: Bool = false) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard hasProAccess, !text.isEmpty, !isThinking else { return }
+        completedProgressStages.removeAll()
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
         if liveCallActive { liveGroundingSources.append(text); liveCall.sendText(text); return }
