@@ -7,8 +7,12 @@ final class GhafOwnerRules131Tests: XCTestCase {
         app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite",
                                "-GhafAppearance", "Light", "-GhafLanguage", "en"] + extra
         app.launch()
-        if waitTabBar { XCTAssertTrue(app.buttons["ghaf.tabbar.item.0"].waitForExistence(timeout: 30)) }
+        if waitTabBar { XCTAssertTrue(tabItem(app, 0).waitForExistence(timeout: 30)) }
         return app
+    }
+
+    private func tabItem(_ app: XCUIApplication, _ index: Int) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "ghaf.tabbar.item.\(index)").firstMatch
     }
 
     private func carrefourRows(_ app: XCUIApplication) -> XCUIElementQuery {
@@ -18,14 +22,15 @@ final class GhafOwnerRules131Tests: XCTestCase {
     func testOwnerRule_PrivacyAPIsHaveUsageDescriptionsAndCameraFallbackDoesNotCrash() throws {
         let app = launch(["-GhafTab", "more"])
         app.buttons["Profile photo options"].tap()
-        XCTAssertTrue(app.staticTexts["Profile photo"].waitForExistence(timeout: 5))
+        let library = app.buttons["Choose from library"]
+        XCTAssertTrue(library.waitForExistence(timeout: 5))
         let camera = app.buttons["Take photo"]
         if camera.exists {
             camera.tap()
             XCTAssertEqual(app.state, .runningForeground, "Opening the available simulator camera must not terminate Ghaf")
-            XCTAssertFalse(app.staticTexts["Profile photo"].exists, "The camera picker should replace the photo action sheet")
+            XCTAssertFalse(library.exists, "The camera picker should replace the photo action sheet")
         } else {
-            XCTAssertTrue(app.staticTexts["Profile photo"].exists, "When the source is unavailable, keep the fallback photo menu open")
+            XCTAssertTrue(library.exists, "When the source is unavailable, keep the photo action sheet open")
         }
         XCTAssertEqual(app.state, .runningForeground)
     }
@@ -56,7 +61,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         splash.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let automationDone = app.buttons["Done"]
         if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
-        XCTAssertTrue(app.buttons["ghaf.tabbar.item.0"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tabItem(app, 0).waitForExistence(timeout: 10))
         XCUIDevice.shared.press(.home)
         Thread.sleep(forTimeInterval: 6)
         app.activate()
@@ -120,7 +125,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
 
     /// Swipe-deletes the first Carrefour row; returns the Carrefour match count before deleting.
     private func swipeDeleteCarrefour(_ app: XCUIApplication) -> Int {
-        app.buttons["ghaf.tabbar.item.3"].tap()
+        tabItem(app, 3).tap()
         let row = carrefourRows(app).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "Carrefour row missing")
         let before = carrefourRows(app).count
@@ -136,16 +141,22 @@ final class GhafOwnerRules131Tests: XCTestCase {
             let app = XCUIApplication()
             app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", language]
             app.launch()
-            let selected = app.buttons["ghaf.tabbar.item.0"]
-            let other = app.buttons["ghaf.tabbar.item.3"]
+            let selected = tabItem(app, 0)
+            let other = tabItem(app, 3)
             XCTAssertTrue(selected.waitForExistence(timeout: 30))
-            XCTAssertTrue(other.exists)
+            XCTAssertTrue(other.waitForExistence(timeout: 5))
             let scroll = app.scrollViews.firstMatch
             XCTAssertTrue(scroll.waitForExistence(timeout: 8))
             let origin = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.80))
             origin.press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.77)))
-            XCTAssertFalse(other.waitForExistence(timeout: 0.3), "An 8 pt downward scroll should collapse nonselected tabs")
+            XCTAssertFalse(other.isHittable, "An 8 pt downward scroll should collapse nonselected tabs")
             XCTAssertTrue(app.otherElements["ghaf.ai.tab-orb"].exists == false || !app.otherElements["ghaf.ai.tab-orb"].isHittable)
+            scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.77))
+                .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78)))
+            XCTAssertTrue(other.waitForExistence(timeout: 3), "A 4 pt upward scroll should expand the bar")
+            scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.80))
+                .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.77)))
+            XCTAssertFalse(other.isHittable, "A downward scroll should shrink the bar again")
             selected.tap()
             XCTAssertTrue(other.waitForExistence(timeout: 2), "Reselecting the current tab should only expand the bar")
             app.terminate()
