@@ -375,7 +375,10 @@ struct GhafAIView: View {
                     .foregroundStyle(theme.accent)
                     .overlay {
                         if !reduceMotion {
-                            GhafProGlow(theme: theme, reduceMotion: false).mask(Text(accent).font(GhafTypography.display(34, languageCode: settings.languageCode)))
+                            GhafProGlow(theme: theme, reduceMotion: false)
+                                .mask(Text(accent).font(GhafTypography.display(34, languageCode: settings.languageCode)))
+                                .compositingGroup()
+                                .blendMode(theme.isDark ? .screen : .multiply)
                         }
                     }
             }
