@@ -437,13 +437,14 @@ struct GhafReviewInboxView: View {
     private func shortReviewRow(_ transaction: GhafTransaction) -> some View {
         let name = GhafMerchantAliasStore.displayName(transaction.rawMerchant ?? transaction.merchant)
             ?? GhafLocalization.category(transaction.category, languageCode: lang)
+        let shortName = name.count > 22 ? String(name.prefix(21)) + "…" : name
         let why = reason(transaction)
         return Button { selectedTransaction = transaction } label: {
             HStack(spacing: 10) {
                 GhafCategoryIcon(category: transaction.category, tint: theme.accent, theme: theme)
                     .frame(width: 36, height: 36).background(theme.accent.opacity(0.12), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1).truncationMode(.tail)
+                    Text(shortName).font(GhafTypography.body(15, languageCode: lang, weight: .semibold)).foregroundStyle(theme.primaryText).lineLimit(1)
                     Text(why.text).font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
                 }
                 Spacer(minLength: 4)
