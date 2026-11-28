@@ -48,9 +48,9 @@ private struct GhafProGlow: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                glow(theme.secondaryText.opacity(0.35), size: 520, duration: 10, x: 120, y: 100)
-                glow(theme.glow.opacity(0.48), size: 520, duration: 12, x: -130, y: 20)
-                glow(theme.accent.opacity(0.32), size: 520, duration: 14, x: 20, y: -120)
+                glow(Color(red: 0.78, green: 0.82, blue: 0.88).opacity(0.45), size: 520, duration: 10, x: 120, y: 100)
+                glow(Color(red: 0.42, green: 0.55, blue: 0.72).opacity(0.35), size: 520, duration: 12, x: -130, y: 20)
+                glow(Color(red: 0.72, green: 0.82, blue: 0.96).opacity(0.35), size: 520, duration: 14, x: 20, y: -120)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
@@ -363,42 +363,34 @@ struct GhafAIView: View {
     }
 
     private var aiProPaywall: some View {
-        VStack(spacing: 20) {
-            // Owner 1.31: free users see a blurred preview of the orb, with a lock on top.
-            GhafAIOrb(theme: theme, mood: .idle)
-                .frame(width: 150, height: 150)
-                .blur(radius: 2.5)
-                .overlay { Image(systemName: "lock.fill").font(.system(size: 26, weight: .semibold)).foregroundStyle(theme.primaryText) }
-                .accessibilityHidden(true)
-            let title = ar ? "غاف AI متاح لمشتركي غاف برو" : "Ghaf AI is for Pro members"
-            Text(title)
-                .font(GhafTypography.display(30, languageCode: settings.languageCode))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(theme.primaryText)
-                .overlay {
-                    if !reduceMotion {
-                        GhafProGlow(theme: theme, reduceMotion: false)
-                            .mask(Text(title).font(GhafTypography.display(30, languageCode: settings.languageCode)).multilineTextAlignment(.center))
+        VStack(spacing: 22) {
+            Label(ar ? "غاف برو" : "Ghaf Pro", systemImage: "sparkles")
+                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
+            VStack(spacing: 2) {
+                Text(ar ? "تحدّث إلى أموالك." : "Talk to your money.")
+                    .font(GhafTypography.display(34, languageCode: settings.languageCode)).foregroundStyle(theme.primaryText)
+                let accent = ar ? "واسمع إجابتها." : "Hear it answer."
+                Text(accent)
+                    .font(GhafTypography.display(34, languageCode: settings.languageCode))
+                    .foregroundStyle(reduceMotion ? Color(red: 0.48, green: 0.60, blue: 0.76) : .white)
+                    .overlay {
+                        if !reduceMotion {
+                            GhafProGlow(theme: theme, reduceMotion: false).mask(Text(accent).font(GhafTypography.display(34, languageCode: settings.languageCode)))
+                        }
                     }
-                }
-                .foregroundStyle(reduceMotion ? theme.glow : theme.primaryText)
-            Text(ar ? "اسأل عن إنفاقك وحساباتك، وتحدث مع مساعدك الصوتي." : "Ask about your spending and accounts, and talk with your financial assistant.")
-                .font(GhafTypography.body(16, languageCode: settings.languageCode))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(theme.secondaryText)
-            VStack(spacing: 12) {
-                Button { showProSheet = true } label: {
-                    Text(ar ? "الأساسية · 3 ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
-                        .frame(maxWidth: .infinity)
-                }.ghafProminentButton(theme: theme, languageCode: settings.languageCode)
-                Button { showProSheet = true } label: {
-                    Text(ar ? "الكاملة · 10 ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
-                        .frame(maxWidth: .infinity)
-                }.ghafGlassButton(theme: theme, languageCode: settings.languageCode)
             }
-            .frame(maxWidth: 360)
+            .multilineTextAlignment(.center)
+            Text(ar ? "اسأل عن أي شيء في مصروفك، وأضف عملياتك بصوتك، واستمع إلى ردّ حمد أو مريم." : "Ask anything about your spending, add transactions by voice, and hear Hamad or Mariam reply.")
+                .font(GhafTypography.body(16, languageCode: settings.languageCode)).multilineTextAlignment(.center).foregroundStyle(theme.primaryText)
+                .frame(maxWidth: 360)
+            VStack(spacing: 8) {
+                Button { showProSheet = true } label: { Text(ar ? "اشترك في غاف برو" : "Subscribe to Ghaf Pro").frame(maxWidth: .infinity) }
+                    .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
+                Button { showProSheet = true } label: { Text(ar ? "عرض الخطط" : "See plans").frame(minHeight: 44) }
+                    .buttonStyle(.plain).foregroundStyle(theme.primaryText)
+            }.frame(maxWidth: 360)
         }
-        .padding(28)
+        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             ZStack {
