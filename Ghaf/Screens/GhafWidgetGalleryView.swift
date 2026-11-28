@@ -121,14 +121,14 @@ struct GhafWidgetGalleryView: View {
         .padding(20)
         .background {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(LinearGradient(colors: [theme.accent.opacity(0.34), theme.background.opacity(0.88), theme.secondaryText.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(LinearGradient(colors: [theme.accent.opacity(0.45), theme.glow.opacity(0.35), theme.background.opacity(0.72)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .blur(radius: 30)
                 .padding(-20)
         }
         // V17: everyone sees every widget; only using a Pro one needs Pro (lock on the title, tap opens Pro).
         .contentShape(Rectangle())
         .onTapGesture { if proLocked { showPro = true } }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(name), \(family == .systemSmall ? "Small" : family == .systemMedium ? "Medium" : "Large")")
     }
