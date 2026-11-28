@@ -14,9 +14,8 @@ static float ghafNoise(float2 p) {
 
 static float ghafFbm(float2 p) {
     float value = 0.0, amplitude = 0.5;
-    // This full-screen shader runs every frame. Three octaves preserve the layered texture
-    // while reducing the per-pixel work for mobile GPUs.
-    for (int i = 0; i < 3; ++i) {
+    // This full-screen shader runs every frame; two octaves keep the glow responsive on mobile GPUs.
+    for (int i = 0; i < 2; ++i) {
         value += amplitude * ghafNoise(p);
         p = p * 2.03 + float2(1.7, 9.2);
         amplitude *= 0.5;
@@ -27,7 +26,7 @@ static float ghafFbm(float2 p) {
 [[ stitchable ]]
 half4 ghafSaveGlow(float2 position, half4 sourceColor, float4 bounds,
                    float flowTime, float timelineTime, float rise, float surge, float fade,
-                   float glowHeight, float energy, float lightMode,
+                   float energy, float lightMode,
                    float4 c1, float4 c2, float4 c3, float4 c4) {
     float2 uv = float2(position.x / max(bounds.z, 1.0),
                        1.0 - position.y / max(bounds.w, 1.0));
@@ -42,12 +41,12 @@ half4 ghafSaveGlow(float2 position, half4 sourceColor, float4 bounds,
                       ghafFbm(p + 3.0 * q + float2(8.3, 2.8) - 0.15 * t));
     float f = ghafFbm(p + 3.0 * r);
 
-    float front = rise * glowHeight + surge * (1.25 - glowHeight)
-        + 0.025 * sin(t * 2.1) * rise * (1.0 - surge);
+    float front = rise * 1.25
+        + 0.025 * sin(t * 2.1) * rise;
     front += 0.10 * (ghafFbm(float2(uv.x * 2.6 + t * 0.45, t * 0.25)) - 0.5)
         * (1.0 + surge);
     float d = 1.0 - smoothstep(front - 0.30, front + 0.10, uv.y);
-    float lowEdge = mix(-1.0, front - 0.42, surge * surge);
+    float lowEdge = mix(-1.0, front - 0.42, smoothstep(0.72, 1.0, surge));
     d *= smoothstep(lowEdge, lowEdge + 0.32, uv.y);
 
     float3 col = mix(c1.rgb, c2.rgb, clamp(f * f * 3.2, 0.0, 1.0));

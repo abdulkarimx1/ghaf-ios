@@ -21,34 +21,29 @@ struct GhafSaveSplash: View {
     private let debugLogger = Logger(subsystem: "com.ghaf.app", category: "SaveSplash")
 #endif
 
-    private let speed = 4.3 / 3.8
-    private let endTime = 4.3
     private let blurEnd = 0.35
-    private let riseEnd = 1.35
-    private let surgeStart = 2.0
-    private let surgeEnd = 2.55
-    private let fadeEnd = 3.1
-    private let holdEnd = 3.9
-    private let doneStart = 2.35
-    private let tickStart = 2.6
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: dismissed)) { context in
             let realElapsed = max(0, context.date.timeIntervalSince(startedAt ?? context.date))
+            let speed = reduceMotion ? 4.3 / 3.8 : 1.0
+            let endTime = reduceMotion ? 4.3 : 4.5
             let elapsed = realElapsed * speed
             let t = min(elapsed, endTime)
-            let returnProgress = easeInOut(segment(t, holdEnd, endTime))
+            let returnProgress = easeInOut(segment(t, reduceMotion ? 3.9 : 3.85, endTime))
             let dimDepth = easeOut(segment(t, 0, blurEnd)) * (1 - returnProgress)
-            let surge = segment(t, surgeStart, surgeEnd)
-            let doneProgress = segment(t, doneStart, 2.95)
+            let rise = reduceMotion ? (t >= blurEnd ? 0.2 : 0.0) : segment(t, blurEnd, 3.85)
+            let surge = reduceMotion ? 0.0 : rise
+            let doneStart = reduceMotion ? 2.35 : 2.18
+            let tickStart = reduceMotion ? 2.6 : 2.43
+            let doneProgress = segment(t, doneStart, reduceMotion ? 2.95 : 2.8)
             let doneOpacity = min(1, doneProgress * 2.2) * (1 - returnProgress)
-            let ring = easeOut(segment(t, 2.35, 2.8))
-            let tick = easeOut(segment(t, tickStart, 2.95))
-            let savingOpacity = segment(t, 0.15, 0.45) * (1 - segment(t, surgeStart - 0.1, surgeStart + 0.2))
-            let rise = reduceMotion ? (t >= blurEnd ? 1.0 : 0.0) : easeOut(segment(t, blurEnd - 0.05, riseEnd))
+            let ring = easeOut(segment(t, doneStart, reduceMotion ? 2.8 : 2.63))
+            let tick = easeOut(segment(t, tickStart, reduceMotion ? 2.95 : 2.8))
+            let savingOpacity = segment(t, 0.15, 0.45) * (1 - segment(t, reduceMotion ? 2.0 : 3.65, reduceMotion ? 2.2 : 3.85))
             let shaderFade = reduceMotion
-                ? segment(t, blurEnd, 0.8) * (1 - easeInOut(segment(t, holdEnd, endTime)))
-                : segment(t, blurEnd - 0.05, blurEnd + 0.25) * (1 - easeInOut(segment(t, surgeEnd - 0.15, fadeEnd)))
+                ? segment(t, blurEnd, 0.8) * (1 - easeInOut(segment(t, 3.9, endTime)))
+                : segment(t, blurEnd - 0.05, blurEnd + 0.25) * (1 - easeInOut(segment(t, 3.85, endTime)))
 
             ZStack {
                 // The splash is presented from a sheet; a clear cover background lets that
@@ -60,9 +55,9 @@ struct GhafSaveSplash: View {
                                        : UIColor(red: 0.949, green: 0.953, blue: 0.961, alpha: 1))
                         .opacity((theme.isDark ? 0.5 + 0.42 * surge : 0.35 + 0.3 * surge) * dimDepth)
                         .ignoresSafeArea()
-                    glow(t: t, rise: rise, surge: reduceMotion ? 0 : easeInOut(surge), fade: shaderFade)
+                    glow(t: t, rise: rise, surge: surge, fade: shaderFade, speed: speed)
                         .accessibilityHidden(true)
-                    if t < surgeStart + 0.2 {
+                    if t < (reduceMotion ? 2.2 : 3.85) {
                         HStack(spacing: 9) {
                             ProgressView().tint(theme.primaryText)
                             Text(languageCode == "ar" ? "جارٍ الحفظ…" : "Saving…")
@@ -130,7 +125,7 @@ struct GhafSaveSplash: View {
         }
     }
 
-    private func glow(t: Double, rise: Double, surge: Double, fade: Double) -> some View {
+    private func glow(t: Double, rise: Double, surge: Double, fade: Double, speed: Double) -> some View {
         let colors = GhafTheme.cities[theme.name] ?? GhafTheme.cities["Graphite"]!
         let shader = ShaderLibrary.default.ghafSaveGlow(
             .boundingRect,
@@ -139,8 +134,7 @@ struct GhafSaveSplash: View {
             .float(Float(rise)),
             .float(Float(surge)),
             .float(Float(fade)),
-            .float(0.25),
-            .float(0.5),
+            .float(0.7),
             .float(theme.isDark ? 0 : 1),
             shaderColor(colors.accent.light),
             shaderColor(colors.glow.light),
