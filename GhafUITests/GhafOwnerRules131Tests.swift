@@ -70,8 +70,11 @@ final class GhafOwnerRules131Tests: XCTestCase {
         let initialY = firstVisible.frame.minY
         Thread.sleep(forTimeInterval: 2.4)
         XCTAssertNotEqual(firstVisible.frame.minY, initialY, accuracy: 1, "The category budget list should advance one row")
-        let row = try XCTUnwrap(rows.first(where: \.isHittable))
-        row.tap()
+        let rowID = firstVisible.identifier
+        app.coordinate(withNormalizedOffset: CGVector(dx: firstVisible.frame.midX / app.frame.width,
+                                                        dy: firstVisible.frame.midY / app.frame.height)).tap()
+        let row = app.buttons[rowID]
+        XCTAssertTrue(row.isSelected, "Tapping a visible category budget row should select it")
         let selectedY = row.frame.minY
         Thread.sleep(forTimeInterval: 2.4)
         XCTAssertEqual(row.frame.minY, selectedY, accuracy: 1, "Selection should pause the rolling list")
