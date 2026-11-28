@@ -1810,7 +1810,7 @@ HStack(spacing: 8) {
         let context = LAContext()
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            prompt = .message(ar ? "تعذر بدء المصادقة." : "Authentication is unavailable.")
+            prompt = .message(ar ? "أوقف قفل التصدير من الأمان للتصدير دون رمز." : "Turn off Export lock in Security to export without a passcode.")
             return
         }
         context.evaluatePolicy(.deviceOwnerAuthentication,

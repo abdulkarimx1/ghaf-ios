@@ -58,7 +58,8 @@ struct GhafRootView: View {
                     .zIndex(10)
             }
 
-            if requiresAuthentication && !isUnlocked && !showLaunch {
+            if requiresAuthentication && (!isUnlocked || GhafSecurityPolicy.shouldCoverAppSwitcher(
+                sceneIsActive: scenePhase == .active, lockEnabled: true)) && !showLaunch {
                 authenticationLockScreen
                     .transition(.opacity)
                     .zIndex(20)
