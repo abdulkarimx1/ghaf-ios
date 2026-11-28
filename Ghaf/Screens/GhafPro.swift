@@ -100,14 +100,17 @@ struct GhafProView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                VStack(spacing: 16) {
-                    Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(theme.accent)
+                VStack(spacing: 12) {
+                    GhafAIOrb(theme: theme, mood: yearly ? .thinking : .idle)
+                        .frame(width: 112, height: 112)
+                        .scaleEffect(yearly ? 1 : 0.94)
+                        .animation(reduceMotion ? nil : .spring(duration: 0.42, bounce: 0.12), value: yearly)
                     // Owner 1.31: the headline is a subscribe call to action.
                     Text(ar ? "اشترك في غاف برو" : "Subscribe to Ghaf Pro").font(GhafTypography.display(30, languageCode: lang))
                         .multilineTextAlignment(.center)
                     Text(ar ? "اشترك لتستمتع بغاف AI والإدخال الصوتي والإحصائيات المتقدمة وكل الودجات."
                             : "Subscribe to enjoy Ghaf AI, voice entry, advanced statistics and every widget.")
-                        .foregroundStyle(theme.secondaryText)
+                        .foregroundStyle(.white.opacity(0.72))
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -125,38 +128,50 @@ struct GhafProView: View {
                 if offerHighlight {
                     VStack(spacing: 10) {
                         Label(ar ? "هدية قبل الرحيل" : "A gift before you go", systemImage: "gift.fill")
-                            .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(theme.primaryText)
+                            .font(GhafTypography.heading(18, languageCode: lang)).foregroundStyle(.white)
                         Text(ar ? "خصم 25٪ لمرة واحدة على غاف برو" : "One-time 25% off Ghaf Pro")
-                            .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            .font(GhafTypography.body(15, languageCode: lang)).foregroundStyle(.white.opacity(0.72))
                         Button(ar ? "استرداد العرض" : "Claim offer") { redeeming = true }
                             .ghafProminentButton(theme: theme, languageCode: lang)
                             .disabled(!GhafFeatureFlags.appStoreAccount)
                             .opacity(GhafFeatureFlags.appStoreAccount ? 1 : 0.4)
                         Text(ar ? "يتوفر عند إطلاق غاف في متجر التطبيقات." : "Available when Ghaf is on the App Store.")
-                            .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(theme.secondaryText)
+                            .font(GhafTypography.body(12, languageCode: lang)).foregroundStyle(.white.opacity(0.62))
                             .multilineTextAlignment(.center)
                     }
-                    .padding(16).frame(maxWidth: .infinity).ghafCard(theme: theme)
+                    .padding(16).frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.14), lineWidth: 1))
                 }
                 VStack(alignment: .leading, spacing: 16) {
                     Label(ar ? "تقارير المتاجر والحسابات" : "Merchant and account reports", systemImage: "chart.bar")
                     Label(ar ? "ودجات للشاشة الرئيسية وشاشة القفل" : "Home and Lock Screen widgets", systemImage: "square.grid.2x2")
                     Label(ar ? "متابعة العمليات بالأنشطة المباشرة" : "Transaction updates with Live Activities", systemImage: "bolt")
                 }.frame(maxWidth: .infinity, alignment: .leading).padding()
-                VStack(spacing: 8) {
-                    planRow(annual: false)
-                    planRow(annual: true)
+                GeometryReader { geometry in
+                    let cardWidth = min(350, max(270, geometry.size.width - 48))
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 12) {
+                            planRow(annual: true, width: cardWidth)
+                            planRow(annual: false, width: cardWidth)
+                        }
+                        .scrollTargetLayout()
+                        .padding(.horizontal, 24)
+                    }
+                    .scrollTargetBehavior(.viewAligned)
+                    .scrollIndicators(.hidden)
+                    .accessibilityIdentifier("ghaf.pro.plan.carousel")
                 }
+                .frame(height: 190)
                 purchaseControls
                 // Apple 3.1.2: renewal terms on the paywall itself, next to the price.
-                VStack(spacing: 1) {
-                    Text(ar ? "يتجدد تلقائيًا بالسعر نفسه؛ ألغِ قبل نهاية الفترة بـ 24 ساعة على الأقل." : "Auto-renews at the same price; cancel at least 24 hours before the period ends.")
-                    Text(ar ? "يمكنك الإلغاء في أي وقت من إعدادات حساب آبل." : "Cancel anytime in your Apple Account settings.")
-                }
+                Text(ar
+                     ? (yearly ? "بعدها 99 د.إ سنويًا. ألغِ قبل 24 ساعة." : "بعدها 10 د.إ شهريًا. ألغِ قبل 24 ساعة.")
+                     : (yearly ? "Then AED 99 a year. Cancel 24 hours before." : "Then AED 10 a month. Cancel 24 hours before."))
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .frame(maxWidth: .infinity)
-                .font(.system(size: 10)).foregroundStyle(theme.secondaryText).multilineTextAlignment(.center)
+                .font(.system(size: 10)).foregroundStyle(.white.opacity(0.62)).multilineTextAlignment(.center)
                 HStack {
                     // Shown in every build; inactive until the App Store account exists.
                     Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
@@ -166,11 +181,11 @@ struct GhafProView: View {
                     NavigationLink(ar ? "الخصوصية" : "Privacy") { GhafPrivacyPolicyView(settings: settings) }
                 }.font(.footnote)
             }
-            .foregroundStyle(theme.primaryText)
+            .foregroundStyle(.white)
             .padding(20).frame(maxWidth: 560).frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .ghafBackground(theme: theme)
+        .background(immersiveBackground)
         .offerCodeRedemption(isPresented: $redeeming)
         .onDisappear { offerHighlight = false }
         .toolbar {
@@ -182,8 +197,7 @@ struct GhafProView: View {
             }
         }
         .task {
-            guard GhafFeatureFlags.appStoreAccount else { return }
-            await refreshEntitlements()
+            if GhafFeatureFlags.appStoreAccount { await refreshEntitlements() }
             await loadProducts()
         }
         .task {
@@ -199,8 +213,23 @@ struct GhafProView: View {
         .environment(\.layoutDirection, ar ? .rightToLeft : .leftToRight)
     }
 
-    private var availability: String {
-        ar ? "قريباً على App Store" : "Coming soon to the App Store"
+    private var immersiveBackground: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                Color(red: 0.018, green: 0.021, blue: 0.029)
+                Circle().fill(theme.accent.opacity(0.32))
+                    .frame(width: geometry.size.width * 0.86, height: geometry.size.width * 0.86)
+                    .blur(radius: 100)
+                    .offset(x: -geometry.size.width * 0.28, y: -geometry.size.width * 0.34)
+                Circle().fill(Color(red: 0.18, green: 0.30, blue: 0.48).opacity(0.18))
+                    .frame(width: geometry.size.width * 0.74, height: geometry.size.width * 0.74)
+                    .blur(radius: 96)
+                    .offset(x: geometry.size.width * 0.38, y: geometry.size.width * 0.05)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+        }
+        .ignoresSafeArea()
     }
 
     private func allowance(annual: Bool) -> String {
@@ -212,6 +241,8 @@ struct GhafProView: View {
     @ViewBuilder private var purchaseControls: some View {
         let selected = products.first { $0.id == (yearly ? yearlyID : monthlyID) }
         let active = GhafProAccess.hasAccess
+        let canStartTrial = selected?.subscription?.introductoryOffer != nil
+            && introOfferEligibility[selected?.id ?? ""] == true
         Button {
             busy = true
             Task {
@@ -229,9 +260,9 @@ struct GhafProView: View {
                 } catch { notice = error.localizedDescription }
             }
         } label: {
-            Text(GhafProAccess.hasAccessCode ? (ar ? "غاف برو فعّال (رمز)" : "Pro active (code)") : !GhafFeatureFlags.appStoreAccount ? availability : active ? (ar ? "اشتراك غاف برو فعّال" : "Pro is active") : selected == nil ? (ar ? "تحديث الأسعار" : "Reload prices") : (ar ? "اشتراك" : "Subscribe"))
+            Text(GhafProAccess.hasAccessCode ? (ar ? "غاف برو فعّال (رمز)" : "Pro active (code)") : active ? (ar ? "اشتراك غاف برو فعّال" : "Pro is active") : selected == nil ? (ar ? "الأسعار غير متاحة" : "Prices unavailable") : canStartTrial ? (ar ? "ابدأ التجربة المجانية" : "Start free trial") : (ar ? "اشترك" : "Subscribe"))
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
-            .ghafLightSweep(GhafFeatureFlags.appStoreAccount && !active && !busy)
+            .ghafLightSweep(!active && !busy && canStartTrial)
             .disabled(!GhafFeatureFlags.appStoreAccount || active || busy || selected == nil || isLoadingProducts)
         accessCodeControls
         do {
@@ -288,14 +319,14 @@ struct GhafProView: View {
         if GhafProAccess.hasAccessCode {
             HStack {
                 Text(ar ? "غاف برو فعّال (رمز)" : "Pro active (code)")
-                    .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.accent)
+            .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(.white.opacity(0.72))
                 Spacer()
                 Button(ar ? "إزالة الرمز" : "Remove code") {
                     GhafProAccess.removeAccessCode()
                     accessRevision += 1
                     notice = nil
                 }
-                .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
+                .font(GhafTypography.body(13, languageCode: lang, weight: .medium)).foregroundStyle(.white.opacity(0.68))
             }
             .id(accessRevision)
         } else if codeEntryVisible {
@@ -304,9 +335,11 @@ struct GhafProView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(GhafTypography.body(16, languageCode: lang))
+                    .foregroundStyle(.white)
+                    .tint(.white)
                     .padding(14)
-                    .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.outline, lineWidth: 1))
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.16), lineWidth: 1))
                     .accessibilityIdentifier("ghaf.pro.access-code")
                 Button {
                     let code = accessCode.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -342,47 +375,55 @@ struct GhafProView: View {
         }
     }
 
-    private func planRow(annual: Bool) -> some View {
+    private func planRow(annual: Bool, width: CGFloat) -> some View {
         let product = products.first(where: { $0.id == (annual ? yearlyID : monthlyID) })
         let offer = product?.subscription?.introductoryOffer
         return Button { yearly = annual } label: {
-            HStack(spacing: 12) {
-                Image(systemName: yearly == annual ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .medium)).foregroundStyle(yearly == annual ? theme.accent : theme.secondaryText)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(annual ? (ar ? "الكاملة" : "Complete") : (ar ? "الأساسية" : "Essentials"))
-                        .font(GhafTypography.heading(16, languageCode: lang))
-                    Text(annual ? (ar ? "سنوي" : "Yearly") : (ar ? "شهري" : "Monthly"))
-                        .font(GhafTypography.body(10, languageCode: lang, weight: .medium)).foregroundStyle(theme.secondaryText)
-                    Text(allowance(annual: annual))
-                        .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(theme.secondaryText).lineLimit(1)
-                    if let product, let offer, introOfferEligibility[product.id] == true {
-                        Text(trialText(offer.period))
-                            .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label(annual ? (ar ? "سنوي" : "Yearly") : (ar ? "شهري" : "Monthly"),
+                          systemImage: yearly == annual ? "checkmark.circle.fill" : "circle")
+                        .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
+                        .foregroundStyle(yearly == annual ? theme.accent : .white.opacity(0.72))
+                    Spacer()
+                    if annual {
+                        Text(ar ? "أفضل قيمة" : "Best value")
+                            .font(GhafTypography.body(10, languageCode: lang, weight: .bold))
+                            .foregroundStyle(.black.opacity(0.82))
+                            .padding(.horizontal, 9).padding(.vertical, 5)
+                            .background(.white.opacity(0.88), in: Capsule())
                     }
                 }
-                Spacer(minLength: 2)
-                VStack(alignment: .trailing, spacing: 3) {
-                    if let product { Text(product.displayPrice) }
-                    else if isLoadingProducts || (!productLoadFailed && GhafFeatureFlags.appStoreAccount) { ProgressView().controlSize(.small) }
-                    else { Text(ar ? "غير متاح" : "Unavailable").foregroundStyle(theme.secondaryText) }
+                HStack(alignment: .bottom, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(annual ? (ar ? "الكاملة" : "Complete") : (ar ? "الأساسية" : "Essentials"))
+                            .font(GhafTypography.heading(18, languageCode: lang))
+                        Text(allowance(annual: annual))
+                            .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(.white.opacity(0.62)).lineLimit(1)
+                        if let product, let offer, introOfferEligibility[product.id] == true {
+                            Text(trialText(offer.period))
+                                .font(GhafTypography.body(11, languageCode: lang, weight: .semibold)).foregroundStyle(theme.accent)
+                                .accessibilityIdentifier("ghaf.pro.trial.\(annual ? "yearly" : "monthly")")
+                        }
+                    }
+                    Spacer(minLength: 4)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        if let product {
+                            Text(product.displayPrice)
+                                .accessibilityIdentifier("ghaf.pro.price.\(annual ? "yearly" : "monthly")")
+                        }
+                        else if isLoadingProducts || !productLoadFailed { ProgressView().tint(.white).controlSize(.small) }
+                        else { Text(ar ? "غير متاح" : "Unavailable").foregroundStyle(.white.opacity(0.55)) }
+                    }
+                    .font(GhafTypography.body(15, languageCode: lang, weight: .semibold))
                 }
-                .font(GhafTypography.body(13, languageCode: lang, weight: .semibold))
             }
-            .padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 96)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(yearly == annual ? theme.accent : theme.outline, lineWidth: yearly == annual ? 1.5 : 1))
-            .overlay(alignment: .topTrailing) {
-                if annual {
-                    Text(ar ? "أفضل قيمة" : "Best value")
-                        .font(GhafTypography.body(9, languageCode: lang, weight: .bold))
-                        .foregroundStyle(theme.accentContrast)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(theme.accent, in: Capsule())
-                        .padding(.top, 8).padding(.trailing, 12)
-                }
-            }
+            .padding(.horizontal, 18).padding(.vertical, 22)
+            .frame(width: width, height: 164, alignment: .leading)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(yearly == annual ? theme.accent.opacity(0.85) : .white.opacity(0.16), lineWidth: yearly == annual ? 1.5 : 1))
         }.buttonStyle(.plain).accessibilityAddTraits(yearly == annual ? .isSelected : [])
     }
 
