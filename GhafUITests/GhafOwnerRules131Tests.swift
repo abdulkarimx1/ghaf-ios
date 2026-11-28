@@ -7,7 +7,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite",
                                "-GhafAppearance", "Light", "-GhafLanguage", "en"] + extra
         app.launch()
-        if waitTabBar { XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 30)) }
+        if waitTabBar { XCTAssertTrue(app.buttons["ghaf.tabbar.item.0"].waitForExistence(timeout: 30)) }
         return app
     }
 
@@ -56,7 +56,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
         splash.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let automationDone = app.buttons["Done"]
         if automationDone.waitForExistence(timeout: 3) { automationDone.tap() }
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["ghaf.tabbar.item.0"].waitForExistence(timeout: 10))
         XCUIDevice.shared.press(.home)
         Thread.sleep(forTimeInterval: 6)
         app.activate()
@@ -120,7 +120,7 @@ final class GhafOwnerRules131Tests: XCTestCase {
 
     /// Swipe-deletes the first Carrefour row; returns the Carrefour match count before deleting.
     private func swipeDeleteCarrefour(_ app: XCUIApplication) -> Int {
-        app.tabBars.buttons["Transactions"].tap()
+        app.buttons["ghaf.tabbar.item.3"].tap()
         let row = carrefourRows(app).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "Carrefour row missing")
         let before = carrefourRows(app).count
@@ -129,6 +129,27 @@ final class GhafOwnerRules131Tests: XCTestCase {
         XCTAssertTrue(trash.waitForExistence(timeout: 5), "Trash swipe action missing")
         trash.tap()
         return before
+    }
+
+    func testOwnerRule_CustomTabBarShrinksExpandsAndReselectExpands() throws {
+        for language in ["en", "ar"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-GhafFixture", "1", "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", language]
+            app.launch()
+            let selected = app.buttons["ghaf.tabbar.item.0"]
+            let other = app.buttons["ghaf.tabbar.item.3"]
+            XCTAssertTrue(selected.waitForExistence(timeout: 30))
+            XCTAssertTrue(other.exists)
+            let scroll = app.scrollViews.firstMatch
+            XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+            let origin = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.80))
+            origin.press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.77)))
+            XCTAssertFalse(other.waitForExistence(timeout: 0.3), "An 8 pt downward scroll should collapse nonselected tabs")
+            XCTAssertTrue(app.otherElements["ghaf.ai.tab-orb"].exists == false || !app.otherElements["ghaf.ai.tab-orb"].isHittable)
+            selected.tap()
+            XCTAssertTrue(other.waitForExistence(timeout: 2), "Reselecting the current tab should only expand the bar")
+            app.terminate()
+        }
     }
 
     func testOwnerRule_DeleteShowsUndoAndUndoRestoresRow() throws {

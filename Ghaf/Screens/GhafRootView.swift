@@ -420,23 +420,7 @@ final class GhafTabRouter {
     var typeQuestion: (() -> Void)?
     var pendingMilestone: Int?
     var isSaveSplashPresented = false
-    /// Scroll-derived mirror of iOS 26's native bar state for the separately overlaid AI orb.
-    /// SwiftUI exposes the minimize behavior but no public readback of the bar's actual state.
     var isTabBarMinimized = false
-    /// A brief public `.never` interval expands the native bar after an upward drag.
-    var isForcingTabBarExpanded = false
-    var tabBarExpansionGeneration = 0
-}
-
-/// Native minimize-on-scroll, iOS 26 only.
-private struct GhafTabBarMinimize: ViewModifier {
-    @Environment(GhafTabRouter.self) private var router
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.tabBarMinimizeBehavior(router.isForcingTabBarExpanded ? .never : .onScrollDown)
-        } else { content }
-    }
 }
 
 extension View {
@@ -461,7 +445,6 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
         var verticalOffset: CGFloat
         var verticalRange: CGFloat
         var horizontalRange: CGFloat
-        var verticalViewport: CGFloat
     }
 
     func body(content: Content) -> some View {
@@ -470,22 +453,12 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
                 .onScrollGeometryChange(for: ScrollMetrics.self) {
                     ScrollMetrics(verticalOffset: $0.contentOffset.y + $0.contentInsets.top,
                                   verticalRange: max(0, $0.contentSize.height - $0.containerSize.height),
-                                  horizontalRange: max(0, $0.contentSize.width - $0.containerSize.width),
-                                  verticalViewport: $0.containerSize.height)
+                                  horizontalRange: max(0, $0.contentSize.width - $0.containerSize.width))
                 } action: { old, new in
                     guard router.selectedTab != 1 else { return }
                     // A horizontal carousel can be the first descendant scroll view on a screen;
                     // leave the bar state alone while its horizontal range dominates.
                     guard new.horizontalRange <= new.verticalRange else { return }
-                    // Short pages cannot reliably drive native minimization; keep the orb visible there.
-                    guard new.verticalRange >= new.verticalViewport else {
-                        lastDirection = 0
-                        directionTravel = 0
-                        router.tabBarExpansionGeneration += 1
-                        router.isForcingTabBarExpanded = false
-                        router.isTabBarMinimized = false
-                        return
-                    }
                     // Rubber-band offsets and their settling motion are not user scroll direction.
                     guard (0...new.verticalRange).contains(new.verticalOffset),
                           (0...old.verticalRange).contains(old.verticalOffset) else {
@@ -502,8 +475,6 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
                     if new.verticalRange <= 0 || new.verticalOffset <= 20 {
                         lastDirection = 0
                         directionTravel = 0
-                        router.tabBarExpansionGeneration += 1
-                        router.isForcingTabBarExpanded = false
                         router.isTabBarMinimized = false
                         return
                     }
@@ -517,33 +488,15 @@ private struct GhafReportsTabBarMinimize: ViewModifier {
                         directionTravel = abs(delta)
                     }
 
-                    // The native bar starts minimizing on the first downward movement. Measurements
-                    // on Transactions show the bar collapsed between 8 and 20 pt of initial travel.
                     if directionTravel >= 8, direction > 0 {
-                        if router.isForcingTabBarExpanded {
-                            router.tabBarExpansionGeneration += 1
-                            router.isForcingTabBarExpanded = false
-                        }
-                        if router.isTabBarMinimized == false { router.isTabBarMinimized = true }
-                    } else if directionTravel >= 8, direction < 0, !router.isForcingTabBarExpanded {
-                        // `.onScrollDown` on iOS 26 stays minimized during upward movement until the
-                        // scroll reaches the top. Temporarily switching to `.never` expands it publicly.
-                        router.tabBarExpansionGeneration += 1
-                        let generation = router.tabBarExpansionGeneration
-                        router.isForcingTabBarExpanded = true
-                        Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(280))
-                            guard router.tabBarExpansionGeneration == generation else { return }
-                            router.isForcingTabBarExpanded = false
-                            router.isTabBarMinimized = false
-                        }
+                        router.isTabBarMinimized = true
+                    } else if directionTravel >= 4, direction < 0 {
+                        router.isTabBarMinimized = false
                     }
                 }
                 .onChange(of: router.selectedTab) { _, _ in
                     lastDirection = 0
                     directionTravel = 0
-                    router.tabBarExpansionGeneration += 1
-                    router.isForcingTabBarExpanded = false
                     router.isTabBarMinimized = false
                 }
         } else {
@@ -557,7 +510,6 @@ struct GhafTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.ghafGlass) private var glass
     @Query(filter: #Predicate<GhafTransaction> { $0.needsReview }) private var reviewItems: [GhafTransaction]
     @Query(filter: #Predicate<GhafTransaction> { $0.isUnread }) private var unreadTransactions: [GhafTransaction]
     @Query(filter: #Predicate<GhafSubscription> { $0.needsConfirmation }) private var subscriptionReviewItems: [GhafSubscription]
@@ -614,9 +566,6 @@ struct GhafTabView: View {
 #endif
     }
 
-    /// iOS 26 draws the tab bar as a floating pill whose icon line sits lower than the classic bar's.
-    private static var floatingTabBar: Bool { if #available(iOS 26, *) { true } else { false } }
-
     private var homeTab: some View {
         GhafHomeView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
@@ -631,13 +580,13 @@ struct GhafTabView: View {
     }
     private var aiTab: some View { GhafAIView(settings: settings) }
     private var statsTab: some View {
-        GhafStatsView(settings: settings)
+        GhafStatsView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 2) }
 #endif
     }
     private var moreTab: some View {
-        GhafSettingsView(settings: settings)
+        GhafSettingsView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 4) }
 #endif
@@ -666,33 +615,30 @@ struct GhafTabView: View {
                 withTransaction(Transaction(animation: nil)) { router.selectedTab = tab }
             }
         })
-        let homeLabel = tabIcon(Image(systemName: "house.fill"), settings.languageCode == "ar" ? "الرئيسية" : "Home", attentionCount: subscriptionReviewCount, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
-        let transactionsLabel = tabIcon(Image(systemName: "arrow.left.arrow.right"), settings.languageCode == "ar" ? "العمليات" : "Transactions", attentionCount: reviewCount, hasUnread: hasUnreadTransactions, accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
-        // A full-colour orb as the tab's own icon: unlike the monochrome tabs, and placed by iOS
-        // exactly where the tab is on every iPhone and tab bar layout.
-        let aiLabel = tabIcon(Image(uiImage: UIImage()),
-                              router.isListening ? (settings.languageCode == "ar" ? "غاف AI، يستمع" : "Ghaf AI, listening") : (settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI"))
-        let statsLabel = tabIcon(Image(systemName: "chart.bar.xaxis"), settings.languageCode == "ar" ? "الإحصائيات" : "Stats")
-        let moreLabel = tabIcon(Image(systemName: "person.crop.circle"), settings.languageCode == "ar" ? "حسابي" : "Profile")
         Group {
             if #available(iOS 18, *) {
-                // tabBarMinimizeBehavior only engages with the Tab builder API, not .tabItem.
                 TabView(selection: selection) {
-                    Tab(value: 0) { homeTab } label: { homeLabel }
-                    Tab(value: 3) { transactionsTab } label: { transactionsLabel }
-                    Tab(value: 1) { aiTab } label: { aiLabel }
-                    Tab(value: 2) { statsTab } label: { statsLabel }
-                    Tab(value: 4) { moreTab } label: { moreLabel }
+                    Tab(value: 0) { homeTab }
+                    Tab(value: 3) { transactionsTab }
+                    Tab(value: 1) { aiTab }
+                    Tab(value: 2) { statsTab }
+                    Tab(value: 4) { moreTab }
                 }
-                .modifier(GhafTabBarMinimize())
             } else {
                 TabView(selection: selection) {
-                    homeTab.tabItem { homeLabel }.tag(0)
-                    transactionsTab.tabItem { transactionsLabel }.tag(3)
-                    aiTab.tabItem { aiLabel }.tag(1)
-                    statsTab.tabItem { statsLabel }.tag(2)
-                    moreTab.tabItem { moreLabel }.tag(4)
+                    homeTab.tag(0)
+                    transactionsTab.tag(3)
+                    aiTab.tag(1)
+                    statsTab.tag(2)
+                    moreTab.tag(4)
                 }
+            }
+        }
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if router.selectedTab != 1 && !router.fullScreenPage {
+                floatingTabBar(selection: selection, theme: theme, reviewCount: reviewCount,
+                               hasUnread: hasUnreadTransactions, subscriptionReviewCount: subscriptionReviewCount)
             }
         }
 #if DEBUG
@@ -739,52 +685,6 @@ struct GhafTabView: View {
             NavigationStack { GhafTransactionDetailView(transaction: transaction, settings: settings, accounts: linkAccounts.filter { !$0.isArchived }) }
                 .ghafDirection(settings.languageCode)
         }
-        .overlay {
-            GeometryReader { geometry in
-                if subscriptionReviewCount > 0 {
-                    GhafTabAttentionMark(accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
-                        .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 * 2 + 12, y: geometry.size.height - 36)
-                        .allowsHitTesting(false)
-                }
-                if hasUnreadTransactions {
-                    GhafTabAttentionMark(accent: theme.accent, background: theme.background, reduceMotion: reduceMotion)
-                        .accessibilityIdentifier("transactions-unread-dot")
-                        .accessibilityLabel(settings.languageCode == "ar" ? "عملية جديدة" : "New transaction")
-                        .position(x: geometry.size.width / 2 - (geometry.size.width - 80) / 5 + 12, y: geometry.size.height - 36)
-                        .allowsHitTesting(false)
-                }
-                Group {
-                    if router.isListening || showOrbOverlay {
-                        GhafRouterLevelOrb(theme: theme)
-                            .frame(width: 112, height: 112)
-                            .scaleEffect(expandedOrb ? 1 : 26 / 112)
-                    } else {
-                        Image(uiImage: GhafAITabIcon.image(theme: theme, selected: router.selectedTab == 1))
-                            .resizable()
-                            .interpolation(.high)
-                            .scaledToFit()
-                            .frame(width: 40, height: 40)
-                    }
-                }
-                    .frame(width: 56, height: 56)
-                    .contentShape(Circle())
-                    .modifier(GhafOrbPressGesture(onTap: handleAITabOrbTap, onHold: handleAITabOrbHold))
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(settings.languageCode == "ar" ? "غاف AI" : "Ghaf AI")
-                    .accessibilityIdentifier("ghaf.ai.tab-orb")
-                    .accessibilityAction(named: Text(settings.languageCode == "ar" ? "اكتب سؤالاً" : "Type a question")) { handleAITabOrbHold() }
-                    .opacity(router.isTabBarMinimized ? 0 : 1)
-                    .allowsHitTesting(!router.isTabBarMinimized)
-                    .accessibilityHidden(router.isTabBarMinimized)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: router.isTabBarMinimized)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height - (Self.floatingTabBar ? 16 : 32)) // row 3: centre line of the tab icons
-            }
-            // V6: measured from the screen bottom, not the keyboard, so the orb stays on the tab bar.
-            .ignoresSafeArea(.keyboard, edges: .bottom)
-            .opacity(router.fullScreenPage || router.selectedTab == 1 ? 0 : 1)
-            .allowsHitTesting(!router.fullScreenPage && router.selectedTab != 1)
-        }
-        .modifier(GhafTabBarGlass(enabled: glass.enabled))
         .tint(theme.accent)
 #if DEBUG
         .onAppear {
@@ -1037,6 +937,78 @@ struct GhafTabView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { presentNextCard() }
     }
 
+    private func floatingTabBar(selection: Binding<Int>, theme: GhafTheme, reviewCount: Int,
+                                hasUnread: Bool, subscriptionReviewCount: Int) -> some View {
+        let ar = settings.languageCode == "ar"
+        let tabs: [(Int, String, String, Bool)] = [
+            (0, "house.fill", ar ? "الرئيسية" : "Home", subscriptionReviewCount > 0),
+            (3, "arrow.left.arrow.right", ar ? "العمليات" : "Transactions", hasUnread || reviewCount > 0),
+            (2, "chart.bar.xaxis", ar ? "الإحصائيات" : "Stats", false),
+            (4, "person.crop.circle", ar ? "حسابي" : "Profile", false)
+        ]
+        let motion: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.78)
+        return HStack(spacing: 8) {
+            HStack(spacing: router.isTabBarMinimized ? 0 : 2) {
+                ForEach(tabs.indices, id: \.self) { index in
+                    let tab = tabs[index]
+                    let selected = router.selectedTab == tab.0
+                    Button {
+                        if router.isTabBarMinimized {
+                            withAnimation(motion) { router.isTabBarMinimized = false }
+                        } else {
+                            selection.wrappedValue = tab.0
+                        }
+                    } label: {
+                        Image(systemName: tab.1)
+                            .font(.system(size: 20, weight: selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? theme.primaryText : theme.secondaryText)
+                            .frame(width: 64, height: 50)
+                            .background(selected ? theme.primaryText.opacity(0.12) : .clear, in: Capsule())
+                            .overlay(alignment: .topTrailing) {
+                                if tab.3 {
+                                    GhafTabAttentionMark(accent: theme.accent, background: theme.surface, reduceMotion: reduceMotion)
+                                        .offset(x: -8, y: 5)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: router.isTabBarMinimized && !selected ? 0 : 64, height: 50)
+                    .opacity(router.isTabBarMinimized && !selected ? 0 : 1)
+                    .clipped()
+                    .accessibilityLabel(tab.2 + (tab.0 == 3 && reviewCount > 0 ? (ar ? ", \(reviewCount) للمراجعة" : ", \(reviewCount) to review") : ""))
+                    .accessibilityValue(tab.0 == 3 && hasUnread ? (ar ? "عملية جديدة" : "New transaction") : "")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .accessibilityIdentifier("ghaf.tabbar.item.\(tab.0)")
+                    .accessibilityHidden(router.isTabBarMinimized && !selected)
+                }
+            }
+            .padding(6)
+            .frame(height: 62)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(theme.outline.opacity(0.55), lineWidth: 1))
+            .animation(motion, value: router.isTabBarMinimized)
+
+            GhafTabOrbControl(theme: theme, listening: router.isListening || showOrbOverlay,
+                              expanded: expandedOrb, hidden: router.isTabBarMinimized,
+                              onTap: handleAITabOrbTap, onHold: handleAITabOrbHold, onType: handleAITabOrbHold,
+                              ar: ar)
+                .frame(width: 62, height: 62)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(theme.outline.opacity(0.55), lineWidth: 1))
+                .scaleEffect(reduceMotion || !router.isTabBarMinimized ? 1 : 0.2)
+                .opacity(router.isTabBarMinimized ? 0 : 1)
+                .allowsHitTesting(!router.isTabBarMinimized)
+                .accessibilityHidden(router.isTabBarMinimized)
+                .animation(motion, value: router.isTabBarMinimized)
+                .accessibilityIdentifier("ghaf.ai.tab-orb")
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 26)
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .bottom)
+        .accessibilityIdentifier("ghaf.tabbar")
+    }
+
     private func handleAITabOrbTap() {
         guard router.selectedTab == 1 else {
             router.selectedTab = 1
@@ -1061,21 +1033,35 @@ struct GhafTabView: View {
     }
 }
 
-private struct GhafTabBarGlass: ViewModifier {
-    let enabled: Bool
-    @ViewBuilder func body(content: Content) -> some View {
-        if enabled { content.toolbarBackground(.ultraThinMaterial, for: .tabBar) }
-        else { content }
-    }
-}
+private struct GhafTabOrbControl: View {
+    let theme: GhafTheme
+    let listening: Bool
+    let expanded: Bool
+    let hidden: Bool
+    let onTap: () -> Void
+    let onHold: () -> Void
+    let onType: () -> Void
+    let ar: Bool
 
-extension GhafTabView {
-    /// Tabs show icons only; the title is still what VoiceOver reads.
-    fileprivate func tabIcon(_ image: Image, _ title: String, attentionCount: Int = 0, hasUnread: Bool = false,
-                             accent: Color = .accentColor, background: Color = .black,
-                             reduceMotion: Bool = false) -> some View {
-        image.accessibilityLabel(attentionCount > 0 ? "\(title), \(attentionCount) to review" : title)
-            .accessibilityValue(hasUnread ? (title == "Transactions" ? "New transaction" : "عملية جديدة") : "")
+    var body: some View {
+        Group {
+            if listening {
+                GhafRouterLevelOrb(theme: theme)
+                    .frame(width: 112, height: 112)
+                    .scaleEffect(expanded ? 1 : 26 / 112)
+            } else {
+                Image(uiImage: GhafAITabIcon.image(theme: theme, selected: false))
+                    .resizable().interpolation(.high).scaledToFit().frame(width: 40, height: 40)
+            }
+        }
+        .frame(width: 56, height: 56)
+        .contentShape(Circle())
+        .modifier(GhafOrbPressGesture(onTap: onTap, onHold: onHold))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(listening ? (ar ? "غاف AI، يستمع" : "Ghaf AI, listening") : (ar ? "غاف AI" : "Ghaf AI"))
+        .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question"), onType)
+        .accessibilityHidden(hidden)
+        .allowsHitTesting(!hidden)
     }
 }
 
