@@ -41,6 +41,33 @@ private struct GhafChatMessage: Identifiable {
     }
 }
 
+private struct GhafProGlow: View {
+    let theme: GhafTheme
+    let reduceMotion: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                glow(Color(red: 0.78, green: 0.82, blue: 0.88).opacity(0.45), size: 520, duration: 10, x: 120, y: 100)
+                glow(Color(red: 0.42, green: 0.55, blue: 0.72).opacity(0.35), size: 520, duration: 12, x: -130, y: 20)
+                glow(Color(red: 0.72, green: 0.82, blue: 0.96).opacity(0.35), size: 520, duration: 14, x: 20, y: -120)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func glow(_ color: Color, size: CGFloat, duration: Double, x: CGFloat, y: CGFloat) -> some View {
+        Circle().fill(color).frame(width: size, height: size).blur(radius: 90)
+            .phaseAnimator([false, true]) { content, phase in
+                content.offset(x: reduceMotion ? 0 : (phase ? x : -x), y: reduceMotion ? 0 : (phase ? y : -y))
+            } animation: { _ in
+                .easeInOut(duration: duration).repeatForever(autoreverses: true)
+            }
+    }
+}
+
 struct GhafAIView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
@@ -59,6 +86,7 @@ struct GhafAIView: View {
     @StateObject private var recorder = GhafSpeechRecorder()
     @StateObject private var liveCall = GhafLiveCall()
     @State private var progress = GhafAIProgress.shared
+    @State private var completedProgressStages: [GhafAIStage] = []
     @State private var prompt = ""
     @State private var isTyping = false
     @State private var microphoneOff = false
@@ -96,6 +124,7 @@ struct GhafAIView: View {
     @State private var showVoicePicker = false
     @State private var voiceUsage: GhafVoiceUsage?
     @State private var voiceLimitReached = false
+    @State private var voiceStartedAt = Date.now
     @State private var voiceGoodbyePlaying = false
     @State private var hasProAccess = GhafProAccess.hasAccess
     @State private var proAccessKnown = GhafProAccess.isKnown
@@ -115,7 +144,6 @@ struct GhafAIView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 header
-                voiceOrbControl
                 if messages.isEmpty {
                     ScrollView { welcome }
                         .scrollDismissesKeyboard(.interactively)
@@ -136,18 +164,21 @@ struct GhafAIView: View {
                         }
                         .defaultScrollAnchor(.bottom)
                         .scrollDismissesKeyboard(.interactively)
-                        .safeAreaInset(edge: .bottom, spacing: 0) {
-                            VStack(spacing: 8) {
-                                if microphoneOff { microphonePermissionHint }
-                            }
-                            .padding(.bottom, 12)
-                        }
+                        .padding(.bottom, 16)
                         .onChange(of: messages.last?.text) { _, _ in
                             withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(messages.last?.id, anchor: .bottom) }
                         }
                     }
                 }
                 if isTyping { typingInput.transition(.move(edge: .bottom).combined(with: .opacity)) }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 4) {
+                    if microphoneOff { microphonePermissionHint }
+                    if !isTyping { voiceOrbControl }
+                }
+                .padding(.bottom, 24)
+                .background(.clear)
             }
             .background {
                 ZStack(alignment: .bottom) {
@@ -181,6 +212,9 @@ struct GhafAIView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GhafReloadAILimits"))) { _ in
                 Task { await reloadAILimits() }
+            }
+            .onChange(of: progress.stage) { oldStage, newStage in
+                if let oldStage, oldStage != newStage { completedProgressStages.append(oldStage) }
             }
             .onAppear {
                 isOnScreen = true
@@ -239,6 +273,17 @@ struct GhafAIView: View {
                                             suggestions: ChatFollowUp.suggestions(after: question,
                                                                                  languageCode: settings.languageCode))
                         ]
+                    }
+                    if GhafScreenshotFixture.destination == "ai-draft", messages.isEmpty {
+                        var draft = GhafVoiceTransactionParser.parse(
+                            settings.languageCode == "ar" ? "صرفت 32 على الطعام الساعة 9 مساءً" : "spent 32 on food at 9 pm",
+                            languageCode: settings.languageCode, baseCurrency: settings.currency
+                        ).first
+                        draft?.category = "Dining"
+                        draft?.accountID = accounts.first(where: { $0.isPrimary && !$0.isArchived })?.id
+                        if let draft {
+                            messages = [GhafChatMessage(isUser: false, text: settings.languageCode == "ar" ? "راجع العملية ثم احفظها:" : "Review this transaction, then save:", drafts: [draft])]
+                        }
                     }
                     if GhafScreenshotFixture.destination == "ai-subscription-answer", messages.isEmpty {
                         // Exercise the real ledger answer for subscription renewal dates in screenshots/tests.
@@ -318,53 +363,90 @@ struct GhafAIView: View {
     }
 
     private var aiProPaywall: some View {
-        VStack(spacing: 20) {
-            // Owner 1.31: free users see a blurred preview of the orb, with a lock on top.
-            GhafAIOrb(theme: theme, mood: .idle)
-                .frame(width: 150, height: 150)
-                .blur(radius: 2.5)
-                .overlay { Image(systemName: "lock.fill").font(.system(size: 26, weight: .semibold)).foregroundStyle(theme.primaryText) }
-                .accessibilityHidden(true)
-            Text(ar ? "غاف AI متاح لمشتركي غاف برو" : "Ghaf AI is for Pro members")
-                .font(GhafTypography.display(30, languageCode: settings.languageCode))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(theme.primaryText)
-            Text(ar ? "اسأل عن إنفاقك وحساباتك، وتحدث مع مساعدك الصوتي." : "Ask about your spending and accounts, and talk with your financial assistant.")
-                .font(GhafTypography.body(16, languageCode: settings.languageCode))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(theme.secondaryText)
-            VStack(spacing: 12) {
-                Button { showProSheet = true } label: {
-                    Text(ar ? "الأساسية · 3 ردود صوتية يوميًا" : "Essentials · 3 voice replies a day")
-                        .frame(maxWidth: .infinity)
-                }.ghafProminentButton(theme: theme, languageCode: settings.languageCode)
-                Button { showProSheet = true } label: {
-                    Text(ar ? "الكاملة · 10 ردود صوتية يوميًا" : "Complete · 10 voice replies a day")
-                        .frame(maxWidth: .infinity)
-                }.ghafGlassButton(theme: theme, languageCode: settings.languageCode)
+        VStack(spacing: 22) {
+            Label(ar ? "غاف برو" : "Ghaf Pro", systemImage: "sparkles")
+                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold)).foregroundStyle(theme.secondaryText)
+            VStack(spacing: 2) {
+                Text(ar ? "تحدّث إلى أموالك." : "Talk to your money.")
+                    .font(GhafTypography.display(34, languageCode: settings.languageCode)).foregroundStyle(theme.primaryText)
+                let accent = ar ? "واسمع إجابتها." : "Hear it answer."
+                Text(accent)
+                    .font(GhafTypography.display(34, languageCode: settings.languageCode))
+                    .foregroundStyle(theme.accent)
+                    .overlay {
+                        if !reduceMotion {
+                            GhafProGlow(theme: theme, reduceMotion: false)
+                                .mask(Text(accent).font(GhafTypography.display(34, languageCode: settings.languageCode)))
+                                .compositingGroup()
+                                .blendMode(theme.isDark ? .screen : .multiply)
+                        }
+                    }
             }
-            .frame(maxWidth: 360)
+            .multilineTextAlignment(.center)
+            Text(ar ? "اسأل عن أي شيء في مصروفك، وأضف عملياتك بصوتك، واستمع إلى ردّ حمد أو مريم." : "Ask anything about your spending, add transactions by voice, and hear Hamad or Mariam reply.")
+                .font(GhafTypography.body(16, languageCode: settings.languageCode)).multilineTextAlignment(.center).foregroundStyle(theme.primaryText)
+                .frame(maxWidth: 360)
+            VStack(spacing: 8) {
+                Button { showProSheet = true } label: { Text(ar ? "اشترك في غاف برو" : "Subscribe to Ghaf Pro").frame(maxWidth: .infinity) }
+                    .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
+                Button { showProSheet = true } label: { Text(ar ? "عرض الخطط" : "See plans").frame(minHeight: 44) }
+                    .buttonStyle(.plain).foregroundStyle(theme.primaryText)
+            }.frame(maxWidth: 360)
         }
-        .padding(28)
+        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.background)
+        .background {
+            ZStack {
+                theme.background
+                GhafProGlow(theme: theme, reduceMotion: reduceMotion).allowsHitTesting(false)
+            }
+        }
         .accessibilityIdentifier("ghaf.ai.pro-paywall")
     }
 
     private var progressLine: some View {
         Group {
-            if let stage = progress.stage {
-                Text(stage.label(languageCode: settings.languageCode))
-                    .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
-                    .foregroundStyle(theme.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .id(stage)
-                    .transition(.opacity)
-                    .accessibilityAddTraits(.updatesFrequently)
+            if !completedProgressStages.isEmpty || progress.stage != nil {
+                VStack(spacing: 8) {
+                    ForEach(completedProgressStages.indices, id: \.self) { index in
+                        progressChip(completedProgressStages[index], active: false)
+                    }
+                    if let stage = progress.stage { progressChip(stage, active: true).id(stage) }
+                }
+                .transition(.opacity)
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: progress.stage)
+    }
+
+    private func progressChip(_ stage: GhafAIStage, active: Bool) -> some View {
+        HStack(spacing: 9) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(4), spacing: 2), count: 3), spacing: 2) {
+                ForEach(0..<9, id: \.self) { index in
+                    if !active {
+                        RoundedRectangle(cornerRadius: 1).fill(theme.accent.opacity(0.4)).frame(width: 4, height: 4)
+                    } else if active {
+                        RoundedRectangle(cornerRadius: 1).fill(theme.accent)
+                            .frame(width: 4, height: 4)
+                            .phaseAnimator(reduceMotion ? [0.6] : [0.15, 1.0]) { dot, phase in
+                                dot.opacity(phase)
+                            } animation: { _ in .easeInOut(duration: 1.1).delay(Double(index) * 0.08) }
+                    } else {
+                        RoundedRectangle(cornerRadius: 1).fill(theme.accent.opacity(0.15)).frame(width: 4, height: 4)
+                    }
+                }
+            }
+            .frame(width: 16, height: 16)
+            Text(stage.label(languageCode: settings.languageCode) + (active && reduceMotion ? " …" : ""))
+                .font(ar ? GhafTypography.body(14, languageCode: settings.languageCode, weight: .medium) : .system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(theme.secondaryText)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(theme.primaryText.opacity(0.06), in: Capsule())
+        .frame(maxWidth: .infinity)
+        .accessibilityAddTraits(active ? .updatesFrequently : [])
     }
 
     // MARK: Header
@@ -576,26 +658,82 @@ struct GhafAIView: View {
     }
 
     private var voiceOrbControl: some View {
-        VStack(spacing: 4) {
-            GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
-                .onChange(of: orbLevel) { _, level in tabRouter.voiceLevel = level }
-                .frame(width: 72, height: 72)
-                .contentShape(Circle())
-                .modifier(GhafOrbPressGesture(
-                    onTap: { guard hasProAccess else { return }; toggleVoiceInput() },
-                    onHold: { guard hasProAccess else { return }; openTyping() }
-                ))
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
-                .accessibilityIdentifier("ghaf.ai.orb")
-                .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
-                .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
+        Group {
+            if orbMood == .listening {
+                VStack(spacing: 12) {
+                    orb(size: 183)
+                    HStack(spacing: 12) {
+                        TimelineView(.periodic(from: voiceStartedAt, by: 1)) { context in
+                            let seconds = max(0, Int(context.date.timeIntervalSince(voiceStartedAt)))
+                            Text(String(format: "%02d:%02d", seconds / 60, seconds % 60))
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        Spacer()
+                        Button {
+                            toggleVoiceInput()
+                        } label: {
+                            Label(ar ? "إيقاف" : "Stop", systemImage: "stop.fill")
+                                .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
+                        }
+                        .accessibilityIdentifier("ghaf.ai.stop-listening")
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity)
+                .background {
+                    ZStack(alignment: .bottom) {
+                        theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface
+                        LinearGradient(colors: [Color.blue.opacity(0.18), Color.purple.opacity(0.16), Color.orange.opacity(0.10), Color.mint.opacity(0.14)], startPoint: .leading, endPoint: .trailing)
+                            .frame(height: 16).blur(radius: 40)
+                    }
+                }
+                .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous).stroke(theme.outline, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            } else {
+                HStack(spacing: 12) {
+                    orb(size: 32)
+                    Text(ar ? "اضغط على الدائرة للتحدث" : "Tap the orb and talk")
+                        .font(GhafTypography.body(14, languageCode: settings.languageCode))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Button(action: openTyping) {
+                        Image(systemName: "keyboard")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(theme.primaryText)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel(ar ? "اكتب سؤالاً" : "Type a question")
+                }
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 74, maxHeight: 74)
+                .background(theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface)
+                .overlay(Capsule().stroke(theme.outline, lineWidth: 1))
+                .clipShape(Capsule())
+            }
             if hasProAccess, let voiceUsage { voiceLimitCounter(voiceUsage) }
         }
-        .frame(maxWidth: 220)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .padding(.top, 2)
-        .padding(.bottom, 4)
+        .padding(.top, 8)
+        .animation(reduceMotion ? nil : .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.55), value: orbMood == .listening)
+    }
+
+    private func orb(size: CGFloat) -> some View {
+        GhafAIOrb(theme: theme, mood: orbMood, level: orbLevel)
+            .onChange(of: orbLevel) { _, level in tabRouter.voiceLevel = level }
+            .frame(width: size, height: size)
+            .contentShape(Circle())
+            .modifier(GhafOrbPressGesture(
+                onTap: { guard hasProAccess else { return }; toggleVoiceInput() },
+                onHold: { guard hasProAccess else { return }; openTyping() }
+            ))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ar ? "غاف AI. اضغط للتحدث أو اضغط مطولاً للكتابة" : "Ghaf AI. Tap to talk or hold to type")
+            .accessibilityIdentifier("ghaf.ai.orb")
+            .accessibilityAction(named: Text(ar ? "تحدث" : "Talk")) { toggleVoiceInput() }
+            .accessibilityAction(named: Text(ar ? "اكتب سؤالاً" : "Type a question")) { openTyping() }
     }
 
     // MARK: Messages
@@ -717,44 +855,17 @@ struct GhafAIView: View {
         let state = message.wrappedValue.draftState
         return VStack(spacing: 10) {
             ForEach(message.drafts) { $draft in
-                HStack(alignment: .top, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Name and amount stay editable until saved, in case speech was misheard.
-                        GhafTextField(text: $draft.merchant, placeholder: ar ? "الاسم" : "Name", theme: theme, languageCode: settings.languageCode)
-                            .disabled(state != .pending)
-                        GhafCategoryPicker(category: $draft.category, subcategory: $draft.subcategory,
-                                           languageCode: settings.languageCode, tint: theme.accent)
-                            .font(GhafTypography.body(12, languageCode: settings.languageCode, weight: .semibold))
-                            .frame(minHeight: 56)
-                            .disabled(state != .pending)
-                        if state == .pending && isNewCategory(draft) {
-                            Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
-                                .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
-                                .foregroundStyle(theme.accentContrast)
-                                .padding(.horizontal, 7).padding(.vertical, 3)
-                                .background(theme.accent, in: Capsule())
-                        }
-                        if state == .pending {
-                            Picker(ar ? "الحساب" : "Account", selection: $draft.accountID) {
-                                let eligibleAccounts = accounts.filter { !$0.isArchived && $0.currency == draft.currency }
-                                Text(eligibleAccounts.isEmpty ? (ar ? "لا يوجد حساب متاح" : "No account available") : (ar ? "تلقائي" : "Automatic"))
-                                    .tag(UUID?.none)
-                                ForEach(eligibleAccounts) { account in
-                                    Text(account.name).tag(Optional(account.id))
-                                }
-                            }
-                            .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .medium))
-                            .tint(theme.primaryText)
-                            .frame(minHeight: 40)
-                        }
-                    }
-                    Spacer(minLength: 6)
-                    GhafAmountField(value: $draft.amountText, currency: draft.currency,
-                                    label: ar ? "المبلغ" : "Amount", theme: theme,
-                                    languageCode: settings.languageCode)
+                VStack(alignment: .leading, spacing: 8) {
+                    GhafTransactionSentenceCard(draft: $draft, accounts: accounts, transactions: transactions,
+                                                theme: theme, languageCode: settings.languageCode, enabled: state == .pending)
+                    GhafTextField(text: $draft.merchant, placeholder: ar ? "الاسم" : "Name", theme: theme, languageCode: settings.languageCode)
                         .disabled(state != .pending)
-                    .foregroundStyle(draft.direction == "credit" ? theme.credit : theme.primaryText)
-                    .environment(\.layoutDirection, .leftToRight)
+                    if state == .pending && isNewCategory(draft) {
+                        Label(ar ? "جديدة · تُضاف عند الحفظ" : "New · added when you save", systemImage: "sparkles")
+                            .font(GhafTypography.body(11, languageCode: settings.languageCode, weight: .bold))
+                            .foregroundStyle(theme.accentContrast).padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(theme.accent, in: Capsule())
+                    }
                 }
             }
             switch state {
@@ -762,13 +873,19 @@ struct GhafAIView: View {
                 HStack(spacing: 10) {
                     Button(ar ? "تجاهل" : "Discard") { message.wrappedValue.draftState = .discarded }
                         .ghafGlassButton(theme: theme, languageCode: settings.languageCode)
-                    Button(ar ? "تأكيد" : "Confirm") { saveDrafts(message) }
+                    Button { saveDrafts(message) } label: {
+                        Label(ar ? "تأكيد" : "Confirm", systemImage: "checkmark")
+                    }
                         .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
             case .saved:
-                Label(ar ? "تم الحفظ" : "Saved", systemImage: "checkmark.circle.fill")
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text(ar ? "تم الحفظ" : "Saved")
+                }
                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
                     .foregroundStyle(theme.credit)
+                    .transition(.scale.combined(with: .opacity))
             case .discarded:
                 Label(ar ? "تم التجاهل" : "Discarded", systemImage: "xmark.circle")
                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
@@ -779,6 +896,7 @@ struct GhafAIView: View {
         .frame(maxWidth: 340)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(theme.primaryText.opacity(0.14)))
+        .animation(.easeOut(duration: 0.35), value: state)
     }
 
     private var thinkingDots: some View {
@@ -880,6 +998,7 @@ struct GhafAIView: View {
     private func startVoice() {
         guard hasProAccess else { return }
         guard !voiceCharacter.isEmpty else { showVoicePicker = true; return }
+        completedProgressStages.removeAll()
         if GhafCloudAI.isEnabled, !liveVoiceOff {
             guard !liveCallActive else {
                 liveCall.end(reason: "user")
@@ -894,6 +1013,7 @@ struct GhafAIView: View {
         stopSpeaking()
         prompt = ""
         microphoneOff = false
+        voiceStartedAt = .now
         closeTyping()
         inputFocused = false
         // Bias recognition towards this user's own merchants and categories.
@@ -1134,6 +1254,7 @@ struct GhafAIView: View {
     private func send(_ raw: String, isVoice: Bool = false) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard hasProAccess, !text.isEmpty, !isThinking else { return }
+        completedProgressStages.removeAll()
         prompt = ""
         withAnimation(.snappy) { messages.append(GhafChatMessage(isUser: true, text: text, isVoice: isVoice)) }
         if liveCallActive { liveGroundingSources.append(text); liveCall.sendText(text); return }
@@ -1556,6 +1677,7 @@ struct GhafAIView: View {
 
     private var orbMood: GhafAIOrb.Mood {
         if voiceGoodbyePlaying { return .speaking }
+        if progress.stage == .listening { return .listening }
         if voiceMode {
             switch liveCall.phase {
             case .connecting, .thinking: return .thinking

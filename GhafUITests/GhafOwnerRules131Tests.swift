@@ -46,6 +46,44 @@ final class GhafOwnerRules131Tests: XCTestCase {
         }
     }
 
+    func testWave3ActivityCountsMatchSeededLedgerAndSchedule() throws {
+        let app = launch()
+        let activity = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Activity")).firstMatch
+        XCTAssertTrue(activity.waitForExistence(timeout: 10))
+        activity.tap()
+        XCTAssertTrue(app.buttons["activity.count.review"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["activity.count.due-soon"].exists)
+        XCTAssertTrue(app.buttons["activity.count.budget"].exists)
+        XCTAssertTrue(app.buttons["0 to review"].exists, "Fixture review queue has no pending transactions")
+        XCTAssertTrue(app.buttons["2 due soon"].exists, "Two seeded active subscriptions are due within seven days")
+        XCTAssertTrue(app.buttons["0 budget alerts"].exists, "Fixture BudgetCalculator status is comfortable")
+    }
+
+    func testWave3CategoryBudgetLoopPausesOnSelectionAndResumes() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-GhafFixture", "1", "-GhafScreen", "budget-salary-currency",
+                               "-GhafTheme", "Graphite", "-GhafAppearance", "Light", "-GhafLanguage", "en",
+                               "-GhafBudgetSlowRowRoll", "-GhafSelection", "category-budget-rows"]
+        app.launch()
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "budget.category.")).allElementsBoundByIndex
+        XCTAssertTrue(rows.first?.waitForExistence(timeout: 20) == true)
+        let firstVisible = try XCTUnwrap(rows.first(where: \.isHittable))
+        let initialY = firstVisible.frame.minY
+        Thread.sleep(forTimeInterval: 8.4)
+        XCTAssertNotEqual(firstVisible.frame.minY, initialY, accuracy: 1, "The category budget list should advance one row")
+        let tapTarget = try XCTUnwrap(rows.first(where: \.isHittable))
+        let row = app.buttons[tapTarget.identifier]
+        tapTarget.tap()
+        XCTAssertTrue(row.isSelected, "Tapping a visible category budget row should select it")
+        let selectedY = row.frame.minY
+        Thread.sleep(forTimeInterval: 2.4)
+        XCTAssertEqual(row.frame.minY, selectedY, accuracy: 1, "Selection should pause the rolling list")
+        row.tap()
+        XCTAssertFalse(row.isSelected, "Tapping the selected row again should resume the rolling list")
+        Thread.sleep(forTimeInterval: 8.4)
+        XCTAssertNotEqual(row.frame.minY, selectedY, accuracy: 1, "Deselecting should resume the rolling list")
+    }
+
 
     func testOwnerRule_InactivityRestartRefreshesAndSkipsOpenTransactionSheet() throws {
         let app = XCUIApplication()

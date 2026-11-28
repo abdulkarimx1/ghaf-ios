@@ -397,8 +397,13 @@ struct GhafDateRow: View {
         HStack(spacing: 12) {
             Text(title).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
                 .foregroundStyle(theme.primaryText).frame(maxWidth: .infinity, alignment: .leading)
-            DatePicker(title, selection: $selection, displayedComponents: components)
-                .labelsHidden().tint(theme.accent).environment(\.colorScheme, theme.isDark ? .dark : .light)
+            if components == [.hourAndMinute] {
+                DatePicker(title, selection: $selection, displayedComponents: components)
+                    .labelsHidden().datePickerStyle(.wheel).tint(theme.accent).environment(\.colorScheme, theme.isDark ? .dark : .light)
+            } else {
+                DatePicker(title, selection: $selection, displayedComponents: components)
+                    .labelsHidden().datePickerStyle(.graphical).tint(theme.accent).environment(\.colorScheme, theme.isDark ? .dark : .light)
+            }
         }
         .padding(.horizontal, 16).frame(minHeight: 56)
         .ghafCard(theme: theme, radius: 16)

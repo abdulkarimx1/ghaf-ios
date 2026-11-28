@@ -8,6 +8,7 @@ struct GhafVoiceEntryView: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \GhafAccount.sortOrder) private var accounts: [GhafAccount]
+    @Query private var transactions: [GhafTransaction]
 
     @StateObject private var recorder = GhafSpeechRecorder()
     @State private var transcript = ""
@@ -121,42 +122,11 @@ struct GhafVoiceEntryView: View {
 
                         ForEach($drafts) { $draft in
                             VStack(alignment: .leading, spacing: 10) {
-                                HStack(alignment: .firstTextBaseline) {
-                                    GhafTextField(text: $draft.merchant, placeholder: isArabic ? "اسم المتجر" : "Merchant", theme: theme, languageCode: settings.languageCode)
-                                    Spacer(minLength: 8)
-                                    GhafAmountField(value: $draft.amountText, currency: draft.currency,
-                                                    label: isArabic ? "المبلغ" : "Amount",
-                                                    theme: theme, languageCode: settings.languageCode)
-                                }
-                                VStack(alignment: .leading, spacing: 10) {
-                                    GhafSegmented(options: [("debit", isArabic ? "المصروف" : "Expense"), ("credit", isArabic ? "الدخل" : "Income")], selection: $draft.direction, theme: theme, languageCode: settings.languageCode)
-                                    // Owner 1.31: category as selectable pills in a stable order (a suggestion outside the list leads).
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 8) {
-                                            ForEach((settings.categories.contains(draft.category) ? [] : [draft.category]) + settings.categories, id: \.self) { category in
-                                                let picked = category == draft.category
-                                                Button { draft.category = category } label: {
-                                                    Text(GhafLocalization.category(category, languageCode: settings.languageCode))
-                                                        .font(GhafTypography.body(14, languageCode: settings.languageCode, weight: .semibold))
-                                                        .foregroundStyle(picked ? theme.accentContrast : theme.primaryText)
-                                                        .padding(.horizontal, 14).frame(minHeight: 40)
-                                                        .background(picked ? theme.accent : theme.primaryText.opacity(0.07), in: Capsule())
-                                                }
-                                                .buttonStyle(.ghafPress)
-                                                .accessibilityAddTraits(picked ? .isSelected : [])
-                                            }
-                                        }
-                                    }
-                                    .accessibilityLabel(isArabic ? "الفئة" : "Category")
-                                }
-                                GhafDateRow(title: isArabic ? "التاريخ والوقت" : "Date and time", selection: $draft.date, components: [.date, .hourAndMinute], theme: theme, languageCode: settings.languageCode)
-                                    .frame(minHeight: 56)
-                                    .font(GhafTypography.body(11, languageCode: settings.languageCode))
-                                    .tint(theme.accent)
+                                GhafTransactionSentenceCard(draft: $draft, accounts: accounts, transactions: transactions,
+                                                            theme: theme, languageCode: settings.languageCode, enabled: true)
+                                GhafTextField(text: $draft.merchant, placeholder: isArabic ? "اسم المتجر" : "Merchant", theme: theme, languageCode: settings.languageCode)
+                                GhafSegmented(options: [("debit", isArabic ? "المصروف" : "Expense"), ("credit", isArabic ? "الدخل" : "Income")], selection: $draft.direction, theme: theme, languageCode: settings.languageCode)
                             }
-                            .padding(13)
-                            .ghafGlassShape(theme: theme, shape: RoundedRectangle(cornerRadius: 15), fallback: theme.surface)
-                            .overlay(RoundedRectangle(cornerRadius: 15).stroke(theme.outline, lineWidth: 1))
                         }
 
                         if accounts.count > 1 {
