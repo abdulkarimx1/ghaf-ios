@@ -870,13 +870,19 @@ struct GhafAIView: View {
                 HStack(spacing: 10) {
                     Button(ar ? "تجاهل" : "Discard") { message.wrappedValue.draftState = .discarded }
                         .ghafGlassButton(theme: theme, languageCode: settings.languageCode)
-                    Button(ar ? "تأكيد" : "Confirm") { saveDrafts(message) }
+                    Button { saveDrafts(message) } label: {
+                        Label(ar ? "تأكيد" : "Confirm", systemImage: "checkmark")
+                    }
                         .ghafProminentButton(theme: theme, languageCode: settings.languageCode)
                 }
             case .saved:
-                Label(ar ? "تم الحفظ" : "Saved", systemImage: "checkmark.circle.fill")
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text(ar ? "تم الحفظ" : "Saved")
+                }
                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
                     .foregroundStyle(theme.credit)
+                    .transition(.scale.combined(with: .opacity))
             case .discarded:
                 Label(ar ? "تم التجاهل" : "Discarded", systemImage: "xmark.circle")
                     .font(GhafTypography.body(13, languageCode: settings.languageCode, weight: .bold))
@@ -887,6 +893,7 @@ struct GhafAIView: View {
         .frame(maxWidth: 340)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(theme.primaryText.opacity(0.14)))
+        .animation(.easeOut(duration: 0.35), value: state)
     }
 
     private var thinkingDots: some View {
