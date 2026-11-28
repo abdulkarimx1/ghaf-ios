@@ -144,7 +144,6 @@ struct GhafAIView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 header
-                voiceOrbControl
                 if messages.isEmpty {
                     ScrollView { welcome }
                         .scrollDismissesKeyboard(.interactively)
@@ -165,18 +164,21 @@ struct GhafAIView: View {
                         }
                         .defaultScrollAnchor(.bottom)
                         .scrollDismissesKeyboard(.interactively)
-                        .safeAreaInset(edge: .bottom, spacing: 0) {
-                            VStack(spacing: 8) {
-                                if microphoneOff { microphonePermissionHint }
-                            }
-                            .padding(.bottom, 12)
-                        }
+                        .padding(.bottom, 16)
                         .onChange(of: messages.last?.text) { _, _ in
                             withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(messages.last?.id, anchor: .bottom) }
                         }
                     }
                 }
                 if isTyping { typingInput.transition(.move(edge: .bottom).combined(with: .opacity)) }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 4) {
+                    if microphoneOff { microphonePermissionHint }
+                    if !isTyping { voiceOrbControl }
+                }
+                .padding(.bottom, 24)
+                .background(.clear)
             }
             .background {
                 ZStack(alignment: .bottom) {
@@ -682,9 +684,15 @@ struct GhafAIView: View {
                         .accessibilityIdentifier("ghaf.ai.stop-listening")
                     }
                 }
-                .padding(16)
+                .padding(12)
                 .frame(maxWidth: .infinity)
-                .background(theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface)
+                .background {
+                    ZStack(alignment: .bottom) {
+                        theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface
+                        LinearGradient(colors: [Color.blue.opacity(0.18), Color.purple.opacity(0.16), Color.orange.opacity(0.10), Color.mint.opacity(0.14)], startPoint: .leading, endPoint: .trailing)
+                            .frame(height: 16).blur(radius: 40)
+                    }
+                }
                 .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous).stroke(theme.outline, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
             } else {
@@ -703,8 +711,8 @@ struct GhafAIView: View {
                     }
                     .accessibilityLabel(ar ? "اكتب سؤالاً" : "Type a question")
                 }
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, minHeight: 74)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 74, maxHeight: 74)
                 .background(theme.isDark ? Color(red: 30/255, green: 31/255, blue: 35/255).opacity(0.86) : theme.surface)
                 .overlay(Capsule().stroke(theme.outline, lineWidth: 1))
                 .clipShape(Capsule())
@@ -714,7 +722,6 @@ struct GhafAIView: View {
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
-        .padding(.bottom, 12)
         .animation(reduceMotion ? nil : .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.55), value: orbMood == .listening)
     }
 
