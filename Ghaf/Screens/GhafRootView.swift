@@ -627,27 +627,30 @@ struct GhafTabView: View {
                 withTransaction(Transaction(animation: nil)) { router.selectedTab = tab }
             }
         })
-        Group {
-            if #available(iOS 18, *) {
-                TabView(selection: selection) {
-                    Tab(value: 0) { homeTab }
-                    Tab(value: 3) { transactionsTab }
-                    Tab(value: 1) { aiTab }
-                    Tab(value: 2) { statsTab }
-                    Tab(value: 4) { moreTab }
-                }
-            } else {
-                TabView(selection: selection) {
-                    homeTab.tag(0)
-                    transactionsTab.tag(3)
-                    aiTab.tag(1)
-                    statsTab.tag(2)
-                    moreTab.tag(4)
+        ZStack(alignment: .bottom) {
+            Group {
+                if #available(iOS 18, *) {
+                    TabView(selection: selection) {
+                        Tab(value: 0) { homeTab }
+                        Tab(value: 3) { transactionsTab }
+                        Tab(value: 1) { aiTab }
+                        Tab(value: 2) { statsTab }
+                        Tab(value: 4) { moreTab }
+                    }
+                } else {
+                    TabView(selection: selection) {
+                        homeTab.tag(0)
+                        transactionsTab.tag(3)
+                        aiTab.tag(1)
+                        statsTab.tag(2)
+                        moreTab.tag(4)
+                    }
                 }
             }
-        }
-        .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+            .toolbar(.hidden, for: .tabBar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: 100).accessibilityHidden(true)
+            }
             if router.selectedTab != 1 && !router.fullScreenPage {
                 floatingTabBar(selection: selection, theme: theme, reviewCount: reviewCount,
                                hasUnread: hasUnreadTransactions, subscriptionReviewCount: subscriptionReviewCount)
@@ -1019,7 +1022,6 @@ struct GhafTabView: View {
         .padding(.bottom, 26)
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .bottom)
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .accessibilityIdentifier("ghaf.tabbar")
     }
 
     private func handleAITabOrbTap() {
