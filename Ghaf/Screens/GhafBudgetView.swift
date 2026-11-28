@@ -305,6 +305,9 @@ struct GhafBudgetView: View {
                 .frame(height: CGFloat(showAllBudgetRows ? rows.count : min(rows.count, 3)) * categoryRowHeight)
                 .scrollIndicators(.hidden)
                 .scrollDisabled(true)
+                .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in budgetPageDragging = true }.onEnded { _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { budgetPageDragging = false }
+                })
                 .clipped()
                 .task(id: rows.map(\.name)) {
                     guard rows.count > 3, !reduceMotion, !showAllBudgetRows else { return }
