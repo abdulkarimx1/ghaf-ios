@@ -4,6 +4,7 @@ import SwiftUI
 import Testing
 import UIKit
 @testable import Ghaf
+import GhafCore
 
 enum SnapshotScreen: String, CaseIterable, Sendable {
     case home
@@ -41,6 +42,23 @@ struct SnapshotCase: Sendable, CustomTestStringConvertible {
 
 @Suite(.serialized, .snapshots(record: .missing))
 struct GhafSnapshotTests {
+    @Test
+    @MainActor
+    func activityCountsMatchLedgerAndSubscriptionFixture() {
+        let now = Date()
+        let settings = GhafSettings(currency: "AED", monthlyIncome: 4000, budgetMode: "Daily")
+        let parsed = ParsedTransaction(amount: 120, currency: "AED", merchant: "Cafe", date: now,
+                                       direction: .debit, confidence: 1, bank: nil)
+        let transaction = GhafTransaction(fingerprint: "activity-fixture", parsed: parsed, category: "Dining",
+                                          needsReview: true, isReversal: false)
+        let due = GhafSubscription(name: "Due", amount: 20, nextPaymentDate: Calendar.current.date(byAdding: .day, value: 2, to: now)!)
+        let later = GhafSubscription(name: "Later", amount: 20, nextPaymentDate: Calendar.current.date(byAdding: .day, value: 9, to: now)!)
+
+        #expect(GhafActivityCounts.reviewQueue([transaction]) == 1)
+        #expect(GhafActivityCounts.dueSoon([due, later], date: now).map(\.id) == [due.id])
+        #expect(GhafActivityCounts.budgetAlerts(settings: settings, transactions: [transaction], date: now) == 1)
+    }
+
     @Test
     func privacySensitiveAPIsHaveUsageDescriptions() throws {
         let info = Bundle.main.infoDictionary ?? [:]

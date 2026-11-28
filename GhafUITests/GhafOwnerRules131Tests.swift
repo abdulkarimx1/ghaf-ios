@@ -46,6 +46,19 @@ final class GhafOwnerRules131Tests: XCTestCase {
         }
     }
 
+    func testWave3ActivityCountsMatchSeededLedgerAndSchedule() throws {
+        let app = launch()
+        let activity = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Activity")).firstMatch
+        XCTAssertTrue(activity.waitForExistence(timeout: 10))
+        activity.tap()
+        XCTAssertTrue(app.buttons["activity.count.review"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["activity.count.due-soon"].exists)
+        XCTAssertTrue(app.buttons["activity.count.budget"].exists)
+        XCTAssertTrue(app.buttons["0 to review"].exists, "Fixture review queue has no pending transactions")
+        XCTAssertTrue(app.buttons["2 due soon"].exists, "Two seeded active subscriptions are due within seven days")
+        XCTAssertTrue(app.buttons["0 budget alerts"].exists, "Fixture BudgetCalculator status is comfortable")
+    }
+
 
     func testOwnerRule_InactivityRestartRefreshesAndSkipsOpenTransactionSheet() throws {
         let app = XCUIApplication()
