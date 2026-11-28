@@ -27,6 +27,7 @@ struct GhafRootView: View {
     @State private var isUnlocked = true
     @State private var authenticationMessage: String?
     @State private var authenticationInProgress = false
+    @State private var backgroundedAt: Date?
     #if DEBUG
     @State private var fixtureRouter = GhafTabRouter()
     #endif
@@ -132,6 +133,10 @@ struct GhafRootView: View {
             await GhafWidgetSync.endStale()
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                backgroundedAt = .now
+                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: "ghaf.security.backgroundAt")
+            }
             // Leaving Ghaf: refresh the morning/evening/weekly notes with today's numbers.
             if phase == .background {
                 GhafDigestNotifications.reschedule(context: modelContext)
@@ -143,10 +148,16 @@ struct GhafRootView: View {
                 Task { await GhafWidgetSync.endStale() }
             }
             if phase == .active { Task { await GhafExchangeRates.refreshIfStale() } }
-            if phase != .active {
-                if requiresAuthentication { isUnlocked = false }
-            } else if requiresAuthentication {
-                authenticateUser()
+            if phase == .active, requiresAuthentication {
+                let saved = UserDefaults.standard.double(forKey: "ghaf.security.backgroundAt")
+                let elapsed = backgroundedAt.map { Date.now.timeIntervalSince($0) }
+                    ?? (saved > 0 ? Date.now.timeIntervalSince1970 - saved : 0)
+                if GhafSecurityPolicy.shouldLock(backgroundDuration: elapsed,
+                                                 delaySeconds: settings.first?.autoLockDelaySeconds ?? 0) {
+                    isUnlocked = false
+                    authenticateUser()
+                }
+                backgroundedAt = nil
             }
         }
         .onChange(of: settings.first?.biometricLockEnabled) { _, enabled in

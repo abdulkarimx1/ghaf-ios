@@ -82,12 +82,14 @@ struct GhafSettingsView: View {
     @State private var categoryDraftName = ""
     @State private var showCategories = false
     @State private var proUnlocked = GhafProAccess.hasAccess
+    @State private var proMemberInfo: GhafProMemberInfo?
     @State private var selectedMilestone: Int?
     @State private var showPendingMilestoneProfile = false
     @State private var showProSheet = false
     @State private var redeemingVoucher = false
     @AppStorage("ghaf.ai.voiceCharacter") private var voiceCharacter = ""
     @AppStorage("ghaf.pad.mirrored") private var padMirrored = false
+    @AppStorage(GhafFormat.hideBalancesKey) private var hideBalances = false
 #if DEBUG
     @State private var fixtureGlassPresented = false
     @State private var fixtureProfilePresented = false
@@ -1248,39 +1250,81 @@ HStack(spacing: 8) {
                 ? "احمِ بياناتك المالية عند فتح التطبيق"
                 : "Protect your financial data when opening Ghaf"
         ) {
-            Toggle(isOn: Binding(
-                get: { settings.biometricLockEnabled ?? false },
-                set: { enabled in
+            let biometric = settings.biometricLockEnabled ?? false
+            let delay = settings.autoLockDelaySeconds ?? 0
+            let exportLocked = settings.backupExportLockEnabled ?? biometric
+            let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+            LazyVGrid(columns: columns, spacing: 12) {
+                securityTile(ar ? "قفل Face ID" : "Face ID lock", state: securityState(biometric), icon: biometric ? "faceid" : "faceid", active: biometric) {
+                    let enabled = !biometric
                     settings.biometricLockEnabled = enabled
-                    do {
-                        try modelContext.save()
-                    } catch {
-                        prompt = .message(languageCode == "ar"
-                            ? "تعذر حفظ إعداد الأمان."
-                            : "Could not save the security setting.")
+                    if enabled {
+                        if settings.autoLockDelaySeconds == nil { settings.autoLockDelaySeconds = 0 }
+                        if settings.backupExportLockEnabled == nil { settings.backupExportLockEnabled = true }
                     }
+                    persistSecuritySettings()
                 }
-            )) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(languageCode == "ar" ? "القفل بالبصمة أو رمز الجهاز" : "Require Face ID or device passcode")
-                        .font(GhafTypography.body(16, languageCode: languageCode, weight: .bold))
-                        .foregroundStyle(theme.primaryText)
-                    Text(languageCode == "ar"
-                        ? "يتطلب المصادقة عند فتح غاف أو العودة إليه."
-                        : "Authenticate when opening Ghaf or returning to it.")
-                        .font(GhafTypography.body(13, languageCode: languageCode))
-                        .foregroundStyle(theme.secondaryText)
+                securityTile(ar ? "القفل التلقائي" : "Auto-lock", state: autoLockLabel(delay), icon: "lock.clock", active: biometric, enabled: biometric) {
+                    settings.autoLockDelaySeconds = delay == 0 ? 60 : delay == 60 ? 300 : 0
+                    persistSecuritySettings()
+                }
+                securityTile(ar ? "إخفاء الأرصدة" : "Hide balances", state: securityState(hideBalances), icon: hideBalances ? "eye.slash.fill" : "eye", active: hideBalances) {
+                    hideBalances.toggle()
+                }
+                securityTile(ar ? "قفل التصدير" : "Export lock", state: securityState(exportLocked), icon: "square.and.arrow.up", active: exportLocked) {
+                    settings.backupExportLockEnabled = !exportLocked
+                    persistSecuritySettings()
                 }
             }
-            .tint(theme.accent)
-            .frame(minHeight: 52)
-
-            Text(languageCode == "ar"
-                ? "يستخدم غاف آلية المصادقة الآمنة في iOS. قد يطلب رمز دخول الجهاز إذا لم تكن البصمة متاحة."
-                : "Ghaf uses iOS device authentication. Your device passcode may be requested when biometrics are unavailable.")
-                .font(GhafTypography.body(11, languageCode: languageCode))
+            Text(ar ? "يمكنك استخدام رمز دخول iPhone كخيار احتياطي." : "Your iPhone passcode works as a backup.")
+                .font(GhafTypography.body(12, languageCode: languageCode))
                 .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func securityState(_ enabled: Bool) -> String {
+        enabled ? (ar ? "مفعّل" : "On") : (ar ? "متوقف" : "Off")
+    }
+
+    private func autoLockLabel(_ seconds: Int) -> String {
+        switch seconds {
+        case 60: return ar ? "بعد دقيقة" : "After 1 minute"
+        case 300: return ar ? "بعد 5 دقائق" : "After 5 minutes"
+        default: return ar ? "فوراً" : "Immediately"
+        }
+    }
+
+    private func persistSecuritySettings() {
+        do { try modelContext.save() }
+        catch {
+            modelContext.rollback()
+            prompt = .message(ar ? "تعذر حفظ إعداد الأمان." : "Could not save the security setting.")
+        }
+    }
+
+    private func securityTile(_ title: String, state: String, icon: String, active: Bool,
+                              enabled: Bool = true, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(active ? theme.accentContrast : theme.primaryText)
+                Text(title).font(GhafTypography.body(15, languageCode: languageCode, weight: .semibold))
+                    .foregroundStyle(active ? theme.accentContrast : theme.primaryText).lineLimit(1).minimumScaleFactor(0.78)
+                Text(state).font(GhafTypography.body(13, languageCode: languageCode))
+                    .foregroundStyle(active ? theme.accentContrast.opacity(0.8) : theme.secondaryText).lineLimit(1).minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .padding(14)
+            .background(active ? theme.accent : theme.elevatedSurface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(theme.outline.opacity(0.6), lineWidth: 1))
+            .opacity(enabled ? 1 : 0.48)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(title)
+        .accessibilityValue(state)
     }
 
     /// Budget and categories behind two big tabs, so the page is one card tall instead of two.
@@ -1755,6 +1799,24 @@ HStack(spacing: 8) {
     }
 
     private func createBackup() {
+        let exportLock = settings.backupExportLockEnabled ?? (settings.biometricLockEnabled == true)
+        guard exportLock else { createBackupFile(); return }
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            prompt = .message(ar ? "تعذر بدء المصادقة." : "Authentication is unavailable.")
+            return
+        }
+        context.evaluatePolicy(.deviceOwnerAuthentication,
+                               localizedReason: ar ? "أكّد هويتك لتصدير النسخة الاحتياطية." : "Confirm your identity to export the backup.") { success, _ in
+            Task { @MainActor in
+                guard GhafSecurityPolicy.canExport(authenticated: success) else { return }
+                createBackupFile()
+            }
+        }
+    }
+
+    private func createBackupFile() {
         do {
             backupURL = try GhafBackupService.export(context: modelContext)
             showBackupShare = true
