@@ -372,7 +372,7 @@ struct GhafAIView: View {
                 let accent = ar ? "واسمع إجابتها." : "Hear it answer."
                 Text(accent)
                     .font(GhafTypography.display(34, languageCode: settings.languageCode))
-                    .foregroundStyle(reduceMotion ? Color(red: 0.48, green: 0.60, blue: 0.76) : .white)
+                    .foregroundStyle(theme.accent)
                     .overlay {
                         if !reduceMotion {
                             GhafProGlow(theme: theme, reduceMotion: false).mask(Text(accent).font(GhafTypography.display(34, languageCode: settings.languageCode)))
