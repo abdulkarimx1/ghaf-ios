@@ -120,6 +120,9 @@ struct GhafBudgetView: View {
             if GhafScreenshotFixture.selection == "month" {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { scrollProxy.scrollTo("month-trend", anchor: .center) }
             }
+            if GhafScreenshotFixture.selection == "category-budget-rows" {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { scrollProxy.scrollTo("category-budget-rows", anchor: .center) }
+            }
 
 #endif
 }
@@ -309,6 +312,7 @@ struct GhafBudgetView: View {
                 }
                     }
                 }
+                .id("category-budget-rows")
                 .frame(height: CGFloat(showAllBudgetRows ? rows.count : min(rows.count, 3)) * categoryRowHeight)
                 .scrollIndicators(.hidden)
                 .scrollDisabled(true)
