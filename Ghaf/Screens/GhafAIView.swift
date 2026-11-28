@@ -41,6 +41,33 @@ private struct GhafChatMessage: Identifiable {
     }
 }
 
+private struct GhafProGlow: View {
+    let theme: GhafTheme
+    let reduceMotion: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                glow(theme.secondaryText.opacity(0.35), size: 520, duration: 10, x: 120, y: 100)
+                glow(theme.glow.opacity(0.48), size: 520, duration: 12, x: -130, y: 20)
+                glow(theme.accent.opacity(0.32), size: 520, duration: 14, x: 20, y: -120)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func glow(_ color: Color, size: CGFloat, duration: Double, x: CGFloat, y: CGFloat) -> some View {
+        Circle().fill(color).frame(width: size, height: size).blur(radius: 90)
+            .phaseAnimator([false, true]) { content, phase in
+                content.offset(x: reduceMotion ? 0 : (phase ? x : -x), y: reduceMotion ? 0 : (phase ? y : -y))
+            } animation: { _ in
+                .easeInOut(duration: duration).repeatForever(autoreverses: true)
+            }
+    }
+}
+
 struct GhafAIView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
@@ -341,10 +368,18 @@ struct GhafAIView: View {
                 .blur(radius: 2.5)
                 .overlay { Image(systemName: "lock.fill").font(.system(size: 26, weight: .semibold)).foregroundStyle(theme.primaryText) }
                 .accessibilityHidden(true)
-            Text(ar ? "غاف AI متاح لمشتركي غاف برو" : "Ghaf AI is for Pro members")
+            let title = ar ? "غاف AI متاح لمشتركي غاف برو" : "Ghaf AI is for Pro members"
+            Text(title)
                 .font(GhafTypography.display(30, languageCode: settings.languageCode))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(theme.primaryText)
+                .overlay {
+                    if !reduceMotion {
+                        GhafProGlow(theme: theme, reduceMotion: false)
+                            .mask(Text(title).font(GhafTypography.display(30, languageCode: settings.languageCode)).multilineTextAlignment(.center))
+                    }
+                }
+                .foregroundStyle(reduceMotion ? theme.glow : theme.primaryText)
             Text(ar ? "اسأل عن إنفاقك وحساباتك، وتحدث مع مساعدك الصوتي." : "Ask about your spending and accounts, and talk with your financial assistant.")
                 .font(GhafTypography.body(16, languageCode: settings.languageCode))
                 .multilineTextAlignment(.center)
@@ -363,7 +398,12 @@ struct GhafAIView: View {
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.background)
+        .background {
+            ZStack {
+                theme.background
+                GhafProGlow(theme: theme, reduceMotion: reduceMotion).allowsHitTesting(false)
+            }
+        }
         .accessibilityIdentifier("ghaf.ai.pro-paywall")
     }
 
