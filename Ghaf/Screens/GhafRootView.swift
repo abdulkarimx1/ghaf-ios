@@ -590,7 +590,9 @@ struct GhafTabView: View {
             .onAppear { speedReport = GhafPerformanceProbe.endTransition(on: 3) }
 #endif
     }
-    private var aiTab: some View { GhafAIView(settings: settings) }
+    private var aiTab: some View {
+        GhafAIView(settings: settings)
+    }
     private var statsTab: some View {
         GhafStatsView(settings: settings).ghafReportsTabBarMinimize()
 #if DEBUG
@@ -647,7 +649,6 @@ struct GhafTabView: View {
                     }
                 }
             }
-            .toolbar(.hidden, for: .tabBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 Color.clear.frame(height: 100).accessibilityHidden(true)
             }
