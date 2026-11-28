@@ -57,7 +57,6 @@ struct GhafProFeatureMask<Content: View>: View {
 
 struct GhafProView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let settings: GhafSettings
     var showsClose = true
@@ -87,7 +86,7 @@ struct GhafProView: View {
     private var lang: String { settings.languageCode }
     private var ar: Bool { lang == "ar" }
     private var theme: GhafTheme {
-        GhafTheme.resolve(name: settings.themeName, appearanceMode: settings.appearanceMode, systemIsDark: colorScheme == .dark)
+        GhafTheme.resolve(name: settings.themeName, appearanceMode: "Dark", systemIsDark: true)
     }
 
     init(settings: GhafSettings, showsClose: Bool = true, allowsHeroMotion: Bool = true) {
@@ -164,14 +163,6 @@ struct GhafProView: View {
                 }
                 .frame(height: 190)
                 purchaseControls
-                // Apple 3.1.2: renewal terms on the paywall itself, next to the price.
-                Text(ar
-                     ? (yearly ? "بعدها 99 د.إ سنويًا. ألغِ قبل 24 ساعة." : "بعدها 10 د.إ شهريًا. ألغِ قبل 24 ساعة.")
-                     : (yearly ? "Then AED 99 a year. Cancel 24 hours before." : "Then AED 10 a month. Cancel 24 hours before."))
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-                .frame(maxWidth: .infinity)
-                .font(.system(size: 10)).foregroundStyle(.white.opacity(0.62)).multilineTextAlignment(.center)
                 HStack {
                     // Shown in every build; inactive until the App Store account exists.
                     Button(ar ? "استرداد رمز" : "Redeem code") { redeeming = true }
@@ -186,6 +177,7 @@ struct GhafProView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .background(immersiveBackground)
+        .preferredColorScheme(.dark)
         .offerCodeRedemption(isPresented: $redeeming)
         .onDisappear { offerHighlight = false }
         .toolbar {
@@ -264,6 +256,13 @@ struct GhafProView: View {
         }.ghafProminentButton(theme: theme, languageCode: ar ? "ar" : "en")
             .ghafLightSweep(!active && !busy && canStartTrial)
             .disabled(!GhafFeatureFlags.appStoreAccount || active || busy || selected == nil || isLoadingProducts)
+        Text(ar
+             ? (yearly ? "بعدها 99 د.إ سنويًا. ألغِ قبل 24 ساعة." : "بعدها 10 د.إ شهريًا. ألغِ قبل 24 ساعة.")
+             : (yearly ? "Then AED 99 a year. Cancel 24 hours before." : "Then AED 10 a month. Cancel 24 hours before."))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .frame(maxWidth: .infinity)
+            .font(GhafTypography.body(11, languageCode: lang)).foregroundStyle(.white.opacity(0.72)).multilineTextAlignment(.center)
         accessCodeControls
         do {
             Button(ar ? "استعادة المشتريات" : "Restore purchases") {
@@ -409,8 +408,7 @@ struct GhafProView: View {
                     Spacer(minLength: 4)
                     VStack(alignment: .trailing, spacing: 3) {
                         if let product {
-                            Text(product.displayPrice)
-                                .accessibilityIdentifier("ghaf.pro.price.\(annual ? "yearly" : "monthly")")
+                            priceLabel(product, annual: annual)
                         }
                         else if isLoadingProducts || !productLoadFailed { ProgressView().tint(.white).controlSize(.small) }
                         else { Text(ar ? "غير متاح" : "Unavailable").foregroundStyle(.white.opacity(0.55)) }
@@ -425,6 +423,19 @@ struct GhafProView: View {
             .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(yearly == annual ? theme.accent.opacity(0.85) : .white.opacity(0.16), lineWidth: yearly == annual ? 1.5 : 1))
         }.buttonStyle(.plain).accessibilityAddTraits(yearly == annual ? .isSelected : [])
+    }
+
+    private func priceLabel(_ product: Product, annual: Bool) -> some View {
+        let currency = product.priceFormatStyle.currencyCode
+        let amount = GhafMoneyLabel.formatter(languageCode: lang, currency: currency).string(from: product.price as NSDecimalNumber)
+            ?? NSDecimalNumber(decimal: product.price).stringValue
+        return HStack(spacing: 4) {
+            GhafCurrencyIcon(currency: currency, size: 15)
+            Text(amount).font(GhafTypography.number(15, weight: .semibold))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(currency) \(amount)")
+        .accessibilityIdentifier("ghaf.pro.price.\(annual ? "yearly" : "monthly")")
     }
 
     private func trialText(_ period: Product.SubscriptionPeriod) -> String {
